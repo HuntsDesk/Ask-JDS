@@ -109,8 +109,14 @@ export function useThreads() {
               setThreads(prev => [newThread, ...prev]);
             }
           } else if (payload.eventType === 'DELETE') {
+            console.log('Deleting thread:', payload.old.id);
             threadMapRef.current.delete(payload.old.id);
-            setThreads(prev => prev.filter(thread => thread.id !== payload.old.id));
+            setThreads(prev => {
+              console.log('Previous threads:', prev);
+              const updated = prev.filter(thread => thread.id !== payload.old.id);
+              console.log('Updated threads:', updated);
+              return updated;
+            });
           } else if (payload.eventType === 'UPDATE') {
             const updatedThread = payload.new as Thread;
             threadMapRef.current.set(updatedThread.id, updatedThread);
@@ -218,12 +224,14 @@ export function useThreads() {
 
   const deleteThread = useCallback(async (id: string) => {
     try {
+      console.log('Deleting thread:', id);
       const { error } = await supabase
         .from('threads')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+      console.log('Thread deleted successfully');
     } catch (error) {
       console.error('Error deleting thread:', error);
       await logError(error, 'Delete Thread');

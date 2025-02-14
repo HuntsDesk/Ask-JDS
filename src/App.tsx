@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/lib/auth';
 import { AuthForm } from '@/components/auth-form';
@@ -22,7 +23,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return children;
 }
 
-function App() {
+function App(): React.ReactElement {
   return (
     <ErrorBoundary>
       <Router>

@@ -51,6 +51,7 @@ export default function Sidebar({
   const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
   const [editingThread, setEditingThread] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
+  const [threads, setThreads] = useState<Thread[]>([]);
 
   // Check for mobile on mount and window resize
   useEffect(() => {
@@ -114,6 +115,14 @@ export default function Sidebar({
   }, []);
 
   const groupedSessions = groupSessionsByDate(sessions);
+
+  const handleDelete = async (threadId: string) => {
+    try {
+      await onDeleteThread(threadId);
+    } catch (error) {
+      console.error('Failed to delete thread:', error);
+    }
+  };
 
   return (
     <div 
@@ -198,7 +207,7 @@ export default function Sidebar({
                     </ContextMenuItem>
                     <ContextMenuItem 
                       className="text-destructive"
-                      onClick={() => onDeleteThread(session.id)}
+                      onClick={() => handleDelete(session.id)}
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Delete
