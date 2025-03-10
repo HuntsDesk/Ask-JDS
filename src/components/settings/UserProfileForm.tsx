@@ -115,22 +115,7 @@ export function UserProfileForm() {
         throw error;
       }
 
-      // If email changed, update it in auth system
-      if (profileData.email !== user.email) {
-        const { error: emailError } = await supabase.auth.updateUser({
-          email: profileData.email
-        });
-        
-        if (emailError) {
-          throw emailError;
-        }
-        
-        toast({
-          title: 'Verification Required',
-          description: 'Please check your email to verify your new email address',
-          variant: 'default'
-        });
-      }
+      // Email update logic removed since field is now read-only
       
       // Refresh user data
       await refreshUser();
@@ -201,12 +186,18 @@ export function UserProfileForm() {
           name="email"
           type="email"
           value={profileData.email}
-          onChange={handleChange}
+          readOnly={true}
+          disabled={true}
+          className="opacity-75 cursor-not-allowed"
           placeholder="Email"
         />
       </div>
       
-      <Button type="submit" disabled={saving}>
+      <Button 
+        type="submit" 
+        disabled={saving}
+        className="bg-orange-500 hover:bg-orange-600 text-white"
+      >
         {saving ? (
           <>
             <LoadingSpinner className="mr-2 h-4 w-4" />
