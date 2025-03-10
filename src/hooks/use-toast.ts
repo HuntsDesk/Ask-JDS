@@ -5,6 +5,25 @@ import type { ToastActionElement, ToastProps } from '@/components/ui/toast';
 const TOAST_LIMIT = 1;
 const TOAST_REMOVE_DELAY = 1000000;
 
+// Global flag to prevent toasts during paywall
+let paywallActive = false;
+
+// Function to set paywall state
+export function setPaywallActive(active: boolean) {
+  paywallActive = active;
+  // If setting to active, dismiss all existing toasts
+  if (active) {
+    dispatch({ type: 'DISMISS_TOAST' });
+  }
+}
+
+export const ACTION_TYPES = {
+  ADD_TOAST: 'ADD_TOAST',
+  UPDATE_TOAST: 'UPDATE_TOAST',
+  DISMISS_TOAST: 'DISMISS_TOAST',
+  REMOVE_TOAST: 'REMOVE_TOAST',
+} as const;
+
 type ToasterToast = ToastProps & {
   id: string;
   title?: React.ReactNode;
@@ -12,21 +31,15 @@ type ToasterToast = ToastProps & {
   action?: ToastActionElement;
 };
 
-const actionTypes = {
-  ADD_TOAST: 'ADD_TOAST',
-  UPDATE_TOAST: 'UPDATE_TOAST',
-  DISMISS_TOAST: 'DISMISS_TOAST',
-  REMOVE_TOAST: 'REMOVE_TOAST',
-} as const;
+export type Toast = {
+  id: string;
+  title?: string;
+  description?: string;
+  action?: ToastActionElement;
+  variant?: 'default' | 'destructive';
+};
 
-let count = 0;
-
-function genId() {
-  count = (count + 1) % Number.MAX_SAFE_INTEGER;
-  return count.toString();
-}
-
-type ActionType = typeof actionTypes;
+type ActionType = typeof ACTION_TYPES;
 
 type Action =
   | {
@@ -134,20 +147,27 @@ function dispatch(action: Action) {
   });
 }
 
-type Toast = Omit<ToasterToast, 'id'>;
+function toast(props: Omit<ToasterToast, 'id'>) {
+  // If paywall is active, don't create the toast
+  if (paywallActive) {
+    return {
+      id: 'blocked-by-paywall',
+      dismiss: () => {},
+      update: () => {},
+    };
+  }
 
-function toast({ ...props }: Toast) {
-  const id = genId();
+  const id = crypto.randomUUID();
 
   const update = (props: ToasterToast) =>
     dispatch({
-      type: 'UPDATE_TOAST',
+      type: ACTION_TYPES.UPDATE_TOAST,
       toast: { ...props, id },
     });
-  const dismiss = () => dispatch({ type: 'DISMISS_TOAST', toastId: id });
+  const dismiss = () => dispatch({ type: ACTION_TYPES.DISMISS_TOAST, toastId: id });
 
   dispatch({
-    type: 'ADD_TOAST',
+    type: ACTION_TYPES.ADD_TOAST,
     toast: {
       ...props,
       id,
@@ -159,7 +179,7 @@ function toast({ ...props }: Toast) {
   });
 
   return {
-    id: id,
+    id,
     dismiss,
     update,
   };

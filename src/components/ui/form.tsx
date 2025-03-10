@@ -13,18 +13,26 @@ import {
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 
-const Form = FormProvider;
-
-type FormFieldContextValue<
+interface FormFieldContextValue<
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
-> = {
+> {
   name: TName;
-};
+}
+
+interface FormItemContextValue {
+  id: string;
+}
 
 const FormFieldContext = React.createContext<FormFieldContextValue>(
   {} as FormFieldContextValue
 );
+
+const FormItemContext = React.createContext<FormItemContextValue>(
+  {} as FormItemContextValue
+);
+
+const Form = FormProvider;
 
 const FormField = <
   TFieldValues extends FieldValues = FieldValues,
@@ -62,14 +70,6 @@ const useFormField = () => {
   };
 };
 
-type FormItemContextValue = {
-  id: string;
-};
-
-const FormItemContext = React.createContext<FormItemContextValue>(
-  {} as FormItemContextValue
-);
-
 const FormItem = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -105,8 +105,7 @@ const FormControl = React.forwardRef<
   React.ElementRef<typeof Slot>,
   React.ComponentPropsWithoutRef<typeof Slot>
 >(({ ...props }, ref) => {
-  const { error, formItemId, formDescriptionId, formMessageId } =
-    useFormField();
+  const { error, formItemId, formDescriptionId, formMessageId } = useFormField();
 
   return (
     <Slot
@@ -174,4 +173,6 @@ export {
   FormDescription,
   FormMessage,
   FormField,
+  FormFieldContext,
+  FormItemContext,
 };
