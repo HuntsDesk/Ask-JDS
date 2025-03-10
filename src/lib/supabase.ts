@@ -1,58 +1,184 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Create a global key for the Supabase client
+const GLOBAL_SUPABASE_KEY = '__SUPABASE_CLIENT__';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing required environment variables: VITE_SUPABASE_URL and/or VITE_SUPABASE_ANON_KEY');
+// Define a global type for the window object
+declare global {
+  interface Window {
+    [GLOBAL_SUPABASE_KEY]: ReturnType<typeof createClient<Database>>;
+    supabaseClient: ReturnType<typeof createClient<Database>>;
+  }
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    storage: localStorage,
-    flowType: 'pkce'
-  },
-  db: {
-    schema: 'public'
-  },
-  global: {
-    headers: {
-      'x-application-name': 'jds-app'
-    }
+// Track initialization state
+let isInitializing = false;
+let clientInitialized = false;
+
+// Check if we already have a client in the global scope
+if (typeof window !== 'undefined') {
+  console.log('Checking for existing Supabase client in global scope');
+  if (!(GLOBAL_SUPABASE_KEY in window)) {
+    console.log('No existing Supabase client found in global scope');
+  } else {
+    console.log('Found existing Supabase client in global scope');
+    clientInitialized = true;
   }
+}
+
+// Debug log
+console.log('Initializing Supabase client with:', {
+  url: import.meta.env.VITE_SUPABASE_URL,
+  hasAnonKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
+  storage: typeof window !== 'undefined' ? 'localStorage available' : 'no localStorage'
 });
 
-// Rate limiting configuration
-const RATE_LIMIT_WINDOW = 60000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 60; // 60 requests per minute
-
-class RateLimiter {
-  private requests: number[] = [];
-
-  isRateLimited(): boolean {
-    const now = Date.now();
-    this.requests = this.requests.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW);
-    
-    if (this.requests.length >= MAX_REQUESTS_PER_WINDOW) {
-      return true;
-    }
-    
-    this.requests.push(now);
-    return false;
-  }
-
-  getTimeUntilReset(): number {
-    if (this.requests.length === 0) return 0;
-    const oldestRequest = this.requests[0];
-    return Math.max(0, RATE_LIMIT_WINDOW - (Date.now() - oldestRequest));
-  }
+if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+  throw new Error('Missing Supabase environment variables');
 }
 
-const rateLimiter = new RateLimiter();
+// Function to get or create the Supabase client
+function getSupabaseClient() {
+  // Check if we already have a client in the global scope
+  if (typeof window !== 'undefined' && GLOBAL_SUPABASE_KEY in window) {
+    console.log('Using existing Supabase client from global scope');
+    return window[GLOBAL_SUPABASE_KEY];
+  }
+
+  // Prevent concurrent initialization
+  if (isInitializing) {
+    console.warn('Supabase client initialization already in progress, creating temporary client');
+    // Return a temporary instance that will be replaced once initialization completes
+    return createClient<Database>(
+      import.meta.env.VITE_SUPABASE_URL,
+      import.meta.env.VITE_SUPABASE_ANON_KEY,
+      {
+        auth: {
+          persistSession: true,
+          storageKey: 'ask-jds-auth-storage',
+          storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+          autoRefreshToken: true,
+          detectSessionInUrl: false
+        }
+      }
+    );
+  }
+
+  isInitializing = true;
+
+  // Create a new client
+  console.log('Creating new Supabase client instance');
+  const instance = createClient<Database>(
+    import.meta.env.VITE_SUPABASE_URL,
+    import.meta.env.VITE_SUPABASE_ANON_KEY,
+    {
+      auth: {
+        persistSession: true,
+        storageKey: 'ask-jds-auth-storage',
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+        autoRefreshToken: true,
+        detectSessionInUrl: false
+      },
+      global: {
+        fetch: customFetch
+      },
+      db: {
+        schema: 'public'
+      }
+    }
+  );
+
+  // Store the client in the global scope
+  if (typeof window !== 'undefined') {
+    window[GLOBAL_SUPABASE_KEY] = instance;
+    
+    // Also keep the old reference for backward compatibility
+    window.supabaseClient = instance;
+  }
+
+  clientInitialized = true;
+  isInitializing = false;
+  return instance;
+}
+
+// Custom fetch function with timeout
+function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const startTime = Date.now();
+  const requestId = Math.random().toString(36).substring(2, 9);
+  
+  // Extract URL for logging
+  const url = typeof input === 'string' 
+    ? new URL(input, window.location.origin).pathname
+    : input instanceof URL 
+      ? input.pathname
+      : 'Request';
+  
+  console.log(`[${requestId}] Starting Supabase request: ${url}`);
+  
+  // Check network status
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    console.warn(`[${requestId}] Network appears to be offline. This may cause the request to fail.`);
+  }
+  
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+    const duration = Date.now() - startTime;
+    
+    console.warn(`[${requestId}] Supabase fetch request timed out after 15 seconds: ${url} (${duration}ms)`);
+    
+    // Log additional information about the request
+    if (typeof input === 'string') {
+      const urlObj = new URL(input, window.location.origin);
+      console.warn(`[${requestId}] Timed out request details: Path: ${urlObj.pathname}, Search: ${urlObj.search}`);
+    }
+    
+    // Check network status
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      console.warn(`[${requestId}] Network appears to be offline. This may be causing the timeout.`);
+    }
+  }, 15000); // 15 second timeout for all Supabase requests
+  
+  const fetchPromise = fetch(input, {
+    ...init,
+    signal: controller.signal
+  });
+  
+  return fetchPromise
+    .then(response => {
+      const duration = Date.now() - startTime;
+      console.log(`[${requestId}] Completed Supabase request: ${url} (${duration}ms) - Status: ${response.status}`);
+      return response;
+    })
+    .catch(error => {
+      const duration = Date.now() - startTime;
+      console.error(`[${requestId}] Supabase request failed: ${url} (${duration}ms)`, error);
+      
+      // If this is an abort error from our timeout, provide a clearer message
+      if (error.name === 'AbortError') {
+        throw new Error(`Request to ${url} timed out after 15 seconds`);
+      }
+      
+      throw error;
+    })
+    .finally(() => {
+      clearTimeout(timeoutId);
+    });
+}
+
+// Export the singleton client
+export const supabase = getSupabaseClient();
+
+// Check if session is available and pre-fetch to warm up auth
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    console.log('Pre-fetching auth session to warm up connection...');
+    supabase.auth.getSession().catch(err => {
+      console.warn('Pre-fetch session failed:', err);
+    });
+  }, 100);
+}
 
 // Enhanced error logging with context
 export async function logError(
@@ -70,13 +196,6 @@ export async function logError(
       return;
     }
 
-    // Check rate limit
-    if (rateLimiter.isRateLimited()) {
-      const resetTime = rateLimiter.getTimeUntilReset();
-      console.warn(`Rate limit exceeded for error logging. Try again in ${resetTime}ms`);
-      return;
-    }
-
     const { error: insertError } = await supabase
       .from('error_logs')
       .insert([{
@@ -91,88 +210,5 @@ export async function logError(
     }
   } catch (logError) {
     console.error('Failed to log error:', logError);
-  }
-}
-
-// Test connection with retry logic and health check
-export async function testSupabaseConnection(retryCount = 0): Promise<boolean> {
-  try {
-    // Check auth service first
-    const { data: authData, error: authError } = await supabase.auth.getSession();
-    if (authError) {
-      console.error('Supabase auth error:', authError);
-      throw authError;
-    }
-
-    // Then check database connection
-    const { data, error } = await supabase
-      .from('threads')
-      .select('count')
-      .limit(1);
-    
-    if (error) {
-      console.error('Supabase database error:', error);
-      throw error;
-    }
-
-    console.log('Supabase connection successful');
-    return true;
-  } catch (error) {
-    console.error('Supabase connection error:', error);
-    
-    // Retry up to 3 times with exponential backoff
-    if (retryCount < 3) {
-      const delay = Math.pow(2, retryCount) * 1000;
-      console.log(`Retrying connection in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return testSupabaseConnection(retryCount + 1);
-    }
-    
-    return false;
-  }
-}
-
-// Initialize connection test
-testSupabaseConnection()
-  .then(isConnected => {
-    if (isConnected) {
-      console.log('Successfully connected to Supabase');
-    } else {
-      console.error('Failed to connect to Supabase after retries');
-    }
-  });
-
-// Input validation helpers
-export const validateInput = {
-  message: (content: string): boolean => {
-    return content.length > 0 && content.length <= 10000;
-  },
-  threadTitle: (title: string): boolean => {
-    return title.length > 0 && title.length <= 100;
-  },
-  userId: (id: string): boolean => {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id);
-  }
-};
-
-// Error types for better error handling
-export class SupabaseError extends Error {
-  constructor(message: string, public code?: string) {
-    super(message);
-    this.name = 'SupabaseError';
-  }
-}
-
-export class AuthError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'AuthError';
-  }
-}
-
-export class RateLimitError extends Error {
-  constructor(message: string, public resetTime: number) {
-    super(message);
-    this.name = 'RateLimitError';
   }
 }
