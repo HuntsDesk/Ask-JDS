@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 
+declare const self: ServiceWorkerGlobalScope;
+
 const CACHE_NAME = 'jds-app-cache-v1';
 const OFFLINE_URL = '/offline.html';
 
@@ -11,13 +13,25 @@ const STATIC_ASSETS = [
   '/favicon.ico'
 ];
 
+interface CachePayload {
+  url: string;
+  options?: RequestInit;
+}
+
+interface ExtendableMessageEvent extends ExtendableEvent {
+  data: {
+    type: 'CACHE_URLS';
+    payload: CachePayload[];
+  };
+}
+
 self.addEventListener('install', (event: ExtendableEvent) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS);
     })
   );
-  (self as any).skipWaiting();
+  void self.skipWaiting();
 });
 
 self.addEventListener('activate', (event: ExtendableEvent) => {
@@ -30,7 +44,7 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
       );
     })
   );
-  (self as any).clients.claim();
+  void self.clients.claim();
 });
 
 self.addEventListener('fetch', (event: FetchEvent) => {
@@ -96,36 +110,49 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 });
 
 // Handle background sync
-self.addEventListener('sync', (event: SyncEvent) => {
-  if (event.tag === 'sync-messages') {
-    event.waitUntil(syncMessages());
+// This interface is defined for future implementation of background sync functionality
+/*
+interface PendingMessage {
+  id: string;
+  content: string;
+  timestamp: number;
+}
+*/
+
+// Message handling functions
+// These functions are commented out as they're not currently used
+// but may be needed in future implementations
+
+/*
+export const getPendingMessages = async (): Promise<PendingMessage[]> => {
+  const db = await openDB();
+  return db.getAll('pendingMessages');
+};
+
+export const sendMessage = async (message: PendingMessage): Promise<void> => {
+  const db = await openDB();
+  await db.add('pendingMessages', message);
+};
+
+export const removePendingMessage = async (id: string): Promise<void> => {
+  const db = await openDB();
+  await db.delete('pendingMessages', id);
+};
+*/
+
+self.addEventListener('message', (event: ExtendableMessageEvent) => {
+  if (event.data.type === 'CACHE_URLS') {
+    event.waitUntil(
+      cacheFiles(event.data.payload)
+    );
   }
 });
 
-async function syncMessages() {
-  const pendingMessages = await getPendingMessages();
-  for (const message of pendingMessages) {
-    try {
-      await sendMessage(message);
-      await removePendingMessage(message.id);
-    } catch (error) {
-      console.error('Failed to sync message:', error);
-    }
-  }
-}
-
-// Helper functions for message sync
-async function getPendingMessages() {
-  // Implementation would get pending messages from IndexedDB
-  return [];
-}
-
-async function sendMessage(message: any) {
-  // Implementation would send message to server
-}
-
-async function removePendingMessage(id: string) {
-  // Implementation would remove message from pending queue
+async function cacheFiles(files: CachePayload[]): Promise<void> {
+  const cache = await caches.open(CACHE_NAME);
+  await Promise.all(
+    files.map(file => cache.add(file.url))
+  );
 }
 
 export {};

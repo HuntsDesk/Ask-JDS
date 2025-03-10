@@ -11,8 +11,12 @@ type ActionType = 'CREATE_THREAD' | 'UPDATE_THREAD' | 'DELETE_THREAD' | 'SEND_ME
 interface PendingAction {
   id: string;
   type: ActionType;
-  data: any;
+  data: Record<string, unknown>;
   timestamp: number;
+}
+
+interface StorageData {
+  [key: string]: unknown;
 }
 
 // Helper functions for local storage
@@ -26,7 +30,7 @@ const getItem = <T>(key: string): T | null => {
   }
 };
 
-const setItem = (key: string, value: any): void => {
+const setItem = <T>(key: string, value: T): void => {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
@@ -98,3 +102,11 @@ export const clearOldOfflineData = (maxAge: number = 7 * 24 * 60 * 60 * 1000): v
   const updatedActions = pendingActions.filter(action => now - action.timestamp < maxAge);
   setItem(PENDING_ACTIONS_KEY, updatedActions);
 };
+
+export async function saveToStorage(key: string, data: StorageData): Promise<void> {
+  setItem(key, data);
+}
+
+export async function loadFromStorage<T>(key: string): Promise<T | null> {
+  return getItem<T>(key);
+}
