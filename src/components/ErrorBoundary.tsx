@@ -1,8 +1,7 @@
-import { Component, ErrorInfo } from 'react';
+import React, { Component, ErrorInfo } from 'react';
 import { logError } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 interface Props {
   children: React.ReactNode;
@@ -31,8 +30,8 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Uncaught error:', error, errorInfo);
-    logError(error, 'Error Boundary', { componentStack: errorInfo.componentStack });
+    console.error('App error:', error, errorInfo);
+    logError(error, `Error Boundary: ${errorInfo.componentStack}`);
     this.setState({
       error,
       errorInfo
@@ -66,8 +65,8 @@ export class ErrorBoundary extends Component<Props, State> {
             
             <div className="space-y-2">
               <h1 className="text-2xl font-bold">Something went wrong</h1>
-              <p className="text-muted-foreground">
-                We've encountered an unexpected error. Our team has been notified and is working to fix the issue.
+              <p className="text-center text-gray-500 mt-4">
+                We&apos;re sorry, something went wrong. Please try refreshing the page.
               </p>
             </div>
 

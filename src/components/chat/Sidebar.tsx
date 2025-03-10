@@ -1,39 +1,56 @@
-import { useState, useEffect, useCallback } from 'react';
-import { MessageSquare, PlusCircle, LogOut, Pencil, Trash2, Shield, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { format, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  ChevronRight, 
+  LogOut, 
+  Trash2, 
+  MessageSquare,
+  Shield,
+  PlusCircle,
+  Pencil,
+  Settings,
+  BookOpen,
+  Pin,
+  PinOff
+} from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { format, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns';
 import { Input } from '@/components/ui/input';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { SelectedThreadContext, SidebarContext } from '@/App';
+import { useContext } from 'react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { usePersistedState } from '@/hooks/use-persisted-state';
+import { useTheme } from '@/lib/theme-provider';
 
 interface SidebarProps {
-  activeTab: string;
   setActiveTab: (tab: string) => void;
   isDesktopExpanded: boolean;
   onDesktopExpandedChange: (expanded: boolean) => void;
   onNewChat: () => void;
   onSignOut: () => void;
-  onDeleteThread: (threadId: string) => void;
-  onRenameThread: (threadId: string, newTitle: string) => void;
-  sessions: Array<{ id: string; title: string; created_at: string }>;
+  onDeleteThread: (id: string) => void;
+  onRenameThread: (id: string, newTitle: string) => void;
+  sessions: {
+    id: string;
+    title: string;
+    created_at: string;
+  }[];
   currentSession: string | null;
-  activeView: 'chat' | 'admin';
-  setActiveView: (view: 'chat' | 'admin') => void;
-  isAdmin: boolean;
 }
 
 interface GroupedSessions {
   [key: string]: Array<{ id: string; title: string; created_at: string }>;
 }
 
-export default function Sidebar({
-  activeTab,
+export function Sidebar({
   setActiveTab,
   isDesktopExpanded,
   onDesktopExpandedChange,
@@ -43,15 +60,48 @@ export default function Sidebar({
   onRenameThread,
   sessions,
   currentSession,
-  activeView,
-  setActiveView,
-  isAdmin
 }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
   const [editingThread, setEditingThread] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
-  const [threads, setThreads] = useState<Thread[]>([]);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { selectedThreadId, setSelectedThreadId } = useContext(SelectedThreadContext);
+  const { isExpanded, setIsExpanded } = useContext(SidebarContext);
+  const { theme } = useTheme();
+
+  // Replace regular state with persisted state
+  const [isPinned, setIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
+
+  // Check current active section based on URL
+  const isInChat = location.pathname.startsWith('/chat');
+  const isInFlashcards = location.pathname.startsWith('/flashcards');
+  const isInSettings = location.pathname.startsWith('/settings');
+  
+  // Check if we're in a specific chat thread by examining the URL or currentSession
+  const isInChatThread = isInChat && (currentSession !== null || location.pathname.length > 5);
+
+  // Sync local expanded state with global context
+  useEffect(() => {
+    if (isDesktopExpanded !== isExpanded) {
+      setIsExpanded(isDesktopExpanded);
+    }
+  }, [isDesktopExpanded, setIsExpanded]);
+
+  // Sync global expanded state with local props
+  useEffect(() => {
+    if (isExpanded !== isDesktopExpanded) {
+      onDesktopExpandedChange(isExpanded);
+    }
+  }, [isExpanded, onDesktopExpandedChange, isDesktopExpanded]);
+
+  // Ensure expanded state when pinned
+  useEffect(() => {
+    if (isPinned && !isDesktopExpanded) {
+      onDesktopExpandedChange(true);
+    }
+  }, [isPinned, isDesktopExpanded, onDesktopExpandedChange]);
 
   // Check for mobile on mount and window resize
   useEffect(() => {
@@ -62,16 +112,29 @@ export default function Sidebar({
   }, []);
 
   const handleMouseEnter = useCallback(() => {
-    if (!isMobile && !isContextMenuOpen) {
+    if (!isMobile && !isContextMenuOpen && !isPinned) {
       onDesktopExpandedChange(true);
+      setIsExpanded(true);
     }
-  }, [isMobile, isContextMenuOpen, onDesktopExpandedChange]);
+  }, [isMobile, isContextMenuOpen, isPinned, onDesktopExpandedChange, setIsExpanded]);
 
   const handleMouseLeave = useCallback(() => {
-    if (!isMobile && !isContextMenuOpen) {
+    if (!isMobile && !isContextMenuOpen && !isPinned) {
       onDesktopExpandedChange(false);
+      setIsExpanded(false);
     }
-  }, [isMobile, isContextMenuOpen, onDesktopExpandedChange]);
+  }, [isMobile, isContextMenuOpen, isPinned, onDesktopExpandedChange, setIsExpanded]);
+
+  const togglePin = () => {
+    const newPinState = !isPinned;
+    setIsPinned(newPinState);
+    
+    // If pinning, ensure sidebar is expanded
+    if (newPinState) {
+      setIsExpanded(true);
+      onDesktopExpandedChange(true);
+    }
+  };
 
   const handleStartEdit = (threadId: string, currentTitle: string) => {
     setEditingThread(threadId);
@@ -87,23 +150,33 @@ export default function Sidebar({
   };
 
   const groupSessionsByDate = useCallback((sessions: Array<{ id: string; title: string; created_at: string }>) => {
+    console.log("Computing grouped sessions"); // Debug log to verify memoization
     const grouped: GroupedSessions = {};
     
     sessions.forEach(session => {
       const date = new Date(session.created_at);
       let key = '';
       
-      if (isToday(date)) {
+      const isSessionToday = isToday(date);
+      const isSessionYesterday = isYesterday(date);
+      const isSessionThisWeek = isThisWeek(date);
+      
+      // Debug log to check date categorization
+      console.log(`Session "${session.title}" (${date.toLocaleDateString()}): isToday=${isSessionToday}, isYesterday=${isSessionYesterday}, isThisWeek=${isSessionThisWeek}`);
+      
+      if (isSessionToday) {
         key = 'Today';
-      } else if (isYesterday(date)) {
+      } else if (isSessionYesterday) {
         key = 'Yesterday';
-      } else if (isThisWeek(date)) {
+      } else if (isSessionThisWeek) {
+        // This is in the current week, but not today or yesterday
         key = 'This Week';
-      } else if (isThisMonth(date)) {
-        key = 'This Month';
       } else {
+        // Not in the current week, group by month and year
         key = format(date, 'MMMM yyyy');
       }
+      
+      console.log(`→ Grouped under: ${key}`);
       
       if (!grouped[key]) {
         grouped[key] = [];
@@ -111,17 +184,104 @@ export default function Sidebar({
       grouped[key].push(session);
     });
     
+    // Sort sessions within each group by created_at in descending order
+    Object.keys(grouped).forEach(key => {
+      grouped[key].sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    });
+    
     return grouped;
   }, []);
 
-  const groupedSessions = groupSessionsByDate(sessions);
+  // Memoize the grouped sessions to prevent unnecessary recalculations
+  const groupedSessions = useMemo(() => 
+    groupSessionsByDate(sessions), 
+    [groupSessionsByDate, sessions]
+  );
+
+  // Memoize the sorted entries to prevent recalculation on every render
+  const sortedSessionEntries = useMemo(() => {
+    return Object.entries(groupedSessions)
+      .sort((a, b) => {
+        // Custom sort order for date groups
+        const order = ['Today', 'Yesterday', 'This Week'];
+        const aIndex = order.indexOf(a[0]);
+        const bIndex = order.indexOf(b[0]);
+        
+        if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+        if (aIndex !== -1) return -1;
+        if (bIndex !== -1) return 1;
+        
+        // For month entries (format: "Month Year"), sort by date (newest first)
+        // Parse "Month Year" format
+        try {
+          // Use Date.parse with the first day of the month for comparison
+          const aDate = new Date(Date.parse(`1 ${a[0]}`));
+          const bDate = new Date(Date.parse(`1 ${b[0]}`));
+          
+          // Sort in descending order (newest first)
+          return bDate.getTime() - aDate.getTime();
+        } catch (err) {
+          console.error('Error parsing month dates:', err);
+          return 0;
+        }
+      });
+  }, [groupedSessions]);
 
   const handleDelete = async (threadId: string) => {
     try {
+      console.log('Sidebar: handleDelete called with thread ID:', threadId);
+      
+      // If this is the currently selected thread, we need to navigate away first
+      if (threadId === selectedThreadId || threadId === currentSession) {
+        // Find a different thread to navigate to
+        const otherThread = sessions.find(s => s.id !== threadId);
+        
+        if (otherThread) {
+          console.log('Sidebar: Navigating to alternative thread:', otherThread.id);
+          setSelectedThreadId(otherThread.id);
+          setActiveTab(otherThread.id);
+          navigate(`/chat/${otherThread.id}`);
+        } else {
+          console.log('Sidebar: No alternative thread found, navigating to /chat');
+          setSelectedThreadId(null);
+          navigate('/chat');
+        }
+      }
+      
+      // Call the deletion function provided by the parent component
+      // This already has optimistic updates in the useThreads hook
       await onDeleteThread(threadId);
     } catch (error) {
       console.error('Failed to delete thread:', error);
     }
+  };
+
+  // Use the selectedThreadId from context with higher priority than currentSession prop
+  useEffect(() => {
+    // If selectedThreadId is set and different from currentSession,
+    // log the mismatch for debugging
+    if (selectedThreadId && currentSession && selectedThreadId !== currentSession) {
+      console.log('Sidebar: Thread selection mismatch - Context:', selectedThreadId, 'Props:', currentSession);
+    }
+  }, [selectedThreadId, currentSession]);
+
+  // When a thread is clicked, update global state and navigate
+  const handleThreadClick = (threadId: string) => {
+    console.log('Sidebar: handleThreadClick called with thread ID:', threadId);
+    
+    // First set the global selected thread ID to ensure immediate UI update
+    setSelectedThreadId(threadId);
+    
+    // Set the active tab for parent component
+    setActiveTab(threadId);
+    
+    // Use immediate navigation without setTimeout to avoid race conditions
+    navigate(`/chat/${threadId}`);
+    
+    // If on mobile, collapse the sidebar
+    if (isMobile) onDesktopExpandedChange(false);
   };
 
   return (
@@ -134,23 +294,89 @@ export default function Sidebar({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <div className="sticky top-0 z-30 bg-background p-3 border-b">
-        <Button 
-          onClick={onNewChat} 
-          className={cn(
-            "w-full flex items-center gap-2 transition-all",
-            isDesktopExpanded ? "justify-start px-4" : "justify-center px-0"
+      {/* Logo section */}
+      <div className="sticky top-0 z-30 bg-background border-b">
+        <div className={cn(
+          "flex items-center justify-center py-4", // Increased padding
+          isDesktopExpanded ? "px-4" : "px-2"
+        )}>
+          {isDesktopExpanded ? (
+            <>
+              <img 
+                src="/images/JDSimplified_Logo.png" 
+                alt="JD Simplified Logo" 
+                className="h-10 transition-all dark:hidden" 
+              />
+              <img 
+                src="/images/JDSimplified_Logo_wht.png" 
+                alt="JD Simplified Logo" 
+                className="h-10 transition-all hidden dark:block" 
+              />
+            </>
+          ) : (
+            <img 
+              src="/images/JD Simplified Favicon.svg" 
+              alt="JDS" 
+              className="h-8 transition-all dark:invert" 
+            />
           )}
-          variant="default"
-        >
-          <PlusCircle className="h-5 w-5 shrink-0" />
-          {isDesktopExpanded && <span>New Chat</span>}
-        </Button>
+        </div>
+      </div>
+
+      <div className="sticky top-0 z-30 bg-background p-3 border-b flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => {
+              console.log('Sidebar: New Chat button clicked');
+              onNewChat();
+            }}
+            className={cn(
+              "flex font-medium items-center gap-2 px-3 py-2 w-full",
+              "rounded-lg bg-[#f37022] text-white hover:bg-[#e36012] transition",
+              // Adjust padding and size based on sidebar width
+              isDesktopExpanded 
+                ? "justify-start" 
+                : "justify-center px-2 mx-auto"
+            )}
+          >
+            <PlusCircle className="h-4 w-4" />
+            <span 
+              className={cn(
+                "transition-all duration-300",
+                isDesktopExpanded ? "opacity-100 w-auto" : "opacity-0 w-0 hidden"
+              )}
+            >
+              New Chat
+            </span>
+          </button>
+          
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  onClick={togglePin} 
+                  size="icon" 
+                  variant="ghost" 
+                  className={cn(
+                    "ml-1",
+                    !isDesktopExpanded && "hidden",
+                    isPinned && "text-orange-500"
+                  )}
+                >
+                  {isPinned ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {isPinned ? "Unpin sidebar" : "Pin sidebar open"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       <ScrollArea className="flex-1 overflow-hidden custom-scrollbar">
         <div className="space-y-4 p-2">
-          {Object.entries(groupedSessions).map(([date, dateSessions]) => (
+          {sortedSessionEntries.map(([date, dateSessions]) => (
             <div key={date} className="space-y-1">
               {isDesktopExpanded && (
                 <h3 className="text-sm font-medium text-muted-foreground px-3 mb-1">
@@ -179,23 +405,28 @@ export default function Sidebar({
                       </div>
                     ) : (
                       <button
-                        onClick={() => {
-                          setActiveTab(session.id);
-                          setActiveView('chat');
-                          if (isMobile) onDesktopExpandedChange(false);
-                        }}
+                        onClick={() => handleThreadClick(session.id)}
                         className={cn(
                           "w-full flex items-center gap-3 rounded-lg nav-item",
                           isDesktopExpanded ? "px-3 py-2" : "p-2 justify-center",
-                          currentSession === session.id && activeView === 'chat' && "active"
+                          (selectedThreadId === session.id) ? 
+                            "bg-orange-100 text-orange-700" : 
+                            "hover:bg-muted/50"
                         )}
                       >
-                        <MessageSquare className="w-4 h-4 shrink-0" />
-                        {isDesktopExpanded && (
-                          <span className="truncate text-sm flex-1 text-left">{session.title}</span>
-                        )}
-                        {isDesktopExpanded && currentSession === session.id && (
-                          <ChevronRight className="w-4 h-4 shrink-0 text-muted-foreground" />
+                        <MessageSquare 
+                          className={cn(
+                            "w-4 h-4 shrink-0",
+                            (selectedThreadId === session.id) && "text-[#F37022]"
+                          )} 
+                        />
+                        <span className={cn(
+                          "truncate text-sm flex-1 text-left transition-all duration-300",
+                          isDesktopExpanded ? "opacity-100 w-auto" : "opacity-0 w-0 absolute overflow-hidden",
+                          (selectedThreadId === session.id) && "font-medium text-[#F37022]"
+                        )}>{session.title}</span>
+                        {isDesktopExpanded && (selectedThreadId === session.id) && (
+                          <ChevronRight className="w-4 h-4 shrink-0 text-[#F37022]" />
                         )}
                       </button>
                     )}
@@ -221,33 +452,67 @@ export default function Sidebar({
       </ScrollArea>
 
       <div className="sticky bottom-0 z-30 bg-background p-3 border-t space-y-2">
-        {isAdmin && (
-          <Button 
-            onClick={() => {
-              setActiveView('admin');
-              if (isMobile) onDesktopExpandedChange(false);
-            }}
-            variant={activeView === 'admin' ? 'secondary' : 'ghost'}
+        <Link to="/flashcards/subjects">
+          <Button
+            variant={isInFlashcards ? "default" : "ghost"}
             className={cn(
-              "w-full flex items-center transition-all",
-              isDesktopExpanded ? "justify-start px-4" : "justify-center px-2"
+              "w-full flex items-center gap-2 transition-all",
+              isDesktopExpanded ? "justify-start px-4" : "justify-center px-0",
+              isInFlashcards && "bg-[#F37022] hover:bg-[#E36012]"
             )}
           >
-            <Shield className="w-4 h-4 shrink-0" />
-            {isDesktopExpanded && <span className="ml-2">Admin</span>}
+            <BookOpen className="h-4 w-4 shrink-0" />
+            <span className={cn(
+              "transition-opacity duration-300",
+              isDesktopExpanded ? "opacity-100" : "opacity-0 absolute overflow-hidden w-0"
+            )}>Flashcards</span>
           </Button>
-        )}
-
-        <Button 
-          onClick={onSignOut} 
-          variant="outline" 
+        </Link>
+        <Link to="/chat">
+          <Button
+            variant={(isInChat || isInChatThread) ? "default" : "ghost"}
+            className={cn(
+              "w-full flex items-center gap-2 transition-all",
+              isDesktopExpanded ? "justify-start px-4" : "justify-center px-0",
+              (isInChat || isInChatThread) && "bg-[#F37022] hover:bg-[#E36012]"
+            )}
+          >
+            <MessageSquare className="h-4 w-4 shrink-0" />
+            <span className={cn(
+              "transition-opacity duration-300",
+              isDesktopExpanded ? "opacity-100" : "opacity-0 absolute overflow-hidden w-0"
+            )}>Chat</span>
+          </Button>
+        </Link>
+        <Link to="/settings">
+          <Button
+            variant={isInSettings ? "default" : "ghost"}
+            className={cn(
+              "w-full flex items-center gap-2 transition-all",
+              isDesktopExpanded ? "justify-start px-4" : "justify-center px-0",
+              isInSettings && "bg-[#F37022] hover:bg-[#E36012]"
+            )}
+          >
+            <Settings className="h-4 w-4 shrink-0" />
+            <span className={cn(
+              "transition-opacity duration-300",
+              isDesktopExpanded ? "opacity-100" : "opacity-0 absolute overflow-hidden w-0"
+            )}>Settings</span>
+          </Button>
+        </Link>
+        <Button
+          onClick={onSignOut}
+          variant="ghost"
           className={cn(
-            "w-full flex items-center transition-all",
-            isDesktopExpanded ? "justify-start px-4" : "justify-center px-2"
+            "w-full flex items-center gap-2 transition-all",
+            isDesktopExpanded ? "justify-start px-4" : "justify-center px-0"
           )}
         >
-          <LogOut className="w-4 h-4 shrink-0" />
-          {isDesktopExpanded && <span className="ml-2">Sign Out</span>}
+          <LogOut className="h-4 w-4 shrink-0" />
+          <span className={cn(
+            "transition-opacity duration-300",
+            isDesktopExpanded ? "opacity-100" : "opacity-0 absolute overflow-hidden w-0"
+          )}>Sign out</span>
         </Button>
       </div>
     </div>
