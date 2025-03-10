@@ -1,257 +1,548 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import { useToast } from './use-toast';
-import { logError } from '@/lib/supabase';
 import type { Thread } from '@/types';
-
-// Welcome message as a static constant with proper bullet points
-const WELCOME_MESSAGE = `Hi! I'm your legal study buddy. I'm here to help you with:
-
-• Understanding complex legal concepts and principles
-• Analyzing case law and legal precedents
-• Preparing for law school exams and the bar
-• Clarifying legal terminology and definitions
-• Discussing legal theories and frameworks
-• Reviewing legal documents and statutes
-• Exploring different areas of law
-
-What would you like to get started with?`;
+import { useToast } from '@/hooks/use-toast';
 
 export function useThreads() {
+  const { user } = useAuth();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const { toast } = useToast();
-  const loadAttemptRef = useRef(0);
-  const threadMapRef = useRef<Map<string, Thread>>(new Map());
+  const initialLoadRef = useRef(true);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const safetyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const fetchingRef = useRef(false);
 
-  const loadThreads = useCallback(async (retryCount = 0) => {
-    setLoading(true);
-    setError(null);
-    const currentAttempt = ++loadAttemptRef.current;
+  // Extract fetchThreads as a function at the hook level so it can be reused
+  const fetchThreads = async () => {
+    if (!user) {
+      console.log('useThreads: No user, clearing threads');
+      setThreads([]);
+      setLoading(false);
+      return;
+    }
+
+    // Prevent multiple concurrent fetches
+    if (fetchingRef.current) {
+      console.log('useThreads: Fetch already in progress, skipping');
+      return;
+    }
+
+    fetchingRef.current = true;
 
     try {
-      console.log(`[Attempt ${retryCount + 1}] Loading threads`);
-
-      const { data, error } = await supabase
+      console.log('useThreads: Fetching threads for user', user.email);
+      setLoading(true);
+      
+      let fetchTimeoutId: NodeJS.Timeout | null = null;
+      let hasReceivedResponse = false;
+      
+      // Add a timeout promise to prevent hanging
+      const fetchPromise = supabase
         .from('threads')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
-
-      if (error) throw error;
+        
+      // Create a timeout promise that resolves with empty data
+      const timeoutPromise = new Promise<{data: Thread[], error: null}>((resolve) => {
+        fetchTimeoutId = setTimeout(() => {
+          if (!hasReceivedResponse) {
+            console.warn('useThreads: Database fetch timed out after 10 seconds, returning empty threads');
+            resolve({data: [], error: null});
+          }
+        }, 10000); // 10 seconds timeout
+      });
       
-      // Only update state if this is still the most recent load attempt
-      if (currentAttempt === loadAttemptRef.current) {
-        console.log(`Loaded ${data?.length || 0} threads:`, data);
-        if (data) {
-          // Update thread map
-          threadMapRef.current.clear();
-          data.forEach(thread => threadMapRef.current.set(thread.id, thread));
+      // Race the fetch against the timeout
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
+      hasReceivedResponse = true;
+      if (fetchTimeoutId) clearTimeout(fetchTimeoutId);
+
+      if (error) {
+        console.error('useThreads: Error fetching threads:', error);
+        console.error('Error details:', JSON.stringify(error));
+        setError(error);
+        
+        // Show an error toast for a better user experience
+        // Only show toast after a delay on initial load
+        if (initialLoadRef.current) {
+          // Clear any existing timeout
+          if (toastTimeoutRef.current) {
+            clearTimeout(toastTimeoutRef.current);
+          }
           
-          // Update threads state
-          setThreads(data);
+          // Set a new timeout to show the toast after 2 seconds
+          toastTimeoutRef.current = setTimeout(() => {
+            toast({
+              title: "Error loading conversations",
+              description: "We encountered an error loading your conversations. Please try again.",
+              variant: "destructive",
+            });
+            toastTimeoutRef.current = null;
+          }, 2000);
+        } else {
+          toast({
+            title: "Error loading conversations",
+            description: "We encountered an error loading your conversations. Please try again.",
+            variant: "destructive",
+          });
+        }
+        
+        setLoading(false);
+        fetchingRef.current = false;
+        return;
+      }
+
+      console.log('useThreads: Fetched', data?.length ?? 0, 'threads');
+      
+      if (data && Array.isArray(data)) {
+        setThreads(data);
+        
+        // Clear safety timeout when data is successfully fetched
+        if (safetyTimeoutRef.current) {
+          clearTimeout(safetyTimeoutRef.current);
+          safetyTimeoutRef.current = null;
         }
       } else {
-        console.log('Skipping stale load attempt');
+        console.warn('useThreads: Received non-array data from thread fetch:', data);
+        setThreads([]);
       }
+      
+      setLoading(false);
+      fetchingRef.current = false;
     } catch (err) {
-      console.error('Error in loadThreads:', err);
-      const error = err instanceof Error ? err : new Error('Failed to load threads');
+      console.error('useThreads: Error in fetchThreads:', err);
+      setError(err instanceof Error ? err : new Error(String(err)));
+      setLoading(false);
+      fetchingRef.current = false;
       
-      // Only retry if this is still the most recent load attempt
-      if (currentAttempt === loadAttemptRef.current && retryCount < 2) {
-        console.log(`Retrying load (attempt ${retryCount + 2}/3)...`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-        return loadThreads(retryCount + 1);
-      }
-      
-      setError(error);
-      await logError(error, 'Load Threads');
-      toast({
-        title: 'Error',
-        description: 'Failed to load chat history. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      if (currentAttempt === loadAttemptRef.current) {
-        setLoading(false);
+      // Show an error toast (with delay on initial load)
+      if (initialLoadRef.current) {
+        if (toastTimeoutRef.current) {
+          clearTimeout(toastTimeoutRef.current);
+        }
+        
+        toastTimeoutRef.current = setTimeout(() => {
+          toast({
+            title: "Error loading conversations",
+            description: "We encountered an error loading your conversations. Please try again.",
+            variant: "destructive",
+          });
+          toastTimeoutRef.current = null;
+        }, 2000);
+      } else {
+        toast({
+          title: "Error loading conversations",
+          description: "We encountered an error loading your conversations. Please try again.",
+          variant: "destructive",
+        });
       }
     }
-  }, [toast]);
+  };
 
-  // Load threads when component mounts
   useEffect(() => {
-    console.log('Initial threads load');
-    loadThreads();
-  }, [loadThreads]);
-
-  // Subscribe to real-time updates
-  useEffect(() => {
-    console.log('Setting up real-time subscription for threads');
-    const channel = supabase.channel('threads_channel');
+    console.log('useThreads: Initializing with user', user?.email);
     
-    const subscription = channel
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'threads'
-        },
-        (payload) => {
-          console.log('Received thread update:', payload);
-          
-          if (payload.eventType === 'INSERT') {
-            const newThread = payload.new as Thread;
-            // Only add if we don't already have this thread
-            if (!threadMapRef.current.has(newThread.id)) {
-              threadMapRef.current.set(newThread.id, newThread);
-              setThreads(prev => [newThread, ...prev]);
-            }
-          } else if (payload.eventType === 'DELETE') {
-            console.log('Deleting thread:', payload.old.id);
-            threadMapRef.current.delete(payload.old.id);
-            setThreads(prev => {
-              console.log('Previous threads:', prev);
-              const updated = prev.filter(thread => thread.id !== payload.old.id);
-              console.log('Updated threads:', updated);
-              return updated;
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedThread = payload.new as Thread;
-            threadMapRef.current.set(updatedThread.id, updatedThread);
-            setThreads(prev => prev.map(thread => 
-              thread.id === updatedThread.id ? updatedThread : thread
-            ));
+    if (!user) {
+      console.log('useThreads: No user, clearing threads');
+      setThreads([]);
+      setLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    
+    // Safety timeout to prevent getting stuck in loading state
+    safetyTimeoutRef.current = setTimeout(() => {
+      if (isMounted && loading) {
+        console.warn('useThreads: Safety timeout triggered after 20 seconds');
+        setLoading(false);
+        setError(new Error('Loading conversations timed out. The conversations list will be refreshed automatically when connectivity improves.'));
+        
+        // Only show toast after a delay on initial load
+        if (initialLoadRef.current) {
+          // Clear any existing timeout
+          if (toastTimeoutRef.current) {
+            clearTimeout(toastTimeoutRef.current);
           }
+          
+          // Set a new timeout to show the toast after 2 seconds
+          toastTimeoutRef.current = setTimeout(() => {
+            toast({
+              title: "Taking longer than expected",
+              description: "We're having trouble loading your conversations. We'll keep trying in the background.",
+              variant: "warning",
+            });
+            toastTimeoutRef.current = null;
+          }, 2000);
+        } else {
+          toast({
+            title: "Taking longer than expected", 
+            description: "We're having trouble loading your conversations. We'll keep trying in the background.",
+            variant: "warning",
+          });
         }
-      )
-      .subscribe((status) => {
-        console.log('Subscription status:', status);
-      });
+        
+        // Set up automatic retry after a delay
+        setTimeout(() => {
+          if (isMounted) {
+            console.log('useThreads: Attempting to retry loading threads after timeout');
+            fetchThreads();
+          }
+        }, 10000); // Retry after 10 seconds
+      }
+    }, 20000); // 20 seconds
+
+    // Fetch threads initially
+    fetchThreads();
+    
+    // After the first load, set initialLoadRef to false
+    initialLoadRef.current = false;
+
+    // Set up realtime subscription for thread changes
+    const setupSubscription = async () => {
+      try {
+        console.log('useThreads: Setting up realtime subscription');
+        
+        const threadsSubscription = supabase
+          .channel('threads')
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'threads',
+            filter: `user_id=eq.${user.id}`
+          }, (payload) => {
+            console.log('useThreads: Received realtime update', payload.eventType);
+            
+            if (payload.eventType === 'INSERT') {
+              setThreads(prev => [payload.new as Thread, ...prev]);
+            } else if (payload.eventType === 'DELETE') {
+              setThreads(prev => prev.filter(thread => thread.id !== payload.old.id));
+            } else if (payload.eventType === 'UPDATE') {
+              setThreads(prev => prev.map(thread => 
+                thread.id === payload.new.id ? payload.new as Thread : thread
+              ));
+            }
+          })
+          .subscribe((status) => {
+            console.log('useThreads: Subscription status:', status);
+          });
+          
+        return threadsSubscription;
+      } catch (err) {
+        console.error('useThreads: Error setting up subscription:', err);
+        return null;
+      }
+    };
+    
+    const subscription = setupSubscription();
 
     return () => {
-      console.log('Cleaning up thread subscription');
-      channel.unsubscribe();
+      console.log('useThreads: Cleaning up');
+      isMounted = false;
+      
+      // Clear the safety timeout when component unmounts
+      if (safetyTimeoutRef.current) {
+        clearTimeout(safetyTimeoutRef.current);
+        safetyTimeoutRef.current = null;
+      }
+      
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+        toastTimeoutRef.current = null;
+      }
+      
+      // Unsubscribe from realtime updates
+      if (subscription) {
+        subscription.then(sub => {
+          if (sub) {
+            supabase.removeChannel(sub);
+          }
+        });
+      }
     };
-  }, []);
+  }, [user, toast]); // Removed loading from dependency array
 
-  const createThread = useCallback(async () => {
+  const createThread = async () => {
     try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      if (!user) throw new Error('No authenticated user');
+      console.log('useThreads: Creating new thread');
+      
+      if (!user) {
+        console.error('useThreads: Cannot create thread without user');
+        return null;
+      }
 
-      // Create thread with temporary title
-      const { data: thread, error: threadError } = await supabase
+      // Log user id for debugging
+      console.log('useThreads: Creating thread for user', user.id);
+
+      // Create a timeout promise that resolves to null
+      const timeoutPromise = new Promise<null>((resolve) => {
+        setTimeout(() => {
+          console.warn('useThreads: Thread creation timed out after 8 seconds');
+          resolve(null);
+        }, 8000); // 8 second timeout
+      });
+
+      // Attempt to ensure profile exists first to address RLS issues
+      try {
+        console.log('useThreads: Ensuring profile exists');
+        // Check if profile exists
+        const profileCheck = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', user.id)
+          .single();
+          
+        if (profileCheck.error) {
+          console.log('useThreads: Profile not found, creating one');
+          // Create a profile if it doesn't exist
+          const profileResult = await supabase
+            .from('profiles')
+            .insert([{ id: user.id }])
+            .select();
+            
+          console.log('useThreads: Profile creation result', profileResult);
+        } else {
+          console.log('useThreads: Profile exists, proceeding with thread creation');
+        }
+      } catch (err) {
+        console.error('useThreads: Error checking/creating profile:', err);
+        // Continue anyway, the trigger we created should handle this
+      }
+
+      // Create the actual thread
+      const threadPromise = supabase
         .from('threads')
-        .insert({ title: 'New Chat', user_id: user.id })
+        .insert([
+          { 
+            user_id: user.id,
+            title: 'New Conversation'
+          }
+        ])
         .select()
         .single();
 
-      if (threadError) throw threadError;
+      // Race the thread creation against the timeout
+      const result = await Promise.race([threadPromise, timeoutPromise]);
+      
+      // If result is null, it means the timeout won
+      if (result === null) {
+        toast({
+          title: "Thread creation timeout",
+          description: "Creating a new conversation is taking longer than expected. Please try again.",
+          variant: "destructive",
+        });
+        return null;
+      }
+      
+      const { data, error } = result;
 
-      // Add welcome message
-      if (thread) {
-        const { error: messageError } = await supabase
-          .from('messages')
-          .insert([{
-            content: WELCOME_MESSAGE,
-            role: 'assistant',
-            thread_id: thread.id,
-            user_id: user.id
-          }]);
-
-        if (messageError) {
-          console.error('Error adding welcome message:', messageError);
-          await logError(messageError, 'Create Welcome Message');
+      if (error) {
+        console.error('useThreads: Error creating thread:', error);
+        
+        // If we get an RLS error, try one more time after a delay
+        if (error.message?.includes('row-level security') || error.code === '42501') {
+          console.log('useThreads: Got RLS error, trying again after delay');
+          toast({
+            title: "Authentication sync issue",
+            description: "We're fixing a sync issue. Trying again...",
+            variant: "default",
+          });
+          
+          // Wait 2 seconds and try again
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          const retryResult = await supabase
+            .from('threads')
+            .insert([
+              { 
+                user_id: user.id,
+                title: 'New Conversation'
+              }
+            ])
+            .select()
+            .single();
+            
+          if (retryResult.error) {
+            console.error('useThreads: Retry also failed:', retryResult.error);
+            toast({
+              title: "Error creating thread",
+              description: "There was a problem with permissions. Please try signing out and back in.",
+              variant: "destructive",
+            });
+            throw retryResult.error;
+          }
+          
+          console.log('useThreads: Retry succeeded', retryResult.data);
+          return retryResult.data as Thread;
         }
+        
+        toast({
+          title: "Error creating thread",
+          description: "There was a problem creating a new conversation. Please try again.",
+          variant: "destructive",
+        });
+        throw error;
       }
 
-      return thread;
+      console.log('useThreads: Thread created successfully', data);
+      return data as Thread;
     } catch (error) {
-      console.error('Error creating thread:', error);
-      await logError(error, 'Create Thread');
-      toast({
-        title: 'Error',
-        description: 'Failed to create new chat. Please try again.',
-        variant: 'destructive',
+      console.error('useThreads: Exception creating thread:', error);
+      return null;
+    }
+  };
+
+  const updateThread = async (id: string, updates: Partial<Thread>) => {
+    try {
+      console.log(`useThreads: Updating thread ${id}`, updates);
+      
+      if (!user) {
+        console.error('useThreads: Cannot update thread without user');
+        return false;
+      }
+
+      // Create a timeout promise that resolves to a failure result
+      const timeoutPromise = new Promise<{error: Error}>((resolve) => {
+        setTimeout(() => {
+          console.warn(`useThreads: Thread update timed out after 6 seconds for thread ${id}`);
+          resolve({error: new Error('Update timed out')});
+        }, 6000); // 6 second timeout
       });
-      throw error;
-    }
-  }, [toast]);
 
-  const updateThread = useCallback(async (id: string, title: string) => {
-    try {
-      const { error } = await supabase
+      // Update the thread
+      const updatePromise = supabase
         .from('threads')
-        .update({ title })
-        .eq('id', id);
+        .update(updates)
+        .eq('id', id)
+        .eq('user_id', user.id);
 
-      if (error) throw error;
+      // Race the update against the timeout
+      const result = await Promise.race([updatePromise, timeoutPromise]);
+      
+      if ('error' in result && result.error) {
+        // Check if this is our timeout error
+        if (result.error instanceof Error && result.error.message === 'Update timed out') {
+          console.error('useThreads: Thread update timed out');
+          toast({
+            title: "Thread update timeout",
+            description: "Updating the conversation is taking longer than expected.",
+            variant: "warning",
+          });
+          return false;
+        }
+        
+        // This is a regular database error
+        console.error('useThreads: Error updating thread:', result.error);
+        toast({
+          title: "Error updating thread",
+          description: "There was a problem updating the conversation.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      console.log(`useThreads: Thread ${id} updated successfully`);
+      return true;
     } catch (error) {
-      console.error('Error updating thread:', error);
-      await logError(error, 'Update Thread');
-      toast({
-        title: 'Error',
-        description: 'Failed to update chat title. Please try again.',
-        variant: 'destructive',
+      console.error('useThreads: Exception updating thread:', error);
+      return false;
+    }
+  };
+
+  const deleteThread = async (id: string) => {
+    try {
+      console.log(`useThreads: Deleting thread ${id}`);
+      
+      if (!user) {
+        console.error('useThreads: Cannot delete thread without user');
+        return false;
+      }
+
+      // Create a timeout promise that resolves to a failure result
+      const timeoutPromise = new Promise<{error: Error}>((resolve) => {
+        setTimeout(() => {
+          console.warn(`useThreads: Thread deletion timed out after 6 seconds for thread ${id}`);
+          resolve({error: new Error('Deletion timed out')});
+        }, 6000); // 6 second timeout
       });
-      throw error;
-    }
-  }, [toast]);
 
-  const updateThreadTitle = useCallback(async (threadId: string, firstMessage: string) => {
-    try {
-      // Generate title from first message (truncate if too long)
-      const title = firstMessage.length > 50 
-        ? firstMessage.substring(0, 47) + '...'
-        : firstMessage;
+      // Save the current threads for potential rollback
+      const previousThreads = [...threads];
+      
+      // Optimistically update the local state immediately
+      setThreads(currentThreads => currentThreads.filter(thread => thread.id !== id));
 
-      const { error } = await supabase
-        .from('threads')
-        .update({ title })
-        .eq('id', threadId);
-
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error updating thread title:', error);
-      await logError(error, 'Update Thread Title');
-      // Don't show toast for title update failure as it's not critical
-    }
-  }, []);
-
-  const deleteThread = useCallback(async (id: string) => {
-    try {
-      console.log('Deleting thread:', id);
-      const { error } = await supabase
+      // Delete the thread - we don't need to set loading true here since we're using optimistic updates
+      const deletePromise = supabase
         .from('threads')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id);
 
-      if (error) throw error;
-      console.log('Thread deleted successfully');
+      // Race the deletion against the timeout
+      const result = await Promise.race([deletePromise, timeoutPromise]);
+      
+      if ('error' in result && result.error) {
+        // Check if this is our timeout error
+        if (result.error instanceof Error && result.error.message === 'Deletion timed out') {
+          console.error('useThreads: Thread deletion timed out');
+          toast({
+            title: "Thread deletion timeout",
+            description: "Deleting the conversation is taking longer than expected, but we've updated the UI.",
+            variant: "warning",
+          });
+          // Continue with optimistic UI update despite timeout
+          return true;
+        }
+        
+        // This is a regular database error
+        console.error('useThreads: Error deleting thread:', result.error);
+        toast({
+          title: "Error deleting thread",
+          description: "There was a problem deleting the conversation.",
+          variant: "destructive",
+        });
+        
+        // Revert the optimistic update if there was a database error
+        setThreads(previousThreads);
+        return false;
+      }
+
+      console.log(`useThreads: Thread ${id} deleted successfully`);
+      return true;
     } catch (error) {
-      console.error('Error deleting thread:', error);
-      await logError(error, 'Delete Thread');
-      toast({
-        title: 'Error',
-        description: 'Failed to delete chat. Please try again.',
-        variant: 'destructive',
-      });
-      throw error;
+      console.error('useThreads: Exception deleting thread:', error);
+      
+      // If we have the previous threads state, restore it
+      if (threads.some(thread => thread.id === id)) {
+        // Thread still exists in our state, no need to restore
+      } else {
+        // Attempt to refetch threads without showing loading indicator
+        fetchThreads();
+      }
+      
+      return false;
     }
-  }, [toast]);
+  };
+
+  // Add a dedicated function to refetch threads
+  const refetchThreads = async () => {
+    console.log('useThreads: Manually refetching threads');
+    await fetchThreads();
+    return threads;
+  };
 
   return {
     threads,
     loading,
     error,
-    loadThreads,
     createThread,
     updateThread,
     deleteThread,
-    updateThreadTitle
+    refetchThreads
   };
 }

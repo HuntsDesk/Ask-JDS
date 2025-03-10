@@ -81,14 +81,217 @@ export interface Database {
           user_id?: string
         }
       }
+      user_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          subscription_id: string
+          status: 'active' | 'canceled' | 'past_due' | 'trialing'
+          price_id: string
+          quantity: number
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_start: string
+          current_period_end: string
+          ended_at: string | null
+          cancel_at: string | null
+          canceled_at: string | null
+          trial_start: string | null
+          trial_end: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          subscription_id: string
+          status: 'active' | 'canceled' | 'past_due' | 'trialing'
+          price_id: string
+          quantity?: number
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_start: string
+          current_period_end: string
+          ended_at?: string | null
+          cancel_at?: string | null
+          canceled_at?: string | null
+          trial_start?: string | null
+          trial_end?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          subscription_id?: string
+          status?: 'active' | 'canceled' | 'past_due' | 'trialing'
+          price_id?: string
+          quantity?: number
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_start?: string
+          current_period_end?: string
+          ended_at?: string | null
+          cancel_at?: string | null
+          canceled_at?: string | null
+          trial_start?: string | null
+          trial_end?: string | null
+        }
+      }
+      message_counts: {
+        Row: {
+          id: string
+          user_id: string
+          count: number
+          period_start: string
+          period_end: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          count?: number
+          period_start: string
+          period_end: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          count?: number
+          period_start?: string
+          period_end?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      profiles: {
+        Row: {
+          id: string
+          user_id: string
+          display_name: string | null
+          avatar_url: string | null
+          bio: string | null
+          preferences: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          display_name?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          preferences?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          display_name?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          preferences?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      subjects: {
+        Row: {
+          id: string
+          name: string
+          description: string
+          is_official: boolean
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description: string
+          is_official?: boolean
+          created_at?: string
+          user_id?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string
+          is_official?: boolean
+          created_at?: string
+          user_id?: string
+        }
+      }
+      flashcard_collections: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          subject_id: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          subject_id: string
+          created_at?: string
+          user_id?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          subject_id?: string
+          created_at?: string
+          user_id?: string
+        }
+      }
+      flashcards: {
+        Row: {
+          id: string
+          question: string
+          answer: string
+          is_mastered: boolean
+          collection_id: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          question: string
+          answer: string
+          is_mastered?: boolean
+          collection_id: string
+          created_at?: string
+          user_id?: string
+        }
+        Update: {
+          id?: string
+          question?: string
+          answer?: string
+          is_mastered?: boolean
+          collection_id?: string
+          created_at?: string
+          user_id?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       is_admin: {
-        Args: { userId: string }
+        Args: { user_id?: string }
         Returns: boolean
+      }
+      get_user_message_count: {
+        Args: { user_id?: string }
+        Returns: number
+      }
+      increment_user_message_count: {
+        Args: { user_id?: string }
+        Returns: number
       }
     }
     Enums: {
