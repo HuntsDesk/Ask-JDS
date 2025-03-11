@@ -307,7 +307,7 @@ export function ChatInterface({
   };
 
   return (
-    <div className="flex flex-col h-full w-full chat-container pl-0 md:pl-0">
+    <div className="flex flex-col h-full w-full chat-container pl-0 md:pl-0 relative overflow-hidden">
       {/* Messages area - should take most of the space */}
       <div className="flex-1 overflow-hidden message-container w-full">
         <div 
@@ -371,7 +371,7 @@ export function ChatInterface({
       </div>
       
       {/* Input area - fixed height at bottom */}
-      <div className="input-container pt-2 pb-4 px-4 border-t border-border w-full">
+      <div className="input-container pt-2 pb-4 px-4 border-t border-border w-full max-w-full relative z-10 bg-background self-end">
         {sendError && (
           <div className="mb-2 p-2 text-sm rounded bg-red-50 text-red-600">
             {sendError}
@@ -383,9 +383,9 @@ export function ChatInterface({
             e.preventDefault();
             handleSend();
           }}
-          className="flex items-end gap-2 w-full"
+          className="flex items-end gap-2 w-full max-w-full"
         >
-          <div className="relative flex-1 w-full">
+          <div className="relative flex-1 w-full max-w-full">
             <Textarea
               value={newMessage}
               onChange={handleInputChange}
