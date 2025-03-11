@@ -312,36 +312,29 @@ export function Sidebar({
 
   return (
     <>
-      {/* Mobile Burger Menu Button - Only visible on mobile */}
+      {/* Mobile burger menu button */}
       {isMobile && (
         <button
           onClick={toggleMobileSidebar}
-          className={cn(
-            "p-2 bg-background/80 backdrop-blur-sm border shadow-sm z-30 rounded-md md:hidden",
-            // On settings page, position absolute so it scrolls with content
-            isSettingsPage 
-              ? "absolute top-4 left-4" 
-              : "fixed top-4 left-4 transition-all duration-300"
-          )}
-          aria-label="Toggle menu"
+          className="fixed top-4 left-4 p-2 bg-background/80 backdrop-blur-sm border shadow-sm z-50 rounded-md md:hidden transition-all duration-300"
+          aria-label="Toggle sidebar menu"
         >
           {isDesktopExpanded ? <X size={20} /> : <Menu size={20} />}
         </button>
       )}
 
-      {/* Mobile Backdrop Overlay - Only visible when sidebar is expanded on mobile */}
-      {isMobile && isDesktopExpanded && (
+      {/* Mobile overlay backdrop when sidebar is expanded */}
+      {isMobile && isExpanded && (
         <div 
-          className="fixed inset-0 bg-black/50 z-10 md:hidden"
-          onClick={toggleMobileSidebar}
-          aria-hidden="true"
+          className="fixed inset-0 bg-black/50 z-20" 
+          onClick={() => setIsExpanded(false)}
         />
       )}
-      
+    
       {/* Main Sidebar */}
       <div 
         className={cn(
-          "fixed inset-y-0 left-0 z-20 flex flex-col bg-background border-r transition-all duration-300 sidebar-transition",
+          "fixed inset-y-0 left-0 z-50 flex flex-col bg-background border-r transition-all duration-300 sidebar-transition",
           // Desktop state
           !isMobile && (isDesktopExpanded ? "w-[var(--sidebar-width)]" : "w-[var(--sidebar-collapsed-width)]"),
           // Mobile state

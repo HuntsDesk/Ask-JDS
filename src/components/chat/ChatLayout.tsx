@@ -579,14 +579,16 @@ const ChatLayout = () => {
       />
       
       <main 
-        className="flex-1 h-screen overflow-hidden w-full"
+        className="flex-1 h-screen overflow-hidden w-full relative"
         style={{ 
           marginLeft: isMobile 
             ? (isExpanded ? 'var(--sidebar-width)' : '0')
             : (isExpanded ? 'var(--sidebar-width)' : 'var(--sidebar-collapsed-width)'),
           width: isMobile
             ? (isExpanded ? `calc(100% - var(--sidebar-width))` : '100%')
-            : `calc(100% - ${isExpanded ? 'var(--sidebar-width)' : 'var(--sidebar-collapsed-width)'})`
+            : `calc(100% - ${isExpanded ? 'var(--sidebar-width)' : 'var(--sidebar-collapsed-width)'})`,
+          boxSizing: 'border-box',
+          isolation: 'isolate' // Creates a new stacking context
         }}
       >
         <div className="h-full relative w-full">

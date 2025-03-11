@@ -226,6 +226,17 @@ function App() {
     );
   }
 
+  // Add custom CSS variables for sidebar z-index and layout
+  useEffect(() => {
+    // Add CSS variables to document root
+    document.documentElement.style.setProperty('--sidebar-z-index', '100');
+    
+    return () => {
+      // Clean up when component unmounts
+      document.documentElement.style.removeProperty('--sidebar-z-index');
+    };
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system" storageKey="ui-theme">
