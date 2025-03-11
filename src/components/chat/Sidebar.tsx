@@ -14,7 +14,9 @@ import {
   Settings,
   BookOpen,
   Pin,
-  PinOff
+  PinOff,
+  Menu,
+  X
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -267,254 +269,317 @@ export function Sidebar({
     }
   }, [selectedThreadId, currentSession]);
 
-  // When a thread is clicked, update global state and navigate
+  // Modify the handleThreadClick function to close the sidebar on mobile after clicking
   const handleThreadClick = (threadId: string) => {
-    console.log('Sidebar: handleThreadClick called with thread ID:', threadId);
+    console.log('Clicked on thread:', threadId);
     
-    // First set the global selected thread ID to ensure immediate UI update
+    // Set current thread ID context
     setSelectedThreadId(threadId);
     
     // Set the active tab for parent component
     setActiveTab(threadId);
     
+    // Handle navigation
     // Use immediate navigation without setTimeout to avoid race conditions
     navigate(`/chat/${threadId}`);
     
     // If on mobile, collapse the sidebar
-    if (isMobile) onDesktopExpandedChange(false);
+    if (isMobile) {
+      onDesktopExpandedChange(false);
+      setIsExpanded(false);
+    }
   };
 
-  return (
-    <div 
-      className={cn(
-        "fixed inset-y-0 left-0 z-20 flex flex-col bg-background border-r transition-all duration-300 sidebar-transition",
-        isDesktopExpanded ? "w-[var(--sidebar-width)]" : "w-[var(--sidebar-collapsed-width)]",
-        isMobile && !isDesktopExpanded && "w-0 border-r-0"
-      )}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      {/* Logo section */}
-      <div className="sticky top-0 z-30 bg-background border-b">
-        <div className={cn(
-          "flex items-center justify-center py-4", // Increased padding
-          isDesktopExpanded ? "px-4" : "px-2"
-        )}>
-          {isDesktopExpanded ? (
-            <>
-              <img 
-                src="/images/JDSimplified_Logo.png" 
-                alt="JD Simplified Logo" 
-                className="h-10 transition-all dark:hidden" 
-              />
-              <img 
-                src="/images/JDSimplified_Logo_wht.png" 
-                alt="JD Simplified Logo" 
-                className="h-10 transition-all hidden dark:block" 
-              />
-            </>
-          ) : (
-            <img 
-              src="/images/JD Simplified Favicon.svg" 
-              alt="JDS" 
-              className="h-8 transition-all dark:invert" 
-            />
-          )}
-        </div>
-      </div>
+  // Create a new function to handle navigation link clicks
+  const handleNavLinkClick = () => {
+    // If on mobile, collapse the sidebar after navigation
+    if (isMobile) {
+      onDesktopExpandedChange(false);
+      setIsExpanded(false);
+    }
+  };
 
-      <div className="sticky top-0 z-30 bg-background p-3 border-b flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => {
-              console.log('Sidebar: New Chat button clicked');
-              onNewChat();
-            }}
-            className={cn(
-              "flex font-medium items-center gap-2 px-3 py-2 w-full",
-              "rounded-lg bg-[#f37022] text-white hover:bg-[#e36012] transition",
-              // Adjust padding and size based on sidebar width
-              isDesktopExpanded 
-                ? "justify-start" 
-                : "justify-center px-2 mx-auto"
+  // Toggle sidebar on mobile
+  const toggleMobileSidebar = useCallback(() => {
+    if (isMobile) {
+      onDesktopExpandedChange(!isDesktopExpanded);
+      setIsExpanded(!isDesktopExpanded);
+    }
+  }, [isMobile, isDesktopExpanded, onDesktopExpandedChange, setIsExpanded]);
+
+  // Check if we're on the settings page
+  const isSettingsPage = location.pathname.startsWith('/settings');
+
+  return (
+    <>
+      {/* Mobile Burger Menu Button - Only visible on mobile */}
+      {isMobile && (
+        <button
+          onClick={toggleMobileSidebar}
+          className={cn(
+            "p-2 bg-background/80 backdrop-blur-sm border shadow-sm z-30 rounded-md md:hidden",
+            // On settings page, position absolute so it scrolls with content
+            isSettingsPage 
+              ? "absolute top-4 left-4" 
+              : "fixed top-4 left-4 transition-all duration-300"
+          )}
+          aria-label="Toggle menu"
+        >
+          {isDesktopExpanded ? <X size={20} /> : <Menu size={20} />}
+        </button>
+      )}
+
+      {/* Mobile Backdrop Overlay - Only visible when sidebar is expanded on mobile */}
+      {isMobile && isDesktopExpanded && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-10 md:hidden"
+          onClick={toggleMobileSidebar}
+          aria-hidden="true"
+        />
+      )}
+      
+      {/* Main Sidebar */}
+      <div 
+        className={cn(
+          "fixed inset-y-0 left-0 z-20 flex flex-col bg-background border-r transition-all duration-300 sidebar-transition",
+          // Desktop state
+          !isMobile && (isDesktopExpanded ? "w-[var(--sidebar-width)]" : "w-[var(--sidebar-collapsed-width)]"),
+          // Mobile state
+          isMobile && !isDesktopExpanded ? "opacity-0 pointer-events-none w-0 -translate-x-full sidebar-hidden-mobile" : "",
+          isMobile && isDesktopExpanded ? "w-[var(--sidebar-width)] shadow-xl" : ""
+        )}
+        onMouseEnter={!isMobile ? handleMouseEnter : undefined}
+        onMouseLeave={!isMobile ? handleMouseLeave : undefined}
+      >
+        {/* Logo section */}
+        <div className="sticky top-0 z-30 bg-background border-b">
+          <div className={cn(
+            "flex items-center justify-center py-4", // Increased padding
+            isDesktopExpanded ? "px-4" : "px-2"
+          )}>
+            {isDesktopExpanded ? (
+              <>
+                <img 
+                  src="/images/JDSimplified_Logo.png" 
+                  alt="JD Simplified Logo" 
+                  className="h-10 transition-all dark:hidden" 
+                />
+                <img 
+                  src="/images/JDSimplified_Logo_wht.png" 
+                  alt="JD Simplified Logo" 
+                  className="h-10 transition-all hidden dark:block" 
+                />
+              </>
+            ) : (
+              <img 
+                src="/images/JD Simplified Favicon.svg" 
+                alt="JDS" 
+                className="h-8 transition-all dark:invert" 
+              />
             )}
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span 
+          </div>
+        </div>
+
+        <div className="sticky top-0 z-30 bg-background p-3 border-b flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => {
+                console.log('Sidebar: New Chat button clicked');
+                onNewChat();
+              }}
               className={cn(
-                "transition-all duration-300",
-                isDesktopExpanded ? "opacity-100 w-auto" : "opacity-0 w-0 hidden"
+                "flex font-medium items-center gap-2 px-3 py-2 w-full",
+                "rounded-lg bg-[#f37022] text-white hover:bg-[#e36012] transition",
+                // Adjust padding and size based on sidebar width
+                isDesktopExpanded 
+                  ? "justify-start" 
+                  : "justify-center px-2 mx-auto"
               )}
             >
-              New Chat
-            </span>
-          </button>
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  onClick={togglePin} 
-                  size="icon" 
-                  variant="ghost" 
-                  className={cn(
-                    "ml-1",
-                    !isDesktopExpanded && "hidden",
-                    isPinned && "text-orange-500"
-                  )}
-                >
-                  {isPinned ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isPinned ? "Unpin sidebar" : "Pin sidebar open"}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
-
-      <ScrollArea className="flex-1 overflow-hidden custom-scrollbar">
-        <div className="space-y-4 p-2">
-          {sortedSessionEntries.map(([date, dateSessions]) => (
-            <div key={date} className="space-y-1">
-              {isDesktopExpanded && (
-                <h3 className="text-sm font-medium text-muted-foreground px-3 mb-1">
-                  {date}
-                </h3>
-              )}
-              {dateSessions.map((session) => (
-                <ContextMenu key={session.id} onOpenChange={setIsContextMenuOpen}>
-                  <ContextMenuTrigger>
-                    {editingThread === session.id ? (
-                      <div className="px-3 py-2">
-                        <Input
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          onBlur={() => handleFinishEdit(session.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleFinishEdit(session.id);
-                            } else if (e.key === 'Escape') {
-                              setEditingThread(null);
-                              setEditTitle('');
-                            }
-                          }}
-                          autoFocus
-                        />
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleThreadClick(session.id)}
-                        className={cn(
-                          "w-full flex items-center gap-3 rounded-lg nav-item",
-                          isDesktopExpanded ? "px-3 py-2" : "p-2 justify-center",
-                          (selectedThreadId === session.id) ? 
-                            "bg-orange-100 text-orange-700" : 
-                            "hover:bg-muted/50"
-                        )}
-                      >
-                        <MessageSquare 
-                          className={cn(
-                            "w-4 h-4 shrink-0",
-                            (selectedThreadId === session.id) && "text-[#F37022]"
-                          )} 
-                        />
-                        <span className={cn(
-                          "truncate text-sm flex-1 text-left transition-all duration-300",
-                          isDesktopExpanded ? "opacity-100 w-auto" : "opacity-0 w-0 absolute overflow-hidden",
-                          (selectedThreadId === session.id) && "font-medium text-[#F37022]"
-                        )}>{session.title}</span>
-                        {isDesktopExpanded && (selectedThreadId === session.id) && (
-                          <ChevronRight className="w-4 h-4 shrink-0 text-[#F37022]" />
-                        )}
-                      </button>
+              <PlusCircle className="h-4 w-4" />
+              <span 
+                className={cn(
+                  "transition-all duration-300",
+                  isDesktopExpanded ? "opacity-100 w-auto" : "opacity-0 w-0 hidden"
+                )}
+              >
+                New Chat
+              </span>
+            </button>
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    onClick={togglePin} 
+                    size="icon" 
+                    variant="ghost" 
+                    className={cn(
+                      "ml-1",
+                      !isDesktopExpanded && "hidden",
+                      isPinned && "text-orange-500"
                     )}
-                  </ContextMenuTrigger>
-                  <ContextMenuContent>
-                    <ContextMenuItem onClick={() => handleStartEdit(session.id, session.title)}>
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Rename
-                    </ContextMenuItem>
-                    <ContextMenuItem 
-                      className="text-destructive"
-                      onClick={() => handleDelete(session.id)}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
-              ))}
-            </div>
-          ))}
+                  >
+                    {isPinned ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {isPinned ? "Unpin sidebar" : "Pin sidebar open"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
-      </ScrollArea>
 
-      <div className="sticky bottom-0 z-30 bg-background p-3 border-t space-y-2">
-        <Link to="/flashcards/subjects">
+        <ScrollArea className="flex-1 overflow-hidden custom-scrollbar">
+          <div className="space-y-4 p-2">
+            {sortedSessionEntries.map(([date, dateSessions]) => (
+              <div key={date} className="space-y-1">
+                {isDesktopExpanded && (
+                  <h3 className="text-sm font-medium text-muted-foreground px-3 mb-1">
+                    {date}
+                  </h3>
+                )}
+                {dateSessions.map((session) => (
+                  <ContextMenu key={session.id} onOpenChange={setIsContextMenuOpen}>
+                    <ContextMenuTrigger>
+                      {editingThread === session.id ? (
+                        <div className="px-3 py-2">
+                          <Input
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            onBlur={() => handleFinishEdit(session.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleFinishEdit(session.id);
+                              } else if (e.key === 'Escape') {
+                                setEditingThread(null);
+                                setEditTitle('');
+                              }
+                            }}
+                            autoFocus
+                          />
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleThreadClick(session.id)}
+                          className={cn(
+                            "w-full flex items-center gap-3 rounded-lg nav-item",
+                            isDesktopExpanded ? "px-3 py-2" : "p-2 justify-center",
+                            (selectedThreadId === session.id) ? 
+                              "bg-orange-100 text-orange-700" : 
+                              "hover:bg-muted/50"
+                          )}
+                        >
+                          <MessageSquare 
+                            className={cn(
+                              "w-4 h-4 shrink-0",
+                              (selectedThreadId === session.id) && "text-[#F37022]"
+                            )} 
+                          />
+                          <span className={cn(
+                            "truncate text-sm flex-1 text-left transition-all duration-300",
+                            isDesktopExpanded ? "opacity-100 w-auto" : "opacity-0 w-0 absolute overflow-hidden",
+                            (selectedThreadId === session.id) && "font-medium text-[#F37022]"
+                          )}>{session.title}</span>
+                          {isDesktopExpanded && (selectedThreadId === session.id) && (
+                            <ChevronRight className="w-4 h-4 shrink-0 text-[#F37022]" />
+                          )}
+                        </button>
+                      )}
+                    </ContextMenuTrigger>
+                    <ContextMenuContent>
+                      <ContextMenuItem onClick={() => handleStartEdit(session.id, session.title)}>
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Rename
+                      </ContextMenuItem>
+                      <ContextMenuItem 
+                        className="text-destructive"
+                        onClick={() => handleDelete(session.id)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
+                ))}
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+
+        <div className="sticky bottom-0 z-30 bg-background p-3 border-t space-y-2">
+          <Link to="/flashcards/subjects" onClick={handleNavLinkClick}>
+            <Button
+              variant={isInFlashcards ? "default" : "ghost"}
+              className={cn(
+                "w-full flex items-center gap-2 transition-all",
+                isDesktopExpanded ? "justify-start px-4" : "justify-center px-0",
+                isInFlashcards && "bg-[#F37022] hover:bg-[#E36012]"
+              )}
+            >
+              <BookOpen className="h-4 w-4 shrink-0" />
+              <span className={cn(
+                "transition-opacity duration-300",
+                isDesktopExpanded ? "opacity-100" : "opacity-0 absolute overflow-hidden w-0"
+              )}>Flashcards</span>
+            </Button>
+          </Link>
+          <Link to="/chat" onClick={handleNavLinkClick}>
+            <Button
+              variant={(isInChat || isInChatThread) ? "default" : "ghost"}
+              className={cn(
+                "w-full flex items-center gap-2 transition-all",
+                isDesktopExpanded ? "justify-start px-4" : "justify-center px-0",
+                (isInChat || isInChatThread) && "bg-[#F37022] hover:bg-[#E36012]"
+              )}
+            >
+              <MessageSquare className="h-4 w-4 shrink-0" />
+              <span className={cn(
+                "transition-opacity duration-300",
+                isDesktopExpanded ? "opacity-100" : "opacity-0 absolute overflow-hidden w-0"
+              )}>Chat</span>
+            </Button>
+          </Link>
+          <Link to="/settings" onClick={handleNavLinkClick}>
+            <Button
+              variant={isInSettings ? "default" : "ghost"}
+              className={cn(
+                "w-full flex items-center gap-2 transition-all",
+                isDesktopExpanded ? "justify-start px-4" : "justify-center px-0",
+                isInSettings && "bg-[#F37022] hover:bg-[#E36012]"
+              )}
+            >
+              <Settings className="h-4 w-4 shrink-0" />
+              <span className={cn(
+                "transition-opacity duration-300",
+                isDesktopExpanded ? "opacity-100" : "opacity-0 absolute overflow-hidden w-0"
+              )}>Settings</span>
+            </Button>
+          </Link>
           <Button
-            variant={isInFlashcards ? "default" : "ghost"}
+            onClick={() => {
+              onSignOut();
+              // Also close sidebar on mobile
+              if (isMobile) {
+                onDesktopExpandedChange(false);
+                setIsExpanded(false);
+              }
+            }}
+            variant="ghost"
             className={cn(
               "w-full flex items-center gap-2 transition-all",
-              isDesktopExpanded ? "justify-start px-4" : "justify-center px-0",
-              isInFlashcards && "bg-[#F37022] hover:bg-[#E36012]"
+              isDesktopExpanded ? "justify-start px-4" : "justify-center px-0"
             )}
           >
-            <BookOpen className="h-4 w-4 shrink-0" />
+            <LogOut className="h-4 w-4 shrink-0" />
             <span className={cn(
               "transition-opacity duration-300",
               isDesktopExpanded ? "opacity-100" : "opacity-0 absolute overflow-hidden w-0"
-            )}>Flashcards</span>
+            )}>Sign out</span>
           </Button>
-        </Link>
-        <Link to="/chat">
-          <Button
-            variant={(isInChat || isInChatThread) ? "default" : "ghost"}
-            className={cn(
-              "w-full flex items-center gap-2 transition-all",
-              isDesktopExpanded ? "justify-start px-4" : "justify-center px-0",
-              (isInChat || isInChatThread) && "bg-[#F37022] hover:bg-[#E36012]"
-            )}
-          >
-            <MessageSquare className="h-4 w-4 shrink-0" />
-            <span className={cn(
-              "transition-opacity duration-300",
-              isDesktopExpanded ? "opacity-100" : "opacity-0 absolute overflow-hidden w-0"
-            )}>Chat</span>
-          </Button>
-        </Link>
-        <Link to="/settings">
-          <Button
-            variant={isInSettings ? "default" : "ghost"}
-            className={cn(
-              "w-full flex items-center gap-2 transition-all",
-              isDesktopExpanded ? "justify-start px-4" : "justify-center px-0",
-              isInSettings && "bg-[#F37022] hover:bg-[#E36012]"
-            )}
-          >
-            <Settings className="h-4 w-4 shrink-0" />
-            <span className={cn(
-              "transition-opacity duration-300",
-              isDesktopExpanded ? "opacity-100" : "opacity-0 absolute overflow-hidden w-0"
-            )}>Settings</span>
-          </Button>
-        </Link>
-        <Button
-          onClick={onSignOut}
-          variant="ghost"
-          className={cn(
-            "w-full flex items-center gap-2 transition-all",
-            isDesktopExpanded ? "justify-start px-4" : "justify-center px-0"
-          )}
-        >
-          <LogOut className="h-4 w-4 shrink-0" />
-          <span className={cn(
-            "transition-opacity duration-300",
-            isDesktopExpanded ? "opacity-100" : "opacity-0 absolute overflow-hidden w-0"
-          )}>Sign out</span>
-        </Button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

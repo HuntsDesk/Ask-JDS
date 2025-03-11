@@ -1,11 +1,16 @@
-import React, { useEffect, useState, createContext, useContext } from 'react';
+import React, { useEffect, useState, createContext, useContext, Suspense, lazy } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { Toaster } from '@/components/ui/toaster';
-import { ChatLayout } from '@/components/chat/ChatLayout';
+// Lazy load large components
+const ChatLayout = lazy(() => import('@/components/chat/ChatLayout').then(module => ({ default: module.ChatLayout })));
+const HomePage = lazy(() => import('@/components/HomePage').then(module => ({ default: module.HomePage })));
+const AuthPage = lazy(() => import('@/components/auth/AuthPage').then(module => ({ default: module.AuthPage })));
+const SettingsPage = lazy(() => import('@/components/settings/SettingsPage').then(module => ({ default: module.SettingsPage })));
+const FlashcardsPage = lazy(() => import('@/components/flashcards/FlashcardsPage'));
+const SubscriptionSuccess = lazy(() => import('@/components/SubscriptionSuccess').then(module => ({ default: module.SubscriptionSuccess })));
+
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
-import { HomePage } from '@/components/HomePage';
-import { AuthPage } from '@/components/auth/AuthPage';
 import { 
   BrowserRouter as Router, 
   Routes, 
@@ -16,11 +21,8 @@ import {
   RouterProvider
 } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { SettingsPage } from '@/components/settings/SettingsPage';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Button } from '@/components/ui/button';
-import FlashcardsPage from '@/components/flashcards/FlashcardsPage';
-import { SubscriptionSuccess } from '@/components/SubscriptionSuccess';
 import { AlertTriangle } from 'lucide-react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/query-client';
@@ -78,13 +80,23 @@ function SidebarProvider({ children }: { children: React.ReactNode }) {
 const router = createBrowserRouter(
   createRoutesFromElements(
     <>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/auth" element={<AuthPage />} />
+      <Route path="/" element={
+        <Suspense fallback={<PageLoader message="Loading home page..." />}>
+          <HomePage />
+        </Suspense>
+      } />
+      <Route path="/auth" element={
+        <Suspense fallback={<PageLoader message="Loading authentication..." />}>
+          <AuthPage />
+        </Suspense>
+      } />
       <Route 
         path="/chat/:id" 
         element={
           <ProtectedRoute>
-            <ChatLayout key="chat-with-id" />
+            <Suspense fallback={<PageLoader message="Loading chat..." />}>
+              <ChatLayout key="chat-with-id" />
+            </Suspense>
           </ProtectedRoute>
         } 
       />
@@ -92,7 +104,9 @@ const router = createBrowserRouter(
         path="/chat" 
         element={
           <ProtectedRoute>
-            <ChatLayout key="chat-without-id" />
+            <Suspense fallback={<PageLoader message="Loading chat..." />}>
+              <ChatLayout key="chat-without-id" />
+            </Suspense>
           </ProtectedRoute>
         } 
       />
@@ -100,7 +114,9 @@ const router = createBrowserRouter(
         path="/settings" 
         element={
           <ProtectedRoute>
-            <SettingsPage />
+            <Suspense fallback={<PageLoader message="Loading settings..." />}>
+              <SettingsPage />
+            </Suspense>
           </ProtectedRoute>
         } 
       />
@@ -108,7 +124,9 @@ const router = createBrowserRouter(
         path="/flashcards/*" 
         element={
           <ProtectedRoute>
-            <FlashcardsPage />
+            <Suspense fallback={<PageLoader message="Loading flashcards..." />}>
+              <FlashcardsPage />
+            </Suspense>
           </ProtectedRoute>
         } 
       />
@@ -116,7 +134,9 @@ const router = createBrowserRouter(
         path="/subscription/success" 
         element={
           <ProtectedRoute>
-            <SubscriptionSuccess />
+            <Suspense fallback={<PageLoader message="Loading subscription details..." />}>
+              <SubscriptionSuccess />
+            </Suspense>
           </ProtectedRoute>
         } 
       />
@@ -130,6 +150,16 @@ const router = createBrowserRouter(
     }
   }
 );
+
+// Page loader component for suspense fallbacks
+function PageLoader({ message = "Loading..." }: { message?: string }) {
+  return (
+    <div className="flex flex-col justify-center items-center h-screen">
+      <LoadingSpinner className="h-12 w-12 mb-4" />
+      <p className="text-muted-foreground">{message}</p>
+    </div>
+  );
+}
 
 // Wrapper function for the entire app
 function App() {

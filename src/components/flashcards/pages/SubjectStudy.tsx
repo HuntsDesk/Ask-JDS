@@ -42,9 +42,26 @@ interface Subject {
 }
 
 export default function SubjectStudy() {
-  const { id } = useParams<{ id: string }>();
+  const { subject: id } = useParams<{ subject: string }>();
   const { user } = useFlashcardAuth();
   const navigate = useNavigate();
+  
+  console.log("SubjectStudy: Initial render with id:", id, "user:", user ? user.id : "not authenticated");
+  
+  // Validate subject ID
+  useEffect(() => {
+    if (!id) {
+      console.error("SubjectStudy: Missing subject ID in URL parameters");
+      setError("Missing subject ID. Please return to subjects page and try again.");
+      return;
+    }
+    
+    if (id.length < 10) {
+      console.error("SubjectStudy: Invalid subject ID format:", id);
+      setError("Invalid subject ID format. Please return to subjects page and try again.");
+      return;
+    }
+  }, [id]);
   
   const [subject, setSubject] = useState<Subject | null>(null);
   const [collections, setCollections] = useState<any[]>([]);
@@ -58,31 +75,87 @@ export default function SubjectStudy() {
   const [hasSubscription, setHasSubscription] = useState<boolean>(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [isOfficialContent, setIsOfficialContent] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  // Function to handle manual retry
+  const handleRetry = () => {
+    console.log("SubjectStudy: Manual retry requested");
+    setError(null);
+    setLoading(true);
+    setRetryCount(prev => prev + 1);
+    loadData().catch(err => {
+      console.error("Retry failed:", err);
+      setError(`Retry failed: ${err.message || "Unknown error"}`);
+      setLoading(false);
+    });
+  };
 
   useEffect(() => {
     if (id) {
-      loadData();
+      console.log("SubjectStudy: Component mounted with id:", id, "retryCount:", retryCount);
+      
+      // Check network status first
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        console.error("SubjectStudy: Network appears to be offline");
+        setLoading(false);
+        setError("Network connection unavailable. Please check your internet connection and try again.");
+        return;
+      }
+      
+      // Add timeout protection to ensure loading state doesn't get stuck
+      const timeoutId = setTimeout(() => {
+        console.error("SubjectStudy component loading timeout - forcing loading to complete");
+        setLoading(false);
+        setError("Loading timed out. Please try again.");
+      }, 15000); // 15 second timeout for the entire component
+      
+      // Call loadData and ensure loading state is properly reset
+      loadData().catch(err => {
+        console.error("Unhandled error in loadData:", err);
+        setError(err.message || "Failed to load subject data");
+        setLoading(false);
+      }).finally(() => {
+        clearTimeout(timeoutId);
+      });
     }
-  }, [id, showMastered]);
+  }, [id, showMastered, retryCount]);
 
   const hideToast = () => {
     setToast(null);
   };
 
   const loadData = async () => {
+    console.log("SubjectStudy: Starting loadData function with id:", id);
     setLoading(true);
+    setError(null); // Reset any previous errors
+    
+    // Add timeout protection to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.error("SubjectStudy loadData timeout - operation took too long");
+      setLoading(false);
+      setError("Loading timed out. Please try again later.");
+    }, 10000); // 10 second timeout
+    
     try {
       // Check subscription status first
       if (user) {
-        const hasAccess = await hasActiveSubscription(user.id);
-        console.log("SubjectStudy: User subscription status:", hasAccess);
-        setHasSubscription(hasAccess);
+        try {
+          console.log("SubjectStudy: Checking subscription status for user:", user.id);
+          const hasAccess = await hasActiveSubscription(user.id);
+          console.log("SubjectStudy: User subscription status:", hasAccess);
+          setHasSubscription(hasAccess);
+        } catch (subErr) {
+          console.error("Error checking subscription status:", subErr);
+          // Continue with hasSubscription as false if check fails
+          setHasSubscription(false);
+        }
       } else {
         console.log("SubjectStudy: No user logged in, setting hasSubscription to false");
         setHasSubscription(false);
       }
       
       // Fetch subject details
+      console.log("SubjectStudy: Fetching subject details for id:", id);
       const { data: subjectData, error: subjectError } = await supabase
         .from('subjects')
         .select('*')
@@ -90,13 +163,16 @@ export default function SubjectStudy() {
         .single();
 
       if (subjectError) {
+        console.error("SubjectStudy: Error fetching subject:", subjectError);
         throw new Error(subjectError.message);
       }
 
       if (!subjectData) {
+        console.error("SubjectStudy: Subject not found for id:", id);
         throw new Error('Subject not found');
       }
 
+      console.log("SubjectStudy: Subject data loaded:", subjectData);
       setSubject(subjectData);
       
       // Check if this is premium content
@@ -112,6 +188,7 @@ export default function SubjectStudy() {
       }
 
       // Fetch collections for this subject
+      console.log("SubjectStudy: Fetching collections for subject:", id);
       const { data: collectionsData, error: collectionsError } = await supabase
         .from('flashcard_collections')
         .select('*')
@@ -119,16 +196,20 @@ export default function SubjectStudy() {
         .order('created_at', { ascending: false });
 
       if (collectionsError) {
+        console.error("SubjectStudy: Error fetching collections:", collectionsError);
         throw new Error(collectionsError.message);
       }
 
+      console.log("SubjectStudy: Found", collectionsData?.length || 0, "collections");
       setCollections(collectionsData || []);
 
       if (collectionsData && collectionsData.length > 0) {
         // Get all collection IDs
         const collectionIds = collectionsData.map(c => c.id);
+        console.log("SubjectStudy: Collection IDs:", collectionIds);
 
         // Build query for flashcards
+        console.log("SubjectStudy: Fetching flashcards for collections, showMastered:", showMastered);
         let query = supabase
           .from('flashcards')
           .select('*')
@@ -142,9 +223,12 @@ export default function SubjectStudy() {
         const { data: cardsData, error: cardsError } = await query;
 
         if (cardsError) {
+          console.error("SubjectStudy: Error fetching flashcards:", cardsError);
           throw new Error(cardsError.message);
         }
 
+        console.log("SubjectStudy: Found", cardsData?.length || 0, "flashcards");
+        
         // Transform cards to include collection title
         const transformedCards = cardsData.map((card: any) => {
           const collection = collectionsData.find(c => c.id === card.collection_id);
@@ -154,15 +238,20 @@ export default function SubjectStudy() {
           };
         });
 
+        console.log("SubjectStudy: Setting", transformedCards.length, "cards to state");
         setCards(transformedCards || []);
         setCurrentIndex(0);
         setShowAnswer(false);
       } else {
+        console.log("SubjectStudy: No collections found, setting empty cards array");
         setCards([]);
       }
     } catch (err: any) {
-      setError(err.message);
+      console.error("Error in SubjectStudy loadData:", err);
+      setError(err.message || "An unknown error occurred while loading data");
     } finally {
+      clearTimeout(timeoutId); // Clear the timeout when done
+      console.log("SubjectStudy: loadData complete, setting loading to false");
       setLoading(false);
     }
   };
@@ -251,11 +340,69 @@ export default function SubjectStudy() {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+          <h2 className="text-2xl font-bold mb-4">Loading Subject</h2>
+          <p className="text-gray-600 mb-6">
+            We're preparing your flashcards...
+          </p>
+          <LoadingSpinner />
+          
+          {/* Add a way to recover from a potentially broken state after 8 seconds */}
+          <div 
+            className="mt-8 invisible opacity-0 transition-all duration-500" 
+            id="retry-section" 
+            style={{animation: 'fadeIn 0.5s 8s forwards'}}
+          >
+            <p className="text-red-600 mb-2">
+              This is taking longer than expected. Would you like to try again?
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md mt-2"
+            >
+              Retry Loading
+            </button>
+            <style>{`
+              @keyframes fadeIn {
+                to {
+                  visibility: visible;
+                  opacity: 1;
+                }
+              }
+            `}</style>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <ErrorMessage message={error} />;
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading Subject</h2>
+          <p className="text-gray-800 mb-6">
+            {error}
+          </p>
+          <div className="flex flex-col gap-4 items-center">
+            <button
+              onClick={handleRetry}
+              className="bg-[#F37022] text-white px-6 py-2 rounded-md hover:bg-[#E36012]"
+            >
+              Try Again
+            </button>
+            <Link
+              to="/flashcards/subjects"
+              className="text-[#F37022] hover:text-[#E36012]"
+            >
+              Return to Subjects
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!subject) {
@@ -286,7 +433,7 @@ export default function SubjectStudy() {
   const currentCard = cards[currentIndex];
   
   // Force premium content blurring for testing
-  const forcePremiumTest = true; // Set to true for testing premium blurring
+  const forcePremiumTest = false; // Set to false to disable premium testing
   const isPremiumBlurred = (isOfficialContent && !hasSubscription) || forcePremiumTest;
   
   console.log("SubjectStudy render - isPremiumBlurred:", isPremiumBlurred, "isOfficialContent:", isOfficialContent, "hasSubscription:", hasSubscription);

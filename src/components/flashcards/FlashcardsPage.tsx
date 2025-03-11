@@ -35,17 +35,20 @@ export default function FlashcardsPage() {
   const [loading, setLoading] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   
   // Use the threads hook to fetch actual threads
   const { threads, loading: threadsLoading, deleteThread, updateThread, createThread } = useThreads();
   const { setSelectedThreadId } = useContext(SelectedThreadContext);
   const { isExpanded, setIsExpanded } = useContext(SidebarContext);
   
-  // Remove the forced paywall effect
-  // useEffect(() => {
-  //   console.log("Setting showPaywall to true immediately for testing");
-  //   setShowPaywall(true);
-  // }, []);
+  // Check for mobile on mount and window resize
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     const checkSubscription = async () => {
@@ -78,44 +81,56 @@ export default function FlashcardsPage() {
     try {
       console.log("Checking access to collection:", collectionId);
       
-      // Option to force the paywall to show for testing
-      const forcePaywallTest = false; // Set to true to force paywall for testing
-      
-      if (forcePaywallTest) {
-        console.log("TESTING MODE: Forcing paywall to show");
-        setCurrentPath(window.location.pathname);
-        setShowPaywall(true);
-        return false;
-      }
-      
-      // Original logic below:
-      // Query to check if collection is premium content
-      const { data, error } = await supabase
-        .from('flashcard_collections')
-        .select('is_official')
-        .eq('id', collectionId)
-        .single();
-      
-      if (error) throw error;
-      
-      console.log("Collection is premium:", data.is_official);
-      console.log("User has subscription:", hasSubscription);
-      
-      // If it's a premium collection, user needs subscription
-      if (data.is_official) {
-        if (!hasSubscription) {
-          console.log("Premium content detected, user doesn't have subscription. Showing paywall.");
-          setCurrentPath(window.location.pathname);
-          setShowPaywall(true);
-          return false;
-        } else {
-          console.log("Premium content detected, but user has subscription. Allowing access.");
+      // Set up a timeout to prevent hanging
+      const checkPromise = (async () => {
+        try {
+          // Query to check if collection is premium content
+          const { data, error } = await supabase
+            .from('flashcard_collections')
+            .select('is_official')
+            .eq('id', collectionId)
+            .single();
+          
+          if (error) {
+            console.error("Error checking collection access:", error);
+            // On error, default to allowing access
+            return true;
+          }
+          
+          console.log("Collection is premium:", data.is_official);
+          console.log("User has subscription:", hasSubscription);
+          
+          // If it's a premium collection, user needs subscription
+          if (data.is_official) {
+            if (!hasSubscription) {
+              console.log("Premium content detected, user doesn't have subscription. Showing paywall.");
+              setCurrentPath(window.location.pathname);
+              setShowPaywall(true);
+              return false;
+            } else {
+              console.log("Premium content detected, but user has subscription. Allowing access.");
+            }
+          } else {
+            console.log("Non-premium content. Allowing access.");
+          }
+          
+          return true;
+        } catch (error) {
+          console.error("Error in checkPromise:", error);
+          return true; // Default to allowing access on error
         }
-      } else {
-        console.log("Non-premium content. Allowing access.");
-      }
+      })();
       
-      return true;
+      // Create a timeout promise
+      const timeoutPromise = new Promise<boolean>(resolve => {
+        setTimeout(() => {
+          console.warn("Collection access check timed out after 5 seconds, defaulting to allow access");
+          resolve(true);
+        }, 5000);
+      });
+      
+      // Race the check against the timeout
+      return await Promise.race([checkPromise, timeoutPromise]);
     } catch (error) {
       console.error("Error checking collection access:", error);
       return true; // Default to allowing access on error
@@ -196,7 +211,7 @@ export default function FlashcardsPage() {
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 min-h-screen flex">
+    <div className="flex h-screen overflow-hidden bg-background">
       {/* Chat Sidebar */}
       <Sidebar
         setActiveTab={handleThreadSelect}
@@ -212,13 +227,15 @@ export default function FlashcardsPage() {
       
       {/* Main Content */}
       <div 
-        className={cn(
-          "flex-1 transition-all duration-300",
-          isExpanded ? "ml-[var(--sidebar-width)]" : "ml-[var(--sidebar-collapsed-width)]"
-        )}
+        className="flex-1 transition-all duration-300 overflow-x-hidden w-full max-w-full"
+        style={{ 
+          marginLeft: isMobile 
+            ? (isExpanded ? 'var(--sidebar-width)' : '0')
+            : (isExpanded ? 'var(--sidebar-width)' : 'var(--sidebar-collapsed-width)')
+        }}
       >
         <Navbar />
-        <main className="container mx-auto px-4 py-8 dark:text-gray-200">
+        <main className="container mx-auto px-4 py-8 dark:text-gray-200 w-full max-w-full overflow-x-hidden">
           {/* Show paywall if needed */}
           {showPaywall ? (
             <FlashcardPaywall onCancel={handleClosePaywall} />
@@ -233,20 +250,21 @@ export default function FlashcardsPage() {
                   component={StudyMode} 
                 />
               } />
-              <Route path="/subjects/:id" element={<SubjectStudy />} />
               <Route path="/subjects" element={<ManageSubjects />} />
+              <Route path="/subjects/:subject" element={<SubjectStudy />} />
               <Route path="/create-collection" element={<CreateSet />} />
               <Route path="/create" element={<Navigate to="/flashcards/create-collection" replace />} />
-              <Route path="/create-subject" element={<CreateSubject />} />
-              <Route path="/create-flashcard" element={<CreateFlashcardSelect />} />
-              <Route path="/flashcards" element={<AllFlashcards />} />
-              <Route path="/flashcards/flashcards" element={<AllFlashcards />} />
-              <Route path="/search" element={<SearchResults />} />
               <Route path="/edit/:id" element={<EditCollection />} />
-              <Route path="/manage-cards/:id" element={<ManageCards />} />
+              <Route path="/cards/:id" element={<ManageCards />} />
               <Route path="/add-card/:id" element={<AddCard />} />
+              <Route path="/all-flashcards" element={<AllFlashcards />} />
+              <Route path="/flashcards" element={<AllFlashcards />} />
+              <Route path="/search" element={<SearchResults />} />
               <Route path="/edit-subject/:id" element={<EditSubject />} />
-              <Route path="*" element={<Navigate to="/subjects" replace />} />
+              <Route path="/create-subject" element={<CreateSubject />} />
+              <Route path="/create-flashcard-select" element={<CreateFlashcardSelect />} />
+              {/* Add a catch-all route to redirect to subjects */}
+              <Route path="*" element={<Navigate to="/flashcards/subjects" replace />} />
             </Routes>
           )}
         </main>
@@ -264,15 +282,32 @@ function ProtectedResource({ checkAccess, component: Component, ...rest }: any) 
   useEffect(() => {
     async function verifyAccess() {
       console.log("ProtectedResource: Verifying access for resource with ID:", id);
-      if (id) {
-        const hasAccess = await checkAccess(id);
-        console.log("ProtectedResource: Access result:", hasAccess);
-        setCanAccess(hasAccess);
-      } else {
-        console.log("ProtectedResource: No ID provided, defaulting to allowed");
+      
+      // Safety timeout to prevent infinite loading
+      const timeoutId = setTimeout(() => {
+        console.warn("ProtectedResource: Access check timed out after 8 seconds, defaulting to allow access");
         setCanAccess(true);
+        setLoading(false);
+      }, 8000);
+      
+      try {
+        if (id) {
+          const hasAccess = await checkAccess(id);
+          console.log("ProtectedResource: Access result:", hasAccess);
+          // Only update state if the timeout hasn't fired yet
+          setCanAccess(hasAccess);
+        } else {
+          console.log("ProtectedResource: No ID provided, defaulting to allowed");
+          setCanAccess(true);
+        }
+      } catch (error) {
+        console.error("ProtectedResource: Error checking access:", error);
+        // Default to allowing access on error
+        setCanAccess(true);
+      } finally {
+        clearTimeout(timeoutId);
+        setLoading(false);
       }
-      setLoading(false);
     }
     
     verifyAccess();

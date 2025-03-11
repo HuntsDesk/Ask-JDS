@@ -267,7 +267,7 @@ export default function FlashcardCollections() {
             {/* Subject filter moved to the left of the slider */}
             <div className="relative">
               <select
-                className="pl-8 pr-4 py-2 border rounded-md bg-white"
+                className="pl-8 pr-4 py-2 border rounded-md bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 value={selectedSubjectId}
                 onChange={(e) => handleSubjectFilter(e.target.value)}
               >
@@ -278,14 +278,14 @@ export default function FlashcardCollections() {
                   </option>
                 ))}
               </select>
-              <Book className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500 h-5 w-5" />
+              <Book className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 h-5 w-5" />
             </div>
           </div>
           
           {/* Filter tabs */}
           <div>
             <Tabs value={filter} onValueChange={handleFilterChange}>
-              <TabsList className="grid grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
+              <TabsList className="grid grid-cols-3" style={{ backgroundColor: 'var(--background)' }}>
                 <TabsTrigger 
                   value="all"
                   className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"

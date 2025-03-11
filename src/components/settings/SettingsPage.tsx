@@ -23,6 +23,7 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Use the threads hook to fetch actual threads
@@ -30,6 +31,14 @@ export function SettingsPage() {
   const { setSelectedThreadId } = useContext(SelectedThreadContext);
   const { isExpanded, setIsExpanded } = useContext(SidebarContext);
   const { theme, setTheme } = useTheme();
+
+  // Check for mobile on mount and window resize
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Sidebar functions
   const handleNewChat = () => {
@@ -123,14 +132,17 @@ export function SettingsPage() {
       
       {/* Main Content */}
       <div 
-        className={cn(
-          "flex-1 transition-all duration-300",
-          isExpanded ? "ml-[var(--sidebar-width)]" : "ml-[var(--sidebar-collapsed-width)]"
-        )}
+        className="flex-1 transition-all duration-300 overflow-x-hidden w-full max-w-full"
+        style={{ 
+          marginLeft: isMobile 
+            ? (isExpanded ? 'var(--sidebar-width)' : '0')
+            : (isExpanded ? 'var(--sidebar-width)' : 'var(--sidebar-collapsed-width)')
+        }}
       >
         <div className="container py-6 max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold">Settings</h1>
+            {/* On mobile, add padding to the left of the title to avoid hamburger overlap */}
+            <h1 className={cn("text-3xl font-bold", isMobile && "pl-16")}>Settings</h1>
           </div>
           
           <Tabs defaultValue="subscription" className="space-y-4">

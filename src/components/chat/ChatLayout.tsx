@@ -1,17 +1,19 @@
-import { useState, useEffect, useRef, useContext } from 'react';
+import { useState, useEffect, useRef, useContext, lazy, Suspense } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useThreads } from '@/hooks/use-threads';
 import { useMessages } from '@/hooks/use-messages';
 import { Sidebar } from './Sidebar';
 import { ChatInterface } from './ChatInterface';
 import { Loader2 } from 'lucide-react';
-import { Paywall } from '@/components/Paywall';
+// Lazy load the Paywall which is only needed in certain circumstances
+const Paywall = lazy(() => import('@/components/Paywall').then(module => ({ default: module.Paywall })));
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { SelectedThreadContext, SidebarContext } from '@/App';
 
-export function ChatLayout() {
+// Export as default for lazy loading
+const ChatLayout = () => {
   const { user, signOut } = useAuth();
   const { isExpanded, setIsExpanded } = useContext(SidebarContext);
   const [activeThread, setActiveThread] = useState<string | null>(null);
@@ -500,17 +502,11 @@ export function ChatLayout() {
     window.location.reload();
   };
 
-  // Check for mobile screen size
+  // Check for mobile on mount and window resize
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    
-    // Set initial value
     checkMobile();
-    
-    // Add event listener for resize
     window.addEventListener('resize', checkMobile);
-    
-    // Clean up
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
@@ -525,6 +521,20 @@ export function ChatLayout() {
       return () => clearTimeout(timer);
     }
   }, [originalThreadsLoading, messagesLoading]);
+
+  // Use a dedicated function for rendering paywall
+  const renderPaywall = () => {
+    return (
+      <Suspense fallback={<div className="flex justify-center items-center h-full"><LoadingSpinner /></div>}>
+        <Paywall
+          title="Message Limit Reached"
+          message="You've reached your free message limit. Upgrade to our premium plan for unlimited access."
+          buttonText="Upgrade Now"
+          onClose={() => setActiveThread(null)}
+        />
+      </Suspense>
+    );
+  };
 
   if (originalThreadsLoading && !loadingTimeout && !isThreadDeletion) {
     console.log('ChatLayout: Showing loading spinner for threads');
@@ -571,8 +581,12 @@ export function ChatLayout() {
       <main 
         className="flex-1 h-screen overflow-hidden w-full"
         style={{ 
-          marginLeft: isExpanded ? 'var(--sidebar-width)' : 'var(--sidebar-collapsed-width)',
-          width: `calc(100% - ${isExpanded ? 'var(--sidebar-width)' : 'var(--sidebar-collapsed-width)'})`
+          marginLeft: isMobile 
+            ? (isExpanded ? 'var(--sidebar-width)' : '0')
+            : (isExpanded ? 'var(--sidebar-width)' : 'var(--sidebar-collapsed-width)'),
+          width: isMobile
+            ? (isExpanded ? `calc(100% - var(--sidebar-width))` : '100%')
+            : `calc(100% - ${isExpanded ? 'var(--sidebar-width)' : 'var(--sidebar-collapsed-width)'})`
         }}
       >
         <div className="h-full relative w-full">
@@ -639,15 +653,15 @@ export function ChatLayout() {
                   </div>
                 </div>
               )}
-              {showPaywall && (
-                <div className="absolute inset-0">
-                  <Paywall onCancel={handleClosePaywall} preservedMessage={preservedMessage} />
-                </div>
-              )}
+              {showPaywall && renderPaywall()}
             </>
           )}
         </div>
       </main>
     </div>
   );
-}
+};
+
+// Export both as default and named export for compatibility
+export { ChatLayout };
+export default ChatLayout;

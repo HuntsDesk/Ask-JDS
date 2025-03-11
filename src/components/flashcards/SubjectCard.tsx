@@ -3,6 +3,7 @@ import { BookOpen, Lock, PlusCircle, Edit, Trash2, CheckCircle2, Layers } from '
 import { Link } from 'react-router-dom';
 import Tooltip from './Tooltip';
 import { supabase } from '@/lib/supabase';
+import { cn } from '@/lib/utils';
 
 interface SubjectCardProps {
   id: string;
@@ -129,19 +130,19 @@ export default function SubjectCard({
   }, [stats.mastered, stats.total]);
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
       <div className="p-6">
         <div className="flex items-center gap-2 mb-3">
           <BookOpen className="h-5 w-5 text-[#F37022]" />
-          <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-1">
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1">
             {name}
-            {isOfficial && <Lock className="h-4 w-4 text-gray-400 ml-1" />}
+            {isOfficial && <Lock className="h-4 w-4 text-gray-400 dark:text-gray-500 ml-1" />}
           </h3>
         </div>
         
         {/* Only show description if it exists */}
         {description && (
-          <p className="text-gray-700 mb-4">
+          <p className="text-gray-700 dark:text-gray-300 mb-4">
             {description}
           </p>
         )}
@@ -150,16 +151,16 @@ export default function SubjectCard({
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4 text-indigo-500" />
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
                 <span className="font-medium">{collectionCount}</span> {collectionCount === 1 ? 'collection' : 'collections'}
               </span>
             </div>
             
             <div className="flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-blue-500" />
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
                 {loading ? (
-                  <span className="text-gray-400">Loading card data...</span>
+                  <span className="text-gray-400 dark:text-gray-500">Loading card data...</span>
                 ) : (
                   <>
                     <span className="font-medium">{stats.total}</span> cards
@@ -170,13 +171,13 @@ export default function SubjectCard({
             
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
                 {loading ? (
-                  <span className="text-gray-400">Loading...</span>
+                  <span className="text-gray-400 dark:text-gray-500">Loading...</span>
                 ) : (
                   <>
                     <span className="font-medium">{stats.mastered}</span> mastered
-                    {stats.total > 0 && <span className="text-xs ml-1 text-gray-500">({masteryPercentage}%)</span>}
+                    {stats.total > 0 && <span className="text-xs ml-1 text-gray-500 dark:text-gray-500">({masteryPercentage}%)</span>}
                   </>
                 )}
               </span>
@@ -195,7 +196,7 @@ export default function SubjectCard({
             <Tooltip text="Create Flashcard Collection">
               <Link
                 to={`/flashcards/create-collection?subject=${id}`}
-                className="text-gray-600 hover:text-[#F37022]"
+                className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
               >
                 <PlusCircle className="h-5 w-5" />
               </Link>
@@ -205,7 +206,7 @@ export default function SubjectCard({
                 <Tooltip text="Edit Subject">
                   <Link
                     to={`/flashcards/edit-subject/${id}`}
-                    className="text-gray-600 hover:text-[#F37022]"
+                    className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
                   >
                     <Edit className="h-5 w-5" />
                   </Link>
@@ -214,7 +215,7 @@ export default function SubjectCard({
                   <Tooltip text="Delete Subject">
                     <button
                       onClick={onDelete}
-                      className="text-gray-600 hover:text-red-600"
+                      className="text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
                     >
                       <Trash2 className="h-5 w-5" />
                     </button>
@@ -225,7 +226,7 @@ export default function SubjectCard({
           </div>
           <button
             onClick={onStudy}
-            className="bg-[#F37022]/10 text-[#F37022] px-4 py-2 rounded-md hover:bg-[#F37022]/20"
+            className="bg-[#F37022]/10 text-[#F37022] px-4 py-2 rounded-md hover:bg-[#F37022]/20 dark:bg-[#F37022]/20 dark:hover:bg-[#F37022]/30"
           >
             Study Now
           </button>

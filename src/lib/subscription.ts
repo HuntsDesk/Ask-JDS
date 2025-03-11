@@ -594,48 +594,62 @@ export function clearCachedSubscription(): void {
  * Check if the user has an active subscription
  */
 export async function hasActiveSubscription(userId?: string): Promise<boolean> {
-  try {
-    // If no userId provided, get the current user
-    if (!userId) {
-      const { data: { user } } = await supabase.auth.getUser();
-      userId = user?.id;
-      
+  // Create a promise that resolves after a timeout
+  const timeoutPromise = new Promise<boolean>((resolve) => {
+    setTimeout(() => {
+      console.warn('hasActiveSubscription timeout - defaulting to false');
+      resolve(false);
+    }, 5000); // 5 second timeout
+  });
+  
+  // Create the main subscription check promise
+  const subscriptionCheckPromise = (async () => {
+    try {
+      // If no userId provided, get the current user
       if (!userId) {
-        console.warn('No userId provided for active subscription check');
+        const { data: { user } } = await supabase.auth.getUser();
+        userId = user?.id;
+        
+        if (!userId) {
+          console.warn('No userId provided for active subscription check');
+          return false;
+        }
+      }
+      
+      console.log(`Checking if user has active subscription for ${userId}`);
+      const subscription = await getUserSubscription(userId);
+      
+      if (!subscription) {
+        console.log(`No subscription found for user ${userId}, user is on free tier`);
         return false;
       }
-    }
-    
-    console.log(`Checking if user has active subscription for ${userId}`);
-    const subscription = await getUserSubscription(userId);
-    
-    if (!subscription) {
-      console.log(`No subscription found for user ${userId}, user is on free tier`);
+      
+      // Check if the subscription status is active or trialing
+      const activeStatuses = ['active', 'trialing'];
+      const isActive = activeStatuses.includes(subscription.status);
+      
+      console.log(`Subscription for user ${userId} has status: ${subscription.status}, isActive: ${isActive}`);
+      
+      // Check if the subscription is set to cancel at period end
+      if (subscription.cancelAtPeriodEnd) {
+        const periodEndDate = new Date(subscription.periodEnd);
+        const now = new Date();
+        const isStillActive = periodEndDate > now;
+        
+        console.log(`Subscription is set to cancel at period end (${periodEndDate.toISOString()}). Currently ${isStillActive ? 'still active' : 'inactive'}`);
+        
+        return isActive && isStillActive;
+      }
+      
+      return isActive;
+    } catch (error) {
+      console.error('Error checking subscription status:', error);
       return false;
     }
-    
-    // Check if the subscription status is active or trialing
-    const activeStatuses = ['active', 'trialing'];
-    const isActive = activeStatuses.includes(subscription.status);
-    
-    console.log(`Subscription for user ${userId} has status: ${subscription.status}, isActive: ${isActive}`);
-    
-    // Check if the subscription is set to cancel at period end
-    if (subscription.cancelAtPeriodEnd) {
-      const periodEndDate = new Date(subscription.periodEnd);
-      const now = new Date();
-      const isStillActive = periodEndDate > now;
-      
-      console.log(`Subscription is set to cancel at period end (${periodEndDate.toISOString()}). Currently ${isStillActive ? 'still active' : 'inactive'}`);
-      
-      return isActive && isStillActive;
-    }
-    
-    return isActive;
-  } catch (error) {
-    console.error('Error checking subscription status:', error);
-    return false;
-  }
+  })();
+  
+  // Race the subscription check against the timeout
+  return Promise.race([subscriptionCheckPromise, timeoutPromise]);
 }
 
 /**

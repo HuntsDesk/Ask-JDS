@@ -48,19 +48,28 @@ export default function StudyMode() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        console.log("StudyMode: Starting to load data...");
         setLoading(true);
         
         // Check subscription status
         if (user) {
-          const hasAccess = await hasActiveSubscription(user.id);
-          console.log("StudyMode: User subscription status:", hasAccess);
-          setHasSubscription(hasAccess);
+          console.log("StudyMode: User is logged in, checking subscription status...");
+          try {
+            const hasAccess = await hasActiveSubscription(user.id);
+            console.log("StudyMode: User subscription status:", hasAccess);
+            setHasSubscription(hasAccess);
+          } catch (subscriptionError) {
+            console.error("StudyMode: Error checking subscription:", subscriptionError);
+            // Default to allowing access if there's an error with subscription check
+            setHasSubscription(true);
+          }
         } else {
           console.log("StudyMode: No user logged in, setting hasSubscription to false");
           setHasSubscription(false);
         }
         
         // Load collection data
+        console.log("StudyMode: Loading collection data for ID:", id);
         const { data: collectionData, error: collectionError } = await supabase
           .from('flashcard_collections')
           .select(`
@@ -70,7 +79,12 @@ export default function StudyMode() {
           .eq('id', id)
           .single();
         
-        if (collectionError) throw collectionError;
+        if (collectionError) {
+          console.error("StudyMode: Error loading collection:", collectionError);
+          throw collectionError;
+        }
+        
+        console.log("StudyMode: Collection data loaded successfully");
         setCollection(collectionData);
         
         // Check if this is premium content
@@ -86,23 +100,31 @@ export default function StudyMode() {
         }
         
         // Load flashcards
+        console.log("StudyMode: Loading flashcards for collection ID:", id);
         const { data: flashcardsData, error: flashcardsError } = await supabase
           .from('flashcards')
           .select('*')
           .eq('collection_id', id)
           .order('position', { ascending: true });
         
-        if (flashcardsError) throw flashcardsError;
+        if (flashcardsError) {
+          console.error("StudyMode: Error loading flashcards:", flashcardsError);
+          throw flashcardsError;
+        }
+        
+        console.log(`StudyMode: Successfully loaded ${flashcardsData?.length || 0} flashcards`);
         setCards(flashcardsData || []);
         
       } catch (err: any) {
-        console.error('Error loading study data:', err);
+        console.error('StudyMode: Error loading study data:', err);
         setError(err.message);
       } finally {
+        console.log("StudyMode: Finished loading data, setting loading to false");
         setLoading(false);
       }
     };
     
+    console.log("StudyMode: Running effect to load data");
     loadData();
   }, [id, user]);
 
@@ -185,7 +207,13 @@ export default function StudyMode() {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="flex flex-col justify-center items-center py-12">
+        <LoadingSpinner size="lg" />
+        <p className="mt-4 text-gray-600 dark:text-gray-400">Loading flashcards...</p>
+        <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">This may take a moment</p>
+      </div>
+    );
   }
 
   if (error || !collection) {
@@ -281,11 +309,11 @@ export default function StudyMode() {
           <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012]">
             <ChevronLeft className="h-4 w-4" />
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 hover:text-[#F37022] transition-colors">{collection.title}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white hover:text-[#F37022] dark:hover:text-[#F37022] transition-colors">{collection.title}</h1>
           {collection.description && (
-            <p className="text-gray-600 mt-1">{collection.description}</p>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">{collection.description}</p>
           )}
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             {cards.length} {cards.length === 1 ? 'card' : 'cards'} • 
             {currentIndex + 1} of {cards.length}
           </p>
@@ -301,7 +329,7 @@ export default function StudyMode() {
               <Tooltip text="Edit Collection">
                 <Link 
                   to={`/flashcards/edit/${id}`} 
-                  className="text-gray-600 hover:text-[#F37022]"
+                  className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
                 >
                   <FolderCog className="h-5 w-5" />
                 </Link>
@@ -311,7 +339,7 @@ export default function StudyMode() {
               <Tooltip text="Edit Cards">
                 <Link 
                   to={`/flashcards/manage-cards/${id}`} 
-                  className="text-gray-600 hover:text-[#F37022]"
+                  className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
                 >
                   <FileEdit className="h-5 w-5" />
                 </Link>
@@ -320,7 +348,7 @@ export default function StudyMode() {
             <Tooltip text={showMastered ? "Hide mastered cards" : "Show all cards"}>
               <button
                 onClick={() => setShowMastered(!showMastered)}
-                className="text-gray-600 hover:text-[#F37022]"
+                className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
               >
                 {showMastered ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
@@ -328,7 +356,7 @@ export default function StudyMode() {
             <Tooltip text="Shuffle cards">
               <button
                 onClick={shuffleCards}
-                className="text-gray-600 hover:text-[#F37022]"
+                className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
               >
                 <Shuffle className="h-5 w-5" />
               </button>
@@ -337,7 +365,7 @@ export default function StudyMode() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden relative">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden relative">
         {isPremiumBlurred && (
           <div className="absolute top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-10 font-bold">
             PREMIUM CONTENT - SUBSCRIPTION REQUIRED
@@ -351,7 +379,7 @@ export default function StudyMode() {
             <div className="text-center w-full">
               {isPremiumBlurred ? (
                 <div className="premium-content-placeholder">
-                  <div className="bg-orange-100 p-6 rounded-lg">
+                  <div className="bg-orange-100 p-6 rounded-lg mt-8">
                     <div className="flex flex-col items-center gap-4">
                       <Lock className="h-12 w-12 text-orange-500" />
                       <h2 className="text-2xl font-semibold text-orange-800">Premium Flashcard</h2>
@@ -363,7 +391,7 @@ export default function StudyMode() {
                   </div>
                 </div>
               ) : (
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
                   {showAnswer ? currentCard.answer : currentCard.question}
                 </h2>
               )}
@@ -372,7 +400,7 @@ export default function StudyMode() {
           
           <div className="text-center mt-4">
             <button
-              className="text-indigo-600 hover:text-indigo-700 flex items-center gap-2 mx-auto"
+              className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-2 mx-auto"
               onClick={toggleAnswer}
               disabled={isPremiumBlurred}
             >
@@ -382,11 +410,11 @@ export default function StudyMode() {
           </div>
         </div>
 
-        <div className="bg-gray-50 px-8 py-4 flex justify-between items-center">
+        <div className="bg-gray-50 dark:bg-gray-700 px-8 py-4 flex justify-between items-center">
           <button
             onClick={goToPreviousCard}
             disabled={currentIndex === 0}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
           >
             <ArrowLeft className="h-5 w-5" />
             Previous
@@ -398,8 +426,8 @@ export default function StudyMode() {
               disabled={currentCard.is_mastered || isPremiumBlurred}
               className={`flex items-center gap-1 px-3 py-1 rounded-md ${
                 currentCard.is_mastered || isPremiumBlurred
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+                  ? 'bg-gray-100 dark:bg-gray-600 text-gray-400 dark:text-gray-300 cursor-not-allowed'
+                  : 'bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-700'
               }`}
             >
               <Check className="h-4 w-4" />
@@ -410,7 +438,7 @@ export default function StudyMode() {
           <button
             onClick={goToNextCard}
             disabled={currentIndex === cards.length - 1}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
           >
             Next
             <ArrowRight className="h-5 w-5" />
