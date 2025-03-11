@@ -13,6 +13,7 @@ import { usePersistedState } from '@/hooks/use-persisted-state';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { hasActiveSubscription } from '@/lib/subscription';
 import { Button } from '@/components/ui/button';
+import { FlashcardPaywall } from '../../FlashcardPaywall';
 
 interface Flashcard {
   id: string;
@@ -46,6 +47,7 @@ export default function AllFlashcards() {
   const [hasSubscription, setHasSubscription] = useState<boolean>(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [filter, setFilter] = useState<'all' | 'official' | 'my'>('all');
+  const [showPaywall, setShowPaywall] = useState(false);
 
   // Replace regular state with persisted state
   const [showMastered, setShowMastered] = usePersistedState<boolean>('flashcards-show-mastered', true);
@@ -491,6 +493,16 @@ export default function AllFlashcards() {
     }
   }, [showMastered, filteredCards.length, loading]);
 
+  const handleShowPaywall = () => {
+    console.log("Opening flashcard paywall");
+    setShowPaywall(true);
+  };
+  
+  const handleClosePaywall = () => {
+    console.log("Closing flashcard paywall");
+    setShowPaywall(false);
+  };
+
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -500,16 +512,7 @@ export default function AllFlashcards() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <DeleteConfirmation
-        isOpen={!!cardToDelete}
-        onClose={() => setCardToDelete(null)}
-        onConfirm={deleteCard}
-        title="Delete Flashcard"
-        message="Are you sure you want to delete this flashcard?"
-        itemName={cardToDelete?.question}
-      />
-      
+    <div className="container mx-auto px-4 py-8">
       {/* Toast notification */}
       {toast && (
         <Toast 
@@ -517,6 +520,23 @@ export default function AllFlashcards() {
           type={toast.type} 
           onClose={hideToast} 
         />
+      )}
+      
+      {/* Delete Confirmation Modal */}
+      {cardToDelete && (
+        <DeleteConfirmation
+          isOpen={!!cardToDelete}
+          onClose={() => setCardToDelete(null)}
+          onConfirm={deleteCard}
+          title="Delete Flashcard"
+          message="Are you sure you want to delete this flashcard? This action cannot be undone."
+          itemName={cardToDelete?.question}
+        />
+      )}
+      
+      {/* Paywall Modal */}
+      {showPaywall && (
+        <FlashcardPaywall onCancel={handleClosePaywall} />
       )}
       
       <div className="flex flex-col space-y-4 mb-6">
@@ -640,114 +660,127 @@ export default function AllFlashcards() {
           actionLink={filter === 'my' ? "/flashcards/create-flashcard" : undefined}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {!loading && filteredCards.length === 0 ? (
-            <EmptyState
-              title="No matching flashcards"
-              description="No flashcards match your current filters. Try adjusting your filters or creating new flashcards."
-              icon={<FileText className="h-12 w-12 text-gray-400 dark:text-gray-600" />}
-              actionText="Clear Filters"
-              onActionClick={() => {
-                setFilterSubject('all');
-                setFilterCollection('all');
-                setShowMastered(true);
-              }}
-            />
+            <div className="col-span-1 md:col-span-2 lg:col-span-3">
+              <EmptyState
+                title="No matching flashcards"
+                description="No flashcards match your current filters. Try adjusting your filters or creating new flashcards."
+                icon={<FileText className="h-12 w-12 text-gray-400 dark:text-gray-600" />}
+                actionText="Clear Filters"
+                onActionClick={() => {
+                  setFilterSubject('all');
+                  setFilterCollection('all');
+                  setShowMastered(true);
+                }}
+              />
+            </div>
           ) : (
-            <div key={`cards-${showMastered ? 'all' : 'unmastered'}`} className="space-y-6">
-              {filteredCards.map((card) => {
-                const isPremium = isCardPremium(card);
-                
-                return (
-                  <div key={card.id} className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden dark:border dark:border-gray-700 mb-2 ${card.is_mastered ? 'border-l-4 border-green-500' : ''} ${isPremium ? 'border-orange-500 border' : ''}`}>
-                    {isPremium && (
-                      <div className="bg-orange-500 text-white text-center py-1 font-bold">
-                        PREMIUM CONTENT
-                      </div>
-                    )}
-                    <div className="p-4">
-                      <div className="flex justify-between mb-2">
-                        <div>
+            filteredCards.map((card) => {
+              const isPremium = isCardPremium(card);
+              
+              return (
+                <div key={card.id} className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden dark:border dark:border-gray-700 h-full flex flex-col min-h-[300px] ${card.is_mastered ? 'border-l-4 border-green-500' : ''} ${isPremium ? 'border-orange-500 border' : ''}`}>
+                  {isPremium && (
+                    <div className="bg-orange-500 text-white text-center py-1 font-bold">
+                      PREMIUM CONTENT
+                    </div>
+                  )}
+                  <div className="p-4 flex-1 flex flex-col">
+                    <div className="mb-2">
+                      <div className="flex-1 min-w-0">
+                        <Link 
+                          to={`/flashcards/study/${card.collection_id}`}
+                          className="text-sm font-medium text-[#F37022] hover:underline block truncate"
+                        >
+                          {card.collection.title}
+                        </Link>
+                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-1">
+                          <BookOpen className="h-4 w-4 flex-shrink-0 mr-1" />
                           <Link 
-                            to={`/flashcards/study/${card.collection_id}`}
-                            className="text-sm font-medium text-[#F37022] hover:underline"
+                            to={`/flashcards/subjects/${card.collection.subject.id}`}
+                            className="dark:text-gray-300 hover:text-[#F37022] dark:hover:text-[#F37022] hover:underline truncate"
                           >
-                            {card.collection.title}
+                            {card.collection.subject.name}
                           </Link>
-                          <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            <BookOpen className="h-4 w-4 mr-1" />
-                            <Link 
-                              to={`/flashcards/subjects/${card.collection.subject.id}`}
-                              className="dark:text-gray-300 hover:text-[#F37022] dark:hover:text-[#F37022] hover:underline"
-                            >
-                              {card.collection.subject.name}
-                            </Link>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => toggleMastered(card)}
-                            className={`p-1 rounded-full ${
-                              card.is_mastered 
-                                ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-                            }`}
-                            title={card.is_mastered ? 'Unmark as mastered' : 'Mark as mastered'}
-                            disabled={isPremium}
-                          >
-                            <Check className="h-5 w-5" />
-                          </button>
-                          {user && !isPremium && (
-                            <>
-                              <button
-                                onClick={() => handleEditCard(card)}
-                                className="p-1 rounded-full text-gray-600 dark:text-gray-400 hover:text-[#F37022] hover:bg-[#F37022]/10"
-                                title="Edit card"
-                              >
-                                <FileEdit className="h-5 w-5" />
-                              </button>
-                              <button
-                                onClick={() => setCardToDelete(card)}
-                                className="p-1 rounded-full text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-100"
-                                title="Delete card"
-                              >
-                                <Trash2 className="h-5 w-5" />
-                              </button>
-                            </>
-                          )}
                         </div>
                       </div>
+                    </div>
+                    
+                    <div className="mt-2 flex-1 flex flex-col">
+                      {/* Always show the question for both premium and regular cards */}
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                        {card.question.length > 100 ? `${card.question.substring(0, 100)}...` : card.question}
+                      </h3>
                       
-                      <div className="mt-2">
-                        {isPremium ? (
-                          <div className="premium-content-placeholder">
-                            <div className="bg-orange-100 p-4 rounded-lg">
-                              <div className="flex items-center gap-3">
-                                <Lock className="h-10 w-10 text-orange-500" />
-                                <div>
-                                  <h3 className="text-lg font-semibold text-orange-800">Premium Flashcard</h3>
-                                  <p className="text-orange-700">
-                                    Upgrade your account to access premium flashcard content.
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
+                      {/* Only hide the answer for premium cards */}
+                      {isPremium ? (
+                        <div 
+                          className="bg-orange-100 dark:bg-orange-900/30 p-4 rounded-md flex-1 cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors"
+                          onClick={handleShowPaywall}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Lock className="h-6 w-6 text-orange-500 dark:text-orange-400 flex-shrink-0" />
+                            <p className="text-orange-700 dark:text-orange-300">
+                              Upgrade your account to view the answer to this premium flashcard.
+                            </p>
                           </div>
-                        ) : (
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-md flex-1">
+                          <p className="text-gray-600 dark:text-gray-300">
+                            {card.answer.length > 150 ? `${card.answer.substring(0, 150)}...` : card.answer}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Action buttons at the bottom of the card */}
+                    <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => toggleMastered(card)}
+                          className={`p-1 rounded-md ${
+                            card.is_mastered 
+                              ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                          }`}
+                          title={card.is_mastered ? 'Unmark as mastered' : 'Mark as mastered'}
+                          disabled={isPremium}
+                        >
+                          <Check className="h-5 w-5" />
+                        </button>
+                        {user && !isPremium && (
                           <>
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">{card.question}</h3>
-                            <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-md">
-                              <p className="text-gray-700 dark:text-gray-200">{card.answer}</p>
-                            </div>
+                            <button
+                              onClick={() => handleEditCard(card)}
+                              className="p-1 rounded-md text-gray-600 dark:text-gray-400 hover:text-[#F37022] hover:bg-[#F37022]/10"
+                              title="Edit card"
+                            >
+                              <FileEdit className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => setCardToDelete(card)}
+                              className="p-1 rounded-md text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-100"
+                              title="Delete card"
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </button>
                           </>
                         )}
                       </div>
+                      
+                      <Link
+                        to={`/flashcards/study/${card.collection_id}`}
+                        className="text-sm bg-[#F37022]/10 text-[#F37022] px-3 py-1 rounded-md hover:bg-[#F37022]/20"
+                      >
+                        Study
+                      </Link>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })
           )}
         </div>
       )}
