@@ -379,16 +379,24 @@ export default function StudyMode() {
             <div className="text-center w-full">
               {isPremiumBlurred ? (
                 <div className="premium-content-placeholder">
-                  <div className="bg-orange-100 p-6 rounded-lg mt-8">
-                    <div className="flex flex-col items-center gap-4">
-                      <Lock className="h-12 w-12 text-orange-500" />
-                      <h2 className="text-2xl font-semibold text-orange-800">Premium Flashcard</h2>
-                      <p className="text-orange-700 max-w-md mx-auto">
-                        This {showAnswer ? "answer" : "question"} is only available to premium subscribers. 
-                        Upgrade your account to access our curated library of expert flashcards.
-                      </p>
+                  {!showAnswer ? (
+                    // Show the question for premium cards
+                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
+                      {currentCard.question}
+                    </h2>
+                  ) : (
+                    // Hide the answer behind the premium notice
+                    <div className="bg-orange-100 p-6 rounded-lg mt-8">
+                      <div className="flex flex-col items-center gap-4">
+                        <Lock className="h-12 w-12 text-orange-500" />
+                        <h2 className="text-2xl font-semibold text-orange-800">Premium Flashcard</h2>
+                        <p className="text-orange-700 max-w-md mx-auto">
+                          The answer is only available to premium subscribers. 
+                          Upgrade your account to access our curated library of expert flashcards.
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               ) : (
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
@@ -448,13 +456,14 @@ export default function StudyMode() {
 
       {isPremiumBlurred && (
         <div className="mt-8 text-center">
-          <div className="mb-4 p-4 bg-orange-100 text-orange-800 rounded-lg">
+          <div className="mb-4 p-4 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 rounded-lg flex flex-col items-center">
+            <Lock className="h-8 w-8 text-orange-500 dark:text-orange-400 mb-2" />
             <p className="font-medium mb-2">Premium Content</p>
             <p>Upgrade to premium to access our expertly-curated flashcards and track your progress.</p>
           </div>
           <button
             onClick={handleShowPaywall}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium"
+            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
           >
             Upgrade to Premium for Full Access
           </button>
