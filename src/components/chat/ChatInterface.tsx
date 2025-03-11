@@ -312,7 +312,7 @@ export function ChatInterface({
       <div className="flex-1 overflow-hidden message-container w-full">
         <div 
           ref={messagesContainerRef}
-          className="flex-1 h-full w-full overflow-y-auto px-4 pb-2 custom-scrollbar"
+          className="flex-1 h-full w-full overflow-y-auto px-4 md:pb-2 pb-[120px] custom-scrollbar"
         >
           {loading && messages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
@@ -344,7 +344,7 @@ export function ChatInterface({
               </div>
             </div>
           ) : (
-            <div className="pb-0">
+            <div className="pb-0 mb-safe-area-inset">
               {messages.map((message, index) => (
                 <ChatMessage 
                   key={message.id || `temp-${index}`} 

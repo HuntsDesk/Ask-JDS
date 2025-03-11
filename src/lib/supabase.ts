@@ -119,14 +119,19 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
   
   // Check network status
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    console.warn(`[${requestId}] Network appears to be offline. This may cause the request to fail.`);
+    console.warn(`[${requestId}] Network appears to be offline. This will likely cause the request to fail.`);
+    // Return a rejected promise immediately if we know we're offline
+    if (url.includes('/subjects') || url.includes('/flashcard_collections') || url.includes('/flashcards')) {
+      console.error(`[${requestId}] Critical flashcard request attempted while offline - rejecting early to prevent hanging UI`);
+      return Promise.reject(new Error('Network connection unavailable. Please check your internet connection.'));
+    }
   }
   
   const timeoutId = setTimeout(() => {
     controller.abort();
     const duration = Date.now() - startTime;
     
-    console.warn(`[${requestId}] Supabase fetch request timed out after 15 seconds: ${url} (${duration}ms)`);
+    console.warn(`[${requestId}] Supabase fetch request timed out after 10 seconds: ${url} (${duration}ms)`);
     
     // Log additional information about the request
     if (typeof input === 'string') {
@@ -138,7 +143,7 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       console.warn(`[${requestId}] Network appears to be offline. This may be causing the timeout.`);
     }
-  }, 15000); // 15 second timeout for all Supabase requests
+  }, 10000); // 10 second timeout for all Supabase requests (reduced from 15)
   
   const fetchPromise = fetch(input, {
     ...init,
@@ -157,7 +162,13 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
       
       // If this is an abort error from our timeout, provide a clearer message
       if (error.name === 'AbortError') {
-        throw new Error(`Request to ${url} timed out after 15 seconds`);
+        throw new Error(`Request to ${url} timed out after 10 seconds. Please check your network connection.`);
+      }
+      
+      // Provide a more user-friendly error for network issues
+      if (error.message && error.message.includes('NetworkError') || 
+          error.message && error.message.includes('Failed to fetch')) {
+        throw new Error(`Network error when requesting ${url}. Please check your internet connection.`);
       }
       
       throw error;

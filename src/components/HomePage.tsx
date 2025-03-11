@@ -295,7 +295,7 @@ export function HomePage() {
             <div className="bg-white p-8 rounded-xl shadow-sm">
               <Brain className="w-12 h-12 text-[#00178E] mb-4" />
               <h3 className="text-xl font-semibold mb-4 text-[#F37022]">Get an Answer</h3>
-              <p className="text-gray-600">Powered by legal outlines, case summaries, and the AI equivalent of an over-caffeinated 3L.</p>
+              <p className="text-gray-600">Powered by legal outlines, case summaries, and the AI equivalent of an over-caffeinated law nerd.</p>
             </div>
             <div className="bg-white p-8 rounded-xl shadow-sm">
               <Rocket className="w-12 h-12 text-[#00178E] mb-4" />

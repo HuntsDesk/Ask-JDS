@@ -97,6 +97,7 @@ export default function FlashcardSubjects() {
   };
 
   const handleStudySubject = (subjectId: string) => {
+    console.log("Navigating to subject study page with ID:", subjectId);
     navigate(`/flashcards/subjects/${subjectId}`);
   };
 
