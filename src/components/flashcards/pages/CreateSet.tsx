@@ -6,6 +6,7 @@ import LoadingSpinner from '../LoadingSpinner';
 import ErrorMessage from '../ErrorMessage';
 import useToast from '@/hooks/useFlashcardToast';
 import Toast from '../Toast';
+import { useAuth } from '@/lib/auth';
 
 interface Flashcard {
   question: string;
@@ -22,6 +23,7 @@ export default function CreateSet() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialSubjectId = searchParams.get('subject');
+  const { user } = useAuth();
   
   const { toast, showToast, hideToast } = useToast();
   const [title, setTitle] = useState('');
@@ -104,6 +106,11 @@ export default function CreateSet() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!user) {
+      showToast('You must be logged in to create flashcards', 'error');
+      return;
+    }
+    
     const validationError = validateForm();
     if (validationError) {
       showToast(validationError, 'error');
@@ -138,7 +145,8 @@ export default function CreateSet() {
           title,
           description,
           subject_id: finalSubjectId,
-          is_official: false
+          is_official: false,
+          user_id: user.id
         }])
         .select()
         .single();
@@ -150,7 +158,9 @@ export default function CreateSet() {
         question: card.question,
         answer: card.answer,
         collection_id: collection.id,
-        position: index
+        position: index,
+        created_by: user.id,
+        is_official: false
       }));
       
       const { error: cardsError } = await supabase

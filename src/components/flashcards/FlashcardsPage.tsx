@@ -21,12 +21,14 @@ import SearchResults from './pages/SearchResults';
 // Additional pages will be implemented progressively
 import EditCollection from './pages/EditCollection';
 import AddCard from './pages/AddCard';
+import EditCard from './pages/EditCard';
 import ManageCards from './pages/ManageCards';
 import ManageSubjects from './FlashcardSubjects';
 import SubjectStudy from './pages/SubjectStudy';
 import EditSubject from './pages/EditSubject';
 import CreateSubject from './pages/CreateSubject';
 import CreateFlashcardSelect from './pages/CreateFlashcardSelect';
+import CreateFlashcard from './pages/CreateFlashcard';
 
 export default function FlashcardsPage() {
   const { user, signOut } = useAuth();
@@ -257,12 +259,14 @@ export default function FlashcardsPage() {
               <Route path="/edit/:id" element={<EditCollection />} />
               <Route path="/cards/:id" element={<ManageCards />} />
               <Route path="/add-card/:id" element={<AddCard />} />
+              <Route path="/edit-card/:cardId" element={<EditCard />} />
               <Route path="/all-flashcards" element={<AllFlashcards />} />
               <Route path="/flashcards" element={<AllFlashcards />} />
               <Route path="/search" element={<SearchResults />} />
               <Route path="/edit-subject/:id" element={<EditSubject />} />
               <Route path="/create-subject" element={<CreateSubject />} />
               <Route path="/create-flashcard-select" element={<CreateFlashcardSelect />} />
+              <Route path="/create-flashcard" element={<CreateFlashcard />} />
               {/* Add a catch-all route to redirect to subjects */}
               <Route path="*" element={<Navigate to="/flashcards/subjects" replace />} />
             </Routes>

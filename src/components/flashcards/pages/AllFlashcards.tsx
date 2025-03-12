@@ -21,6 +21,7 @@ interface Flashcard {
   answer: string;
   is_mastered: boolean;
   collection_id: string;
+  created_by?: string;
   collection: {
     id: string;
     title: string;
@@ -116,7 +117,18 @@ export default function AllFlashcards() {
       if (filter === 'my' && user) {
         console.log("Loading MY flashcards for user:", user.id);
         
-        // First query all collections where the user is the creator 
+        // First, load all collections to show in the dropdown
+        const { data: allCollections, error: allCollectionsError } = await supabase
+          .from('flashcard_collections')
+          .select('id, title, subject_id, is_official, user_id')
+          .order('title');
+          
+        if (allCollectionsError) {
+          console.error("Error fetching all collections:", allCollectionsError);
+          throw allCollectionsError;
+        }
+        
+        // Then query collections where the user is the creator 
         const { data: userCollections, error: collectionsError } = await supabase
           .from('flashcard_collections')
           .select('id, title, subject_id, is_official')
@@ -130,37 +142,28 @@ export default function AllFlashcards() {
         console.log("User collections found:", userCollections?.length || 0, 
                    "Collection IDs:", userCollections?.map(c => c.id));
                    
-        // Set these as the available collections
-        setCollections(userCollections || []);
+        // Set all collections so they are available in the dropdown
+        setCollections(allCollections || []);
         
-        // If no collections found, show empty result
-        if (!userCollections || userCollections.length === 0) {
-          setCards([]);
-          setLoading(false);
-          return;
-        }
+        // Get collection IDs created by the user
+        const userCollectionIds = userCollections?.map(c => c.id) || [];
         
-        // Query flashcards that belong to these collections
-        const collectionIds = userCollections.map(c => c.id);
-        
-        // Apply subject filter if needed
-        let filteredCollectionIds = [...collectionIds];
-        if (filterSubject !== 'all') {
+        // Apply subject filter if needed for collection filter
+        let filteredCollectionIds = [...userCollectionIds];
+        if (filterSubject !== 'all' && userCollectionIds.length > 0) {
           const filteredBySubject = userCollections
             .filter(c => c.subject_id === filterSubject)
             .map(c => c.id);
             
           filteredCollectionIds = filteredBySubject;
-          
-          if (filteredCollectionIds.length === 0) {
-            setCards([]);
-            setLoading(false);
-            return;
-          }
         }
         
-        // Base query for flashcards
-        let query = supabase
+        // For "My Flashcards", we need to find:
+        // 1. Cards created by the user (created_by = user.id)
+        // 2. Cards in collections created by the user
+
+        // First, get cards created by the user
+        const { data: createdByUserCards, error: createdByUserError } = await supabase
           .from('flashcards')
           .select(`
             *,
@@ -174,29 +177,70 @@ export default function AllFlashcards() {
               )
             )
           `)
-          .in('collection_id', filteredCollectionIds)
+          .eq('created_by', user.id)
           .order('created_at', { ascending: false });
+
+        if (createdByUserError) {
+          console.error("Error fetching cards created by user:", createdByUserError);
+          throw createdByUserError;
+        }
+
+        console.log(`Found ${createdByUserCards?.length || 0} cards created by user`);
+        
+        // If we have user collections, also get cards from those collections
+        let collectionCards: any[] = [];
+        if (filteredCollectionIds.length > 0) {
+          const { data: userCollectionCards, error: collectionCardsError } = await supabase
+            .from('flashcards')
+            .select(`
+              *,
+              collection:collection_id (
+                title,
+                is_official,
+                user_id,
+                subject:subject_id (
+                  name,
+                  id
+                )
+              )
+            `)
+            .in('collection_id', filteredCollectionIds)
+            .order('created_at', { ascending: false });
+            
+          if (collectionCardsError) {
+            console.error("Error fetching cards from user collections:", collectionCardsError);
+            throw collectionCardsError;
+          }
           
+          collectionCards = userCollectionCards || [];
+          console.log(`Found ${collectionCards.length} cards from user collections`);
+        }
+        
+        // Combine the results, removing duplicates
+        const userCards = [...(createdByUserCards || [])];
+        
+        // Add collection cards, avoiding duplicates
+        collectionCards.forEach(card => {
+          if (!userCards.some(c => c.id === card.id)) {
+            userCards.push(card);
+          }
+        });
+        
+        // Apply additional filters
+        let filteredCards = userCards;
+        
         // Apply mastered filter if needed
         if (!showMastered) {
-          query = query.eq('is_mastered', false);
+          filteredCards = filteredCards.filter(card => !card.is_mastered);
         }
         
         // Apply collection filter if needed
         if (filterCollection !== 'all') {
-          query = query.eq('collection_id', filterCollection);
+          filteredCards = filteredCards.filter(card => card.collection_id === filterCollection);
         }
         
-        // Execute the query
-        const { data: userCards, error: cardsError } = await query;
-        
-        if (cardsError) {
-          console.error("Error fetching user cards:", cardsError);
-          throw cardsError;
-        }
-        
-        console.log(`Found ${userCards?.length || 0} user flashcards`);
-        setCards(userCards || []);
+        console.log(`Found ${filteredCards.length} total user cards after filtering`);
+        setCards(filteredCards);
         setLoading(false);
         return;
       }
@@ -324,9 +368,7 @@ export default function AllFlashcards() {
   }, [collections, filterSubject]);
 
   const handleEditCard = (card: Flashcard) => {
-    navigate(`/flashcards/manage/${card.collection_id}`, { 
-      state: { editCardId: card.id } 
-    });
+    navigate(`/flashcards/edit-card/${card.id}`);
   };
 
   const toggleMastered = async (card: Flashcard) => {
@@ -458,7 +500,22 @@ export default function AllFlashcards() {
         return false;
       }
       
-      // For 'my' and 'all' tabs, no additional filtering needed
+      if (filter === 'my' && user) {
+        console.log("My Flashcards filter check - user id:", user.id);
+        
+        // For "my" tab, check both collection_id and created_by
+        if (!user || 
+            (card.collection?.user_id !== user.id && 
+             card.created_by !== user.id && 
+             // Also check string versions since types might not match
+             card.created_by !== String(user.id) && 
+             String(card.created_by) !== user.id)) {
+          console.log("Filtering out card:", card.id, "created_by:", card.created_by, "collection.user_id:", card.collection?.user_id);
+          return false;
+        }
+      }
+      
+      // For 'all' tabs, no additional filtering needed
       return true;
     });
   }, [cards, filter, filterSubject, filterCollection, showMastered, isCardPremium]);
@@ -502,6 +559,27 @@ export default function AllFlashcards() {
     console.log("Closing flashcard paywall");
     setShowPaywall(false);
   };
+
+  // Add a debugging effect to check flashcard schema
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from('flashcards')
+        .select('*')
+        .limit(1)
+        .then(({ data, error }) => {
+          if (data && data.length > 0) {
+            console.log('Flashcard schema sample:', data[0]);
+            console.log('created_by exists:', 'created_by' in data[0]);
+            console.log('created_by value:', data[0].created_by);
+            console.log('user.id:', user.id);
+            console.log('Types match:', typeof data[0].created_by === typeof user.id);
+          } else {
+            console.log('No flashcards found for schema check');
+          }
+        });
+    }
+  }, [user]);
 
   if (loading) {
     return <LoadingSpinner />;
@@ -645,145 +723,140 @@ export default function AllFlashcards() {
         </div>
       )}
       
-      {cards.length === 0 && loading === false ? (
-        <EmptyState
-          title="No flashcards found"
-          description={
-            filter === 'official'
-              ? 'No premium flashcards available.'
-              : filter === 'my' 
-                ? 'You haven\'t created any flashcards yet.'
-                : 'No flashcards available.'
-          }
-          icon={<FileText className="h-12 w-12 text-gray-400 dark:text-gray-600" />}
-          actionText={filter === 'my' ? "Create Flashcard" : undefined}
-          actionLink={filter === 'my' ? "/flashcards/create-flashcard" : undefined}
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {!loading && filteredCards.length === 0 ? (
-            <div className="col-span-1 md:col-span-2 lg:col-span-3">
-              <EmptyState
-                title="No matching flashcards"
-                description="No flashcards match your current filters. Try adjusting your filters or creating new flashcards."
-                icon={<FileText className="h-12 w-12 text-gray-400 dark:text-gray-600" />}
-                actionText="Clear Filters"
-                onActionClick={() => {
-                  setFilterSubject('all');
-                  setFilterCollection('all');
-                  setShowMastered(true);
-                }}
+      {/* Filters and cards display */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {!loading && filteredCards.length === 0 ? (
+          <div className="col-span-1 md:col-span-2 lg:col-span-3">
+            {filter === 'my' ? (
+              <EmptyState 
+                icon={<FileText size={48} />}
+                title="No Flashcards Found" 
+                description="You haven't created any flashcards yet or they're being filtered out. Try creating your first flashcard or checking your filter settings."
+                actionText="Create a Flashcard"
+                actionLink="/flashcards/create-flashcard-select"
               />
-            </div>
-          ) : (
-            filteredCards.map((card) => {
-              const isPremium = isCardPremium(card);
-              
-              return (
-                <div key={card.id} className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden dark:border dark:border-gray-700 h-full flex flex-col min-h-[300px] ${card.is_mastered ? 'border-l-4 border-green-500' : ''} ${isPremium ? 'border-orange-500 border' : ''}`}>
-                  {isPremium && (
-                    <div className="bg-orange-500 text-white text-center py-1 font-bold">
-                      PREMIUM CONTENT
-                    </div>
-                  )}
-                  <div className="p-4 flex-1 flex flex-col">
-                    <div className="mb-2">
-                      <div className="flex-1 min-w-0">
+            ) : (
+              <EmptyState 
+                icon={<FileText size={48} />}
+                title="No Flashcards Found" 
+                description="No flashcards match your current filters. Try adjusting your filter settings."
+                actionText={filter === 'official' && !hasActiveSubscription ? 
+                  "Get Premium for Official Flashcards" : "Create a Flashcard"}
+                actionLink={filter === 'official' && !hasActiveSubscription ? 
+                  undefined : "/flashcards/create-flashcard-select"}
+                onActionClick={filter === 'official' && !hasActiveSubscription ? 
+                  handleShowPaywall : undefined}
+              />
+            )}
+          </div>
+        ) : (
+          filteredCards.map((card) => {
+            const isPremium = isCardPremium(card);
+            
+            return (
+              <div key={card.id} className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden dark:border dark:border-gray-700 h-full flex flex-col min-h-[300px] ${card.is_mastered ? 'border-l-4 border-green-500' : ''} ${isPremium ? 'border-orange-500 border' : ''}`}>
+                {isPremium && (
+                  <div className="bg-orange-500 text-white text-center py-1 font-bold">
+                    PREMIUM CONTENT
+                  </div>
+                )}
+                <div className="p-4 flex-1 flex flex-col">
+                  <div className="mb-2">
+                    <div className="flex-1 min-w-0">
+                      <Link 
+                        to={`/flashcards/study/${card.collection_id}`}
+                        className="text-sm font-medium text-[#F37022] hover:underline block truncate"
+                      >
+                        {card.collection.title}
+                      </Link>
+                      <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        <BookOpen className="h-4 w-4 flex-shrink-0 mr-1" />
                         <Link 
-                          to={`/flashcards/study/${card.collection_id}`}
-                          className="text-sm font-medium text-[#F37022] hover:underline block truncate"
+                          to={`/flashcards/subjects/${card.collection.subject.id}`}
+                          className="dark:text-gray-300 hover:text-[#F37022] dark:hover:text-[#F37022] hover:underline truncate"
                         >
-                          {card.collection.title}
+                          {card.collection.subject.name}
                         </Link>
-                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-1">
-                          <BookOpen className="h-4 w-4 flex-shrink-0 mr-1" />
-                          <Link 
-                            to={`/flashcards/subjects/${card.collection.subject.id}`}
-                            className="dark:text-gray-300 hover:text-[#F37022] dark:hover:text-[#F37022] hover:underline truncate"
-                          >
-                            {card.collection.subject.name}
-                          </Link>
-                        </div>
                       </div>
                     </div>
+                  </div>
+                  
+                  <div className="mt-2 flex-1 flex flex-col">
+                    {/* Always show the question for both premium and regular cards */}
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                      {card.question.length > 100 ? `${card.question.substring(0, 100)}...` : card.question}
+                    </h3>
                     
-                    <div className="mt-2 flex-1 flex flex-col">
-                      {/* Always show the question for both premium and regular cards */}
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                        {card.question.length > 100 ? `${card.question.substring(0, 100)}...` : card.question}
-                      </h3>
-                      
-                      {/* Only hide the answer for premium cards */}
-                      {isPremium ? (
-                        <div 
-                          className="bg-orange-100 dark:bg-orange-900/30 p-4 rounded-md flex-1 cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors"
-                          onClick={handleShowPaywall}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Lock className="h-6 w-6 text-orange-500 dark:text-orange-400 flex-shrink-0" />
-                            <p className="text-orange-700 dark:text-orange-300">
-                              Upgrade your account to view the answer to this premium flashcard.
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-md flex-1">
-                          <p className="text-gray-600 dark:text-gray-300">
-                            {card.answer.length > 150 ? `${card.answer.substring(0, 150)}...` : card.answer}
+                    {/* Only hide the answer for premium cards */}
+                    {isPremium ? (
+                      <div 
+                        className="bg-orange-100 dark:bg-orange-900/30 p-4 rounded-md flex-1 cursor-pointer hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors"
+                        onClick={handleShowPaywall}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Lock className="h-6 w-6 text-orange-500 dark:text-orange-400 flex-shrink-0" />
+                          <p className="text-orange-700 dark:text-orange-300">
+                            Upgrade your account to view the answer to this premium flashcard.
                           </p>
                         </div>
+                      </div>
+                    ) : (
+                      <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-md flex-1">
+                        <p className="text-gray-600 dark:text-gray-300">
+                          {card.answer.length > 150 ? `${card.answer.substring(0, 150)}...` : card.answer}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Action buttons at the bottom of the card */}
+                  <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleMastered(card)}
+                        className={`p-1 rounded-md ${
+                          card.is_mastered 
+                            ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        }`}
+                        title={card.is_mastered ? 'Unmark as mastered' : 'Mark as mastered'}
+                        disabled={isPremium}
+                      >
+                        <Check className="h-5 w-5" />
+                      </button>
+                      {user && !isPremium && (
+                        <>
+                          <button
+                            onClick={() => handleEditCard(card)}
+                            className="p-1 rounded-md text-gray-600 dark:text-gray-400 hover:text-[#F37022] hover:bg-[#F37022]/10"
+                            title="Edit card"
+                          >
+                            <FileEdit className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => setCardToDelete(card)}
+                            className="p-1 rounded-md text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-100"
+                            title="Delete card"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        </>
                       )}
                     </div>
                     
-                    {/* Action buttons at the bottom of the card */}
-                    <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => toggleMastered(card)}
-                          className={`p-1 rounded-md ${
-                            card.is_mastered 
-                              ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-                          }`}
-                          title={card.is_mastered ? 'Unmark as mastered' : 'Mark as mastered'}
-                          disabled={isPremium}
-                        >
-                          <Check className="h-5 w-5" />
-                        </button>
-                        {user && !isPremium && (
-                          <>
-                            <button
-                              onClick={() => handleEditCard(card)}
-                              className="p-1 rounded-md text-gray-600 dark:text-gray-400 hover:text-[#F37022] hover:bg-[#F37022]/10"
-                              title="Edit card"
-                            >
-                              <FileEdit className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => setCardToDelete(card)}
-                              className="p-1 rounded-md text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-100"
-                              title="Delete card"
-                            >
-                              <Trash2 className="h-5 w-5" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                      
-                      <Link
-                        to={`/flashcards/study/${card.collection_id}`}
-                        className="text-sm bg-[#F37022]/10 text-[#F37022] px-3 py-1 rounded-md hover:bg-[#F37022]/20"
-                      >
-                        Study
-                      </Link>
-                    </div>
+                    <Link
+                      to={`/flashcards/study/${card.collection_id}`}
+                      className="text-sm bg-[#F37022]/10 text-[#F37022] px-3 py-1 rounded-md hover:bg-[#F37022]/20"
+                    >
+                      Study
+                    </Link>
                   </div>
                 </div>
-              );
-            })
-          )}
-        </div>
-      )}
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 } 
