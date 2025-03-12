@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Save, ArrowLeft, ExternalLink, ChevronLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import LoadingSpinner from '../LoadingSpinner';
@@ -16,8 +16,17 @@ interface Collection {
   };
 }
 
-export default function AddCard() {
-  const { id } = useParams<{ id: string }>();
+interface Flashcard {
+  id: string;
+  question: string;
+  answer: string;
+  collection_id: string;
+  is_mastered: boolean;
+  created_by?: string;
+}
+
+export default function EditCard() {
+  const { cardId } = useParams<{ cardId: string }>();
   const navigate = useNavigate();
   const { toast, showToast, hideToast } = useToast();
   const { user } = useAuth();
@@ -29,9 +38,27 @@ export default function AddCard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadCollection() {
+    async function loadCardAndCollection() {
       try {
-        const { data, error } = await supabase
+        // First load the card details
+        const { data: cardData, error: cardError } = await supabase
+          .from('flashcards')
+          .select('*')
+          .eq('id', cardId)
+          .single();
+
+        if (cardError) throw cardError;
+        
+        if (!cardData) {
+          throw new Error('Card not found');
+        }
+
+        // Set card details
+        setQuestion(cardData.question);
+        setAnswer(cardData.answer);
+
+        // Then load the collection details
+        const { data: collectionData, error: collectionError } = await supabase
           .from('flashcard_collections')
           .select(`
             *,
@@ -39,11 +66,11 @@ export default function AddCard() {
               name
             )
           `)
-          .eq('id', id)
+          .eq('id', cardData.collection_id)
           .single();
 
-        if (error) throw error;
-        setCollection(data);
+        if (collectionError) throw collectionError;
+        setCollection(collectionData);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -51,39 +78,32 @@ export default function AddCard() {
       }
     }
 
-    loadCollection();
-  }, [id]);
+    loadCardAndCollection();
+  }, [cardId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
 
+    if (!question.trim() || !answer.trim()) {
+      showToast('Question and answer cannot be empty', 'error');
+      setSaving(false);
+      return;
+    }
+
     try {
-      console.log('Creating flashcard with user ID:', user?.id);
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('flashcards')
-        .insert([
-          {
-            collection_id: id,
-            question,
-            answer,
-            created_by: user?.id // Add user ID here
-          },
-        ])
-        .select();
+        .update({
+          question: question.trim(),
+          answer: answer.trim()
+        })
+        .eq('id', cardId);
 
       if (error) throw error;
 
-      // Clear form and show success message
-      setQuestion('');
-      setAnswer('');
-      showToast('Card added successfully', 'success');
-      
-      // Log the creation with user ID
-      console.log('Flashcard created successfully:', data);
-      console.log('User ID attached to card:', user?.id);
-      
+      showToast('Card updated successfully', 'success');
     } catch (err: any) {
       setError(err.message);
       showToast(`Error: ${err.message}`, 'error');
@@ -93,9 +113,8 @@ export default function AddCard() {
   };
 
   const handleSaveAndExit = async () => {
-    // Don't save if fields are empty
     if (!question.trim() || !answer.trim()) {
-      navigate(`/flashcards/study/${id}`);
+      showToast('Question and answer cannot be empty', 'error');
       return;
     }
     
@@ -103,29 +122,20 @@ export default function AddCard() {
     setError(null);
 
     try {
-      console.log('Creating flashcard with user ID:', user?.id);
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('flashcards')
-        .insert([
-          {
-            collection_id: id,
-            question,
-            answer,
-            created_by: user?.id // Add user ID here
-          },
-        ])
-        .select();
+        .update({
+          question: question.trim(),
+          answer: answer.trim()
+        })
+        .eq('id', cardId);
 
       if (error) throw error;
       
-      // Log the creation with user ID
-      console.log('Flashcard created successfully:', data);
-      console.log('User ID attached to card:', user?.id);
+      showToast('Card updated successfully', 'success');
       
-      showToast('Card added successfully', 'success');
-      
-      // Navigate to study mode after successful save
-      navigate(`/flashcards/study/${id}`);
+      // Navigate back to the flashcards view
+      navigate(`/flashcards/flashcards`);
     } catch (err: any) {
       setError(err.message);
       showToast(`Error: ${err.message}`, 'error');
@@ -140,10 +150,10 @@ export default function AddCard() {
   if (error || !collection) {
     return (
       <ErrorMessage 
-        message={error || 'Collection not found'} 
+        message={error || 'Card or collection not found'} 
         backLink={{
-          to: "/flashcards/collections",
-          label: "Back to Collections"
+          to: "/flashcards/flashcards",
+          label: "Back to Flashcards"
         }}
       />
     );
@@ -160,42 +170,39 @@ export default function AddCard() {
       )}
       
       <div className="mb-8">
-        <Link to={`/flashcards/edit/${id}`} className="text-[#F37022] hover:text-[#E36012] flex items-center gap-2">
+        <Link to="/flashcards/flashcards" className="text-[#F37022] hover:text-[#E36012] flex items-center gap-2">
           <ChevronLeft className="h-5 w-5" />
-          Back to Collection
+          Back to Flashcards
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900 mt-4">Add Card to Collection</h1>
-        <p className="text-gray-600">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mt-4">Edit Flashcard</h1>
+        <p className="text-gray-600 dark:text-gray-400">
           {collection.title} • {collection.subject.name}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md dark:border dark:border-gray-700">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Question</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Question</label>
               <input
                 type="text"
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Answer</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Answer</label>
               <textarea
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
                 rows={5}
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
-                You can provide a detailed explanation for this answer.
-              </p>
             </div>
           </div>
         </div>
@@ -208,14 +215,14 @@ export default function AddCard() {
               className="flex items-center gap-2 bg-[#F37022] text-white px-6 py-2 rounded-md hover:bg-[#E36012] disabled:opacity-50"
             >
               <Save className="h-5 w-5" />
-              {saving ? 'Saving...' : 'Save & Add Another'}
+              {saving ? 'Saving...' : 'Save Changes'}
             </button>
             
             <button
               type="button"
               onClick={handleSaveAndExit}
               disabled={saving}
-              className="flex items-center gap-2 bg-gray-100 text-gray-800 px-6 py-2 rounded-md hover:bg-gray-200 disabled:opacity-50"
+              className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 px-6 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
             >
               <ExternalLink className="h-5 w-5" />
               Save & Exit

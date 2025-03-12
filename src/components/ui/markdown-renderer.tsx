@@ -32,13 +32,13 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
             <h3 className="mt-5 mb-2 last:mb-0" {...props} />
           ),
           ul: ({ node, ...props }) => (
-            <ul className="my-6 pl-6 last:mb-0" {...props} />
+            <ul className="my-6 pl-6 list-disc list-outside last:mb-0" {...props} />
           ),
           ol: ({ node, ...props }) => (
-            <ol className="my-6 pl-6 last:mb-0" {...props} />
+            <ol className="my-6 pl-6 list-decimal list-outside last:mb-0" {...props} />
           ),
           li: ({ node, ...props }) => (
-            <li className="mb-2 last:mb-0" {...props} />
+            <li className="mb-2 ml-2 last:mb-0" {...props} />
           ),
           pre: ({ node, ...props }) => (
             <pre className="my-6 p-4 bg-muted rounded-md overflow-auto last:mb-0" {...props} />

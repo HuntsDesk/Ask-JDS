@@ -127,9 +127,7 @@ export default function SearchResults() {
   };
 
   const handleEditCard = (card: Flashcard) => {
-    navigate(`/flashcards/manage/${card.collection_id}`, { 
-      state: { editCardId: card.id } 
-    });
+    navigate(`/flashcards/edit-card/${card.id}`);
   };
 
   const toggleMastered = async (card: Flashcard) => {

@@ -1,24 +1,35 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, ArrowRight, Check, X, RotateCcw, BookOpen } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, X, RotateCcw, BookOpen, Lock } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyState from './EmptyState';
 import ErrorMessage from './ErrorMessage';
 import useToast from '@/hooks/useFlashcardToast';
 import Toast from './Toast';
+import { useAuth } from '@/lib/auth';
+import { hasActiveSubscription } from '@/lib/subscription';
 
 interface Flashcard {
   id: string;
   question: string;
   answer: string;
-  is_mastered: boolean;
+  is_mastered?: boolean;
+  is_official?: boolean;
+  created_by?: string;
+  progress?: {
+    id: string;
+    is_mastered: boolean;
+    last_reviewed: string;
+  } | null;
 }
 
 interface FlashcardCollection {
   id: string;
   title: string;
   description: string;
+  is_official?: boolean;
+  user_id?: string;
   subject: {
     id: string;
     name: string;
@@ -29,6 +40,7 @@ export default function FlashcardStudy() {
   const { collectionId } = useParams<{ collectionId: string }>();
   const navigate = useNavigate();
   const { toast, showToast, hideToast } = useToast();
+  const { user } = useAuth();
   
   const [collection, setCollection] = useState<FlashcardCollection | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -37,6 +49,8 @@ export default function FlashcardStudy() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [studyComplete, setStudyComplete] = useState(false);
+  const [hasSubscription, setHasSubscription] = useState(false);
+  const [isPremiumContent, setIsPremiumContent] = useState(false);
   const [stats, setStats] = useState({
     correct: 0,
     incorrect: 0,
@@ -51,14 +65,35 @@ export default function FlashcardStudy() {
 
   // Memoize the calculation of mastered cards
   const masteredCount = useMemo(() => {
-    return flashcards.filter(card => card.is_mastered).length;
+    return flashcards.filter(card => 
+      card.progress?.is_mastered || card.is_mastered
+    ).length;
   }, [flashcards]);
 
   useEffect(() => {
-    if (collectionId) {
+    const checkSubscription = async () => {
+      if (user) {
+        try {
+          const hasAccess = await hasActiveSubscription(user.id);
+          setHasSubscription(hasAccess);
+        } catch (err) {
+          console.error('Error checking subscription:', err);
+          // Default to no subscription on error
+          setHasSubscription(false);
+        }
+      } else {
+        setHasSubscription(false);
+      }
+    };
+
+    checkSubscription();
+  }, [user]);
+
+  useEffect(() => {
+    if (collectionId && user) {
       loadFlashcards();
     }
-  }, [collectionId]);
+  }, [collectionId, user]);
 
   useEffect(() => {
     if (flashcards.length > 0) {
@@ -77,6 +112,8 @@ export default function FlashcardStudy() {
           id,
           title,
           description,
+          is_official,
+          user_id,
           subject:subject_id (
             id,
             name
@@ -87,10 +124,22 @@ export default function FlashcardStudy() {
       
       if (collectionError) throw collectionError;
       
+      // Set premium content flag
+      const isOfficial = collectionData.is_official || false;
+      setIsPremiumContent(isOfficial);
+      
       // Get flashcards for this collection
       const { data: cardsData, error: cardsError } = await supabase
         .from('flashcards')
-        .select('*')
+        .select(`
+          *,
+          collection:collection_id (
+            id,
+            title,
+            is_official,
+            user_id
+          )
+        `)
         .eq('collection_id', collectionId)
         .order('created_at');
       
@@ -99,6 +148,30 @@ export default function FlashcardStudy() {
       if (!cardsData || cardsData.length === 0) {
         setFlashcards([]);
       } else {
+        // Get user progress for these cards
+        if (user) {
+          const { data: progressData, error: progressError } = await supabase
+            .from('flashcard_progress')
+            .select('*')
+            .eq('user_id', user.id)
+            .in('flashcard_id', cardsData.map(c => c.id));
+
+          if (progressError) {
+            console.error('Error fetching flashcard progress:', progressError);
+          } else {
+            // Create a map of progress by flashcard ID
+            const progressMap = (progressData || []).reduce((map, p) => {
+              map[p.flashcard_id] = p;
+              return map;
+            }, {});
+            
+            // Merge progress into card data
+            cardsData.forEach(card => {
+              card.progress = progressMap[card.id] || null;
+            });
+          }
+        }
+        
         // Use the memoized shuffle function
         setFlashcards(shuffleCards(cardsData));
       }
@@ -149,25 +222,59 @@ export default function FlashcardStudy() {
       return;
     }
     
+    if (!user) {
+      showToast('You must be logged in to track progress', 'error');
+      return;
+    }
+    
     try {
-      const updatedCards = [...flashcards];
-      const currentCard = updatedCards[currentIndex];
+      const currentCard = flashcards[currentIndex];
       
-      // Update mastery status in database
-      const { error } = await supabase
-        .from('flashcards')
-        .update({ is_mastered: true })
-        .eq('id', currentCard.id);
-      
-      if (error) throw error;
+      // Update or create progress in the flashcard_progress table
+      const progressData = {
+        user_id: user.id,
+        flashcard_id: currentCard.id,
+        is_mastered: true,
+        last_reviewed: new Date().toISOString()
+      };
+
+      if (currentCard.progress?.id) {
+        // Update existing progress
+        const { error } = await supabase
+          .from('flashcard_progress')
+          .update({
+            is_mastered: true,
+            last_reviewed: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', currentCard.progress.id);
+        
+        if (error) throw error;
+      } else {
+        // Create new progress record
+        const { error } = await supabase
+          .from('flashcard_progress')
+          .insert(progressData);
+        
+        if (error) throw error;
+      }
       
       // Update local state
-      currentCard.is_mastered = true;
+      const updatedCards = [...flashcards];
+      updatedCards[currentIndex] = {
+        ...currentCard,
+        progress: {
+          ...currentCard.progress,
+          is_mastered: true,
+          last_reviewed: new Date().toISOString()
+        }
+      };
       setFlashcards(updatedCards);
+      
       setStats({
         ...stats,
         correct: stats.correct + 1,
-        mastered: stats.mastered + (currentCard.is_mastered ? 0 : 1)
+        mastered: stats.mastered + (!currentCard.progress?.is_mastered ? 1 : 0)
       });
       
       handleNext();
@@ -183,25 +290,59 @@ export default function FlashcardStudy() {
       return;
     }
     
+    if (!user) {
+      showToast('You must be logged in to track progress', 'error');
+      return;
+    }
+    
     try {
-      const updatedCards = [...flashcards];
-      const currentCard = updatedCards[currentIndex];
+      const currentCard = flashcards[currentIndex];
       
-      // Update mastery status in database
-      const { error } = await supabase
-        .from('flashcards')
-        .update({ is_mastered: false })
-        .eq('id', currentCard.id);
-      
-      if (error) throw error;
+      // Update or create progress in the flashcard_progress table
+      const progressData = {
+        user_id: user.id,
+        flashcard_id: currentCard.id,
+        is_mastered: false,
+        last_reviewed: new Date().toISOString()
+      };
+
+      if (currentCard.progress?.id) {
+        // Update existing progress
+        const { error } = await supabase
+          .from('flashcard_progress')
+          .update({
+            is_mastered: false,
+            last_reviewed: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', currentCard.progress.id);
+        
+        if (error) throw error;
+      } else {
+        // Create new progress record
+        const { error } = await supabase
+          .from('flashcard_progress')
+          .insert(progressData);
+        
+        if (error) throw error;
+      }
       
       // Update local state
-      currentCard.is_mastered = false;
+      const updatedCards = [...flashcards];
+      updatedCards[currentIndex] = {
+        ...currentCard,
+        progress: {
+          ...currentCard.progress,
+          is_mastered: false,
+          last_reviewed: new Date().toISOString()
+        }
+      };
       setFlashcards(updatedCards);
+      
       setStats({
         ...stats,
         incorrect: stats.incorrect + 1,
-        mastered: stats.mastered - (currentCard.is_mastered ? 1 : 0)
+        mastered: stats.mastered - (currentCard.progress?.is_mastered ? 1 : 0)
       });
       
       handleNext();
@@ -307,7 +448,11 @@ export default function FlashcardStudy() {
     );
   }
 
-  const currentCard = flashcards[currentIndex];
+  const currentCard = flashcards[currentIndex] || null;
+  const isCurrentCardPremium = currentCard?.is_official || currentCard?.collection?.is_official || isPremiumContent;
+  const isCardCreator = user && currentCard?.created_by === user.id;
+  const hasCardAccess = !isCurrentCardPremium || hasSubscription || isCardCreator;
+  const shouldBlurAnswer = showAnswer && isCurrentCardPremium && !hasCardAccess;
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -320,15 +465,20 @@ export default function FlashcardStudy() {
       )}
       
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">{collection.title}</h1>
-        <p className="text-gray-600 mt-2">{collection.description}</p>
+        <h1 className="text-3xl font-bold text-gray-900">{collection?.title}</h1>
+        <p className="text-gray-600 mt-2">{collection?.description}</p>
         <div className="flex items-center mt-2">
           <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
-            {collection.subject.name}
+            {collection?.subject.name}
           </span>
           <span className="text-sm text-gray-500 ml-4">
             Card {currentIndex + 1} of {flashcards.length}
           </span>
+          {isPremiumContent && !hasSubscription && (
+            <span className="text-sm bg-orange-100 text-orange-800 px-2 py-1 rounded ml-2 flex items-center">
+              <Lock className="h-3 w-3 mr-1" /> Premium Content
+            </span>
+          )}
         </div>
       </div>
       
@@ -354,16 +504,40 @@ export default function FlashcardStudy() {
       <div 
         className={`bg-white rounded-xl shadow-md p-8 mb-6 min-h-[300px] flex items-center justify-center cursor-pointer transition-all duration-300 ${
           showAnswer ? 'bg-blue-50' : ''
-        }`}
+        } ${shouldBlurAnswer ? 'relative' : ''}`}
         onClick={handleFlip}
       >
         <div className="text-center">
           <h3 className="text-xl font-medium text-gray-900 mb-2">
             {showAnswer ? 'Answer:' : 'Question:'}
           </h3>
-          <p className="text-2xl font-bold">
-            {showAnswer ? currentCard.answer : currentCard.question}
-          </p>
+          
+          {shouldBlurAnswer ? (
+            <div className="bg-orange-100 p-6 rounded-lg mt-8">
+              <div className="flex flex-col items-center gap-4">
+                <Lock className="h-12 w-12 text-orange-500" />
+                <h2 className="text-2xl font-semibold text-orange-800">Premium Flashcard</h2>
+                <p className="text-orange-700 max-w-md mx-auto">
+                  The answer is only available to premium subscribers. 
+                  Upgrade your account to access our curated library of expert flashcards.
+                </p>
+                <button 
+                  className="mt-2 px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate('/settings/subscription');
+                  }}
+                >
+                  Upgrade to Premium
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-2xl font-bold">
+              {showAnswer ? currentCard?.answer : currentCard?.question}
+            </p>
+          )}
+          
           {!showAnswer && (
             <p className="text-gray-500 mt-4 text-sm">Click to reveal answer</p>
           )}
@@ -388,25 +562,25 @@ export default function FlashcardStudy() {
           <button
             onClick={handleMarkIncorrect}
             className={`flex items-center gap-2 px-4 py-2 rounded-md ${
-              showAnswer
+              showAnswer && !shouldBlurAnswer
                 ? 'bg-red-600 text-white hover:bg-red-700'
                 : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
             }`}
           >
             <X className="h-5 w-5" />
-            {showAnswer ? 'Incorrect' : 'Show Answer'}
+            {showAnswer && !shouldBlurAnswer ? 'Incorrect' : 'Show Answer'}
           </button>
           
           <button
             onClick={handleMarkCorrect}
             className={`flex items-center gap-2 px-4 py-2 rounded-md ${
-              showAnswer
+              showAnswer && !shouldBlurAnswer
                 ? 'bg-green-600 text-white hover:bg-green-700'
                 : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
             }`}
           >
             <Check className="h-5 w-5" />
-            {showAnswer ? 'Correct' : 'Show Answer'}
+            {showAnswer && !shouldBlurAnswer ? 'Correct' : 'Show Answer'}
           </button>
         </div>
         
