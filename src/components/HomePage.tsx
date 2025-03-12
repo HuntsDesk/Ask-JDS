@@ -86,15 +86,15 @@ const questions = [
   },
   {
     icon: MessagesSquare,
-    text: "Does this outline make sense, or have I completely lost my mind?",
-    category: "Study Review",
+    text: "Group project gone wrong. Hadley v. Baxendale—what’s the damage?",
+    category: "Case Analysis",
     color: "text-green-500",
     bgColor: "bg-green-500/5"
   },
   {
     icon: Coffee,
-    text: "If I drop out now, how much debt will haunt me? (Just kidding… kinda.)",
-    category: "Life Advice",
+    text: "For negligence, give me a one-paragraph high-yield summary of key rules.",
+    category: "Rapid Topic Summaries",
     color: "text-purple-500",
     bgColor: "bg-purple-500/5"
   }
