@@ -83,6 +83,11 @@ export default function FlashcardsPage() {
     try {
       console.log("Checking access to collection:", collectionId);
       
+      // Modified to always allow access to collections
+      // Premium content will be controlled at the flashcard level
+      console.log("Bypassing collection-level premium check as requested");
+      return true;
+      
       // Set up a timeout to prevent hanging
       const checkPromise = (async () => {
         try {
@@ -99,23 +104,9 @@ export default function FlashcardsPage() {
             return true;
           }
           
-          console.log("Collection is premium:", data.is_official);
-          console.log("User has subscription:", hasSubscription);
-          
-          // If it's a premium collection, user needs subscription
-          if (data.is_official) {
-            if (!hasSubscription) {
-              console.log("Premium content detected, user doesn't have subscription. Showing paywall.");
-              setCurrentPath(window.location.pathname);
-              setShowPaywall(true);
-              return false;
-            } else {
-              console.log("Premium content detected, but user has subscription. Allowing access.");
-            }
-          } else {
-            console.log("Non-premium content. Allowing access.");
-          }
-          
+          // Allow access regardless of premium status
+          // Premium content will be handled at the flashcard level
+          console.log("Allowing access to collection regardless of premium status");
           return true;
         } catch (error) {
           console.error("Error in checkPromise:", error);
