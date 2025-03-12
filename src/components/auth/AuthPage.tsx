@@ -75,7 +75,7 @@ export function AuthPage() {
   // Always render the auth form immediately
   return (
     <div 
-      className={`min-h-screen w-full transition-opacity duration-700 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+      className={`min-h-screen w-full transition-opacity duration-700 ease-in-out force-light-mode ${isVisible ? 'opacity-100' : 'opacity-0'}`}
     >
       <AuthForm initialTab={initialTab} />
     </div>
