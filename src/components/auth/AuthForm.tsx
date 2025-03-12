@@ -159,7 +159,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center animated-gradient p-4 sm:p-6 md:p-8">
+    <div className="min-h-screen w-full flex items-center justify-center animated-gradient p-4 sm:p-6 md:p-8 force-light-mode">
       <div className="w-full max-w-6xl flex flex-col md:flex-row bg-white/90 rounded-xl shadow-xl overflow-hidden">
         {/* Left Side - Branding */}
         <div className="w-full md:w-1/2 bg-gradient-to-br from-[#00178E]/10 to-[#F37022]/10 p-8 flex flex-col items-center justify-between relative overflow-hidden">

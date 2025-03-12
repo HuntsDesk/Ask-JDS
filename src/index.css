@@ -472,3 +472,67 @@
     box-sizing: border-box;
   }
 }
+
+/* Force light mode styles regardless of system theme */
+.force-light-mode {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 3.9%;
+  --primary: 0 0% 9%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 0 0% 96.1%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 0 0% 96.1%;
+  --muted-foreground: 0 0% 45.1%;
+  --accent: 0 0% 96.1%;
+  --accent-foreground: 0 0% 9%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 89.8%;
+  --input: 0 0% 89.8%;
+  --ring: 0 0% 3.9%;
+  background-color: white;
+  color: black;
+}
+
+.force-light-mode * {
+  --tw-border-opacity: 1;
+  border-color: hsl(var(--border) / var(--tw-border-opacity));
+}
+
+/* Override text colors in force-light-mode */
+.force-light-mode .text-foreground {
+  color: hsl(var(--foreground)) !important;
+}
+
+.force-light-mode .bg-background {
+  background-color: hsl(var(--background)) !important;
+}
+
+.force-light-mode .text-muted-foreground {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Ensure dark mode classes don't apply within force-light-mode */
+.force-light-mode .dark\:bg-gray-800,
+.force-light-mode .dark\:bg-gray-900,
+.force-light-mode .dark\:text-white,
+.force-light-mode .dark\:text-gray-300,
+.force-light-mode .dark\:text-gray-400,
+.force-light-mode .dark\:border-gray-700 {
+  background-color: inherit;
+  color: inherit;
+  border-color: inherit;
+}
+
+/* Override specific dark elements */
+.force-light-mode input,
+.force-light-mode textarea,
+.force-light-mode select {
+  background-color: white;
+  color: black;
+  border-color: #e5e7eb;
+}

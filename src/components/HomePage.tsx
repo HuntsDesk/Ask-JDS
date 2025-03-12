@@ -150,7 +150,7 @@ export function HomePage() {
   }
   
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white force-light-mode">
       {/* Top Menu */}
       <nav className="fixed top-0 left-0 right-0 bg-white z-50 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between text-gray-900">
@@ -390,15 +390,16 @@ export function HomePage() {
         <div className="mt-12 flex flex-col md:flex-row justify-center gap-8 max-w-5xl mx-auto">
           {[
             {
-              title: "Basic",
+              title: "Free",
               price: "$0",
               tagline: "FREE FOREVER",
               features: [
-                "5 Messages Per Day",
-                "Basic Legal Concepts",
-                "Standard Response Time",
+                "10 Messages Per Month",
+                "Create Unlimited Flashcards",
+                "Flashcard Study Mode",
+                "Access From Any Device",
               ],
-              buttonText: "Try For Free",
+              buttonText: "Sign-up For Free",
               buttonVariant: "outline",
               highlight: false,
             },
@@ -407,10 +408,12 @@ export function HomePage() {
               price: "$5",
               tagline: "MOST POPULAR",
               features: [
-                "Unlimited Messages",
-                "Advanced Legal Concepts",
-                "Priority Response Time",
-                "Exam Prep & Case Analysis",
+                "Unlimited Ask JDS Messages",
+                "Create Unlimited Flashcards",
+                "Expert Curated Flashcards",
+                "Flashcard Study Mode",
+                "Access From Any Device",
+                "A Simplified Study Experience",
               ],
               buttonText: "Get Premium Access",
               buttonVariant: "primary",
