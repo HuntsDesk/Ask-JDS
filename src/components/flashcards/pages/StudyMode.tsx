@@ -17,6 +17,7 @@ interface Flashcard {
   question: string;
   answer: string;
   is_mastered: boolean;
+  created_by: string;
 }
 
 interface FlashcardCollection {
@@ -92,20 +93,27 @@ export default function StudyMode() {
         console.log("StudyMode: Collection is_official:", isOfficial);
         setIsOfficialContent(isOfficial);
         
-        // If it's premium content and user doesn't have subscription, show paywall immediately
-        if (isOfficial && !hasSubscription) {
-          console.log("Premium content detected - user has no subscription - showing paywall");
-          setShowPaywall(true);
-          // Still load the cards but they'll be blurred
-        }
+        // No longer automatically show paywall for official content
+        // Users will be able to see the content with restrictions at the flashcard level
+        console.log("StudyMode: Not showing paywall for premium collection as per requirement");
         
         // Load flashcards
         console.log("StudyMode: Loading flashcards for collection ID:", id);
-        const { data: flashcardsData, error: flashcardsError } = await supabase
+        let query = supabase
           .from('flashcards')
           .select('*')
           .eq('collection_id', id)
           .order('position', { ascending: true });
+          
+        // If not showing mastered cards, filter them out
+        if (!showMastered) {
+          console.log("StudyMode: Filtering out mastered cards");
+          query = query.eq('is_mastered', false);
+        } else {
+          console.log("StudyMode: Including all cards (mastered and unmastered)");
+        }
+          
+        const { data: flashcardsData, error: flashcardsError } = await query;
         
         if (flashcardsError) {
           console.error("StudyMode: Error loading flashcards:", flashcardsError);
@@ -126,7 +134,7 @@ export default function StudyMode() {
     
     console.log("StudyMode: Running effect to load data");
     loadData();
-  }, [id, user]);
+  }, [id, user, showMastered]);
 
   const shuffleCards = () => {
     const shuffled = [...cards]
@@ -157,42 +165,115 @@ export default function StudyMode() {
   };
 
   const markAsMastered = async () => {
+    console.log("markAsMastered function called");
     if (!user) {
       showToast('Please sign in to mark cards as mastered', 'error');
       return;
     }
     
-    if (cards.length === 0 || currentIndex >= cards.length) return;
+    if (cards.length === 0 || currentIndex >= cards.length) {
+      console.log("No cards available to mark as mastered");
+      return;
+    }
     
     const currentCard = cards[currentIndex];
     
+    if (currentCard.is_mastered) {
+      console.log("Card is already mastered");
+      return;
+    }
+    
+    console.log("Marking card as mastered:", currentCard.id);
+    
     try {
+      // Update Supabase
       const { error } = await supabase
         .from('flashcards')
         .update({ is_mastered: true })
         .eq('id', currentCard.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error updating card in Supabase:", error);
+        throw error;
+      }
+      
+      console.log("Card successfully marked as mastered in Supabase");
       
       // Show toast notification
       showToast('Card marked as mastered', 'success');
       
-      // If we're not showing mastered cards, remove it from the list
+      // Update local state
+      console.log("Updating local state. Show mastered:", showMastered);
+      
       if (!showMastered) {
+        // If not showing mastered cards, remove it from the list
         const newCards = cards.filter((_, i) => i !== currentIndex);
+        console.log("Removing card from list, new card count:", newCards.length);
         setCards(newCards);
         
         // Adjust current index if needed
         if (currentIndex >= newCards.length) {
+          console.log("Adjusting current index from", currentIndex, "to", Math.max(0, newCards.length - 1));
           setCurrentIndex(Math.max(0, newCards.length - 1));
         }
       } else {
         // Just update the card in the array
         const newCards = [...cards];
         newCards[currentIndex] = { ...currentCard, is_mastered: true };
+        console.log("Updating card in list");
         setCards(newCards);
       }
     } catch (err) {
+      console.error("Error in markAsMastered:", err);
+      showToast(`Error: ${err.message}`, 'error');
+    }
+  };
+
+  const unmarkAsMastered = async () => {
+    console.log("unmarkAsMastered function called");
+    if (!user) {
+      showToast('Please sign in to change card status', 'error');
+      return;
+    }
+    
+    if (cards.length === 0 || currentIndex >= cards.length) {
+      console.log("No cards available to update");
+      return;
+    }
+    
+    const currentCard = cards[currentIndex];
+    
+    if (!currentCard.is_mastered) {
+      console.log("Card is not mastered, cannot unmark");
+      return;
+    }
+    
+    console.log("Unmarking card as mastered:", currentCard.id);
+    
+    try {
+      // Update Supabase
+      const { error } = await supabase
+        .from('flashcards')
+        .update({ is_mastered: false })
+        .eq('id', currentCard.id);
+
+      if (error) {
+        console.error("Error updating card in Supabase:", error);
+        throw error;
+      }
+      
+      console.log("Card successfully unmarked as mastered in Supabase");
+      
+      // Show toast notification
+      showToast('Card unmarked as mastered', 'success');
+      
+      // Update local state
+      const newCards = [...cards];
+      newCards[currentIndex] = { ...currentCard, is_mastered: false };
+      console.log("Updating card in list");
+      setCards(newCards);
+    } catch (err) {
+      console.error("Error in unmarkAsMastered:", err);
       showToast(`Error: ${err.message}`, 'error');
     }
   };
@@ -228,23 +309,24 @@ export default function StudyMode() {
     return (
       <div className="max-w-3xl mx-auto">
         <div className="mb-8">
-          <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012]">
+          <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
             <ChevronLeft className="h-4 w-4" />
+            <span className="ml-1">Back to Collections</span>
           </Link>
           <div className="flex items-center gap-2 mt-4 mb-2">
             <BookOpen className="h-5 w-5 text-[#F37022]" />
             <span className="text-sm font-medium text-[#F37022]">{collection.subject.name}</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">{collection.title}</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{collection.title}</h1>
         </div>
         
-        <div className="bg-white p-8 rounded-lg shadow-md text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md text-center">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
             {showMastered 
               ? 'No flashcards in this collection yet' 
               : 'All cards mastered!'}
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
             {showMastered 
               ? 'Add some cards to start studying' 
               : 'You have mastered all the cards in this collection.'}
@@ -283,9 +365,14 @@ export default function StudyMode() {
 
   const currentCard = cards[currentIndex];
   
-  // Force premium content blurring for testing
-  const forcePremiumTest = true; // Set to true for testing premium blurring
-  const isPremiumBlurred = (isOfficialContent && !hasSubscription) || forcePremiumTest;
+  // Determine if the current card should be premium blurred:
+  // 1. Collection is official/premium
+  // 2. User doesn't have subscription
+  // 3. Card was NOT created by the current user (user-created cards should always be visible to that user)
+  const isUserCard = currentCard && user && currentCard.created_by === user.id;
+  console.log("StudyMode render - isUserCard:", isUserCard, "userID:", user?.id, "cardCreatedBy:", currentCard?.created_by);
+  
+  const isPremiumBlurred = isOfficialContent && !hasSubscription && !isUserCard;
   
   console.log("StudyMode render - isPremiumBlurred:", isPremiumBlurred, "isOfficialContent:", isOfficialContent, "hasSubscription:", hasSubscription);
 
@@ -306,8 +393,9 @@ export default function StudyMode() {
       
       <div className="flex justify-between items-center mb-6">
         <div>
-          <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012]">
+          <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
             <ChevronLeft className="h-4 w-4" />
+            <span className="ml-1">Back to Collections</span>
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white hover:text-[#F37022] dark:hover:text-[#F37022] transition-colors">{collection.title}</h1>
           {collection.description && (
@@ -347,8 +435,13 @@ export default function StudyMode() {
             )}
             <Tooltip text={showMastered ? "Hide mastered cards" : "Show all cards"}>
               <button
-                onClick={() => setShowMastered(!showMastered)}
-                className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
+                onClick={() => {
+                  console.log("Toggling showMastered from", showMastered, "to", !showMastered);
+                  setShowMastered(!showMastered);
+                  // Reset to first card when toggling to avoid out-of-range errors
+                  setCurrentIndex(0);
+                }}
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
               >
                 {showMastered ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
@@ -356,7 +449,7 @@ export default function StudyMode() {
             <Tooltip text="Shuffle cards">
               <button
                 onClick={shuffleCards}
-                className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
               >
                 <Shuffle className="h-5 w-5" />
               </button>
@@ -365,41 +458,35 @@ export default function StudyMode() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden relative">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden relative" style={{ isolation: 'isolate' }}>
         {isPremiumBlurred && (
-          <div className="absolute top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-10 font-bold">
+          <div className="absolute top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-5 font-bold">
             PREMIUM CONTENT - SUBSCRIPTION REQUIRED
           </div>
         )}
-        <div className="p-8">
+        
+        <div className="p-8 flex flex-col">
           <div
             className="min-h-[250px] flex items-center justify-center cursor-pointer"
             onClick={toggleAnswer}
+            style={{ zIndex: 5 }}
           >
             <div className="text-center w-full">
-              {isPremiumBlurred ? (
+              {isPremiumBlurred && showAnswer ? (
                 <div className="premium-content-placeholder">
-                  {!showAnswer ? (
-                    // Show the question for premium cards
-                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
-                      {currentCard.question}
-                    </h2>
-                  ) : (
-                    // Hide the answer behind the premium notice
-                    <div className="bg-orange-100 p-6 rounded-lg mt-8">
-                      <div className="flex flex-col items-center gap-4">
-                        <Lock className="h-12 w-12 text-orange-500" />
-                        <h2 className="text-2xl font-semibold text-orange-800">Premium Flashcard</h2>
-                        <p className="text-orange-700 max-w-md mx-auto">
-                          The answer is only available to premium subscribers. 
-                          Upgrade your account to access our curated library of expert flashcards.
-                        </p>
-                      </div>
+                  <div className="bg-orange-100 dark:bg-orange-900/30 p-6 rounded-lg">
+                    <div className="flex flex-col items-center gap-4">
+                      <Lock className="h-12 w-12 text-orange-500 dark:text-orange-400" />
+                      <h2 className="text-2xl font-semibold text-orange-800 dark:text-orange-300">Premium Flashcard</h2>
+                      <p className="text-orange-700 dark:text-orange-300 max-w-md mx-auto">
+                        The answer is only available to premium subscribers. 
+                        Upgrade your account to access our curated library of expert flashcards.
+                      </p>
                     </div>
-                  )}
+                  </div>
                 </div>
               ) : (
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
                   {showAnswer ? currentCard.answer : currentCard.question}
                 </h2>
               )}
@@ -410,7 +497,7 @@ export default function StudyMode() {
             <button
               className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-2 mx-auto"
               onClick={toggleAnswer}
-              disabled={isPremiumBlurred}
+              disabled={false}
             >
               <Rotate className="h-5 w-5" />
               {showAnswer ? 'Show Question' : 'Show Answer'}
@@ -418,7 +505,7 @@ export default function StudyMode() {
           </div>
         </div>
 
-        <div className="bg-gray-50 dark:bg-gray-700 px-8 py-4 flex justify-between items-center">
+        <div className="bg-gray-50 dark:bg-gray-700 px-8 py-4 flex justify-between items-center relative" style={{ isolation: 'isolate', zIndex: 1 }}>
           <button
             onClick={goToPreviousCard}
             disabled={currentIndex === 0}
@@ -428,19 +515,38 @@ export default function StudyMode() {
             Previous
           </button>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={markAsMastered}
-              disabled={currentCard.is_mastered || isPremiumBlurred}
-              className={`flex items-center gap-1 px-3 py-1 rounded-md ${
-                currentCard.is_mastered || isPremiumBlurred
-                  ? 'bg-gray-100 dark:bg-gray-600 text-gray-400 dark:text-gray-300 cursor-not-allowed'
-                  : 'bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-700'
-              }`}
-            >
-              <Check className="h-4 w-4" />
-              {currentCard.is_mastered ? 'Mastered' : 'Mark Mastered'}
-            </button>
+          <div className="flex items-center gap-3" style={{ pointerEvents: 'auto', position: 'relative', zIndex: 50 }}>
+            {!currentCard.is_mastered && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log("Mark Mastered button clicked");
+                  markAsMastered();
+                }}
+                type="button"
+                className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-700 cursor-pointer flex items-center gap-1 px-3 py-1 rounded-md font-medium"
+              >
+                <Check className="h-4 w-4" />
+                Mark Mastered
+              </button>
+            )}
+            
+            {currentCard.is_mastered && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log("Undo Mastered button clicked");
+                  unmarkAsMastered();
+                }}
+                type="button"
+                className="bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-500 cursor-pointer flex items-center gap-1 px-3 py-1 rounded-md"
+              >
+                <Check className="h-4 w-4" />
+                Undo Mastered
+              </button>
+            )}
           </div>
 
           <button
@@ -455,12 +561,7 @@ export default function StudyMode() {
       </div>
 
       {isPremiumBlurred && (
-        <div className="mt-8 text-center">
-          <div className="mb-4 p-4 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 rounded-lg flex flex-col items-center">
-            <Lock className="h-8 w-8 text-orange-500 dark:text-orange-400 mb-2" />
-            <p className="font-medium mb-2">Premium Content</p>
-            <p>Upgrade to premium to access our expertly-curated flashcards and track your progress.</p>
-          </div>
+        <div className="mt-8 text-center" style={{ zIndex: 5, position: 'relative' }}>
           <button
             onClick={handleShowPaywall}
             className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"

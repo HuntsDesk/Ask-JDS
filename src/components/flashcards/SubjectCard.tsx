@@ -136,7 +136,7 @@ export default function SubjectCard({
           <BookOpen className="h-5 w-5 text-[#F37022]" />
           <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1">
             {name}
-            {isOfficial && <Lock className="h-4 w-4 text-gray-400 dark:text-gray-500 ml-1" />}
+            {isOfficial && <Lock className="h-4 w-4 text-[#F37022] ml-1" />}
           </h3>
         </div>
         

@@ -7,6 +7,7 @@ import ErrorMessage from '../ErrorMessage';
 import Toast from '../Toast';
 import { FlashcardPaywall } from '@/components/FlashcardPaywall';
 import { hasActiveSubscription } from '@/lib/subscription';
+import Tooltip from '../Tooltip';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -180,13 +181,10 @@ export default function SubjectStudy() {
       console.log("SubjectStudy: Subject is_official:", isOfficial);
       setIsOfficialContent(isOfficial);
       
-      // If it's premium content and user doesn't have subscription, show paywall immediately
-      if (isOfficial && !hasSubscription) {
-        console.log("Premium subject detected - user has no subscription - showing paywall");
-        setShowPaywall(true);
-        // We'll continue loading the data but it will be restricted
-      }
-
+      // Remove the immediate paywall for premium subjects
+      // Premium content will be restricted at the flashcard level
+      console.log("Bypassing subject-level premium check as requested");
+      
       // Fetch collections for this subject
       console.log("SubjectStudy: Fetching collections for subject:", id);
       const { data: collectionsData, error: collectionsError } = await supabase
@@ -282,7 +280,10 @@ export default function SubjectStudy() {
   };
 
   const markAsMastered = async () => {
+    console.log("SubjectStudy markAsMastered function called");
+    
     if (!user) {
+      console.log("SubjectStudy: User not logged in");
       setToast({
         message: 'You need to be signed in to mark cards as mastered',
         type: 'error'
@@ -290,17 +291,33 @@ export default function SubjectStudy() {
       return;
     }
 
+    if (cards.length === 0 || currentIndex >= cards.length) {
+      console.log("SubjectStudy: No cards available to mark as mastered");
+      return;
+    }
+    
     const currentCard = cards[currentIndex];
     
+    if (currentCard.is_mastered) {
+      console.log("SubjectStudy: Card is already mastered");
+      return;
+    }
+    
+    console.log("SubjectStudy: Marking card as mastered:", currentCard.id);
+    
     try {
+      // Update Supabase
       const { error } = await supabase
         .from('flashcards')
         .update({ is_mastered: true })
         .eq('id', currentCard.id);
 
       if (error) {
+        console.error("SubjectStudy: Error updating card in Supabase:", error);
         throw new Error(error.message);
       }
+      
+      console.log("SubjectStudy: Card successfully marked as mastered in Supabase");
 
       setToast({
         message: 'Card marked as mastered!',
@@ -308,13 +325,17 @@ export default function SubjectStudy() {
       });
 
       // Update local state
+      console.log("SubjectStudy: Updating local state. Show mastered:", showMastered);
+      
       if (!showMastered) {
         // If not showing mastered cards, remove this card from the array
         const updatedCards = cards.filter((_, index) => index !== currentIndex);
+        console.log("SubjectStudy: Removing card from list, new card count:", updatedCards.length);
         setCards(updatedCards);
         
         // Adjust current index if needed
         if (currentIndex >= updatedCards.length) {
+          console.log("SubjectStudy: Adjusting current index from", currentIndex, "to", Math.max(0, updatedCards.length - 1));
           setCurrentIndex(Math.max(0, updatedCards.length - 1));
         }
       } else {
@@ -324,9 +345,73 @@ export default function SubjectStudy() {
           ...currentCard,
           is_mastered: true
         };
+        console.log("SubjectStudy: Updating card in list");
         setCards(updatedCards);
       }
     } catch (err: any) {
+      console.error("SubjectStudy: Error in markAsMastered:", err);
+      setToast({
+        message: `Error: ${err.message}`,
+        type: 'error'
+      });
+    }
+  };
+
+  const unmarkAsMastered = async () => {
+    console.log("SubjectStudy unmarkAsMastered function called");
+    
+    if (!user) {
+      console.log("SubjectStudy: User not logged in");
+      setToast({
+        message: 'You need to be signed in to change card status',
+        type: 'error'
+      });
+      return;
+    }
+
+    if (cards.length === 0 || currentIndex >= cards.length) {
+      console.log("SubjectStudy: No cards available to update");
+      return;
+    }
+    
+    const currentCard = cards[currentIndex];
+    
+    if (!currentCard.is_mastered) {
+      console.log("SubjectStudy: Card is not mastered, cannot unmark");
+      return;
+    }
+    
+    console.log("SubjectStudy: Unmarking card as mastered:", currentCard.id);
+    
+    try {
+      // Update Supabase
+      const { error } = await supabase
+        .from('flashcards')
+        .update({ is_mastered: false })
+        .eq('id', currentCard.id);
+
+      if (error) {
+        console.error("SubjectStudy: Error updating card in Supabase:", error);
+        throw new Error(error.message);
+      }
+      
+      console.log("SubjectStudy: Card successfully unmarked as mastered in Supabase");
+
+      setToast({
+        message: 'Card status updated',
+        type: 'success'
+      });
+
+      // Update local state
+      const updatedCards = [...cards];
+      updatedCards[currentIndex] = {
+        ...currentCard,
+        is_mastered: false
+      };
+      console.log("SubjectStudy: Updating card in list");
+      setCards(updatedCards);
+    } catch (err: any) {
+      console.error("SubjectStudy: Error in unmarkAsMastered:", err);
       setToast({
         message: `Error: ${err.message}`,
         type: 'error'
@@ -342,9 +427,9 @@ export default function SubjectStudy() {
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-          <h2 className="text-2xl font-bold mb-4">Loading Subject</h2>
-          <p className="text-gray-600 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 text-center">
+          <h2 className="text-2xl font-bold mb-4 dark:text-white">Loading Subject</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
             We're preparing your flashcards...
           </p>
           <LoadingSpinner />
@@ -355,12 +440,12 @@ export default function SubjectStudy() {
             id="retry-section" 
             style={{animation: 'fadeIn 0.5s 8s forwards'}}
           >
-            <p className="text-red-600 mb-2">
+            <p className="text-red-600 dark:text-red-400 mb-2">
               This is taking longer than expected. Would you like to try again?
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md mt-2"
+              className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md mt-2"
             >
               Retry Loading
             </button>
@@ -381,9 +466,9 @@ export default function SubjectStudy() {
   if (error) {
     return (
       <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading Subject</h2>
-          <p className="text-gray-800 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 text-center">
+          <h2 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-4">Error Loading Subject</h2>
+          <p className="text-gray-800 dark:text-gray-300 mb-6">
             {error}
           </p>
           <div className="flex flex-col gap-4 items-center">
@@ -413,9 +498,9 @@ export default function SubjectStudy() {
   if (cards.length === 0) {
     return (
       <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-          <h2 className="text-2xl font-bold mb-4">No cards found</h2>
-          <p className="text-gray-600 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 text-center">
+          <h2 className="text-2xl font-bold mb-4 dark:text-white">No cards found</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
             There are no cards associated with this subject yet.
           </p>
           <Link 
@@ -454,36 +539,46 @@ export default function SubjectStudy() {
       
       <div className="flex justify-between items-center mb-6">
         <div>
-          <Link to="/flashcards/subjects" className="text-[#F37022] hover:text-[#E36012]">
+          <Link to="/flashcards/subjects" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
             <ChevronLeft className="h-4 w-4" />
+            <span className="ml-1">Back to Subjects</span>
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">{subject.name}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{subject.name}</h1>
           {subject.description && (
-            <p className="text-gray-600 mt-1">{subject.description}</p>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">{subject.description}</p>
           )}
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             {cards.length} {cards.length === 1 ? 'card' : 'cards'} • 
             {currentIndex + 1} of {cards.length}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowMastered(!showMastered)}
-            className="text-gray-600 hover:text-gray-900"
-          >
-            {showMastered ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-          </button>
-          <button
-            onClick={shuffleCards}
-            className="text-gray-600 hover:text-gray-900"
-          >
-            <Shuffle className="h-5 w-5" />
-          </button>
+          <Tooltip text={showMastered ? "Hide mastered cards" : "Show all cards"}>
+            <button
+              onClick={() => {
+                console.log("SubjectStudy: Toggling showMastered from", showMastered, "to", !showMastered);
+                setShowMastered(!showMastered);
+                // Reset to first card when toggling to avoid out-of-range errors
+                setCurrentIndex(0);
+              }}
+              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            >
+              {showMastered ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
+          </Tooltip>
+          <Tooltip text="Shuffle cards">
+            <button
+              onClick={shuffleCards}
+              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            >
+              <Shuffle className="h-5 w-5" />
+            </button>
+          </Tooltip>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden relative">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden relative" style={{ isolation: 'isolate' }}>
         {isPremiumBlurred && (
           <div className="absolute top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-10 font-bold">
             PREMIUM CONTENT - SUBSCRIPTION REQUIRED
@@ -496,37 +591,31 @@ export default function SubjectStudy() {
             onClick={toggleAnswer}
           >
             <div className="text-center w-full">
-              {isPremiumBlurred ? (
+              {isPremiumBlurred && showAnswer ? (
                 <div className="premium-content-placeholder">
-                  <div className="bg-orange-100 p-6 rounded-lg">
+                  <div className="bg-orange-100 dark:bg-orange-900/30 p-6 rounded-lg">
                     <div className="flex flex-col items-center gap-4">
-                      <Lock className="h-12 w-12 text-orange-500" />
-                      <h2 className="text-2xl font-semibold text-orange-800">Premium Flashcard</h2>
-                      <p className="text-orange-700 max-w-md mx-auto">
-                        This {showAnswer ? "answer" : "question"} is only available to premium subscribers. 
+                      <Lock className="h-12 w-12 text-orange-500 dark:text-orange-400" />
+                      <h2 className="text-2xl font-semibold text-orange-800 dark:text-orange-300">Premium Flashcard</h2>
+                      <p className="text-orange-700 dark:text-orange-300 max-w-md mx-auto">
+                        The answer is only available to premium subscribers. 
                         Upgrade your account to access our curated library of expert flashcards.
                       </p>
                     </div>
                   </div>
                 </div>
               ) : (
-                <>
-                  <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-                    {showAnswer ? currentCard.answer : currentCard.question}
-                  </h2>
-                  <div className="text-sm text-gray-500">
-                    From collection: {currentCard.collection_title}
-                  </div>
-                </>
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                  {showAnswer ? currentCard.answer : currentCard.question}
+                </h2>
               )}
             </div>
           </div>
           
           <div className="text-center mt-4">
             <button
-              className="text-indigo-600 hover:text-indigo-700 flex items-center gap-2 mx-auto"
+              className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-2 mx-auto"
               onClick={toggleAnswer}
-              disabled={isPremiumBlurred}
             >
               <Rotate className="h-5 w-5" />
               {showAnswer ? 'Show Question' : 'Show Answer'}
@@ -534,35 +623,54 @@ export default function SubjectStudy() {
           </div>
         </div>
 
-        <div className="bg-gray-50 px-8 py-4 flex justify-between items-center">
+        <div className="bg-gray-50 dark:bg-gray-700 px-8 py-4 flex justify-between items-center relative" style={{ isolation: 'isolate', zIndex: 1 }}>
           <button
             onClick={goToPreviousCard}
             disabled={currentIndex === 0}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
           >
             <ArrowLeft className="h-5 w-5" />
             Previous
           </button>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={markAsMastered}
-              disabled={currentCard.is_mastered || isPremiumBlurred}
-              className={`flex items-center gap-1 px-3 py-1 rounded-md ${
-                currentCard.is_mastered || isPremiumBlurred
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-green-100 text-green-700 hover:bg-green-200'
-              }`}
-            >
-              <Check className="h-4 w-4" />
-              {currentCard.is_mastered ? 'Mastered' : 'Mark Mastered'}
-            </button>
+          <div className="flex items-center gap-3" style={{ pointerEvents: 'auto' }}>
+            {!currentCard.is_mastered && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log("Subject Study - Mark Mastered button clicked");
+                  markAsMastered();
+                }}
+                type="button"
+                className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-700 cursor-pointer flex items-center gap-1 px-3 py-1 rounded-md font-medium"
+              >
+                <Check className="h-4 w-4" />
+                Mark Mastered
+              </button>
+            )}
+            
+            {currentCard.is_mastered && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log("Subject Study - Undo Mastered button clicked");
+                  unmarkAsMastered();
+                }}
+                type="button"
+                className="bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-500 cursor-pointer flex items-center gap-1 px-3 py-1 rounded-md"
+              >
+                <Check className="h-4 w-4" />
+                Undo Mastered
+              </button>
+            )}
           </div>
 
           <button
             onClick={goToNextCard}
             disabled={currentIndex === cards.length - 1}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 disabled:opacity-50"
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
           >
             Next
             <ArrowRight className="h-5 w-5" />
@@ -572,13 +680,9 @@ export default function SubjectStudy() {
 
       {isPremiumBlurred && (
         <div className="mt-8 text-center">
-          <div className="mb-4 p-4 bg-orange-100 text-orange-800 rounded-lg">
-            <p className="font-medium mb-2">Premium Content</p>
-            <p>Upgrade to premium to access our expertly-curated flashcards and track your progress.</p>
-          </div>
           <button
             onClick={() => setShowPaywall(true)}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium"
+            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
           >
             Upgrade to Premium for Full Access
           </button>
