@@ -71,12 +71,11 @@ export default function StudyMode() {
         
         // Load collection data
         console.log("StudyMode: Loading collection data for ID:", id);
+        
+        // First, get the collection itself
         const { data: collectionData, error: collectionError } = await supabase
-          .from('flashcard_collections')
-          .select(`
-            *,
-            subject:subject_id(id, name)
-          `)
+          .from('collections')
+          .select('*')
           .eq('id', id)
           .single();
         
@@ -85,8 +84,29 @@ export default function StudyMode() {
           throw collectionError;
         }
         
+        // Then get the subject information from the collection_subjects junction table
+        const { data: subjectData, error: subjectError } = await supabase
+          .from('collection_subjects')
+          .select(`
+            subject_id,
+            subjects:subject_id(id, name)
+          `)
+          .eq('collection_id', id)
+          .single();
+        
+        if (subjectError && !subjectError.message.includes('No rows returned')) {
+          console.error("StudyMode: Error loading subject:", subjectError);
+          throw subjectError;
+        }
+        
+        // Combine the data
+        const completeCollectionData = {
+          ...collectionData,
+          subject: subjectData?.subjects || { id: '', name: 'No Subject' }
+        };
+        
         console.log("StudyMode: Collection data loaded successfully");
-        setCollection(collectionData);
+        setCollection(completeCollectionData);
         
         // Check if this is premium content
         const isOfficial = collectionData.is_official || false;
@@ -99,29 +119,42 @@ export default function StudyMode() {
         
         // Load flashcards
         console.log("StudyMode: Loading flashcards for collection ID:", id);
+        
+        // Get flashcards through the flashcard_collections junction table
         let query = supabase
-          .from('flashcards')
-          .select('*')
-          .eq('collection_id', id)
-          .order('position', { ascending: true });
+          .from('flashcard_collections')
+          .select(`
+            flashcards:flashcard_id (
+              id,
+              question,
+              answer,
+              is_mastered,
+              created_by
+            )
+          `)
+          .eq('collection_id', id);
           
+        const { data: flashcardsJunction, error: flashcardsJunctionError } = await query;
+        
+        if (flashcardsJunctionError) {
+          console.error("StudyMode: Error loading flashcard relations:", flashcardsJunctionError);
+          throw flashcardsJunctionError;
+        }
+        
+        // Extract the flashcards from the junction results
+        const extractedFlashcards = flashcardsJunction?.flatMap(item => item.flashcards || []) || [];
+        
         // If not showing mastered cards, filter them out
+        let filteredCards = extractedFlashcards;
         if (!showMastered) {
           console.log("StudyMode: Filtering out mastered cards");
-          query = query.eq('is_mastered', false);
+          filteredCards = extractedFlashcards.filter(card => !card.is_mastered);
         } else {
           console.log("StudyMode: Including all cards (mastered and unmastered)");
         }
-          
-        const { data: flashcardsData, error: flashcardsError } = await query;
         
-        if (flashcardsError) {
-          console.error("StudyMode: Error loading flashcards:", flashcardsError);
-          throw flashcardsError;
-        }
-        
-        console.log(`StudyMode: Successfully loaded ${flashcardsData?.length || 0} flashcards`);
-        setCards(flashcardsData || []);
+        console.log(`StudyMode: Successfully loaded ${filteredCards.length || 0} flashcards`);
+        setCards(filteredCards || []);
         
       } catch (err: any) {
         console.error('StudyMode: Error loading study data:', err);
