@@ -72,11 +72,12 @@ export default function SubjectStudy() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [showMastered, setShowMastered] = useState(true);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [hasSubscription, setHasSubscription] = useState<boolean>(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [isOfficialContent, setIsOfficialContent] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [toggleLoading, setToggleLoading] = useState(false);
 
   // Function to handle manual retry
   const handleRetry = () => {
@@ -187,10 +188,31 @@ export default function SubjectStudy() {
       
       // Fetch collections for this subject
       console.log("SubjectStudy: Fetching collections for subject:", id);
+      const { data: collectionSubjects, error: collectionSubjectsError } = await supabase
+        .from('collection_subjects')
+        .select('collection_id')
+        .eq('subject_id', id);
+
+      if (collectionSubjectsError) {
+        console.error("SubjectStudy: Error fetching collection_subjects:", collectionSubjectsError);
+        throw new Error(collectionSubjectsError.message);
+      }
+
+      if (!collectionSubjects || collectionSubjects.length === 0) {
+        console.log("SubjectStudy: No collections found for subject");
+        setCollections([]);
+        setCards([]);
+        setLoading(false);
+        return;
+      }
+
+      const collectionIds = collectionSubjects.map(cs => cs.collection_id);
+
+      // Fetch the actual collections
       const { data: collectionsData, error: collectionsError } = await supabase
-        .from('flashcard_collections')
+        .from('collections')
         .select('*')
-        .eq('subject_id', id)
+        .in('id', collectionIds)
         .order('created_at', { ascending: false });
 
       if (collectionsError) {
@@ -202,21 +224,49 @@ export default function SubjectStudy() {
       setCollections(collectionsData || []);
 
       if (collectionsData && collectionsData.length > 0) {
-        // Get all collection IDs
-        const collectionIds = collectionsData.map(c => c.id);
-        console.log("SubjectStudy: Collection IDs:", collectionIds);
+        // Get flashcard IDs from the flashcard_collections junction table
+        const { data: flashcardCollections, error: flashcardCollectionsError } = await supabase
+          .from('flashcard_collections')
+          .select('flashcard_id, collection_id')
+          .in('collection_id', collectionIds);
 
-        // Build query for flashcards
-        console.log("SubjectStudy: Fetching flashcards for collections, showMastered:", showMastered);
+        if (flashcardCollectionsError) {
+          console.error("SubjectStudy: Error fetching flashcard_collections:", flashcardCollectionsError);
+          throw new Error(flashcardCollectionsError.message);
+        }
+
+        if (!flashcardCollections || flashcardCollections.length === 0) {
+          console.log("SubjectStudy: No flashcards found for collections");
+          setCards([]);
+          setLoading(false);
+          return;
+        }
+
+        const flashcardIds = flashcardCollections.map(fc => fc.flashcard_id);
+
+        // Get flashcard progress if user is logged in
+        let progressMap = new Map();
+        if (user) {
+          const { data: progressData, error: progressError } = await supabase
+            .from('flashcard_progress')
+            .select('flashcard_id, is_mastered')
+            .eq('user_id', user.id)
+            .in('flashcard_id', flashcardIds);
+
+          if (progressError) {
+            console.error("SubjectStudy: Error fetching flashcard progress:", progressError);
+            // Continue without progress data
+          } else if (progressData) {
+            // Create a map of flashcard_id to progress
+            progressMap = new Map(progressData.map(p => [p.flashcard_id, p]));
+          }
+        }
+
+        // Fetch the actual flashcards
         let query = supabase
           .from('flashcards')
           .select('*')
-          .in('collection_id', collectionIds);
-
-        // If not showing mastered cards, filter them out
-        if (!showMastered) {
-          query = query.eq('is_mastered', false);
-        }
+          .in('id', flashcardIds);
 
         const { data: cardsData, error: cardsError } = await query;
 
@@ -227,14 +277,29 @@ export default function SubjectStudy() {
 
         console.log("SubjectStudy: Found", cardsData?.length || 0, "flashcards");
         
-        // Transform cards to include collection title
+        // Transform cards to include collection title and mastery status
         const transformedCards = cardsData.map((card: any) => {
-          const collection = collectionsData.find(c => c.id === card.collection_id);
+          // Find which collection this card belongs to
+          const flashcardCollection = flashcardCollections.find(fc => fc.flashcard_id === card.id);
+          const collectionId = flashcardCollection ? flashcardCollection.collection_id : null;
+          const collection = collectionsData.find(c => c.id === collectionId);
+          
+          // Get mastery status from progress
+          const progress = progressMap.get(card.id);
+          const isMastered = progress ? progress.is_mastered : false;
+          
+          // Skip mastered cards if showMastered is false
+          if (!showMastered && isMastered) {
+            return null;
+          }
+          
           return {
             ...card,
-            collection_title: collection ? collection.title : 'Unknown Collection'
+            collection_id: collectionId,
+            collection_title: collection ? collection.title : 'Unknown Collection',
+            is_mastered: isMastered
           };
-        });
+        }).filter(Boolean); // Remove null entries (mastered cards when not showing them)
 
         console.log("SubjectStudy: Setting", transformedCards.length, "cards to state");
         setCards(transformedCards || []);
@@ -280,148 +345,151 @@ export default function SubjectStudy() {
   };
 
   const markAsMastered = async () => {
-    console.log("SubjectStudy markAsMastered function called");
-    
-    if (!user) {
-      console.log("SubjectStudy: User not logged in");
-      setToast({
-        message: 'You need to be signed in to mark cards as mastered',
-        type: 'error'
-      });
-      return;
-    }
-
-    if (cards.length === 0 || currentIndex >= cards.length) {
-      console.log("SubjectStudy: No cards available to mark as mastered");
-      return;
-    }
+    if (!cards.length || currentIndex < 0 || !user) return;
     
     const currentCard = cards[currentIndex];
-    
-    if (currentCard.is_mastered) {
-      console.log("SubjectStudy: Card is already mastered");
-      return;
-    }
-    
-    console.log("SubjectStudy: Marking card as mastered:", currentCard.id);
+    console.log("Marking card as mastered:", currentCard.id);
+    setToggleLoading(true);
     
     try {
-      // Update Supabase
-      const { error } = await supabase
-        .from('flashcards')
-        .update({ is_mastered: true })
-        .eq('id', currentCard.id);
-
-      if (error) {
-        console.error("SubjectStudy: Error updating card in Supabase:", error);
-        throw new Error(error.message);
+      // First check if a progress record exists
+      const { data: existingProgress, error: checkError } = await supabase
+        .from('flashcard_progress')
+        .select('*')
+        .eq('flashcard_id', currentCard.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+        
+      if (checkError) throw checkError;
+      
+      let updateResult;
+      
+      if (existingProgress) {
+        // Update existing progress
+        updateResult = await supabase
+          .from('flashcard_progress')
+          .update({ is_mastered: true })
+          .eq('flashcard_id', currentCard.id)
+          .eq('user_id', user.id);
+      } else {
+        // Create new progress record
+        updateResult = await supabase
+          .from('flashcard_progress')
+          .insert({
+            flashcard_id: currentCard.id,
+            user_id: user.id,
+            is_mastered: true,
+            last_studied_at: new Date().toISOString()
+          });
       }
       
-      console.log("SubjectStudy: Card successfully marked as mastered in Supabase");
-
-      setToast({
-        message: 'Card marked as mastered!',
-        type: 'success'
-      });
-
-      // Update local state
-      console.log("SubjectStudy: Updating local state. Show mastered:", showMastered);
+      if (updateResult.error) throw updateResult.error;
       
-      if (!showMastered) {
-        // If not showing mastered cards, remove this card from the array
-        const updatedCards = cards.filter((_, index) => index !== currentIndex);
-        console.log("SubjectStudy: Removing card from list, new card count:", updatedCards.length);
-        setCards(updatedCards);
+      // Update local state
+      const updatedCards = [...cards];
+      updatedCards[currentIndex] = {
+        ...updatedCards[currentIndex],
+        is_mastered: true
+      };
+      
+      setCards(updatedCards);
+      showToast('Card marked as mastered!', 'success');
+      
+      // Go to next card automatically if this was the last card
+      if (!showMastered && currentIndex === cards.length - 1) {
+        setTimeout(() => {
+          loadData();
+        }, 1000);
+      } else if (!showMastered) {
+        // If we're not showing mastered cards, remove this card and adjust the index
+        const filteredCards = cards.filter((_, i) => i !== currentIndex);
+        setCards(filteredCards);
         
-        // Adjust current index if needed
-        if (currentIndex >= updatedCards.length) {
-          console.log("SubjectStudy: Adjusting current index from", currentIndex, "to", Math.max(0, updatedCards.length - 1));
-          setCurrentIndex(Math.max(0, updatedCards.length - 1));
+        // Adjust current index if necessary
+        if (currentIndex >= filteredCards.length) {
+          setCurrentIndex(Math.max(0, filteredCards.length - 1));
         }
-      } else {
-        // Just update the card in the array
-        const updatedCards = [...cards];
-        updatedCards[currentIndex] = {
-          ...currentCard,
-          is_mastered: true
-        };
-        console.log("SubjectStudy: Updating card in list");
-        setCards(updatedCards);
+        
+        showToast('Card marked as mastered and removed from view!', 'success');
       }
     } catch (err: any) {
-      console.error("SubjectStudy: Error in markAsMastered:", err);
-      setToast({
-        message: `Error: ${err.message}`,
-        type: 'error'
-      });
+      console.error("Error marking card as mastered:", err);
+      showToast(`Error: ${err.message}`, 'error');
+    } finally {
+      setToggleLoading(false);
     }
   };
 
   const unmarkAsMastered = async () => {
-    console.log("SubjectStudy unmarkAsMastered function called");
-    
-    if (!user) {
-      console.log("SubjectStudy: User not logged in");
-      setToast({
-        message: 'You need to be signed in to change card status',
-        type: 'error'
-      });
-      return;
-    }
-
-    if (cards.length === 0 || currentIndex >= cards.length) {
-      console.log("SubjectStudy: No cards available to update");
-      return;
-    }
+    if (!cards.length || currentIndex < 0 || !user) return;
     
     const currentCard = cards[currentIndex];
-    
-    if (!currentCard.is_mastered) {
-      console.log("SubjectStudy: Card is not mastered, cannot unmark");
-      return;
-    }
-    
-    console.log("SubjectStudy: Unmarking card as mastered:", currentCard.id);
+    console.log("Unmarking card as mastered:", currentCard.id);
+    setToggleLoading(true);
     
     try {
-      // Update Supabase
-      const { error } = await supabase
-        .from('flashcards')
-        .update({ is_mastered: false })
-        .eq('id', currentCard.id);
-
-      if (error) {
-        console.error("SubjectStudy: Error updating card in Supabase:", error);
-        throw new Error(error.message);
+      // First check if a progress record exists
+      const { data: existingProgress, error: checkError } = await supabase
+        .from('flashcard_progress')
+        .select('*')
+        .eq('flashcard_id', currentCard.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+        
+      if (checkError) throw checkError;
+      
+      if (existingProgress) {
+        // Update existing progress
+        const { error: updateError } = await supabase
+          .from('flashcard_progress')
+          .update({ is_mastered: false })
+          .eq('flashcard_id', currentCard.id)
+          .eq('user_id', user.id);
+        
+        if (updateError) throw updateError;
+      } else {
+        // Create new progress record
+        const { error: insertError } = await supabase
+          .from('flashcard_progress')
+          .insert({
+            flashcard_id: currentCard.id,
+            user_id: user.id,
+            is_mastered: false,
+            last_studied_at: new Date().toISOString()
+          });
+        
+        if (insertError) throw insertError;
       }
       
-      console.log("SubjectStudy: Card successfully unmarked as mastered in Supabase");
-
-      setToast({
-        message: 'Card status updated',
-        type: 'success'
-      });
-
       // Update local state
       const updatedCards = [...cards];
       updatedCards[currentIndex] = {
-        ...currentCard,
+        ...updatedCards[currentIndex],
         is_mastered: false
       };
-      console.log("SubjectStudy: Updating card in list");
+      
       setCards(updatedCards);
+      showToast('Card unmarked as mastered!', 'success');
     } catch (err: any) {
-      console.error("SubjectStudy: Error in unmarkAsMastered:", err);
-      setToast({
-        message: `Error: ${err.message}`,
-        type: 'error'
-      });
+      console.error("Error unmarking card as mastered:", err);
+      showToast(`Error: ${err.message}`, 'error');
+    } finally {
+      setToggleLoading(false);
     }
   };
 
   const handleClosePaywall = () => {
     setShowPaywall(false);
     navigate('/flashcards/subjects');
+  };
+
+  // Function to show toast messages
+  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+    setToast({ message, type });
+    // Auto-hide toast after 3 seconds
+    setTimeout(() => {
+      setToast(null);
+    }, 3000);
   };
 
   if (loading) {

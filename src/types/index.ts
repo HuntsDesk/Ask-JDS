@@ -78,15 +78,22 @@ export interface Subject {
   user_id: string;
 }
 
+export interface ExamType {
+  id: string;
+  name: string;
+  description: string;
+}
+
 export interface FlashcardCollection {
   id: string;
   title: string;
   description: string;
-  subject_id: string;
   created_at: string;
   user_id: string;
-  subject?: Subject;
+  is_official: boolean;
   flashcards_count?: number;
+  // Optional subjects from many-to-many relationship
+  subjects?: Subject[];
 }
 
 export interface Flashcard {
@@ -94,10 +101,19 @@ export interface Flashcard {
   question: string;
   answer: string;
   is_mastered: boolean;
-  collection_id: string;
   created_at: string;
   user_id: string;
+  created_by: string;
+  is_official: boolean;
+  difficulty_level?: string;
+  is_common_pitfall?: boolean;
+  // Optional collections, subjects and exam types from many-to-many relationships
+  collections?: FlashcardCollection[];
+  subjects?: Subject[];
+  exam_types?: ExamType[];
+  // Backward compatibility for UI that expects collection directly
   collection?: {
+    id: string;
     title: string;
     subject?: {
       name: string;

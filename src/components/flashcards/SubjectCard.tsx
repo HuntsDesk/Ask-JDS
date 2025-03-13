@@ -44,16 +44,16 @@ function useCardStats(subjectId: string): {
         setLoading(true);
         setError(null);
         
-        // First get all collections for this subject
-        const { data: collections, error: collectionError } = await supabase
-          .from('flashcard_collections')
-          .select('id')
+        // First get all collections for this subject using the junction table
+        const { data: collectionSubjects, error: collectionError } = await supabase
+          .from('collection_subjects')
+          .select('collection_id')
           .eq('subject_id', subjectId);
           
         if (collectionError) throw collectionError;
         
         // If there are no collections, we can return early with zeros
-        if (!collections || collections.length === 0) {
+        if (!collectionSubjects || collectionSubjects.length === 0) {
           if (isMounted) {
             setStats({ total: 0, mastered: 0 });
             setLoading(false);
@@ -61,25 +61,40 @@ function useCardStats(subjectId: string): {
           return;
         }
         
-        const collectionIds = collections.map(c => c.id);
+        const collectionIds = collectionSubjects.map(cs => cs.collection_id);
+        
+        // Use the flashcard_collections junction table to get the flashcard IDs
+        const { data: flashcardCollections, error: flashcardsError } = await supabase
+          .from('flashcard_collections_junction')
+          .select('flashcard_id')
+          .in('collection_id', collectionIds);
+          
+        if (flashcardsError) throw flashcardsError;
+        
+        // If there are no flashcards, return zeros
+        if (!flashcardCollections || flashcardCollections.length === 0) {
+          if (isMounted) {
+            setStats({ total: 0, mastered: 0 });
+            setLoading(false);
+          }
+          return;
+        }
+        
+        const flashcardIds = flashcardCollections.map(fc => fc.flashcard_id);
         
         // Use a single batched query to get both total and mastered counts
         const [totalResult, masteredResult] = await Promise.all([
-          // Get total card count
-          supabase
-            .from('flashcards')
-            .select('*', { count: 'exact', head: true })
-            .in('collection_id', collectionIds),
+          // Total is just the length of flashcardIds
+          Promise.resolve({ count: flashcardIds.length }),
           
-          // Get mastered card count
+          // Get mastered card count from progress table
           supabase
-            .from('flashcards')
+            .from('flashcard_progress')
             .select('*', { count: 'exact', head: true })
-            .in('collection_id', collectionIds)
+            .in('flashcard_id', flashcardIds)
             .eq('is_mastered', true)
         ]);
         
-        if (totalResult.error) throw totalResult.error;
         if (masteredResult.error) throw masteredResult.error;
         
         if (isMounted) {
@@ -130,8 +145,8 @@ export default function SubjectCard({
   }, [stats.mastered, stats.total]);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
-      <div className="p-6">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col h-full">
+      <div className="p-6 flex-grow">
         <div className="flex items-center gap-2 mb-3">
           <BookOpen className="h-5 w-5 text-[#F37022]" />
           <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1">
@@ -190,7 +205,9 @@ export default function SubjectCard({
             )}
           </div>
         </div>
-        
+      </div>
+      
+      <div className="p-6 pt-0 mt-auto">
         <div className="flex justify-between items-center">
           <div className="flex gap-2">
             <Tooltip text="Create Flashcard Collection">

@@ -226,25 +226,25 @@ export interface Database {
           id: string
           title: string
           description: string
-          subject_id: string
           created_at: string
           user_id: string
+          is_official: boolean
         }
         Insert: {
           id?: string
           title: string
           description: string
-          subject_id: string
           created_at?: string
           user_id?: string
+          is_official?: boolean
         }
         Update: {
           id?: string
           title?: string
           description?: string
-          subject_id?: string
           created_at?: string
           user_id?: string
+          is_official?: boolean
         }
       }
       flashcards: {
@@ -253,27 +253,162 @@ export interface Database {
           question: string
           answer: string
           is_mastered: boolean
-          collection_id: string
           created_at: string
           user_id: string
+          created_by: string
+          is_official: boolean
+          difficulty_level?: string
+          is_common_pitfall?: boolean
         }
         Insert: {
           id?: string
           question: string
           answer: string
           is_mastered?: boolean
-          collection_id: string
           created_at?: string
           user_id?: string
+          created_by?: string
+          is_official?: boolean
+          difficulty_level?: string
+          is_common_pitfall?: boolean
         }
         Update: {
           id?: string
           question?: string
           answer?: string
           is_mastered?: boolean
-          collection_id?: string
           created_at?: string
           user_id?: string
+          created_by?: string
+          is_official?: boolean
+          difficulty_level?: string
+          is_common_pitfall?: boolean
+        }
+      }
+      collections: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          created_at: string
+          user_id: string
+          is_official: boolean
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          created_at?: string
+          user_id?: string
+          is_official?: boolean
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          created_at?: string
+          user_id?: string
+          is_official?: boolean
+        }
+      }
+      collection_subjects: {
+        Row: {
+          id: string
+          collection_id: string
+          subject_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          collection_id: string
+          subject_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          collection_id?: string
+          subject_id?: string
+          created_at?: string
+        }
+      }
+      flashcard_collections: {
+        Row: {
+          id: string
+          flashcard_id: string
+          collection_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          flashcard_id: string
+          collection_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          flashcard_id?: string
+          collection_id?: string
+          created_at?: string
+        }
+      }
+      flashcard_subjects: {
+        Row: {
+          id: string
+          flashcard_id: string
+          subject_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          flashcard_id: string
+          subject_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          flashcard_id?: string
+          subject_id?: string
+          created_at?: string
+        }
+      }
+      exam_types: {
+        Row: {
+          id: string
+          name: string
+          description: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string
+          created_at?: string
+        }
+      }
+      flashcard_exam_types: {
+        Row: {
+          id: string
+          flashcard_id: string
+          exam_type_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          flashcard_id: string
+          exam_type_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          flashcard_id?: string
+          exam_type_id?: string
+          created_at?: string
         }
       }
     }

@@ -29,6 +29,7 @@ import EditSubject from './pages/EditSubject';
 import CreateSubject from './pages/CreateSubject';
 import CreateFlashcardSelect from './pages/CreateFlashcardSelect';
 import CreateFlashcard from './pages/CreateFlashcard';
+import UnifiedStudyMode from './pages/UnifiedStudyMode';
 
 export default function FlashcardsPage() {
   const { user, signOut } = useAuth();
@@ -93,7 +94,7 @@ export default function FlashcardsPage() {
         try {
           // Query to check if collection is premium content
           const { data, error } = await supabase
-            .from('flashcard_collections')
+            .from('collections')
             .select('is_official')
             .eq('id', collectionId)
             .single();
@@ -243,6 +244,7 @@ export default function FlashcardsPage() {
                   component={StudyMode} 
                 />
               } />
+              <Route path="/unified-study" element={<UnifiedStudyMode />} />
               <Route path="/subjects" element={<ManageSubjects />} />
               <Route path="/subjects/:subject" element={<SubjectStudy />} />
               <Route path="/create-collection" element={<CreateSet />} />

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Save, ArrowLeft, Trash2, PlusCircle, ChevronLeft } from 'lucide-react';
+import { Save, ArrowLeft, Trash2, PlusCircle, ChevronLeft, Plus, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import DeleteConfirmation from '../DeleteConfirmation';
 import Toast from '../Toast';
@@ -12,7 +12,6 @@ interface Collection {
   id: string;
   title: string;
   description: string;
-  subject_id: string;
 }
 
 interface Subject {
@@ -27,28 +26,47 @@ export default function EditCollection() {
   const [collection, setCollection] = useState<Collection | null>(null);
   const [originalCollection, setOriginalCollection] = useState<Collection | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [originalSelectedSubjects, setOriginalSelectedSubjects] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cardCount, setCardCount] = useState(0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showNewSubjectModal, setShowNewSubjectModal] = useState(false);
+  const [newSubjectName, setNewSubjectName] = useState('');
+  const [creatingSubject, setCreatingSubject] = useState(false);
 
   useEffect(() => {
     async function loadData() {
       try {
         // Load collection details
         const { data: collectionData, error: collectionError } = await supabase
-          .from('flashcard_collections')
+          .from('collections')
           .select('*')
           .eq('id', id)
           .single();
 
         if (collectionError) throw collectionError;
+        
+        // Get the subjects for this collection from the junction table
+        const { data: subjectJunctions, error: junctionError } = await supabase
+          .from('collection_subjects')
+          .select('subject_id')
+          .eq('collection_id', id);
+          
+        if (junctionError) throw junctionError;
+        
+        // Extract subject IDs
+        const subjectIds = subjectJunctions?.map(junction => junction.subject_id) || [];
+        
         setCollection(collectionData);
         setOriginalCollection(JSON.parse(JSON.stringify(collectionData))); // Deep copy
+        setSelectedSubjects(subjectIds);
+        setOriginalSelectedSubjects([...subjectIds]);
 
-        // Load subjects
+        // Load all subjects
         const { data: subjectsData, error: subjectsError } = await supabase
           .from('subjects')
           .select('*')
@@ -57,9 +75,9 @@ export default function EditCollection() {
         if (subjectsError) throw subjectsError;
         setSubjects(subjectsData || []);
 
-        // Get card count
+        // Get card count - using junction table for flashcard-collection relationship
         const { count, error: countError } = await supabase
-          .from('flashcards')
+          .from('flashcard_collections_junction')
           .select('*', { count: 'exact', head: true })
           .eq('collection_id', id);
 
@@ -78,14 +96,69 @@ export default function EditCollection() {
   // Check for unsaved changes
   useEffect(() => {
     if (collection && originalCollection) {
-      const isDifferent = 
+      const hasCollectionChanges = 
         collection.title !== originalCollection.title ||
-        collection.description !== originalCollection.description ||
-        collection.subject_id !== originalCollection.subject_id;
+        collection.description !== originalCollection.description;
       
-      setHasUnsavedChanges(isDifferent);
+      // Check if the selected subjects have changed
+      const hasSubjectChanges = 
+        selectedSubjects.length !== originalSelectedSubjects.length ||
+        !selectedSubjects.every(subjectId => originalSelectedSubjects.includes(subjectId));
+      
+      setHasUnsavedChanges(hasCollectionChanges || hasSubjectChanges);
     }
-  }, [collection, originalCollection]);
+  }, [collection, originalCollection, selectedSubjects, originalSelectedSubjects]);
+
+  const handleSubjectToggle = (subjectId: string) => {
+    setSelectedSubjects(prev => {
+      if (prev.includes(subjectId)) {
+        return prev.filter(id => id !== subjectId);
+      } else {
+        return [...prev, subjectId];
+      }
+    });
+  };
+
+  const handleCreateNewSubject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newSubjectName.trim()) {
+      showToast("Subject name cannot be empty", "error");
+      return;
+    }
+    
+    setCreatingSubject(true);
+    
+    try {
+      // Create the new subject
+      const { data: newSubject, error } = await supabase
+        .from('subjects')
+        .insert({ 
+          name: newSubjectName.trim(),
+          is_official: false 
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Add the new subject to the list
+      setSubjects(prev => [...prev, newSubject]);
+      
+      // Select the new subject
+      setSelectedSubjects(prev => [...prev, newSubject.id]);
+      
+      // Close the modal and reset the input
+      setNewSubjectName('');
+      setShowNewSubjectModal(false);
+      
+      showToast("Subject created successfully", "success");
+    } catch (err: any) {
+      showToast(`Error creating subject: ${err.message}`, "error");
+    } finally {
+      setCreatingSubject(false);
+    }
+  };
 
   const saveChanges = async () => {
     if (!collection || !hasUnsavedChanges) return true;
@@ -96,18 +169,42 @@ export default function EditCollection() {
     try {
       // Update collection details
       const { error: updateError } = await supabase
-        .from('flashcard_collections')
+        .from('collections')
         .update({
           title: collection.title,
           description: collection.description,
-          subject_id: collection.subject_id,
         })
         .eq('id', id);
 
       if (updateError) throw updateError;
       
-      // Update the original collection to match the current state
+      // Update the subject relationships in the junction table
+      
+      // First delete all existing relationships
+      const { error: deleteJunctionError } = await supabase
+        .from('collection_subjects')
+        .delete()
+        .eq('collection_id', id);
+        
+      if (deleteJunctionError) throw deleteJunctionError;
+      
+      // Then insert the new relationships
+      if (selectedSubjects.length > 0) {
+        const junctionRecords = selectedSubjects.map(subjectId => ({
+          collection_id: id!,
+          subject_id: subjectId
+        }));
+        
+        const { error: insertJunctionError } = await supabase
+          .from('collection_subjects')
+          .insert(junctionRecords);
+          
+        if (insertJunctionError) throw insertJunctionError;
+      }
+      
+      // Update the original state to match the current state
       setOriginalCollection(JSON.parse(JSON.stringify(collection)));
+      setOriginalSelectedSubjects([...selectedSubjects]);
       setHasUnsavedChanges(false);
       showToast('Changes saved successfully', 'success');
       
@@ -128,12 +225,30 @@ export default function EditCollection() {
 
   const handleDeleteCollection = async () => {
     try {
+      // First delete entries in the collection_subjects junction table
+      const { error: subjectJunctionError } = await supabase
+        .from('collection_subjects')
+        .delete()
+        .eq('collection_id', id);
+        
+      if (subjectJunctionError) throw subjectJunctionError;
+      
+      // Then delete entries in the flashcard_collections_junction table
+      const { error: cardJunctionError } = await supabase
+        .from('flashcard_collections_junction')
+        .delete()
+        .eq('collection_id', id);
+        
+      if (cardJunctionError) throw cardJunctionError;
+      
+      // Finally delete the collection itself
       const { error } = await supabase
-        .from('flashcard_collections')
+        .from('collections')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+      
       navigate('/flashcards/collections');
     } catch (err: any) {
       setError(err.message);
@@ -184,6 +299,56 @@ export default function EditCollection() {
         itemName={collection.title}
       />
 
+      {/* New Subject Modal */}
+      {showNewSubjectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-lg font-medium">Add New Subject</h3>
+              <button 
+                onClick={() => setShowNewSubjectModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateNewSubject} className="p-4">
+              <div className="mb-4">
+                <label htmlFor="subjectName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Subject Name
+                </label>
+                <input
+                  type="text"
+                  id="subjectName"
+                  value={newSubjectName}
+                  onChange={(e) => setNewSubjectName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                  placeholder="Enter subject name"
+                  required
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNewSubjectModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  disabled={creatingSubject}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#F37022] text-white rounded-md hover:bg-[#E36012]"
+                  disabled={creatingSubject}
+                >
+                  {creatingSubject ? 'Creating...' : 'Create Subject'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {toast && (
         <Toast 
           message={toast.message} 
@@ -212,25 +377,6 @@ export default function EditCollection() {
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="mb-4">
-            <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
-              Subject Area
-            </label>
-            <select
-              id="subject"
-              value={collection.subject_id}
-              onChange={(e) => setCollection({ ...collection, subject_id: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
-              required
-            >
-              {subjects.map((subject) => (
-                <option key={subject.id} value={subject.id}>
-                  {subject.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="mb-4">
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
               Title
             </label>
@@ -255,6 +401,49 @@ export default function EditCollection() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
               rows={3}
             />
+          </div>
+
+          <div className="mb-4">
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Subjects
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowNewSubjectModal(true)}
+                className="text-sm text-[#F37022] hover:text-[#E36012] flex items-center gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                Add New Subject
+              </button>
+            </div>
+            <div className="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto">
+              {subjects.length === 0 ? (
+                <p className="text-gray-500 italic">No subjects available</p>
+              ) : (
+                <div className="space-y-2">
+                  {subjects.map((subject) => (
+                    <div key={subject.id} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id={`subject-${subject.id}`}
+                        checked={selectedSubjects.includes(subject.id)}
+                        onChange={() => handleSubjectToggle(subject.id)}
+                        className="h-4 w-4 text-[#F37022] focus:ring-[#F37022] border-gray-300 rounded"
+                      />
+                      <label htmlFor={`subject-${subject.id}`} className="ml-2 text-sm text-gray-700">
+                        {subject.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {selectedSubjects.length === 0 && (
+              <p className="text-sm text-yellow-600 mt-1">
+                Please select at least one subject
+              </p>
+            )}
           </div>
         </div>
 
@@ -289,9 +478,9 @@ export default function EditCollection() {
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={saving || !hasUnsavedChanges}
+            disabled={saving || !hasUnsavedChanges || selectedSubjects.length === 0}
             className={`flex items-center gap-2 px-6 py-2 rounded-md ${
-              hasUnsavedChanges 
+              hasUnsavedChanges && selectedSubjects.length > 0
                 ? 'bg-[#F37022] text-white hover:bg-[#E36012]' 
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}

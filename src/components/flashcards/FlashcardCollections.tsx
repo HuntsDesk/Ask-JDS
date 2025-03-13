@@ -19,10 +19,10 @@ interface FlashcardCollection {
   created_at: string;
   card_count?: number;
   is_official?: boolean;
-  subject: {
+  subject?: {
     id: string;
     name: string;
-  };
+  } | null;
   mastered_count: number;
 }
 
@@ -63,78 +63,108 @@ export default function FlashcardCollections() {
   async function loadCollections() {
     try {
       setLoading(true);
-      let query = supabase
-        .from('flashcard_collections')
+      
+      // First, get all collections
+      const { data: collectionsData, error: collectionsError } = await supabase
+        .from('collections')
         .select(`
           id,
           title,
           description,
           created_at,
-          is_official,
-          subject:subject_id(id, name)
+          is_official
         `)
         .order('created_at', { ascending: false });
       
+      if (collectionsError) throw collectionsError;
+      
       // Apply subject filter if selected
       const subjectId = searchParams.get('subject');
+      
+      let filteredCollections = collectionsData || [];
+      
+      // If subject filter is applied, filter collections using the junction table
       if (subjectId) {
-        query = query.eq('subject_id', subjectId);
+        // Get collection IDs for this subject from the junction table
+        const { data: collectionSubjects, error: junctionError } = await supabase
+          .from('collection_subjects')
+          .select('collection_id')
+          .eq('subject_id', subjectId);
+          
+        if (junctionError) throw junctionError;
+        
+        // Filter collections by the IDs we got from the junction table
+        const collectionIds = collectionSubjects?.map(cs => cs.collection_id) || [];
+        filteredCollections = filteredCollections.filter(c => collectionIds.includes(c.id));
       }
       
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      
-      // Get card counts and mastered counts for each collection - using Promise.all
-      const collectionsWithCounts = await Promise.all(
-        (data || []).map(async (collection) => {
-          try {
-            // Get total card count
-            const { count: totalCount, error: countError } = await supabase
-              .from('flashcards')
-              .select('*', { count: 'exact', head: true })
-              .eq('collection_id', collection.id);
-              
-            if (countError) throw countError;
+      // Get subjects for each collection using the junction table
+      const collectionsWithSubjects = await Promise.all(
+        filteredCollections.map(async (collection) => {
+          // Get subject IDs from the junction table
+          const { data: collectionSubjects, error: subjectsError } = await supabase
+            .from('collection_subjects')
+            .select('subject_id')
+            .eq('collection_id', collection.id)
+            .limit(1); // Just get one subject for display purposes
             
-            // Get mastered card count
-            const { count: masteredCount, error: masteredError } = await supabase
-              .from('flashcards')
+          if (subjectsError) throw subjectsError;
+          
+          let subject = null;
+          
+          // If the collection has subjects, get the first one's details
+          if (collectionSubjects && collectionSubjects.length > 0) {
+            const { data: subjectData, error: subjectError } = await supabase
+              .from('subjects')
+              .select('id, name')
+              .eq('id', collectionSubjects[0].subject_id)
+              .single();
+              
+            if (subjectError) throw subjectError;
+            subject = subjectData;
+          }
+          
+          // Get card counts from the flashcard_collections_junction table
+          const { data: flashcardCollections, error: fcError } = await supabase
+            .from('flashcard_collections_junction')
+            .select('flashcard_id')
+            .eq('collection_id', collection.id);
+            
+          if (fcError) throw fcError;
+          
+          const totalCount = flashcardCollections?.length || 0;
+          
+          // Count mastered cards by checking progress records
+          let masteredCount = 0;
+          if (totalCount > 0 && user) {
+            const flashcardIds = flashcardCollections.map(fc => fc.flashcard_id);
+            
+            // Get mastered count
+            const { count, error: masteredError } = await supabase
+              .from('flashcard_progress')
               .select('*', { count: 'exact', head: true })
-              .eq('collection_id', collection.id)
+              .eq('user_id', user.id)
+              .in('flashcard_id', flashcardIds)
               .eq('is_mastered', true);
               
             if (masteredError) throw masteredError;
-            
-            // Ensure subject is properly formatted as an object, not an array
-            const formattedSubject = Array.isArray(collection.subject) 
-              ? { id: collection.subject[0]?.id || '', name: collection.subject[0]?.name || '' }
-              : collection.subject;
-            
-            return {
-              ...collection,
-              card_count: totalCount || 0,
-              mastered_count: masteredCount || 0,
-              subject: formattedSubject
-            } as FlashcardCollection;
-          } catch (err) {
-            console.error('Error processing collection:', err);
-            return {
-              ...collection,
-              card_count: 0,
-              mastered_count: 0,
-              subject: Array.isArray(collection.subject) 
-                ? { id: collection.subject[0]?.id || '', name: collection.subject[0]?.name || '' }
-                : collection.subject
-            } as FlashcardCollection;
+            masteredCount = count || 0;
           }
+          
+          return {
+            ...collection,
+            subject: subject,
+            card_count: totalCount,
+            mastered_count: masteredCount
+          };
         })
       );
       
-      setCollections(collectionsWithCounts);
+      setCollections(collectionsWithSubjects);
+      setError(null);
     } catch (err: any) {
-      console.error('Error loading collections:', err);
-      setError(err.message);
+      console.error("Error loading collections:", err);
+      setError(err.message || "An error occurred loading collections");
     } finally {
       setLoading(false);
     }
@@ -159,28 +189,37 @@ export default function FlashcardCollections() {
     if (!collectionToDelete) return;
     
     try {
-      // Delete flashcards first
-      const { error: flashcardsError } = await supabase
-        .from('flashcards')
+      // First delete entries in the flashcard_collections junction table
+      const { error: junctionError } = await supabase
+        .from('flashcard_collections_junction')
         .delete()
         .eq('collection_id', collectionToDelete.id);
       
-      if (flashcardsError) throw flashcardsError;
+      if (junctionError) throw junctionError;
       
-      // Then delete the collection
+      // Delete entries in the collection_subjects junction table
+      const { error: subjectsError } = await supabase
+        .from('collection_subjects')
+        .delete()
+        .eq('collection_id', collectionToDelete.id);
+      
+      if (subjectsError) throw subjectsError;
+      
+      // Then delete the collection itself
       const { error: collectionError } = await supabase
-        .from('flashcard_collections')
+        .from('collections')
         .delete()
         .eq('id', collectionToDelete.id);
       
       if (collectionError) throw collectionError;
       
+      // Update state
       setCollections(collections.filter(c => c.id !== collectionToDelete.id));
       setCollectionToDelete(null);
-      showToast('Collection deleted successfully', 'success');
+      showToast('Collection deleted successfully!', 'success');
     } catch (err: any) {
       console.error('Error deleting collection:', err);
-      showToast(`Error: ${err.message}`, 'error');
+      showToast(`Error deleting collection: ${err.message}`, 'error');
     }
   }
 
@@ -267,18 +306,24 @@ export default function FlashcardCollections() {
             {/* Subject filter moved to the left of the slider */}
             <div className="relative">
               <select
-                className="pl-8 pr-4 py-2 border rounded-md bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                className="pl-8 pr-4 py-2 border rounded-md bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white appearance-none"
                 value={selectedSubjectId}
                 onChange={(e) => handleSubjectFilter(e.target.value)}
+                style={{ minWidth: '150px' }}
               >
-                <option value="">All Subjects</option>
+                <option value="" className="bg-white dark:bg-gray-700">All Subjects</option>
                 {subjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
+                  <option key={subject.id} value={subject.id} className="bg-white dark:bg-gray-700">
                     {subject.name}
                   </option>
                 ))}
               </select>
               <Book className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 h-5 w-5" />
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
             </div>
           </div>
           
@@ -331,14 +376,14 @@ export default function FlashcardCollections() {
                 key={collection.id}
                 title={collection.title}
                 description={collection.description}
-                tag={collection.subject.name}
+                tag={collection.subject ? collection.subject.name : 'No Subject'}
                 count={collection.card_count || 0}
                 masteredCount={collection.mastered_count || 0}
                 link={`/flashcards/study/${collection.id}`}
                 onDelete={!collection.is_official ? () => setCollectionToDelete(collection) : undefined}
                 collectionId={collection.id}
                 isOfficial={collection.is_official || false}
-                subjectId={collection.subject.id}
+                subjectId={collection.subject ? collection.subject.id : ''}
               />
             ))}
           </div>

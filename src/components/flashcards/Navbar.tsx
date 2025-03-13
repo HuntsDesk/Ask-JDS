@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Library, PlusCircle, BookOpen, FileText } from 'lucide-react';
+import { Library, PlusCircle, BookOpen, FileText, Layers } from 'lucide-react';
 import SearchBar from './SearchBar';
 import useFlashcardAuth from '@/hooks/useFlashcardAuth';
 
@@ -82,6 +82,18 @@ export default function Navbar() {
             >
               <FileText className="h-5 w-5" />
               <span>Flashcards</span>
+            </Link>
+            
+            <Link 
+              to="/flashcards/unified-study" 
+              className={`flex items-center space-x-1 ${
+                location.pathname === '/flashcards/unified-study' 
+                  ? 'text-[#F37022] font-medium' 
+                  : 'text-gray-600 dark:text-gray-300 hover:text-[#F37022]'
+              }`}
+            >
+              <Layers className="h-5 w-5" />
+              <span>Study All</span>
             </Link>
           </div>
 

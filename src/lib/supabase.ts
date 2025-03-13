@@ -121,7 +121,7 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     console.warn(`[${requestId}] Network appears to be offline. This will likely cause the request to fail.`);
     // Return a rejected promise immediately if we know we're offline
-    if (url.includes('/subjects') || url.includes('/flashcard_collections') || url.includes('/flashcards')) {
+    if (url.includes('/subjects') || url.includes('/collections') || url.includes('/flashcards')) {
       console.error(`[${requestId}] Critical flashcard request attempted while offline - rejecting early to prevent hanging UI`);
       return Promise.reject(new Error('Network connection unavailable. Please check your internet connection.'));
     }

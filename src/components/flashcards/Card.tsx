@@ -32,8 +32,8 @@ export default function Card({
   const masteryPercentage = count > 0 ? Math.round((masteredCount / count) * 100) : 0;
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
-      <div className="p-6">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col h-full">
+      <div className="p-6 flex-grow">
         <div className="flex items-center gap-2 mb-3">
           <BookOpen className="h-5 w-5 text-[#F37022]" />
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-1">
@@ -80,7 +80,9 @@ export default function Card({
             </div>
           </div>
         </div>
-        
+      </div>
+      
+      <div className="p-6 pt-0 mt-auto">
         <div className="flex justify-between items-center">
           <div className="flex gap-2">
             <Tooltip text="Add Card">

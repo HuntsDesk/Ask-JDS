@@ -46,11 +46,11 @@ export default function FlashcardSubjects() {
       
       if (error) throw error;
       
-      // Get collection counts for each subject
+      // Get collection counts for each subject using the junction table
       const subjectsWithCounts = await Promise.all(
         (data || []).map(async (subject) => {
           const { count, error: countError } = await supabase
-            .from('flashcard_collections')
+            .from('collection_subjects')
             .select('*', { count: 'exact', head: true })
             .eq('subject_id', subject.id);
             
