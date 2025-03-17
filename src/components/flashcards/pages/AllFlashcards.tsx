@@ -1,22 +1,23 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FileText, Check, EyeOff, Eye, Trash2, Filter, BookOpen, FileEdit, Lock } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { FileText, EyeOff, Eye, Filter } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import useAuth from '@/hooks/useFlashcardAuth';
 import useToast from '@/hooks/useFlashcardToast';
 import LoadingSpinner from '../LoadingSpinner';
 import Toast from '../Toast';
 import EmptyState from '../EmptyState';
-import ErrorMessage from '../ErrorMessage';
 import DeleteConfirmation from '../DeleteConfirmation';
-import { usePersistedState } from '@/hooks/use-persisted-state';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { hasActiveSubscription } from '@/lib/subscription';
-import { Button } from '@/components/ui/button';
 import { FlashcardPaywall } from '../../FlashcardPaywall';
-import { useCachedData, clearCache, invalidateCache } from '@/hooks/use-cached-data';
-import { useFlashcardRelationships } from '@/hooks/useFlashcardRelationships';
-import FlashcardItem from '../FlashcardItem';
+import EnhancedFlashcardItem from '../EnhancedFlashcardItem';
+
+// Types
+interface Subject {
+  id: string;
+  name: string;
+}
 
 interface Collection {
   id: string;
@@ -27,15 +28,14 @@ interface Flashcard {
   id: string;
   question: string;
   answer: string;
-  is_mastered: boolean;
-  collection_id: string;
+  is_mastered?: boolean;
   created_by?: string;
-  collection: {
+  collection?: {
     id: string;
     title: string;
     is_official: boolean;
     user_id: string;
-    subject: {
+    subject?: {
       name: string;
       id: string;
     }
@@ -47,212 +47,83 @@ export default function AllFlashcards() {
   const { user } = useAuth();
   const { toast, showToast, hideToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [allCards, setAllCards] = useState<Flashcard[]>([]);
+
+  // Core state
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasSubscription, setHasSubscription] = useState(false);
+  
+  // UI state
   const [filter, setFilter] = useState<'all' | 'official' | 'my'>('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterSubject, setFilterSubject] = useState('all');
+  const [filterCollection, setFilterCollection] = useState('all');
+  const [showMastered, setShowMastered] = useState(true);
   const [cardToDelete, setCardToDelete] = useState<Flashcard | null>(null);
-  const [hasSubscription, setHasSubscription] = useState<boolean>(false);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
 
-  // Replace regular state with persisted state
-  const [showMastered, setShowMastered] = usePersistedState<boolean>('flashcards-show-mastered', true);
-  const [filterSubject, setFilterSubject] = usePersistedState<string>('flashcards-filter-subject', 'all');
-  const [filterCollection, setFilterCollection] = usePersistedState<string>('flashcards-filter-collection', 'all');
-  const [showFilters, setShowFilters] = usePersistedState<boolean>('flashcards-show-filters', false);
-
-  // Use the relationship hook to efficiently load and cache all relationships
-  const {
-    relationshipData,
-    loading: relationshipsLoading,
-    error: relationshipsError,
-    refetch: refetchRelationships,
-    enrichFlashcard
-  } = useFlashcardRelationships();
-
-  // Use cached data for subjects and collections
-  const [subjects, subjectsLoading] = useCachedData<{id: string, name: string}[]>(
-    'flashcard-subjects',
-    async () => {
-      const { data, error } = await supabase
-        .from('subjects')
-        .select('id, name')
-        .order('name');
-      
-      if (error) throw error;
-      return data || [];
-    },
-    { expiration: 30 * 60 * 1000 } // 30 minutes cache
-  );
-
-  const [collections, collectionsLoading] = useCachedData<Collection[]>(
-    'flashcard-collections',
-    async () => {
-      const { data, error } = await supabase
-        .from('collections')
-        .select('id, title')
-        .order('title');
-      
-      if (error) throw error;
-      return data || [];
-    },
-    { expiration: 15 * 60 * 1000 } // 15 minutes cache
-  );
-
-  // Cache flashcards based on the current filter
-  // Memoize the cache key to ensure stability
-  const flashcardsCacheKey = useMemo(() => (
-    `flashcards-${filter}-${user?.id || 'anonymous'}`
-  ), [filter, user?.id]);
-  
-  const [flashcardsData, flashcardsLoading, flashcardsError, refetchFlashcards] = useCachedData<any[]>(
-    flashcardsCacheKey,
-    async () => {
-      if (filter === 'my' && user) {
-        // Get user's flashcards
-        const { data, error } = await supabase
-          .from('flashcards')
-          .select('*')
-          .eq('created_by', user.id);
-          
-        if (error) throw error;
-        return data || [];
-      } else if (filter === 'official') {
-        // Get official flashcards
-        // First get all official collection IDs
-        const { data: officialCollections, error: ocError } = await supabase
-          .from('collections')
-          .select('id')
-          .eq('is_official', true);
-          
-        if (ocError) throw ocError;
-        
-        if (!officialCollections || officialCollections.length === 0) {
-          return [];
-        }
-        
-        const officialCollectionIds = officialCollections.map(c => c.id);
-        
-        // Get flashcard IDs from junction table
-        const { data: flashcardJunctions, error: fjError } = await supabase
-          .from('flashcard_collections_junction')
-          .select('flashcard_id')
-          .in('collection_id', officialCollectionIds);
-          
-        if (fjError) throw fjError;
-        
-        if (!flashcardJunctions || flashcardJunctions.length === 0) {
-          return [];
-        }
-        
-        const flashcardIds = flashcardJunctions.map(fj => fj.flashcard_id);
-        
-        // Get the flashcards
-        const { data, error } = await supabase
-          .from('flashcards')
-          .select('*')
-          .in('id', flashcardIds);
-          
-        if (error) throw error;
-        return data || [];
-      } else {
-        // Get all flashcards
-        const { data, error } = await supabase
-          .from('flashcards')
-          .select('*');
-          
-        if (error) throw error;
-        return data || [];
-      }
-    },
-    { expiration: 5 * 60 * 1000 } // 5 minutes cache
-  );
-
-  // Cache mastery status
-  const [masteryStatus, masteryLoading, masteryError, refetchMastery] = useCachedData<Record<string, boolean>>(
-    `flashcard-mastery-${user?.id || 'anonymous'}`,
-    async () => {
-      if (!user) return {}; 
-      
-      const { data, error } = await supabase
-        .from('flashcard_progress')
-        .select('flashcard_id, is_mastered')
-        .eq('user_id', user.id);
-        
-      if (error) throw error;
-      
-      // Convert to a map for easy lookup
-      const masteryMap: Record<string, boolean> = {};
-      (data || []).forEach(item => {
-        masteryMap[item.flashcard_id] = item.is_mastered;
-      });
-      
-      return masteryMap;
-    },
-    { expiration: 5 * 60 * 1000 } // 5 minutes cache
-  );
-
-  // Create a memoized function for processing cards to avoid recreating it on every render
-  const processCards = useMemo(() => {
-    return (cards: any[]) => {
-      if (!cards || !cards.length) return [];
-      
-      return cards.map(card => {
-        // Add mastery status
-        const enrichedCard = {
-          ...card,
-          is_mastered: masteryStatus?.[card.id] || false
-        };
-        
-        // Add relationships (collections, subjects, exam types)
-        return enrichFlashcard(enrichedCard);
-      });
-    };
-  }, [masteryStatus, enrichFlashcard]);
-  
-  // Modified effect to prevent infinite loops
-  useEffect(() => {
-    // Skip if any data is still loading
-    if (flashcardsLoading || relationshipsLoading || masteryLoading) {
-      setLoading(true);
-      return;
-    }
-    
-    // Skip if we don't have flashcard data
-    if (!flashcardsData) {
-      setAllCards([]);
-      setLoading(false);
-      return;
-    }
-    
-    try {
-      // Use our memoized function to process cards
-      const processedCards = processCards(flashcardsData);
-      setAllCards(processedCards);
-    } catch (err) {
-      console.error('Error processing flashcards:', err);
-      setError('Error processing flashcards data');
-    } finally {
-      setLoading(false);
-    }
-  }, [flashcardsData, relationshipsLoading, masteryLoading, flashcardsLoading, processCards]);
-
-  // Effect for handling filter changes
+  // Initialize filter from URL params
   useEffect(() => {
     const filterParam = searchParams.get('filter');
     if (filterParam && ['all', 'official', 'my'].includes(filterParam)) {
       setFilter(filterParam as 'all' | 'official' | 'my');
     }
     
+    // Load subjects and collections for filters
+    loadSubjects();
+    loadCollections();
+    
+    // Check subscription status
     checkSubscription();
-  }, [searchParams]);
+  }, []);
 
+  // Load data when filter changes
+  useEffect(() => {
+    if (user) {
+      loadFlashcards();
+    }
+  }, [filter, user]);
+
+  // Check subscription status
   const checkSubscription = async () => {
     if (user) {
       try {
         const hasAccess = await hasActiveSubscription(user.id);
         setHasSubscription(hasAccess);
+        console.log("Subscription status:", hasAccess);
+        
+        // Also debug the flashcard-collection junction table
+        try {
+          const { data: junctionData, error: junctionError } = await supabase
+            .from('flashcard_collections_junction')
+            .select('*')
+            .limit(10);
+            
+          if (junctionError) {
+            console.error("Error fetching from junction table:", junctionError);
+          } else {
+            console.log("Sample from junction table:", junctionData);
+          }
+          
+          // Check if any flashcards have direct is_official=true
+          const { data: officialData, error: officialError } = await supabase
+            .from('flashcards')
+            .select('id, question')
+            .eq('is_official', true)
+            .limit(10);
+            
+          if (officialError) {
+            console.error("Error checking official flashcards:", officialError);
+          } else {
+            console.log("Sample official flashcards by is_official=true:", officialData);
+          }
+          
+        } catch (e) {
+          console.error("Error in debug queries:", e);
+        }
       } catch (error) {
         console.error("Error checking subscription:", error);
         setHasSubscription(false);
@@ -262,67 +133,167 @@ export default function AllFlashcards() {
     }
   };
 
-  // Memoize the filtered collections list
-  const filteredCollections = useMemo(() => {
-    if (filterSubject === 'all') {
-      return collections;
+  // Load subjects for filter dropdown
+  const loadSubjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('subjects')
+        .select('id, name')
+        .order('name');
+      
+      if (error) throw error;
+      setSubjects(data || []);
+    } catch (err: any) {
+      console.error("Error loading subjects:", err.message);
     }
-    
-    // We need to check the collection_subjects junction table
-    // Since this is a client-side filter only, we'll skip the filtering
-    // and handle subject filtering elsewhere in the component
-    return collections;
-  }, [collections, filterSubject]);
+  };
 
+  // Load collections for filter dropdown
+  const loadCollections = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('collections')
+        .select('id, title')
+        .order('title');
+      
+      if (error) throw error;
+      setCollections(data || []);
+    } catch (err: any) {
+      console.error("Error loading collections:", err.message);
+    }
+  };
+
+  // Main function to load flashcards based on current filter
+  const loadFlashcards = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      let flashcardsData: Flashcard[] = [];
+      
+      if (filter === 'all') {
+        // Get all flashcards with their collections
+        const { data, error } = await supabase
+          .from('flashcards')
+          .select('*, collection:collections(*)')
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        flashcardsData = data || [];
+        console.log(`Loaded ${flashcardsData.length} total flashcards`);
+      } 
+      else if (filter === 'official') {
+        console.log("Loading official flashcards...");
+        
+        // Simply get flashcards that have is_official=true directly
+        const { data, error } = await supabase
+          .from('flashcards')
+          .select('*, collection:collections(*)')
+          .eq('is_official', true)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.error("Error fetching official flashcards:", error);
+          throw error;
+        }
+        
+        flashcardsData = data || [];
+        console.log(`Loaded ${flashcardsData.length} official flashcards`);
+      } 
+      else if (filter === 'my') {
+        // Get flashcards created by the user
+        const { data, error } = await supabase
+          .from('flashcards')
+          .select('*, collection:collections(*)')
+          .eq('created_by', user.id)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        flashcardsData = data || [];
+        console.log(`Loaded ${flashcardsData.length} user-created flashcards`);
+      }
+      
+      // Load mastery status for these cards
+      if (flashcardsData.length > 0) {
+        const { data: progress, error: progressError } = await supabase
+          .from('flashcard_progress')
+          .select('flashcard_id, is_mastered')
+          .eq('user_id', user.id)
+          .in('flashcard_id', flashcardsData.map(c => c.id));
+        
+        if (!progressError && progress) {
+          // Create a map of mastery status
+          const masteryMap = new Map();
+          progress.forEach(p => masteryMap.set(p.flashcard_id, p.is_mastered));
+          
+          // Update flashcards with mastery status
+          flashcardsData = flashcardsData.map(card => ({
+            ...card,
+            is_mastered: masteryMap.has(card.id) ? masteryMap.get(card.id) : false
+          }));
+        }
+      }
+      
+      setFlashcards(flashcardsData);
+    } catch (err: any) {
+      console.error(`Error loading ${filter} flashcards:`, err.message);
+      setError(`Failed to load flashcards: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handler for toggling mastery status
+  const toggleMastered = async (card: Flashcard) => {
+    if (!user) return;
+    
+    const newStatus = !card.is_mastered;
+    
+    // Update state optimistically
+    setFlashcards(cards => 
+      cards.map(c => c.id === card.id ? {...c, is_mastered: newStatus} : c)
+    );
+    
+    try {
+      // Update in database
+      const { error } = await supabase
+        .from('flashcard_progress')
+        .upsert({
+          flashcard_id: card.id,
+          user_id: user.id,
+          is_mastered: newStatus,
+          last_reviewed: new Date().toISOString()
+        });
+      
+      if (error) throw error;
+    } catch (err: any) {
+      // Revert optimistic update on error
+      setFlashcards(cards => 
+        cards.map(c => c.id === card.id ? {...c, is_mastered: !newStatus} : c)
+      );
+      
+      showToast('Failed to update mastery status', 'error');
+      console.error('Error updating mastery status:', err.message);
+    }
+  };
+
+  // Handler for editing a card
   const handleEditCard = (card: Flashcard) => {
     navigate(`/flashcards/edit-card/${card.id}`);
   };
 
-  // Add a handler for the Study Now button
+  // Handler for viewing/studying a card
   const handleViewCard = (card: Flashcard) => {
-    // Navigate to the study page for this card's collection
-    if (card.collection_id) {
-      navigate(`/flashcards/study/${card.collection_id}`);
+    if (card.collection?.id) {
+      navigate(`/flashcards/study/${card.collection.id}`);
     } else {
-      // Fallback in case there's no collection
       showToast('Cannot study this card - no collection found', 'error');
     }
   };
 
-  const toggleMastered = async (card: Flashcard) => {
-    try {
-      const newMasteredState = !card.is_mastered;
-      
-      // Update in database
-      if (user) {
-        const { error } = await supabase
-          .from('flashcard_progress')
-          .upsert({
-            flashcard_id: card.id,
-            user_id: user.id,
-            is_mastered: newMasteredState
-          });
-        
-        if (error) throw error;
-      }
-      
-      // Update local state
-      setAllCards(allCards.map(c => 
-        c.id === card.id ? { ...c, is_mastered: newMasteredState } : c
-      ));
-      
-      // Invalidate mastery cache
-      invalidateCache([`flashcard-mastery-${user?.id || 'anonymous'}`]);
-      
-      showToast(
-        card.is_mastered ? 'Card unmarked as mastered' : 'Card marked as mastered', 
-        'success'
-      );
-    } catch (err: any) {
-      showToast(`Error: ${err.message}`, 'error');
-    }
-  };
-
+  // Delete a card
   const deleteCard = async () => {
     if (!cardToDelete) return;
     
@@ -335,16 +306,7 @@ export default function AllFlashcards() {
       if (error) throw error;
       
       // Update local state
-      setAllCards(allCards.filter(c => c.id !== cardToDelete.id));
-      
-      // Invalidate caches that might contain this card
-      invalidateCache([
-        `flashcards-all-${user?.id || 'anonymous'}`,
-        `flashcards-my-${user?.id || 'anonymous'}`,
-        `flashcards-official-${user?.id || 'anonymous'}`,
-        'flashcard-relationships'
-      ]);
-      
+      setFlashcards(cards => cards.filter(c => c.id !== cardToDelete.id));
       showToast('Card deleted successfully', 'success');
     } catch (err: any) {
       showToast(`Error: ${err.message}`, 'error');
@@ -353,225 +315,58 @@ export default function AllFlashcards() {
     }
   };
 
-  const handleFilterChange = (newFilterValue: string) => {
-    console.log('Filter changed to:', newFilterValue);
-    const newFilter = newFilterValue as 'all' | 'official' | 'my';
+  // Handle tab filter change
+  const handleFilterChange = (value: string) => {
+    const newFilter = value as 'all' | 'official' | 'my';
     
-    // Update the filter state
+    // Don't do anything if we're already on this tab
+    if (filter === newFilter) return;
+    
+    // Update filter and URL
     setFilter(newFilter);
-    
-    // Update URL params
     searchParams.set('filter', newFilter);
     setSearchParams(searchParams);
+    
+    // Clear cards and show loading
+    setFlashcards([]);
+    setLoading(true);
   };
 
-  // Force premium content protection for testing - DISABLED
-  const forcePremiumTest = false;
+  // Handle paywall
+  const handleShowPaywall = () => setShowPaywall(true);
+  const handleClosePaywall = () => setShowPaywall(false);
+  
+  // Toggle mastered filter
+  const handleToggleMastered = () => setShowMastered(!showMastered);
 
-  // Check if a card is premium content
-  const isCardPremium = useCallback((card: Flashcard) => {
-    // Debug the card's ownership properties
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Card ${card.id} premium check:`, {
-        question: card.question.substring(0, 20) + '...',
-        userOwned: user && card.collection?.user_id === user.id,
-        userCreated: user && (card.created_by === user.id || String(card.created_by) === String(user.id)),
-        isOfficial: card.collection?.is_official,
-        filter: filter
-      });
-    }
-
-    // User's own cards are NEVER premium, regardless of other settings
-    if (user && card.collection?.user_id === user.id) {
-      return false;
-    }
-    
-    // User created cards are NEVER premium
-    if (user && (card.created_by === user.id || String(card.created_by) === String(user.id))) {
-      return false;
-    }
-    
-    // Cards shown in the "My" filter tab should never be premium
-    if (filter === 'my') {
-      return false;
-    }
-    
-    // Only official collections can have premium cards
-    return card.collection?.is_official === true && !forcePremiumTest && !hasSubscription;
-  }, [filter, user, hasSubscription, forcePremiumTest]);
-
-  // Create a memoized filteredCards array that updates when dependencies change
+  // Apply filters to cards
   const filteredCards = useMemo(() => {
-    // Debug log the full cards array to see what we're working with
-    if (!loading && process.env.NODE_ENV === 'development') {
-      console.log('Filtering cards with:', {
-        totalCards: allCards.length,
-        filter,
-        subject: filterSubject,
-        collection: filterCollection,
-        showMastered
-      });
-    }
-
-    // First apply basic filters that apply to all tabs
-    const basicFiltered = allCards.filter(card => {
-      // Filter by mastered status
-      if (!showMastered && card.is_mastered) {
-        return false;
-      }
+    if (!flashcards.length) return [];
+    
+    return flashcards.filter(card => {
+      // Skip mastered cards if filter is enabled
+      if (!showMastered && card.is_mastered) return false;
       
-      // Filter by subject
+      // Subject filter
       if (filterSubject !== 'all' && card.collection?.subject?.id !== filterSubject) {
         return false;
       }
       
-      // Filter by collection
-      if (filterCollection !== 'all' && card.collection_id !== filterCollection) {
+      // Collection filter
+      if (filterCollection !== 'all' && card.collection?.id !== filterCollection) {
         return false;
       }
       
       return true;
     });
-    
-    // Now apply the tab-specific filtering with clear separation
-    if (filter === 'official') {
-      // Debug log official cards
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Official tab filtering:', {
-          before: basicFiltered.length,
-          isPremiuResults: basicFiltered.filter(card => isCardPremium(card)).length,
-          isOfficialResults: basicFiltered.filter(card => card.collection?.is_official === true).length
-        });
-      }
-      
-      // Premium tab: ONLY show official cards that are premium
-      // Explicitly exclude any user-created or user-owned cards
-      return basicFiltered.filter(card => {
-        const isPremium = isCardPremium(card); 
-        const isOfficial = card.collection?.is_official === true;
-        const isUserOwned = user && card.collection?.user_id === user.id;
-        const isUserCreated = user && (
-          card.created_by === user.id || 
-          String(card.created_by) === String(user.id)
-        );
-        
-        // Only include cards that are both premium and official
-        // AND explicitly exclude any user-created content
-        return isPremium && isOfficial && !isUserOwned && !isUserCreated;
-      });
-    }
-    
-    if (filter === 'my' && user) {
-      // Debug log my cards
-      if (process.env.NODE_ENV === 'development') {
-        console.log('My tab filtering:', {
-          before: basicFiltered.length,
-          userOwnedResults: basicFiltered.filter(card => user && card.collection?.user_id === user.id).length,
-          userCreatedResults: basicFiltered.filter(card => 
-            user && (card.created_by === user.id || String(card.created_by) === String(user.id))
-          ).length
-        });
-      }
-      
-      // My tab: ONLY show user-created or user-owned cards
-      // Explicitly exclude any official/premium cards that the user doesn't own
-      return basicFiltered.filter(card => {
-        const isUserOwned = user && card.collection?.user_id === user.id;
-        const isUserCreated = user && (
-          card.created_by === user.id || 
-          String(card.created_by) === String(user.id)
-        );
-        
-        // Only include cards that are user-owned or user-created
-        return isUserOwned || isUserCreated;
-      });
-    }
-    
-    // For 'all' tab, show all cards that passed the basic filters
-    return basicFiltered;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allCards, filter, filterSubject, filterCollection, showMastered, isCardPremium, user]);
-
-  // Replace debug effects with a ref-based logger to prevent re-renders
-  const prevFilterStateRef = useRef({ 
-    filter, 
-    allCardsLength: allCards.length, 
-    filteredCardsLength: 0,
-    showMastered
-  });
-  
-  // Use a single effect for all logging to reduce render cycles
-  useEffect(() => {
-    // Skip during loading to avoid excessive logs
-    if (loading || process.env.NODE_ENV !== 'development') return;
-    
-    // Save current filtered length
-    const currentFilteredLength = filteredCards.length;
-    prevFilterStateRef.current.filteredCardsLength = currentFilteredLength;
-    
-    // Log filter state changes when they actually change
-    if (
-      prevFilterStateRef.current.filter !== filter ||
-      prevFilterStateRef.current.allCardsLength !== allCards.length ||
-      prevFilterStateRef.current.filteredCardsLength !== currentFilteredLength
-    ) {
-      console.log('Filter state changed:', { 
-        filter,
-        totalCards: allCards.length,
-        filteredCards: currentFilteredLength
-      });
-    }
-    
-    // Log show mastered changes
-    if (prevFilterStateRef.current.showMastered !== showMastered) {
-      console.log(`Filter applied: showMastered=${showMastered}, found ${currentFilteredLength} matching cards`);
-    }
-    
-    // Update the previous state reference
-    prevFilterStateRef.current = {
-      filter,
-      allCardsLength: allCards.length,
-      filteredCardsLength: currentFilteredLength,
-      showMastered
-    };
-  }, [filter, allCards.length, filteredCards.length, showMastered, loading]);
-
-  // Keep the simplified schema check effect
-  useEffect(() => {
-    // Only run this check once on initial component mount
-    if (user && !initialLoadComplete) {
-      supabase
-        .from('flashcards')
-        .select('*')
-        .limit(1)
-        .then(({ data }) => {
-          if (data && data.length > 0) {
-            setInitialLoadComplete(true);
-          }
-        });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  const handleShowPaywall = () => {
-    setShowPaywall(true);
-  };
-  
-  const handleClosePaywall = () => {
-    setShowPaywall(false);
-  };
-
-  // Add back the handleToggleMastered function
-  const handleToggleMastered = () => {
-    setShowMastered(!showMastered);
-  };
+  }, [flashcards, showMastered, filterSubject, filterCollection]);
 
   if (loading) {
     return <LoadingSpinner />;
   }
 
   if (error) {
-    return <ErrorMessage message={error} />;
+    return <div className="text-red-500 p-4">{error}</div>;
   }
 
   return (
@@ -606,13 +401,13 @@ export default function AllFlashcards() {
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">All Flashcards</h1>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
               <p className="text-gray-600 dark:text-gray-400 flashcard-count">
                 {filteredCards.length} {filteredCards.length === 1 ? 'card' : 'cards'} {!showMastered ? 'to study' : ''}
               </p>
             </div>
             
-            {/* Controls moved to the left of the slider */}
+            {/* Controls */}
             <div className="flex items-center gap-3 ml-4">
               <button
                 onClick={() => setShowFilters(!showFilters)}
@@ -633,7 +428,7 @@ export default function AllFlashcards() {
             </div>
           </div>
           
-          {/* Filter tabs */}
+          {/* Tabs */}
           <div>
             <Tabs value={filter} onValueChange={handleFilterChange}>
               <TabsList className="grid grid-cols-3" style={{ backgroundColor: 'var(--background)' }}>
@@ -653,102 +448,120 @@ export default function AllFlashcards() {
                   value="my"
                   className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
                 >
-                  My Flashcards
+                  My Cards
                 </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
         </div>
-      </div>
-      
-      {showFilters && (
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6 dark:border dark:border-gray-700">
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="subject-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Filter by Subject
-              </label>
-              <select
-                id="subject-filter"
-                value={filterSubject}
-                onChange={(e) => {
-                  setFilterSubject(e.target.value);
-                  setFilterCollection('all'); // Reset collection filter when subject changes
-                }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
-              >
-                <option value="all">All Subjects</option>
-                {subjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label htmlFor="collection-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Filter by Collection
-              </label>
-              <select
-                id="collection-filter"
-                value={filterCollection}
-                onChange={(e) => setFilterCollection(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
-              >
-                <option value="all">All Collections</option>
-                {filteredCollections.map((collection) => (
-                  <option key={collection.id} value={collection.id}>
-                    {collection.title}
-                  </option>
-                ))}
-              </select>
+        
+        {/* Filters */}
+        {showFilters && (
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6 dark:border dark:border-gray-700">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="subject-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Filter by Subject
+                </label>
+                <select
+                  id="subject-filter"
+                  value={filterSubject}
+                  onChange={(e) => setFilterSubject(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                >
+                  <option value="all">All Subjects</option>
+                  {subjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label htmlFor="collection-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Filter by Collection
+                </label>
+                <select
+                  id="collection-filter"
+                  value={filterCollection}
+                  onChange={(e) => setFilterCollection(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                >
+                  <option value="all">All Collections</option>
+                  {collections.map((collection) => (
+                    <option key={collection.id} value={collection.id}>
+                      {collection.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-      
-      {/* Filters and cards display */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {!loading && filteredCards.length === 0 ? (
-          <div className="col-span-1 md:col-span-2 lg:col-span-3">
-            {filter === 'my' ? (
-              <EmptyState 
-                icon={<FileText size={48} />}
-                title="No Flashcards Found" 
-                description="You haven't created any flashcards yet or they're being filtered out. Try creating your first flashcard or checking your filter settings."
-                actionText="Create a Flashcard"
-                actionLink="/flashcards/create-flashcard-select"
-              />
-            ) : (
-              <EmptyState 
-                icon={<FileText size={48} />}
-                title="No Flashcards Found" 
-                description="No flashcards match your current filters. Try adjusting your filter settings."
-                actionText={filter === 'official' && !hasActiveSubscription ? 
-                  "Get Premium for Official Flashcards" : "Create a Flashcard"}
-                actionLink={filter === 'official' && !hasActiveSubscription ? 
-                  undefined : "/flashcards/create-flashcard-select"}
-                onActionClick={filter === 'official' && !hasActiveSubscription ? 
-                  handleShowPaywall : undefined}
-              />
-            )}
-          </div>
-        ) : (
-          filteredCards.map((card) => (
-            <FlashcardItem
-              key={card.id}
-              flashcard={card}
-              onToggleMastered={toggleMastered}
-              onEdit={handleEditCard}
-              onDelete={setCardToDelete}
-              onView={handleViewCard}
-              isPremium={isCardPremium(card)}
-              hasSubscription={hasSubscription}
-              onShowPaywall={handleShowPaywall}
-            />
-          ))
         )}
+        
+        {/* Cards grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredCards.length === 0 ? (
+            <div className="col-span-1 md:col-span-2 lg:col-span-3">
+              {filter === 'my' ? (
+                <EmptyState 
+                  icon={<FileText size={48} />}
+                  title="No Flashcards Found" 
+                  description="You haven't created any flashcards yet or they're being filtered out. Try creating your first flashcard or checking your filter settings."
+                  actionText="Create a Flashcard"
+                  actionLink="/flashcards/create-flashcard-select"
+                />
+              ) : filter === 'official' ? (
+                <EmptyState 
+                  icon={<FileText size={48} />}
+                  title="No Premium Flashcards Found" 
+                  description="There are no premium flashcards matching your current filters."
+                  actionText={!hasSubscription ? "Get Premium Access" : "Explore All Flashcards"}
+                  actionLink={!hasSubscription ? undefined : "/flashcards/flashcards?filter=all"}
+                  onActionClick={!hasSubscription ? handleShowPaywall : undefined}
+                />
+              ) : (
+                <EmptyState 
+                  icon={<FileText size={48} />}
+                  title="No Flashcards Found" 
+                  description="No flashcards match your current filters. Try adjusting your filter settings."
+                  actionText="Create a Flashcard"
+                  actionLink="/flashcards/create-flashcard-select"
+                />
+              )}
+            </div>
+          ) : (
+            <>
+              {filteredCards.map((card) => {
+                // Check if this card is a premium/official card (official = premium)
+                const isPremium = card.is_official === true;
+                
+                // Determine if the user can edit/delete this card
+                // Only allow editing/deleting if:
+                // 1. It's not a premium card (premium cards can never be edited)
+                // 2. It's the user's own card
+                const isUserOwned = user && (card.created_by === user.id);
+                
+                const canModify = !isPremium && isUserOwned;
+                
+                return (
+                  <EnhancedFlashcardItem
+                    key={`${filter}-${card.id}`}
+                    flashcard={card}
+                    onToggleMastered={toggleMastered}
+                    onEdit={canModify ? handleEditCard : undefined}
+                    onDelete={canModify ? setCardToDelete : undefined}
+                    onView={handleViewCard}
+                    isPremium={isPremium}
+                    hasSubscription={hasSubscription}
+                    onShowPaywall={handleShowPaywall}
+                  />
+                );
+              })}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
