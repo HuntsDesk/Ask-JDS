@@ -14,7 +14,7 @@ interface FlashcardItemProps {
   onShowPaywall?: () => void;
 }
 
-const FlashcardItem: React.FC<FlashcardItemProps> = ({
+const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
   flashcard,
   onToggleMastered,
   onEdit,
@@ -46,33 +46,75 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
   const shouldHideAnswer = isPremium && !hasSubscription;
   
   // Determine if edit/delete buttons should be hidden (premium content)
-  const shouldHideEditDelete = isPremium && !hasSubscription;
+  // Always hide edit/delete for premium content, regardless of subscription status
+  // Force this logic to be true for premium content - HARD CODED FOR NOW
+  const shouldHideEditDelete = isPremium === true ? true : false;
   
+  // Generate subject and collection data to display if available
+  // Need to handle both the relationships data structure and the collection.subject format
+  const subjectsToShow = subjects.length > 0 ? subjects : 
+                         (primarySubject && primarySubject.name !== 'Uncategorized' ? [primarySubject] : []);
+  
+  // Debug output - only log occasionally to reduce console spam
+  if (process.env.NODE_ENV === 'development' && Math.random() < 0.01) {
+    console.log('RENDERING FLASHCARD', {
+      id: flashcard.id,
+      question: flashcard.question.substring(0, 20) + '...',
+      isPremium,
+      shouldHideEditDelete
+    });
+  }
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
-      <div className="p-6">
-        <div className="flex items-center gap-2 mb-3">
-          <BookOpen className="h-5 w-5 text-[#F37022]" />
+    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col h-full ${flashcard.is_mastered ? "border-l-4 border-green-500" : ""}`}>
+      {/* Premium banner - show on ALL premium cards, regardless of tab */}
+      {isPremium && (
+        <div className="bg-[#F37022] text-white px-4 py-1 text-sm font-medium">
+          PREMIUM CONTENT
+        </div>
+      )}
+      
+      {/* Debug indicator - only in development mode */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className={`absolute top-0 right-0 w-6 h-6 rounded-full ${isPremium ? 'bg-red-500' : 'bg-green-500'}`} 
+           title={`Debug: isPremium=${isPremium}, shouldHideEditDelete=${shouldHideEditDelete}`}>
+        </div>
+      )}
+      
+      <div className="p-6 flex-grow">
+        <div className="mb-3">
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-1">
             {flashcard.question}
-            {isPremium && <Lock className="h-4 w-4 text-[#F37022] ml-1" />}
           </h3>
         </div>
-        <p className="text-gray-700 dark:text-gray-300 mb-4">
-          {shouldHideAnswer ? 'Upgrade to view this premium content.' : flashcard.answer}
-        </p>
         
-        <div className="mb-5">
+        {shouldHideAnswer ? (
+          <div className="text-gray-700 dark:text-gray-300 mb-4">
+            <button
+              onClick={() => onShowPaywall && onShowPaywall()}
+              className="bg-[#F37022] text-white px-3 py-1 rounded-md text-sm hover:bg-[#E36012]"
+            >
+              Upgrade for access
+            </button>
+          </div>
+        ) : (
+          <p className="text-gray-700 dark:text-gray-300 mb-4">
+            {flashcard.answer}
+          </p>
+        )}
+        
+        {/* Subjects and Collections - show on ALL cards */}
+        <div className="mb-4">
           <div className="flex flex-col space-y-2">
             {collections.length > 0 && (
               <div className="flex items-center gap-2">
                 <Layers className="h-4 w-4 text-indigo-500" />
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {collections.map((collection, index) => (
+                  {collections.slice(0, MAX_TAGS_PER_CATEGORY).map((collection, index) => (
                     <React.Fragment key={collection.id}>
                       {index > 0 && ', '}
                       <Link 
-                        to={`/flashcards/study/${collection.id}`}
+                        to={`/flashcards/collections/${collection.id}`}
                         className="font-medium text-[#F37022] hover:text-[#E36012] hover:underline"
                       >
                         {collection.title}
@@ -83,12 +125,13 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
                 </span>
               </div>
             )}
-            {subjects.length > 0 && (
+            
+            {subjectsToShow.length > 0 && (
               <div className="flex items-center gap-2">
                 <Tag className="h-4 w-4 text-green-500" />
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {subjects.map((subject, index) => (
-                    <React.Fragment key={subject.id}>
+                  {subjectsToShow.slice(0, MAX_TAGS_PER_CATEGORY).map((subject, index) => (
+                    <React.Fragment key={subject.id || `subject-${index}`}>
                       {index > 0 && ', '}
                       <Link 
                         to={`/flashcards/subjects/${subject.id}`}
@@ -104,7 +147,10 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
             )}
           </div>
         </div>
-        
+      </div>
+      
+      {/* Footer with icons and Study Now button - moved to bottom */}
+      <div className="px-6 pb-6 mt-auto">
         <div className="flex justify-between items-center">
           {/* Left side icons */}
           <div className="flex gap-2">
@@ -154,6 +200,14 @@ const FlashcardItem: React.FC<FlashcardItemProps> = ({
       </div>
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison function to prevent unnecessary re-renders
+  return (
+    prevProps.flashcard.id === nextProps.flashcard.id &&
+    prevProps.isPremium === nextProps.isPremium &&
+    prevProps.hasSubscription === nextProps.hasSubscription &&
+    prevProps.flashcard.is_mastered === nextProps.flashcard.is_mastered
+  );
+});
 
 export default FlashcardItem; 
