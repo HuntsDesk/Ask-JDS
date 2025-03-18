@@ -135,6 +135,11 @@ export function Sidebar({
     if (newPinState) {
       setIsExpanded(true);
       onDesktopExpandedChange(true);
+    } else if (!isMobile) {
+      // When unpinning on tablet or desktop, collapse the sidebar
+      // This ensures that when unpinned on tablet devices (768-1024px), the sidebar collapses properly
+      setIsExpanded(false);
+      onDesktopExpandedChange(false);
     }
   };
 
@@ -334,12 +339,12 @@ export function Sidebar({
       {/* Main Sidebar */}
       <div 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col bg-background border-r transition-all duration-300 sidebar-transition",
+          "fixed inset-y-0 left-0 z-50 flex flex-col bg-background border-r transition-all duration-300 sidebar-transition sidebar-container",
           // Desktop state
-          !isMobile && (isDesktopExpanded ? "w-[var(--sidebar-width)]" : "w-[var(--sidebar-collapsed-width)]"),
+          !isMobile && (isDesktopExpanded ? "w-[var(--sidebar-width)] expanded" : "w-[var(--sidebar-collapsed-width)] collapsed"),
           // Mobile state
           isMobile && !isDesktopExpanded ? "opacity-0 pointer-events-none w-0 -translate-x-full sidebar-hidden-mobile" : "",
-          isMobile && isDesktopExpanded ? "w-[var(--sidebar-width)] shadow-xl" : ""
+          isMobile && isDesktopExpanded ? "w-[var(--sidebar-width)] shadow-xl expanded" : ""
         )}
         onMouseEnter={!isMobile ? handleMouseEnter : undefined}
         onMouseLeave={!isMobile ? handleMouseLeave : undefined}

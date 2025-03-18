@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Save, ArrowLeft, PlusCircle, Library, ChevronLeft } from 'lucide-react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { Save, ArrowLeft, PlusCircle, Library, ChevronLeft, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import LoadingSpinner from '../LoadingSpinner';
 import ErrorMessage from '../ErrorMessage';
@@ -11,19 +11,33 @@ import { useAuth } from '@/lib/auth';
 interface Collection {
   id: string;
   title: string;
-  subject: {
+  subject?: {
+    id: string;
     name: string;
   };
+}
+
+interface Subject {
+  id: string;
+  name: string;
 }
 
 export default function CreateFlashcard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast, showToast, hideToast } = useToast();
+  const [searchParams] = useSearchParams();
+  
+  // Get collection ID from URL if present
+  const collectionIdFromUrl = searchParams.get('collection');
 
   // Form states
   const [collections, setCollections] = useState<Collection[]>([]);
-  const [selectedCollectionId, setSelectedCollectionId] = useState<string>('');
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>(
+    collectionIdFromUrl ? [collectionIdFromUrl] : []
+  );
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   
@@ -33,27 +47,51 @@ export default function CreateFlashcard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadCollections() {
+    async function loadData() {
+      if (!user) {
+        setLoading(false);
+        setError('You must be logged in to create flashcards');
+        return;
+      }
+      
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('flashcard_collections')
+        
+        // Load collections
+        const { data: collectionsData, error: collectionsError } = await supabase
+          .from('collections')
           .select(`
             id,
             title,
-            subject:subject_id (
-              name
+            subject:collection_subjects(
+              subject:subject_id(
+                id,
+                name
+              )
             )
           `)
           .order('title');
 
-        if (error) throw error;
-        setCollections(data || []);
+        if (collectionsError) throw collectionsError;
         
-        // If there's only one collection, select it automatically
-        if (data && data.length === 1) {
-          setSelectedCollectionId(data[0].id);
-        }
+        // Transform collections data
+        const formattedCollections = collectionsData?.map(item => ({
+          id: item.id,
+          title: item.title,
+          subject: item.subject?.[0]?.subject
+        })) || [];
+        
+        setCollections(formattedCollections);
+        
+        // Load subjects
+        const { data: subjectsData, error: subjectsError } = await supabase
+          .from('subjects')
+          .select('id, name')
+          .order('name');
+          
+        if (subjectsError) throw subjectsError;
+        setSubjects(subjectsData || []);
+        
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -61,19 +99,14 @@ export default function CreateFlashcard() {
       }
     }
 
-    if (user) {
-      loadCollections();
-    } else {
-      setLoading(false);
-      setError('You must be logged in to create flashcards');
-    }
+    loadData();
   }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedCollectionId) {
-      showToast('Please select a collection', 'error');
+    if (selectedCollectionIds.length === 0) {
+      showToast('Please select at least one collection', 'error');
       return;
     }
     
@@ -86,23 +119,58 @@ export default function CreateFlashcard() {
     setError(null);
 
     try {
-      const { error } = await supabase
+      // First insert the flashcard
+      const { data: flashcardData, error: flashcardError } = await supabase
         .from('flashcards')
         .insert([
           {
-            collection_id: selectedCollectionId,
             question,
             answer,
             created_by: user?.id,
             is_official: false
           },
-        ]);
+        ])
+        .select();
 
-      if (error) throw error;
+      if (flashcardError) throw flashcardError;
+
+      if (flashcardData && flashcardData.length > 0) {
+        const flashcardId = flashcardData[0].id;
+        
+        // Create junction entries for each selected collection
+        for (const collectionId of selectedCollectionIds) {
+          const { error: junctionError } = await supabase
+            .from('flashcard_collections_junction')
+            .insert([
+              {
+                flashcard_id: flashcardId,
+                collection_id: collectionId
+              },
+            ]);
+
+          if (junctionError) throw junctionError;
+        }
+        
+        // Create entries for each selected subject
+        for (const subjectId of selectedSubjectIds) {
+          const { error: subjectError } = await supabase
+            .from('flashcard_subjects')
+            .insert([
+              {
+                flashcard_id: flashcardId,
+                subject_id: subjectId
+              },
+            ]);
+
+          if (subjectError) throw subjectError;
+        }
+      }
 
       // Clear form
       setQuestion('');
       setAnswer('');
+      setSelectedCollectionIds([]);
+      setSelectedSubjectIds([]);
       showToast('Card added successfully', 'success');
     } catch (err: any) {
       setError(err.message);
@@ -113,8 +181,8 @@ export default function CreateFlashcard() {
   };
 
   const handleSaveAndExit = async () => {
-    if (!selectedCollectionId) {
-      showToast('Please select a collection', 'error');
+    if (selectedCollectionIds.length === 0) {
+      showToast('Please select at least one collection', 'error');
       return;
     }
     
@@ -127,20 +195,53 @@ export default function CreateFlashcard() {
     setError(null);
 
     try {
-      const { error } = await supabase
+      // First insert the flashcard
+      const { data: flashcardData, error: flashcardError } = await supabase
         .from('flashcards')
         .insert([
           {
-            collection_id: selectedCollectionId,
             question,
             answer,
             created_by: user?.id,
             is_official: false
           },
-        ]);
+        ])
+        .select();
 
-      if (error) throw error;
-      
+      if (flashcardError) throw flashcardError;
+
+      if (flashcardData && flashcardData.length > 0) {
+        const flashcardId = flashcardData[0].id;
+        
+        // Create junction entries for each selected collection
+        for (const collectionId of selectedCollectionIds) {
+          const { error: junctionError } = await supabase
+            .from('flashcard_collections_junction')
+            .insert([
+              {
+                flashcard_id: flashcardId,
+                collection_id: collectionId
+              },
+            ]);
+
+          if (junctionError) throw junctionError;
+        }
+        
+        // Create entries for each selected subject
+        for (const subjectId of selectedSubjectIds) {
+          const { error: subjectError } = await supabase
+            .from('flashcard_subjects')
+            .insert([
+              {
+                flashcard_id: flashcardId,
+                subject_id: subjectId
+              },
+            ]);
+
+          if (subjectError) throw subjectError;
+        }
+      }
+
       showToast('Card added successfully', 'success');
       
       // Navigate to flashcards view
@@ -150,6 +251,28 @@ export default function CreateFlashcard() {
       showToast(`Error: ${err.message}`, 'error');
       setSaving(false);
     }
+  };
+  
+  const handleCollectionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (value && !selectedCollectionIds.includes(value)) {
+      setSelectedCollectionIds([...selectedCollectionIds, value]);
+    }
+  };
+  
+  const handleSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (value && !selectedSubjectIds.includes(value)) {
+      setSelectedSubjectIds([...selectedSubjectIds, value]);
+    }
+  };
+  
+  const removeCollection = (id: string) => {
+    setSelectedCollectionIds(selectedCollectionIds.filter(collId => collId !== id));
+  };
+  
+  const removeSubject = (id: string) => {
+    setSelectedSubjectIds(selectedSubjectIds.filter(subId => subId !== id));
   };
 
   if (loading) {
@@ -203,34 +326,7 @@ export default function CreateFlashcard() {
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="space-y-4">
-            <div className="mb-4">
-              <label htmlFor="collection" className="block text-sm font-medium text-gray-700 mb-1">
-                Collection
-              </label>
-              <select
-                id="collection"
-                value={selectedCollectionId}
-                onChange={(e) => setSelectedCollectionId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
-                required
-              >
-                <option value="">Select a collection...</option>
-                {collections.map(collection => (
-                  <option key={collection.id} value={collection.id}>
-                    {collection.title} ({collection.subject.name})
-                  </option>
-                ))}
-              </select>
-              <div className="flex justify-end mt-1">
-                <Link
-                  to="/flashcards/create-collection"
-                  className="text-sm text-[#F37022] hover:text-[#E36012]"
-                >
-                  Create new collection
-                </Link>
-              </div>
-            </div>
-
+            {/* Question and Answer first */}
             <div>
               <label htmlFor="question" className="block text-sm font-medium text-gray-700 mb-1">Question</label>
               <input
@@ -253,8 +349,105 @@ export default function CreateFlashcard() {
                 rows={5}
                 required
               />
+            </div>
+            
+            {/* Collections selection */}
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-1">
+                <label htmlFor="collection" className="block text-sm font-medium text-gray-700">
+                  Collections
+                </label>
+                <Link
+                  to="/flashcards/create-collection"
+                  className="text-sm text-[#F37022] hover:text-[#E36012]"
+                >
+                  Create new collection
+                </Link>
+              </div>
+              <select
+                id="collection"
+                value=""
+                onChange={handleCollectionChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+              >
+                <option value="">Select collections...</option>
+                {collections.map(collection => (
+                  <option key={collection.id} value={collection.id}>
+                    {collection.title} {collection.subject ? `(${collection.subject.name})` : ''}
+                  </option>
+                ))}
+              </select>
+              {selectedCollectionIds.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {selectedCollectionIds.map(id => {
+                    const collection = collections.find(c => c.id === id);
+                    return (
+                      <div key={id} className="bg-gray-100 px-3 py-1 rounded-md flex items-center">
+                        <span className="text-sm">{collection?.title}</span>
+                        <button 
+                          type="button" 
+                          onClick={() => removeCollection(id)}
+                          className="ml-2 text-gray-500 hover:text-gray-700"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <p className="text-xs text-gray-500 mt-1">
-                You can provide a detailed explanation for this answer.
+                Select one or more collections for this flashcard.
+              </p>
+            </div>
+            
+            {/* Subjects selection */}
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-1">
+                <label htmlFor="subject" className="block text-sm font-medium text-gray-700">
+                  Subjects (Optional)
+                </label>
+                <Link
+                  to="/flashcards/create-subject"
+                  className="text-sm text-[#F37022] hover:text-[#E36012]"
+                >
+                  Create new subject
+                </Link>
+              </div>
+              <select
+                id="subject"
+                value=""
+                onChange={handleSubjectChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+              >
+                <option value="">Select subjects...</option>
+                {subjects.map(subject => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </option>
+                ))}
+              </select>
+              {selectedSubjectIds.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {selectedSubjectIds.map(id => {
+                    const subject = subjects.find(s => s.id === id);
+                    return (
+                      <div key={id} className="bg-gray-100 px-3 py-1 rounded-md flex items-center">
+                        <span className="text-sm">{subject?.name}</span>
+                        <button 
+                          type="button" 
+                          onClick={() => removeSubject(id)}
+                          className="ml-2 text-gray-500 hover:text-gray-700"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Select one or more subjects to categorize this flashcard.
               </p>
             </div>
           </div>

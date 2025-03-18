@@ -98,7 +98,7 @@ const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
             </button>
           </div>
         ) : (
-          <p className="text-gray-700 dark:text-gray-300 mb-4">
+          <p className="text-gray-700 dark:text-gray-300 mb-4 break-words">
             {flashcard.answer}
           </p>
         )}
@@ -181,6 +181,19 @@ const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
             >
               <Check className="h-5 w-5" />
             </button>
+            
+            {/* Premium indicator for subscribed users */}
+            {isPremium && hasSubscription && (
+              <div className="relative group">
+                <span className="text-[#F37022] font-semibold text-xs bg-[#F37022]/10 px-2 py-1 rounded-full flex items-center">
+                  <Award className="h-3 w-3 mr-1" />
+                  P
+                </span>
+                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+                  Premium Content
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Right side Study Now button */}

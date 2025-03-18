@@ -85,7 +85,7 @@ export default function Card({
       <div className="p-6 pt-0 mt-auto">
         <div className="flex justify-between items-center">
           <div className="flex gap-2">
-            <Tooltip text="Add Card">
+            <Tooltip text="Add Card" position="top">
               <Link
                 to={`/flashcards/add-card/${collectionId}`}
                 className="text-gray-600 dark:text-gray-400 hover:text-[#F37022]"
@@ -95,7 +95,7 @@ export default function Card({
             </Tooltip>
             {!isOfficial && (
               <>
-                <Tooltip text="Edit Collection">
+                <Tooltip text="Edit Collection" position="top">
                   <Link
                     to={`/flashcards/edit/${collectionId}`}
                     className="text-gray-600 dark:text-gray-400 hover:text-[#F37022]"
@@ -104,7 +104,7 @@ export default function Card({
                   </Link>
                 </Tooltip>
                 {onDelete && (
-                  <Tooltip text="Delete Collection">
+                  <Tooltip text="Delete Collection" position="top">
                     <button
                       onClick={onDelete}
                       className="text-gray-600 dark:text-gray-400 hover:text-red-600"

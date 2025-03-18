@@ -131,7 +131,7 @@ export default function UnifiedStudyMode() {
         
         // Get junction table data to link flashcards to collections
         const { data: flashcardCollections, error: fcError } = await supabase
-          .from('flashcard_collections')
+          .from('flashcard_collections_junction')
           .select(`
             flashcard_id,
             collection_id
@@ -185,16 +185,16 @@ export default function UnifiedStudyMode() {
           // For each collection, find its subjects
           const collectionsWithSubjects = cardCollections.map(collection => {
             // Find subject IDs for this collection
-            const subjectIds = collectionSubjects
+            const subjectIdsForCollection = collectionSubjects
               ?.filter(cs => cs.collection_id === collection.id)
               .map(cs => cs.subject_id) || [];
               
             // Find the actual subject objects
-            const collectionSubjects = subjectsData?.filter(s => subjectIds.includes(s.id)) || [];
+            const subjectsForCollection = subjectsData?.filter(s => subjectIdsForCollection.includes(s.id)) || [];
             
             return {
               ...collection,
-              subjects: collectionSubjects
+              subjects: subjectsForCollection
             };
           });
           
@@ -226,13 +226,11 @@ export default function UnifiedStudyMode() {
     loadData();
   }, [user]);
 
-  // Apply filters whenever filters state changes
-  useEffect(() => {
-    if (cards.length === 0) return;
+  // Define the applyFilters function
+  const applyFilters = (cardsToFilter: Flashcard[]) => {
+    console.log("UnifiedStudyMode: Applying initial filters");
     
-    console.log("UnifiedStudyMode: Applying filters", filters);
-    
-    let filtered = [...cards];
+    let filtered = [...cardsToFilter];
     
     // Filter by subjects
     if (filters.subjects.length > 0) {
@@ -278,13 +276,18 @@ export default function UnifiedStudyMode() {
       filtered = filtered.filter(card => !card.is_mastered);
     }
     
-    console.log(`UnifiedStudyMode: Filtered ${cards.length} cards down to ${filtered.length} cards`);
+    console.log(`UnifiedStudyMode: Filtered ${cardsToFilter.length} cards down to ${filtered.length} cards`);
     setFilteredCards(filtered);
-    
-    // Reset current index when filters change to avoid out-of-bounds errors
     setCurrentIndex(0);
     setShowAnswer(false);
+  };
+
+  // Apply filters whenever filters state changes
+  useEffect(() => {
+    if (cards.length === 0) return;
     
+    console.log("UnifiedStudyMode: Applying filters from useEffect", filters);
+    applyFilters(cards);
   }, [filters, cards]);
 
   // Card navigation functions
@@ -538,9 +541,12 @@ export default function UnifiedStudyMode() {
 
   const currentCard = filteredCards[currentIndex];
   
-  // Determine if the current card should be premium blurred
+  // Determine if the current card should be premium blurred:
+  // 1. Card is official/premium
+  // 2. User doesn't have subscription
+  // 3. Card was NOT created by the current user (user-created cards should always be visible to that user)
   const isUserCard = currentCard && user && currentCard.created_by === user.id;
-  const isPremiumBlurred = currentCard?.is_official && !hasSubscription && !isUserCard;
+  const isPremiumBlurred = currentCard && currentCard.is_official && !hasSubscription && !isUserCard;
 
   return (
     <div className="max-w-6xl mx-auto px-4">
@@ -571,7 +577,7 @@ export default function UnifiedStudyMode() {
         </div>
         
         <div className="flex items-center gap-3">
-          <Tooltip text={showFilters ? "Hide filters" : "Show filters"}>
+          <Tooltip text={showFilters ? "Hide filters" : "Show filters"} position="top">
             <button
               onClick={() => setShowFilters(!showFilters)}
               className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
@@ -579,7 +585,7 @@ export default function UnifiedStudyMode() {
               {showFilters ? <FilterX className="h-5 w-5" /> : <Filter className="h-5 w-5" />}
             </button>
           </Tooltip>
-          <Tooltip text={filters.showMastered ? "Hide mastered cards" : "Show all cards"}>
+          <Tooltip text={filters.showMastered ? "Hide mastered cards" : "Show all cards"} position="top">
             <button
               onClick={() => handleFilterChange('showMastered', !filters.showMastered)}
               className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
@@ -587,7 +593,7 @@ export default function UnifiedStudyMode() {
               {filters.showMastered ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
           </Tooltip>
-          <Tooltip text="Shuffle cards">
+          <Tooltip text="Shuffle cards" position="top">
             <button
               onClick={shuffleCards}
               className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
@@ -784,15 +790,22 @@ export default function UnifiedStudyMode() {
           >
             <div className="text-center w-full">
               {isPremiumBlurred && showAnswer ? (
-                <div className="premium-content-placeholder">
+                <div className="premium-content-placeholder mt-6">
                   <div className="bg-orange-100 dark:bg-orange-900/30 p-6 rounded-lg">
                     <div className="flex flex-col items-center gap-4">
                       <Lock className="h-12 w-12 text-orange-500 dark:text-orange-400" />
                       <h2 className="text-2xl font-semibold text-orange-800 dark:text-orange-300">Premium Flashcard</h2>
                       <p className="text-orange-700 dark:text-orange-300 max-w-md mx-auto">
-                        The answer is only available to premium subscribers. 
-                        Upgrade your account to access our curated library of expert flashcards.
+                        The answer is only available to premium subscribers.
                       </p>
+                      <div className="mt-2">
+                        <button
+                          onClick={handleShowPaywall}
+                          className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                        >
+                          Upgrade to Premium
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -868,17 +881,6 @@ export default function UnifiedStudyMode() {
           </button>
         </div>
       </div>
-
-      {isPremiumBlurred && (
-        <div className="mt-8 text-center" style={{ zIndex: 5, position: 'relative' }}>
-          <button
-            onClick={handleShowPaywall}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-          >
-            Upgrade to Premium for Full Access
-          </button>
-        </div>
-      )}
     </div>
   );
 } 

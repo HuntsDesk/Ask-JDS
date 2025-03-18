@@ -1,0 +1,82 @@
+id,title,description,is_official,user_id,created_at
+051836ef-65d2-418e-8b2d-6e334168fcbd,Defenses to Intentional Torts,"Consent, Self-Defense, Necessity",false,,2025-03-18 17:28:17.087698+00
+0670fac5-3ac3-4743-9068-71e2626dee8c,Character Evidence,"Propensity, Specific Acts, Reputation",false,,2025-03-18 17:28:17.087698+00
+06e73c62-91ad-4dfa-ae07-fb48cd1bc7e7,Fourth Amendment,"Searches & Seizures, Warrant Requirement, Exceptions",false,,2025-03-18 17:28:17.087698+00
+089a85d7-50f7-4f56-aa0f-9cffc540ab45,Remedies,"Expectation Damages, Reliance, Restitution, Specific Performance",false,,2025-03-18 17:28:17.087698+00
+0acd5b30-59dd-4bf9-b720-6fc47f16e515,Formation,"Offer, Acceptance, Consideration",false,,2025-03-18 17:28:17.087698+00
+0ae5fa7e-1a83-4177-9726-e08c94ba69fe,Homicide,"Murder, Manslaughter",false,,2025-03-18 17:28:17.087698+00
+12bc6412-629b-4b0f-a065-03989d8f9ad0,Defenses,"Insanity, Self-Defense, Duress, Mistake",false,,2025-03-18 17:28:17.087698+00
+14684e4b-496f-4141-89ab-6501c3ad8590,Pre-Trial & Trial,"Summary Judgment, Jury Trials, Judgments",false,,2025-03-18 17:28:17.087698+00
+179248e4-4343-44b4-8520-d666607a755c,Candor to the Tribunal & Fairness to Opposing Counsel,,false,,2025-03-18 17:28:17.087698+00
+1afa4b6a-960a-4729-a431-8e641c9fa868,Privileges,"Attorney-Client, Spousal, Doctor-Patient",false,,2025-03-18 17:28:17.087698+00
+1e7b534a-1ef5-4587-92b4-1894558e81b9,Individual Rights: Equal Protection,,false,,2025-03-18 17:28:17.087698+00
+208f68b8-4ede-4e0b-a6dc-b28e5448be89,Corporations: Shareholder Rights & Actions,,false,,2025-03-18 17:28:17.087698+00
+216b08d2-2ee3-432f-8633-0b03db258d39,Witnesses,"Competency, Impeachment, Opinion Testimony",false,,2025-03-18 17:28:17.087698+00
+22b2a1bf-f798-4ec1-b4f5-15e24cfe14be,Limited Liability Companies (LLCs),,false,,2025-03-18 17:28:17.087698+00
+24dd1421-b397-495d-ae0b-5079891d2833,Negligence: Duty & Breach,"Standard of Care, Negligence Per Se",false,,2025-03-18 17:28:17.087698+00
+25f89fd9-95ac-4f90-b21a-635a6ee57f6a,Defamation & Privacy Torts,,false,,2025-03-18 17:28:17.087698+00
+28732d95-4cde-4df4-a26f-17fb955ab42a,Intentional Torts,"Assault, Battery, False Imprisonment, IIED, Trespass",false,,2025-03-18 17:28:17.087698+00
+2a74d29d-0f76-409f-b6f7-dc37d6716fff,Land Transactions,"Contracts, Deeds, Recording Statutes",false,,2025-03-18 17:28:17.087698+00
+2e09a8dd-9a21-450b-95f0-03979c84a286,Premarital Agreements,,false,,2025-03-18 17:28:17.087698+00
+2f9ac177-9069-4cd8-8e7c-2459fdfee82a,Wills: Revocation & Interpretation,,false,,2025-03-18 17:28:17.087698+00
+37475679-03ef-4a6f-90b6-9a96492d7468,Future Interests & Powers of Appointment,,false,,2025-03-18 17:28:17.087698+00
+388cffed-1c35-4f00-8f83-51c4c0b07db2,Present Estates & Future Interests,"Fee Simple, Life Estate, Reversions, Remainders",false,,2025-03-18 17:28:17.087698+00
+3b3ba0b0-73ee-42cd-916a-4df837471424,Exclusionary Rule & Fruit of the Poisonous Tree,,false,,2025-03-18 17:28:17.087698+00
+3d7deb4c-ef52-44f8-8a0d-bdc3d550a8e5,Confidentiality & Privilege,,false,,2025-03-18 17:28:17.087698+00
+43916137-d894-42aa-b28c-1c2a15dd92b7,Marriage & Divorce,"Requirements, Grounds, Property Division, Spousal Support",false,,2025-03-18 17:28:17.087698+00
+507985be-6c0b-45a2-9b9d-a8a1432e69a4,Fifth Amendment,"Self-Incrimination, Due Process, Double Jeopardy",false,,2025-03-18 17:28:17.087698+00
+52d746e9-a79f-4c2e-936a-404852269e88,Federalism & Separation of Powers,"Judicial Review, Congressional Powers, Executive Powers",false,,2025-03-18 17:28:17.087698+00
+63646019-f51c-4327-aee0-0de8633f9394,Subject Matter Jurisdiction,"Federal Question, Diversity, Supplemental",false,,2025-03-18 17:28:17.087698+00
+63f08667-f99a-451e-b5af-572f3be3a8e3,"Easements, Covenants, & Servitudes",,false,,2025-03-18 17:28:17.087698+00
+64876a7e-6210-4ede-818e-b2197fd5361e,Trusts: Trustee Duties & Powers,,false,,2025-03-18 17:28:17.087698+00
+67b93c2c-5262-4557-b3f9-fe19d27a308d,Adverse Possession,,false,,2025-03-18 17:28:17.087698+00
+6b174bac-c78b-437f-9559-ff7bded8df0c,Other Crimes Against Persons,"Rape, Kidnapping",false,,2025-03-18 17:28:17.087698+00
+6bbd9a5e-c20f-4b82-ae24-cad9d1a4f953,Trusts: Creation & Types,"Express, Resulting, Constructive",false,,2025-03-18 17:28:17.087698+00
+6e8e8e89-3f10-4dda-a8c4-d37cb14f1f0c,Concurrent Ownership,"Joint Tenancy, Tenancy in Common, Tenancy by the Entirety",false,,2025-03-18 17:28:17.087698+00
+6f88a65e-dc13-46a5-bac2-c8bce08f3ae1,Areas of Law,"e.g., Torts, Contracts, Property",false,,2025-03-18 17:28:17.087698+00
+7141684d-8c65-42fa-acc1-0f2486d9d954,UCC Article 2: Sales of Goods,"Merchant Rules, Warranties, Perfect Tender",false,,2025-03-18 17:28:17.087698+00
+7a043244-cc60-499f-843e-8066d893d99d,Child Custody & Support,,false,,2025-03-18 17:28:17.087698+00
+7cd4a0b5-e3bc-4be1-be3e-ec5e9bfb0ed0,Vested Rights,,false,,2025-03-18 17:28:17.087698+00
+7d667083-93bb-4ded-abc3-f745dcaebd95,Erie Doctrine,,false,,2025-03-18 17:28:17.087698+00
+7e24059d-bc36-488b-8286-dac1951fbf82,Parties to Crime,,false,,2025-03-18 17:28:17.087698+00
+7f1c266f-68a0-4761-9db4-4b16c255ba45,Corporations: Directors & Officers,"Duties, Liability",false,,2025-03-18 17:28:17.087698+00
+7ffb4f45-af2f-4a66-a911-1a8c149c80ff,Corporations: Formation & Structure,,false,,2025-03-18 17:28:17.087698+00
+81e6bac5-7f40-4711-a1f2-7e0086cc5a60,Property Crimes,"Larceny, Embezzlement, Robbery, Burglary",false,,2025-03-18 17:28:17.087698+00
+837c72b6-969b-46d1-aa20-7776128508db,Negligence: Causation,Actual & Proximate Cause,false,,2025-03-18 17:28:17.087698+00
+83d1cb58-e4ae-4648-851d-43b55e2db71f,Products Liability,"Manufacturing Defects, Design Defects, Failure to Warn",false,,2025-03-18 17:28:17.087698+00
+84c8d1ce-9c63-4041-b37d-a187262eec94,Pleadings & Motions,"Rule 12, Joinder, Class Actions",false,,2025-03-18 17:28:17.087698+00
+8bd7153d-672c-4ed4-849c-5cfb801c44c8,Performance & Breach,"Substantial Performance, Anticipatory Repudiation, Impossibility/Frustration",false,,2025-03-18 17:28:17.087698+00
+8c354f93-26e6-404c-87f9-cee798cd3b44,Relevance & Admissibility,"Logical & Legal Relevance, Rule 403",false,,2025-03-18 17:28:17.087698+00
+8c59a00a-fa50-4748-9d04-cb115d71652f,"Arrest, Interrogation, & Confessions",Miranda,false,,2025-03-18 17:28:17.087698+00
+8e26cad2-026e-4724-bb76-7aaeb660d38f,Appeals & Preclusion,"Final Judgment Rule, Res Judicata, Collateral Estoppel",false,,2025-03-18 17:28:17.087698+00
+8f8cd098-f195-43fc-a6c6-2bc27aed0ec9,Third Party Rights,,false,,2025-03-18 17:28:17.087698+00
+90252afe-a79d-47de-9b87-a1ce5a2d4168,Strict Liability,"Abnormally Dangerous Activities, Animals",false,,2025-03-18 17:28:17.087698+00
+93503116-fdd1-4f39-a08e-095e6130400c,Discovery,"Scope, Methods, Sanctions",false,,2025-03-18 17:28:17.087698+00
+973e95b1-9346-48ce-b2a0-f2af48ba1291,Partnerships,"Formation, Liability, Dissolution",false,,2025-03-18 17:28:17.087698+00
+9af17edb-4398-4034-8d3a-47f3666a19a2,Wills: Validity & Execution,,false,,2025-03-18 17:28:17.087698+00
+a0130566-6c3e-4b97-acb6-491cd32696aa,Inchoate Offenses,"Attempt, Solicitation, Conspiracy",false,,2025-03-18 17:28:17.087698+00
+a203cf16-1ea7-4027-9c3e-5e3eec872878,Hearsay: Exceptions,"Declarant Unavailable, Present Sense Impression, Excited Utterance, etc.",false,,2025-03-18 17:28:17.087698+00
+a277bb64-c685-43ce-a0c5-040d703ae3a7,Negligence: Damages & Defenses,"Contributory/Comparative Negligence, Assumption of Risk",false,,2025-03-18 17:28:17.087698+00
+ad370e15-c4c0-4a05-a37d-e3b31177584d,Landlord-Tenant Law,"Lease Types, Rights & Duties, Eviction",false,,2025-03-18 17:28:17.087698+00
+b2a60ad7-2fb8-4832-af40-3215419c3e87,Defenses to Formation,"Statute of Frauds, Mistake, Duress, etc.",false,,2025-03-18 17:28:17.087698+00
+b32591c9-3fe6-4bd0-9396-a0ac3eea590b,Elements of a Crime,"Actus Reus, Mens Rea, Causation, Concurrence",false,,2025-03-18 17:28:17.087698+00
+b472ade7-51d2-4e95-bc60-d40aff9dcd51,Sixth Amendment,"Right to Counsel, Speedy Trial, Confrontation",false,,2025-03-18 17:28:17.087698+00
+b56c2faf-6b23-4aec-9828-004b2724f88f,Individual Rights: Due Process,Substantive & Procedural,false,,2025-03-18 17:28:17.087698+00
+b9d65ab0-95f2-49c0-8c2f-279941c19e7e,"First Amendment: Speech, Press, and Association",,false,,2025-03-18 17:28:17.087698+00
+c295fe48-8d61-40ba-b007-27111043aafc,Client-Lawyer Relationship,"Formation, Scope, Termination",false,,2025-03-18 17:28:17.087698+00
+c2afb3d5-bd7d-45fc-a6aa-dcd475280fca,First Amendment: Religion,Establishment Clause & Free Exercise Clause,false,,2025-03-18 17:28:17.087698+00
+c5a1bf33-7c91-4bd6-85aa-3a861d99723c,Mortgages & Foreclosure,,false,,2025-03-18 17:28:17.087698+00
+c737791b-a841-477d-8f08-e1e9e4894938,Contract Terms & Interpretation,"Parol Evidence Rule, Conditions",false,,2025-03-18 17:28:17.087698+00
+c968c4df-cf1b-44a0-96b5-e98c719eee37,Advertising & Solicitation,,false,,2025-03-18 17:28:17.087698+00
+db3ef523-70c6-4436-afa8-51d39d975b76,Adoption & Parentage,,false,,2025-03-18 17:28:17.087698+00
+ddf8da61-abd4-4852-89e6-487561c1b48e,Personal Jurisdiction & Venue,,false,,2025-03-18 17:28:17.087698+00
+de7b08f8-aa70-4f44-8895-4784908cb4b7,Hearsay: Definition & Exemptions,Non-Hearsay Uses,false,,2025-03-18 17:28:17.087698+00
+e0c00200-edb7-4cda-8e28-4c08c6a83786,Agency,"Creation, Authority, Liability",false,,2025-03-18 17:28:17.087698+00
+e1b8af2a-e7aa-443e-ab45-1d6c79404f0a,Writings,,false,,2025-03-18 17:28:17.087698+00
+eac05dbd-89a1-4eef-97b0-9e0f4af0b853,Intestate Succession,,false,,2025-03-18 17:28:17.087698+00
+ee7debca-3ee3-4c56-94d4-910d63bd8538,Most Significant Relationship,,false,,2025-03-18 17:28:17.087698+00
+f16d8fd2-b107-4964-9400-0b0c7dc65f97,State Action & Government Regulation,"Commerce Clause, Taxing & Spending Power",false,,2025-03-18 17:28:17.087698+00
+f2665e1b-3988-4a9c-8a65-8206777e2477,Governmental Interest,,false,,2025-03-18 17:28:17.087698+00
+f401c5f9-62dc-493c-b3c6-45c9f33992ab,Fees & Client Funds,,false,,2025-03-18 17:28:17.087698+00
+fb60ac58-7722-46e1-868f-9aa2305fd957,Conflicts of Interest,"Current Clients, Former Clients, Imputed Conflicts",false,,2025-03-18 17:28:17.087698+00
+fcd885b7-66fb-49df-b25c-6d5ab1f1108a,Nuisance,,false,,2025-03-18 17:28:17.087698+00

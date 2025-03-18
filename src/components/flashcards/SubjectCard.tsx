@@ -210,7 +210,7 @@ export default function SubjectCard({
       <div className="p-6 pt-0 mt-auto">
         <div className="flex justify-between items-center">
           <div className="flex gap-2">
-            <Tooltip text="Create Flashcard Collection">
+            <Tooltip text="Create Flashcard Collection" position="top">
               <Link
                 to={`/flashcards/create-collection?subject=${id}`}
                 className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
@@ -220,7 +220,7 @@ export default function SubjectCard({
             </Tooltip>
             {!isOfficial && (
               <>
-                <Tooltip text="Edit Subject">
+                <Tooltip text="Edit Subject" position="top">
                   <Link
                     to={`/flashcards/edit-subject/${id}`}
                     className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
@@ -229,7 +229,7 @@ export default function SubjectCard({
                   </Link>
                 </Tooltip>
                 {showDeleteButton && onDelete && (
-                  <Tooltip text="Delete Subject">
+                  <Tooltip text="Delete Subject" position="top">
                     <button
                       onClick={onDelete}
                       className="text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"

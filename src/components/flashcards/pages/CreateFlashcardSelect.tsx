@@ -25,18 +25,29 @@ export default function CreateFlashcardSelect() {
       try {
         setLoading(true);
         const { data, error } = await supabase
-          .from('flashcard_collections')
+          .from('collections')
           .select(`
             id,
             title,
-            subject:subject_id (
-              name
+            subject:collection_subjects!inner(
+              subject:subject_id(
+                name,
+                id
+              )
             )
           `)
           .order('title');
 
         if (error) throw error;
-        setCollections(data || []);
+        
+        // Transform data to match the expected collection format
+        const formattedData = data?.map(item => ({
+          id: item.id,
+          title: item.title,
+          subject: item.subject?.[0]?.subject || { name: 'Unknown', id: null }
+        })) || [];
+        
+        setCollections(formattedData);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -50,7 +61,7 @@ export default function CreateFlashcardSelect() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedCollectionId) {
-      navigate(`/flashcards/add-card/${selectedCollectionId}`);
+      navigate(`/flashcards/create-flashcard?collection=${selectedCollectionId}`);
     }
   };
 

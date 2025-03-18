@@ -31,19 +31,46 @@ export default function AddCard() {
   useEffect(() => {
     async function loadCollection() {
       try {
-        const { data, error } = await supabase
-          .from('flashcard_collections')
-          .select(`
-            *,
-            subject:subject_id (
-              name
-            )
-          `)
+        // First, get the collection data
+        const { data: collectionData, error: collectionError } = await supabase
+          .from('collections')
+          .select('*')
           .eq('id', id)
           .single();
 
-        if (error) throw error;
-        setCollection(data);
+        if (collectionError) throw collectionError;
+        
+        // Then get the subject information from the collection_subjects junction table
+        let subjectData = null;
+        try {
+          const { data, error } = await supabase
+            .from('collection_subjects')
+            .select(`
+              subject_id,
+              subjects:subject_id(id, name)
+            `)
+            .eq('collection_id', id);
+          
+          if (error) {
+            console.error("Error loading subjects:", error);
+          } else if (data && data.length > 0) {
+            // Just use the first subject if there are multiple
+            subjectData = data[0];
+          } else {
+            console.log("No subjects found for this collection");
+          }
+        } catch (err) {
+          console.error("Error in subject query:", err);
+          // Continue without subject data
+        }
+        
+        // Combine the data
+        const completeCollectionData = {
+          ...collectionData,
+          subject: subjectData?.subjects || { id: '', name: 'No Subject' }
+        };
+        
+        setCollection(completeCollectionData);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -61,19 +88,38 @@ export default function AddCard() {
 
     try {
       console.log('Creating flashcard with user ID:', user?.id);
-      const { data, error } = await supabase
+      
+      // Step 1: Create the flashcard without collection_id
+      const { data: flashcardData, error: flashcardError } = await supabase
         .from('flashcards')
         .insert([
           {
-            collection_id: id,
             question,
             answer,
-            created_by: user?.id // Add user ID here
+            created_by: user?.id
           },
         ])
         .select();
 
-      if (error) throw error;
+      if (flashcardError) throw flashcardError;
+      
+      if (!flashcardData || flashcardData.length === 0) {
+        throw new Error('Flashcard created but no data returned');
+      }
+      
+      const flashcardId = flashcardData[0].id;
+      
+      // Step 2: Create the relationship in the junction table
+      const { error: junctionError } = await supabase
+        .from('flashcard_collections_junction')
+        .insert([
+          {
+            flashcard_id: flashcardId,
+            collection_id: id
+          }
+        ]);
+        
+      if (junctionError) throw junctionError;
 
       // Clear form and show success message
       setQuestion('');
@@ -81,8 +127,9 @@ export default function AddCard() {
       showToast('Card added successfully', 'success');
       
       // Log the creation with user ID
-      console.log('Flashcard created successfully:', data);
+      console.log('Flashcard created successfully:', flashcardData);
       console.log('User ID attached to card:', user?.id);
+      console.log('Added to collection using junction table');
       
     } catch (err: any) {
       setError(err.message);
@@ -104,23 +151,43 @@ export default function AddCard() {
 
     try {
       console.log('Creating flashcard with user ID:', user?.id);
-      const { data, error } = await supabase
+      
+      // Step 1: Create the flashcard without collection_id
+      const { data: flashcardData, error: flashcardError } = await supabase
         .from('flashcards')
         .insert([
           {
-            collection_id: id,
             question,
             answer,
-            created_by: user?.id // Add user ID here
+            created_by: user?.id
           },
         ])
         .select();
 
-      if (error) throw error;
+      if (flashcardError) throw flashcardError;
+      
+      if (!flashcardData || flashcardData.length === 0) {
+        throw new Error('Flashcard created but no data returned');
+      }
+      
+      const flashcardId = flashcardData[0].id;
+      
+      // Step 2: Create the relationship in the junction table
+      const { error: junctionError } = await supabase
+        .from('flashcard_collections_junction')
+        .insert([
+          {
+            flashcard_id: flashcardId,
+            collection_id: id
+          }
+        ]);
+        
+      if (junctionError) throw junctionError;
       
       // Log the creation with user ID
-      console.log('Flashcard created successfully:', data);
+      console.log('Flashcard created successfully:', flashcardData);
       console.log('User ID attached to card:', user?.id);
+      console.log('Added to collection using junction table');
       
       showToast('Card added successfully', 'success');
       
