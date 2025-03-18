@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Library, PlusCircle, BookOpen, FileText, Layers } from 'lucide-react';
+import { PlusCircle, BookOpen, FileText, Layers, Menu, X } from 'lucide-react';
 import SearchBar from './SearchBar';
 import useFlashcardAuth from '@/hooks/useFlashcardAuth';
 
 export default function Navbar() {
   const { user } = useFlashcardAuth();
   const location = useLocation();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Determine create button text and link based on current page
   const getCreateConfig = () => {
@@ -42,81 +43,113 @@ export default function Navbar() {
 
   const createConfig = getCreateConfig();
 
+  const NavLink = ({ to, icon, text }) => (
+    <Link 
+      to={to} 
+      className={`flex items-center space-x-1 py-2 ${
+        (location.pathname === to || 
+        (to === '/flashcards/subjects' && location.pathname.includes('/flashcards/subjects/')) ||
+        (to === '/flashcards/collections' && (location.pathname === to || location.pathname.includes('/flashcards/study/'))))
+          ? 'text-[#F37022] font-medium' 
+          : 'text-gray-600 dark:text-gray-300 hover:text-[#F37022]'
+      }`}
+      onClick={() => setIsMenuOpen(false)}
+    >
+      {icon}
+      <span>{text}</span>
+    </Link>
+  );
+
   return (
     <nav className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 sticky top-0 z-10 w-full">
       <div className="max-w-6xl mx-auto px-4">
-        <div className="flex items-center h-16">
-          {/* Left section - Nav links */}
-          <div className="flex items-center space-x-6 flex-shrink-0 mr-4">
-            <Link 
-              to="/flashcards/subjects" 
-              className={`flex items-center space-x-1 ${
-                location.pathname === '/flashcards/subjects' || location.pathname.includes('/flashcards/subjects/') 
-                  ? 'text-[#F37022] font-medium' 
-                  : 'text-gray-600 dark:text-gray-300 hover:text-[#F37022]'
-              }`}
+        <div className="flex items-center justify-between h-16">
+          {/* Mobile menu button */}
+          <div className="md:hidden flex items-center">
+            <button
+              className="text-gray-600 dark:text-gray-300 hover:text-[#F37022] focus:outline-none"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
-              <BookOpen className="h-5 w-5" />
-              <span>Subjects</span>
-            </Link>
-            
-            <Link 
-              to="/flashcards/collections" 
-              className={`flex items-center space-x-1 ${
-                location.pathname === '/flashcards/collections' || location.pathname.includes('/flashcards/study/')
-                  ? 'text-[#F37022] font-medium' 
-                  : 'text-gray-600 dark:text-gray-300 hover:text-[#F37022]'
-              }`}
-            >
-              <Library className="h-5 w-5" />
-              <span>Collections</span>
-            </Link>
-            
-            <Link 
-              to="/flashcards/flashcards" 
-              className={`flex items-center space-x-1 ${
-                location.pathname === '/flashcards/flashcards' 
-                  ? 'text-[#F37022] font-medium' 
-                  : 'text-gray-600 dark:text-gray-300 hover:text-[#F37022]'
-              }`}
-            >
-              <FileText className="h-5 w-5" />
-              <span>Flashcards</span>
-            </Link>
-            
-            <Link 
-              to="/flashcards/unified-study" 
-              className={`flex items-center space-x-1 ${
-                location.pathname === '/flashcards/unified-study' 
-                  ? 'text-[#F37022] font-medium' 
-                  : 'text-gray-600 dark:text-gray-300 hover:text-[#F37022]'
-              }`}
-            >
-              <Layers className="h-5 w-5" />
-              <span>Study</span>
-            </Link>
+              {isMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
+            </button>
           </div>
 
-          {/* Middle section - Search */}
+          {/* Desktop navigation */}
+          <div className="hidden md:flex items-center space-x-6">
+            <NavLink 
+              to="/flashcards/subjects" 
+              icon={<BookOpen className="h-5 w-5" />} 
+              text="Subjects" 
+            />
+            <NavLink 
+              to="/flashcards/collections" 
+              icon={<Layers className="h-5 w-5" />} 
+              text="Collections" 
+            />
+            <NavLink 
+              to="/flashcards/flashcards" 
+              icon={<FileText className="h-5 w-5" />} 
+              text="Flashcards" 
+            />
+            <NavLink 
+              to="/flashcards/unified-study" 
+              icon={<Layers className="h-5 w-5" />} 
+              text="Study" 
+            />
+          </div>
+
+          {/* Desktop search */}
           <div className="hidden md:block flex-grow mx-4">
             <SearchBar />
           </div>
 
-          {/* Right section - Create button */}
-          <div className="flex-shrink-0 ml-4">
+          {/* Create button - visible on both desktop and mobile */}
+          <div className="flex-shrink-0">
             {user && !location.pathname.includes('/flashcards/create') && (
               <Link 
                 to={createConfig.link} 
-                className="flex items-center gap-1 bg-[#F37022] text-white px-4 py-2 rounded-md hover:bg-[#E36012]"
+                className="flex items-center gap-1 bg-[#F37022] text-white px-3 py-2 text-sm md:text-base md:px-4 rounded-md hover:bg-[#E36012]"
               >
                 <PlusCircle className="h-4 w-4" />
-                <span>{createConfig.text}</span>
+                <span className="hidden xs:inline">{createConfig.text}</span>
               </Link>
             )}
           </div>
         </div>
         
-        {/* Mobile search bar */}
+        {/* Mobile menu, show/hide based on menu state */}
+        {isMenuOpen && (
+          <div className="md:hidden py-2 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col space-y-1 pt-2 pb-3">
+              <NavLink 
+                to="/flashcards/subjects" 
+                icon={<BookOpen className="h-5 w-5" />} 
+                text="Subjects" 
+              />
+              <NavLink 
+                to="/flashcards/collections" 
+                icon={<Layers className="h-5 w-5" />} 
+                text="Collections" 
+              />
+              <NavLink 
+                to="/flashcards/flashcards" 
+                icon={<FileText className="h-5 w-5" />} 
+                text="Flashcards" 
+              />
+              <NavLink 
+                to="/flashcards/unified-study" 
+                icon={<Layers className="h-5 w-5" />} 
+                text="Study" 
+              />
+            </div>
+          </div>
+        )}
+        
+        {/* Mobile search bar, always visible when menu is closed */}
         <div className="md:hidden pb-3">
           <SearchBar />
         </div>
