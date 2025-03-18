@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Trash2, Save } from 'lucide-react';
+import { Plus, Trash2, Save, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import LoadingSpinner from '../LoadingSpinner';
 import ErrorMessage from '../ErrorMessage';
@@ -28,7 +28,9 @@ export default function CreateSet() {
   const { toast, showToast, hideToast } = useToast();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [subjectId, setSubjectId] = useState(initialSubjectId || '');
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>(
+    initialSubjectId ? [initialSubjectId] : []
+  );
   const [newSubjectName, setNewSubjectName] = useState('');
   const [newSubjectDescription, setNewSubjectDescription] = useState('');
   const [showNewSubjectForm, setShowNewSubjectForm] = useState(false);
@@ -65,9 +67,7 @@ export default function CreateSet() {
 
   const toggleNewSubjectForm = () => {
     setShowNewSubjectForm(!showNewSubjectForm);
-    if (!showNewSubjectForm) {
-      setSubjectId('');
-    } else {
+    if (showNewSubjectForm) {
       setNewSubjectName('');
       setNewSubjectDescription('');
     }
@@ -75,7 +75,7 @@ export default function CreateSet() {
 
   const validateForm = () => {
     if (!title.trim()) return 'Please enter a title for your flashcard collection';
-    if (!subjectId && !newSubjectName) return 'Please select or create a subject';
+    if (selectedSubjectIds.length === 0 && !newSubjectName) return 'Please select or create at least one subject';
     if (cards.length === 0) return 'Please add at least one flashcard';
     
     for (let index = 0; index < cards.length; index++) {
@@ -98,9 +98,20 @@ export default function CreateSet() {
   };
 
   const updateCard = (index: number, field: keyof Flashcard, value: string) => {
-    const newCards = [...cards];
-    newCards[index][field] = value;
-    setCards(newCards);
+    const updatedCards = [...cards];
+    updatedCards[index][field] = value;
+    setCards(updatedCards);
+  };
+
+  const handleSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (value && !selectedSubjectIds.includes(value)) {
+      setSelectedSubjectIds([...selectedSubjectIds, value]);
+    }
+  };
+
+  const removeSubject = (id: string) => {
+    setSelectedSubjectIds(selectedSubjectIds.filter(subId => subId !== id));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,10 +131,10 @@ export default function CreateSet() {
     try {
       setSaving(true);
       
-      let finalSubjectId = subjectId;
+      let newSubjectId = null;
       
       // If creating a new subject
-      if (!subjectId && newSubjectName) {
+      if (newSubjectName) {
         const { data: newSubject, error: subjectError } = await supabase
           .from('subjects')
           .insert([{ 
@@ -135,16 +146,20 @@ export default function CreateSet() {
           .single();
         
         if (subjectError) throw subjectError;
-        finalSubjectId = newSubject.id;
+        newSubjectId = newSubject.id;
+        
+        // Add the new subject to the selected subjects
+        if (newSubjectId) {
+          setSelectedSubjectIds([...selectedSubjectIds, newSubjectId]);
+        }
       }
       
       // Create the flashcard collection
       const { data: collection, error: collectionError } = await supabase
-        .from('flashcard_collections')
+        .from('collections')
         .insert([{
           title,
           description,
-          subject_id: finalSubjectId,
           is_official: false,
           user_id: user.id
         }])
@@ -153,29 +168,60 @@ export default function CreateSet() {
       
       if (collectionError) throw collectionError;
       
+      // Create subject associations with the collection
+      const subjectIds = [...selectedSubjectIds];
+      if (newSubjectId && !subjectIds.includes(newSubjectId)) {
+        subjectIds.push(newSubjectId);
+      }
+      
+      if (subjectIds.length > 0) {
+        const collectionSubjects = subjectIds.map(subjectId => ({
+          collection_id: collection.id,
+          subject_id: subjectId
+        }));
+        
+        const { error: relationError } = await supabase
+          .from('collection_subjects')
+          .insert(collectionSubjects);
+        
+        if (relationError) throw relationError;
+      }
+      
       // Add the flashcards
       const flashcardsToInsert = cards.map((card, index) => ({
         question: card.question,
         answer: card.answer,
-        collection_id: collection.id,
-        position: index,
         created_by: user.id,
         is_official: false
       }));
       
-      const { error: cardsError } = await supabase
+      const { data: insertedCards, error: cardsError } = await supabase
         .from('flashcards')
-        .insert(flashcardsToInsert);
+        .insert(flashcardsToInsert)
+        .select('id');
       
       if (cardsError) throw cardsError;
+      
+      // Create flashcard-collection associations
+      if (insertedCards && insertedCards.length > 0) {
+        const flashcardCollections = insertedCards.map(card => ({
+          flashcard_id: card.id,
+          collection_id: collection.id
+        }));
+        
+        const { error: junctionError } = await supabase
+          .from('flashcard_collections_junction')
+          .insert(flashcardCollections);
+        
+        if (junctionError) throw junctionError;
+      }
       
       showToast('Flashcard collection created successfully!', 'success');
       navigate(`/flashcards/study/${collection.id}`);
       
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
       showToast(`Error: ${err.message}`, 'error');
-    } finally {
       setSaving(false);
     }
   };
@@ -185,7 +231,7 @@ export default function CreateSet() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto">
       {toast && (
         <Toast 
           message={toast.message} 
@@ -232,18 +278,58 @@ export default function CreateSet() {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-1">
               <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Subject*
+                Subjects*
               </label>
               <button
                 type="button"
                 onClick={toggleNewSubjectForm}
                 className="text-sm text-[#F37022] hover:text-[#E36012]"
               >
-                {showNewSubjectForm ? 'Select Existing Subject' : 'Create New Subject'}
+                {showNewSubjectForm ? 'Select Existing Subjects' : 'Create New Subject'}
               </button>
             </div>
             
-            {showNewSubjectForm ? (
+            {!showNewSubjectForm ? (
+              <div>
+                <select
+                  id="subject"
+                  value=""
+                  onChange={handleSubjectChange}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                >
+                  <option value="">Select subjects...</option>
+                  {subjects.map(subject => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </option>
+                  ))}
+                </select>
+                
+                {selectedSubjectIds.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {selectedSubjectIds.map(id => {
+                      const subject = subjects.find(s => s.id === id);
+                      return (
+                        <div key={id} className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-md flex items-center">
+                          <span className="text-sm">{subject?.name}</span>
+                          <button 
+                            type="button" 
+                            onClick={() => removeSubject(id)}
+                            className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Select one or more subjects for this collection.
+                </p>
+              </div>
+            ) : (
               <div className="space-y-4">
                 <div>
                   <input
@@ -251,8 +337,7 @@ export default function CreateSet() {
                     value={newSubjectName}
                     onChange={(e) => setNewSubjectName(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
-                    placeholder="Subject Name"
-                    required
+                    placeholder="New subject name"
                   />
                 </div>
                 <div>
@@ -260,104 +345,78 @@ export default function CreateSet() {
                     value={newSubjectDescription}
                     onChange={(e) => setNewSubjectDescription(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
-                    placeholder="Subject Description (optional)"
+                    placeholder="Description (optional)"
                     rows={2}
                   />
                 </div>
               </div>
-            ) : (
-              <select
-                id="subject"
-                value={subjectId}
-                onChange={(e) => setSubjectId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
-                required={!showNewSubjectForm}
-              >
-                <option value="">Select a Subject</option>
-                {subjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </select>
             )}
           </div>
           
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Flashcards</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">Add questions and answers for your flashcard collection.</p>
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Flashcards</h2>
+            
+            {cards.map((card, index) => (
+              <div key={index} className="mb-8 p-5 border border-gray-200 dark:border-gray-700 rounded-lg">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Card {index + 1}</h3>
+                  <button
+                    type="button"
+                    onClick={() => removeCard(index)}
+                    className="text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+                    disabled={cards.length === 1}
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="mb-3">
+                  <label htmlFor={`question-${index}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Question*
+                  </label>
+                  <textarea
+                    id={`question-${index}`}
+                    value={card.question}
+                    onChange={(e) => updateCard(index, 'question', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                    rows={2}
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor={`answer-${index}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Answer*
+                  </label>
+                  <textarea
+                    id={`answer-${index}`}
+                    value={card.answer}
+                    onChange={(e) => updateCard(index, 'answer', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                    rows={2}
+                    required
+                  />
+                </div>
+              </div>
+            ))}
+            
+            <button
+              type="button"
+              onClick={addCard}
+              className="flex items-center gap-1 text-[#F37022] hover:text-[#E36012]"
+            >
+              <Plus className="h-4 w-4" />
+              Add Another Card
+            </button>
           </div>
-          
-          {cards.map((card, index) => (
-            <div key={index} className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-medium dark:text-white">Card {index + 1}</h3>
-                <button
-                  type="button"
-                  onClick={() => removeCard(index)}
-                  className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                  disabled={cards.length === 1}
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
-              </div>
-              
-              <div className="mb-3">
-                <label htmlFor={`question-${index}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Question*
-                </label>
-                <textarea
-                  id={`question-${index}`}
-                  value={card.question}
-                  onChange={(e) => updateCard(index, 'question', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
-                  placeholder="Enter your question"
-                  rows={2}
-                  required
-                />
-              </div>
-              
-              <div>
-                <label htmlFor={`answer-${index}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Answer*
-                </label>
-                <textarea
-                  id={`answer-${index}`}
-                  value={card.answer}
-                  onChange={(e) => updateCard(index, 'answer', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
-                  placeholder="Enter your answer"
-                  rows={3}
-                  required
-                />
-              </div>
-            </div>
-          ))}
-          
-          <button
-            type="button"
-            onClick={addCard}
-            className="flex items-center justify-center w-full py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:text-[#F37022] hover:border-[#F37022] dark:hover:text-[#F37022] dark:hover:border-[#F37022] transition-colors"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Add Another Card
-          </button>
         </div>
         
         <div className="bg-gray-50 dark:bg-gray-700 px-6 py-4 flex justify-end">
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center bg-[#F37022] text-white px-6 py-2 rounded-md hover:bg-[#E36012] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022]"
+            className="flex items-center gap-2 bg-[#F37022] text-white px-6 py-2 rounded-md hover:bg-[#E36012] disabled:opacity-50"
           >
-            {saving ? (
-              <>Saving...</>
-            ) : (
-              <>
-                <Save className="h-5 w-5 mr-2" />
-                Create Flashcard Collection
-              </>
-            )}
+            <Save className="h-5 w-5" />
+            {saving ? 'Saving...' : 'Create Collection'}
           </button>
         </div>
       </form>

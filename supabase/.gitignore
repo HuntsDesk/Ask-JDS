@@ -1,3 +1,6 @@
+#internal tools
+supabase/internal/
+
 # Supabase
 .branches
 .temp

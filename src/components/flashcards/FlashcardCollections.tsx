@@ -57,8 +57,14 @@ export default function FlashcardCollections() {
       if (filterParam && ['all', 'official', 'my'].includes(filterParam)) {
         setFilter(filterParam as 'all' | 'official' | 'my');
       }
+      
+      // Check if there's a subject filter in the URL
+      const subjectParam = searchParams.get('subject');
+      if (subjectParam) {
+        setSelectedSubjectId(subjectParam);
+      }
     });
-  }, []);
+  }, [searchParams]);
 
   async function loadCollections() {
     try {
@@ -228,10 +234,17 @@ export default function FlashcardCollections() {
       // Clear filter
       setSelectedSubjectId('');
       setSearchParams({});
+      // Reload collections without subject filter
+      loadCollections();
     } else {
       // Apply filter
       setSelectedSubjectId(subjectId);
       setSearchParams({ subject: subjectId });
+      // Force reload collections with the new subject filter
+      setLoading(true);
+      loadCollections().then(() => {
+        console.log("Collections reloaded with subject filter:", subjectId);
+      });
     }
   }
 
@@ -299,9 +312,14 @@ export default function FlashcardCollections() {
       <div className="flex flex-col space-y-4 mb-6">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              {selectedSubject ? `${selectedSubject.name} Collections` : 'Collections'}
-            </h1>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                {selectedSubject ? `${selectedSubject.name} Collections` : 'Collections'}
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                {filteredCollections.length} {filteredCollections.length === 1 ? 'collection' : 'collections'}
+              </p>
+            </div>
             
             {/* Subject filter moved to the left of the slider */}
             <div className="relative">

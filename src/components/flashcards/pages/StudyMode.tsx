@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Rotate3D as Rotate, BookOpen, Shuffle, Check, Edit, EyeOff, Eye, FileEdit, FolderCog, ChevronLeft, Settings, PlusCircle, FileText, Lock } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Rotate3D as Rotate, BookOpen, Shuffle, Check, Edit, EyeOff, Eye, FileEdit, FolderCog, ChevronLeft, Settings, PlusCircle, FileText, Lock, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import useFlashcardAuth from '@/hooks/useFlashcardAuth';
 import LoadingSpinner from '../LoadingSpinner';
@@ -45,12 +45,34 @@ export default function StudyMode() {
   const [hasSubscription, setHasSubscription] = useState<boolean | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [isOfficialContent, setIsOfficialContent] = useState(false);
+  const [nonExistentCollection, setNonExistentCollection] = useState(false);
+  
+  // Extract the type parameter from URL (subject or collection)
+  const location = window.location;
+  const searchParams = new URLSearchParams(location.search);
+  const type = searchParams.get('type') || 'collection';
+  const isSubjectMode = type === 'subject';
 
   useEffect(() => {
     const loadData = async () => {
       try {
         console.log("StudyMode: Starting to load data...");
         setLoading(true);
+        
+        // Check if the ID is a valid UUID format (unless it's 'official')
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (id !== 'official' && !uuidRegex.test(id || '')) {
+          console.error(`StudyMode: Invalid ${isSubjectMode ? 'subject' : 'collection'} ID format: ${id}`);
+          setNonExistentCollection(true);
+          throw new Error(`Invalid ${isSubjectMode ? 'subject' : 'collection'} ID format: ${id}`);
+        }
+        
+        // Also reject placeholder IDs that should be handled in AllFlashcards
+        if (id && id.startsWith('00000000-0000-0000-0000-')) {
+          console.error(`StudyMode: Placeholder ${isSubjectMode ? 'subject' : 'collection'} ID used directly: ${id}`);
+          setNonExistentCollection(true);
+          throw new Error(`Placeholder ${isSubjectMode ? 'subject' : 'collection'} IDs should not be accessed directly`);
+        }
         
         // Check subscription status
         if (user) {
@@ -69,92 +91,339 @@ export default function StudyMode() {
           setHasSubscription(false);
         }
         
-        // Load collection data
-        console.log("StudyMode: Loading collection data for ID:", id);
+        // Load data based on type (subject or collection)
+        console.log(`StudyMode: Loading ${isSubjectMode ? 'subject' : 'collection'} mode with ID:`, id);
         
-        // First, get the collection itself
-        const { data: collectionData, error: collectionError } = await supabase
-          .from('collections')
-          .select('*')
-          .eq('id', id)
-          .single();
-        
-        if (collectionError) {
-          console.error("StudyMode: Error loading collection:", collectionError);
-          throw collectionError;
-        }
-        
-        // Then get the subject information from the collection_subjects junction table
-        const { data: subjectData, error: subjectError } = await supabase
-          .from('collection_subjects')
-          .select(`
-            subject_id,
-            subjects:subject_id(id, name)
-          `)
-          .eq('collection_id', id)
-          .single();
-        
-        if (subjectError && !subjectError.message.includes('No rows returned')) {
-          console.error("StudyMode: Error loading subject:", subjectError);
-          throw subjectError;
-        }
-        
-        // Combine the data
-        const completeCollectionData = {
-          ...collectionData,
-          subject: subjectData?.subjects || { id: '', name: 'No Subject' }
-        };
-        
-        console.log("StudyMode: Collection data loaded successfully");
-        setCollection(completeCollectionData);
-        
-        // Check if this is premium content
-        const isOfficial = collectionData.is_official || false;
-        console.log("StudyMode: Collection is_official:", isOfficial);
-        setIsOfficialContent(isOfficial);
-        
-        // No longer automatically show paywall for official content
-        // Users will be able to see the content with restrictions at the flashcard level
-        console.log("StudyMode: Not showing paywall for premium collection as per requirement");
-        
-        // Load flashcards
-        console.log("StudyMode: Loading flashcards for collection ID:", id);
-        
-        // Get flashcards through the flashcard_collections junction table
-        let query = supabase
-          .from('flashcard_collections')
-          .select(`
-            flashcards:flashcard_id (
-              id,
-              question,
-              answer,
-              is_mastered,
-              created_by
-            )
-          `)
-          .eq('collection_id', id);
+        // Special handling for official premium cards
+        if (id === 'official') {
+          console.log("StudyMode: Loading official premium flashcards");
           
-        const { data: flashcardsJunction, error: flashcardsJunctionError } = await query;
-        
-        if (flashcardsJunctionError) {
-          console.error("StudyMode: Error loading flashcard relations:", flashcardsJunctionError);
-          throw flashcardsJunctionError;
-        }
-        
-        // Extract the flashcards from the junction results
-        const extractedFlashcards = flashcardsJunction?.flatMap(item => item.flashcards || []) || [];
-        
-        // If not showing mastered cards, filter them out
-        let filteredCards = extractedFlashcards;
-        if (!showMastered) {
-          console.log("StudyMode: Filtering out mastered cards");
-          filteredCards = extractedFlashcards.filter(card => !card.is_mastered);
+          // Load official flashcards
+          const { data: flashcardsData, error: flashcardsError } = await supabase
+            .from('flashcards')
+            .select(`
+              id, 
+              question, 
+              answer, 
+              is_official
+            `)
+            .eq('is_official', true)
+            .order('created_at', { ascending: false })
+            .limit(200);
+            
+          if (flashcardsError) {
+            console.error("StudyMode: Error loading official flashcards:", flashcardsError);
+            throw flashcardsError;
+          }
+          
+          // Create a virtual collection for official cards
+          const officialCollection = {
+            id: 'official',
+            title: 'Premium Flashcards',
+            description: 'Study premium flashcards from our curated collection.'
+          };
+          
+          setCollection(officialCollection);
+          
+          // Add mastered status to flashcards if available
+          if (user && flashcardsData?.length > 0) {
+            const { data: progress, error: progressError } = await supabase
+              .from('flashcard_progress')
+              .select('flashcard_id, is_mastered')
+              .eq('user_id', user.id)
+              .in('flashcard_id', flashcardsData.map(c => c.id));
+              
+            if (!progressError && progress) {
+              const masteryMap = new Map();
+              progress.forEach(p => masteryMap.set(p.flashcard_id, p.is_mastered));
+              
+              setCards(flashcardsData.map(card => ({
+                ...card,
+                is_mastered: masteryMap.has(card.id) ? masteryMap.get(card.id) : false
+              })));
+            } else {
+              setCards(flashcardsData.map(card => ({
+                ...card,
+                is_mastered: false
+              })));
+            }
+          } else {
+            setCards(flashcardsData?.map(card => ({
+              ...card,
+              is_mastered: false
+            })) || []);
+          }
+          
+        } else if (isSubjectMode) {
+          // Handle subject mode - load subject data first
+          try {
+            const { data: subjectData, error: subjectError } = await supabase
+              .from('subjects')
+              .select('*')
+              .eq('id', id);
+            
+            if (subjectError) {
+              console.error("StudyMode: Error loading subject:", subjectError);
+              throw subjectError;
+            }
+            
+            if (!subjectData || subjectData.length === 0) {
+              console.error(`StudyMode: No subject found with ID: ${id}`);
+              setNonExistentCollection(true);
+              throw new Error(`Subject not found: ${id}`);
+            }
+            
+            // Create a virtual collection from the subject
+            const subjectBasedCollection = {
+              id: subjectData[0].id,
+              title: `${subjectData[0].name} Flashcards`,
+              description: `Study flashcards related to ${subjectData[0].name}`,
+              subject: subjectData[0]
+            };
+            
+            console.log("StudyMode: Created virtual collection from subject:", subjectBasedCollection);
+            setCollection(subjectBasedCollection);
+            
+            // Load flashcards for this subject using the subject_flashcards junction
+            const { data: flashcardsJunction, error: junctionError } = await supabase
+              .from('flashcard_subjects')
+              .select(`
+                flashcard_id,
+                flashcards:flashcard_id (
+                  id, 
+                  question, 
+                  answer, 
+                  is_official, 
+                  created_by
+                )
+              `)
+              .eq('subject_id', id);
+              
+            if (junctionError) {
+              console.error("StudyMode: Error loading subject flashcards:", junctionError);
+              throw junctionError;
+            }
+            
+            // Extract flashcards from junction data
+            const extractedFlashcards = flashcardsJunction
+              ?.map(item => item.flashcards)
+              .filter(Boolean) || [];
+              
+            console.log(`StudyMode: Loaded ${extractedFlashcards.length} flashcards for subject`);
+            
+            // Add mastery status if user is logged in
+            if (user && extractedFlashcards.length > 0) {
+              const flashcardIds = extractedFlashcards.map(card => card.id);
+              
+              const { data: progress, error: progressError } = await supabase
+                .from('flashcard_progress')
+                .select('flashcard_id, is_mastered')
+                .eq('user_id', user.id)
+                .in('flashcard_id', flashcardIds);
+                
+              if (!progressError && progress) {
+                const masteryMap = new Map();
+                progress.forEach(p => masteryMap.set(p.flashcard_id, p.is_mastered));
+                
+                setCards(extractedFlashcards.map(card => ({
+                  ...card,
+                  is_mastered: masteryMap.has(card.id) ? masteryMap.get(card.id) : false
+                })));
+              } else {
+                setCards(extractedFlashcards.map(card => ({
+                  ...card,
+                  is_mastered: false
+                })));
+              }
+            } else {
+              setCards(extractedFlashcards.map(card => ({
+                ...card,
+                is_mastered: false
+              })));
+            }
+            
+            // Check for premium content
+            const hasPremiumContent = extractedFlashcards.some(card => card.is_official === true);
+            setIsOfficialContent(hasPremiumContent);
+            
+            if (hasPremiumContent === true && hasSubscription === false) {
+              // Some content is premium and user is not subscribed
+              console.log("StudyMode: Subject contains premium content, but continuing with restrictions");
+            }
+          } catch (err) {
+            console.error("StudyMode: Error loading subject data:", err);
+            throw err;
+          }
         } else {
-          console.log("StudyMode: Including all cards (mastered and unmastered)");
+          // First, get the collection itself
+          try {
+            const { data: collectionData, error: collectionError } = await supabase
+              .from('collections')
+              .select('*')
+              .eq('id', id);
+            
+            if (collectionError) {
+              console.error("StudyMode: Error loading collection:", collectionError);
+              throw collectionError;
+            }
+            
+            if (!collectionData || collectionData.length === 0) {
+              console.error(`StudyMode: No collection found with ID: ${id}`);
+              setNonExistentCollection(true);
+              throw new Error(`Collection not found: ${id}`);
+            }
+            
+            // Use the first result since we're querying by primary key (should only be one)
+            if (collectionData && collectionData.length > 0) {
+              // Store collection data locally for immediate use
+              const loadedCollection = collectionData[0];
+              console.log("StudyMode: Loaded collection:", loadedCollection);
+              
+              // Set the state for future renders
+              setCollection(loadedCollection);
+              
+              // Then get the subject information from the collection_subjects junction table
+              let subjectData = null;
+              try {
+                const { data, error } = await supabase
+                  .from('collection_subjects')
+                  .select(`
+                    subject_id,
+                    subjects:subject_id(id, name)
+                  `)
+                  .eq('collection_id', id);
+                
+                if (error) {
+                  console.error("StudyMode: Error loading subjects:", error);
+                } else if (data && data.length > 0) {
+                  // Just use the first subject if there are multiple
+                  subjectData = data[0];
+                  console.log("StudyMode: Loaded subject for collection:", data[0]);
+                } else {
+                  console.log("StudyMode: No subjects found for this collection");
+                }
+              } catch (err) {
+                console.error("StudyMode: Error in subject query:", err);
+                // Continue without subject data
+              }
+              
+              // Combine the data - using our local variable, not the state
+              const completeCollectionData = {
+                ...loadedCollection,
+                subject: subjectData?.subjects || { id: '', name: 'No Subject' }
+              };
+              
+              console.log("StudyMode: Collection data loaded successfully");
+              // Now update the state with the complete data
+              setCollection(completeCollectionData);
+              
+              // Check if this is premium content
+              const isOfficial = loadedCollection.is_official || false;
+              console.log("StudyMode: Collection is_official:", isOfficial);
+              setIsOfficialContent(isOfficial);
+              
+              // If access to premium content is denied, show paywall
+              if (isOfficial === true && hasSubscription === false) {
+                // Access is denied to premium content
+                console.log("StudyMode: Access denied to premium content, showing paywall");
+                setShowPaywall(true);
+              }
+              
+              // No longer automatically show paywall for official content
+              // Users will be able to see the content with restrictions at the flashcard level
+              console.log("StudyMode: Not showing paywall for premium collection as per requirement");
+              
+              // Load flashcards
+              console.log("StudyMode: Loading flashcards for collection ID:", id);
+              
+              // Fetch the flashcards that belong to this collection through the junction table
+              // First get all flashcard IDs associated with this collection
+              console.log(`StudyMode: Querying flashcard_collections_junction for collection_id: ${loadedCollection.id}`);
+              const { data: junctionData, error: junctionError } = await supabase
+                .from('flashcard_collections_junction')
+                .select('flashcard_id, collection_id')
+                .eq('collection_id', loadedCollection.id);
+                
+              if (junctionError) {
+                console.error("StudyMode: Error loading collection-flashcard junctions:", junctionError);
+                throw junctionError;
+              }
+              
+              if (!junctionData || junctionData.length === 0) {
+                console.log("StudyMode: No flashcards associated with this collection in junction table");
+                setCards([]);
+                setLoading(false);
+                return;
+              }
+              
+              // Extract the flashcard IDs
+              const flashcardIds = junctionData.map(item => item.flashcard_id);
+              console.log(`StudyMode: Found ${flashcardIds.length} flashcard IDs in junction table:`, flashcardIds);
+              
+              // Now fetch the actual flashcards
+              const { data: flashcardsData, error: flashcardsError } = await supabase
+                .from('flashcards')
+                .select('id, question, answer, is_official, created_by')
+                .in('id', flashcardIds)
+                .order('created_at', { ascending: false });
+                
+              if (flashcardsError) {
+                console.error("StudyMode: Error loading flashcards:", flashcardsError);
+                throw flashcardsError;
+              }
+              
+              console.log(`StudyMode: Loaded ${flashcardsData?.length || 0} flashcards`);
+              
+              // If no cards, show empty state
+              if (!flashcardsData || flashcardsData.length === 0) {
+                setCards([]);
+                setLoading(false);
+                return;
+              }
+              
+              // Add mastery status to flashcards if available
+              if (user) {
+                // Extract the flashcard IDs
+                const flashcardIds = flashcardsData.map(card => card.id);
+                
+                const { data: progress, error: progressError } = await supabase
+                  .from('flashcard_progress')
+                  .select('flashcard_id, is_mastered')
+                  .eq('user_id', user.id)
+                  .in('flashcard_id', flashcardIds);
+                  
+                if (!progressError && progress) {
+                  // Create a map of mastery status
+                  const masteryMap = new Map();
+                  progress.forEach(p => masteryMap.set(p.flashcard_id, p.is_mastered));
+                  
+                  // Update the flashcards with mastery status
+                  setCards(flashcardsData.map(card => ({
+                    ...card,
+                    is_mastered: masteryMap.has(card.id) ? masteryMap.get(card.id) : false
+                  })));
+                } else {
+                  setCards(flashcardsData.map(card => ({
+                    ...card,
+                    is_mastered: false
+                  })));
+                }
+              } else {
+                // No user, all cards are not mastered
+                setCards(flashcardsData.map(card => ({
+                  ...card,
+                  is_mastered: false
+                })));
+              }
+            } else {
+              console.error(`StudyMode: No valid collection data returned for ID: ${id}`);
+              throw new Error(`Collection not found or empty: ${id}`);
+            }
+          } catch (err) {
+            console.error("StudyMode: Error loading collection:", err);
+            throw err;
+          }
         }
-        
-        console.log(`StudyMode: Successfully loaded ${filteredCards.length || 0} flashcards`);
-        setCards(filteredCards || []);
         
       } catch (err: any) {
         console.error('StudyMode: Error loading study data:', err);
@@ -332,9 +601,31 @@ export default function StudyMode() {
 
   if (error || !collection) {
     return (
-      <ErrorMessage 
-        message={error || 'Collection not found'} 
-      />
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md text-center">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            {nonExistentCollection 
+              ? isSubjectMode ? 'Subject Not Found' : 'Collection Not Found' 
+              : error ? 'Error' : isSubjectMode ? 'Subject Not Found' : 'Collection Not Found'}
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            {nonExistentCollection 
+              ? isSubjectMode
+                ? 'The subject you are looking for does not exist or has been deleted.'
+                : 'The collection you are looking for does not exist or has been deleted.'
+              : error || (isSubjectMode ? 'Unable to load the subject. It may have been deleted.' : 'Unable to load the collection. It may have been deleted.')}
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              to={isSubjectMode ? "/flashcards/subjects" : "/flashcards/collections"}
+              className="bg-[#F37022] text-white px-4 py-2 rounded-md hover:bg-[#E36012]"
+            >
+              {isSubjectMode ? 'Return to Subjects' : 'Return to Collections'}
+            </Link>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -376,12 +667,22 @@ export default function StudyMode() {
             )}
             
             {user ? (
+              id === 'official' ? (
+                // Don't show "Add More Cards" for official premium flashcards
+                <button 
+                  onClick={shuffleCards}
+                  className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+                >
+                  Shuffle Cards
+                </button>
+              ) : (
               <Link
                 to={`/flashcards/add-card/${id}`}
                 className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
               >
                 Add More Cards
               </Link>
+              )
             ) : (
               <Link
                 to="/auth"
@@ -399,13 +700,13 @@ export default function StudyMode() {
   const currentCard = cards[currentIndex];
   
   // Determine if the current card should be premium blurred:
-  // 1. Collection is official/premium
+  // 1. Card is official/premium
   // 2. User doesn't have subscription
   // 3. Card was NOT created by the current user (user-created cards should always be visible to that user)
   const isUserCard = currentCard && user && currentCard.created_by === user.id;
   console.log("StudyMode render - isUserCard:", isUserCard, "userID:", user?.id, "cardCreatedBy:", currentCard?.created_by);
   
-  const isPremiumBlurred = isOfficialContent && !hasSubscription && !isUserCard;
+  const isPremiumBlurred = currentCard && currentCard.is_official === true && hasSubscription === false && !isUserCard;
   
   console.log("StudyMode render - isPremiumBlurred:", isPremiumBlurred, "isOfficialContent:", isOfficialContent, "hasSubscription:", hasSubscription);
 
@@ -430,9 +731,15 @@ export default function StudyMode() {
             <ChevronLeft className="h-4 w-4" />
             <span className="ml-1">Back to Collections</span>
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white hover:text-[#F37022] dark:hover:text-[#F37022] transition-colors">{collection.title}</h1>
-          {collection.description && (
-            <p className="text-gray-600 dark:text-gray-400 mt-1">{collection.description}</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white hover:text-[#F37022] dark:hover:text-[#F37022] transition-colors">
+            {id === 'official' ? 'Premium Flashcards' : collection.title}
+          </h1>
+          {(id === 'official' || collection.description) && (
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              {id === 'official' 
+                ? 'Study premium flashcards from our curated collection'
+                : collection.description}
+            </p>
           )}
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             {cards.length} {cards.length === 1 ? 'card' : 'cards'} • 
@@ -441,13 +748,15 @@ export default function StudyMode() {
         </div>
         
         <div className="text-right">
+          {id !== 'official' && collection.subject?.id && (
           <Link to={`/flashcards/subjects/${collection.subject.id}`} className="text-[#F37022] font-medium mb-2 hover:underline block">
-            {collection.subject.name}
+              Subject: {collection.subject.name}
           </Link>
+          )}
           
           <div className="flex items-center gap-3 justify-end">
             {user && (
-              <Tooltip text="Edit Collection">
+              <Tooltip text="Edit Collection" position="top">
                 <Link 
                   to={`/flashcards/edit/${id}`} 
                   className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
@@ -457,7 +766,7 @@ export default function StudyMode() {
               </Tooltip>
             )}
             {user && (
-              <Tooltip text="Edit Cards">
+              <Tooltip text="Edit Cards" position="top">
                 <Link 
                   to={`/flashcards/manage-cards/${id}`} 
                   className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
@@ -466,7 +775,7 @@ export default function StudyMode() {
                 </Link>
               </Tooltip>
             )}
-            <Tooltip text={showMastered ? "Hide mastered cards" : "Show all cards"}>
+            <Tooltip text={showMastered ? "Hide mastered cards" : "Show all cards"} position="top">
               <button
                 onClick={() => {
                   console.log("Toggling showMastered from", showMastered, "to", !showMastered);
@@ -479,7 +788,7 @@ export default function StudyMode() {
                 {showMastered ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </Tooltip>
-            <Tooltip text="Shuffle cards">
+            <Tooltip text="Shuffle cards" position="top">
               <button
                 onClick={shuffleCards}
                 className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
@@ -506,15 +815,23 @@ export default function StudyMode() {
           >
             <div className="text-center w-full">
               {isPremiumBlurred && showAnswer ? (
-                <div className="premium-content-placeholder">
+                <div className="premium-content-placeholder mt-6">
                   <div className="bg-orange-100 dark:bg-orange-900/30 p-6 rounded-lg">
                     <div className="flex flex-col items-center gap-4">
                       <Lock className="h-12 w-12 text-orange-500 dark:text-orange-400" />
                       <h2 className="text-2xl font-semibold text-orange-800 dark:text-orange-300">Premium Flashcard</h2>
                       <p className="text-orange-700 dark:text-orange-300 max-w-md mx-auto">
                         The answer is only available to premium subscribers. 
-                        Upgrade your account to access our curated library of expert flashcards.
                       </p>
+                      {!hasSubscription && (
+                        <Link 
+                          to="/pricing" 
+                          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md font-medium flex items-center gap-2"
+                        >
+                          <Sparkles className="h-4 w-4" />
+                          Upgrade Now
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -592,17 +909,6 @@ export default function StudyMode() {
           </button>
         </div>
       </div>
-
-      {isPremiumBlurred && (
-        <div className="mt-8 text-center" style={{ zIndex: 5, position: 'relative' }}>
-          <button
-            onClick={handleShowPaywall}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-          >
-            Upgrade to Premium for Full Access
-          </button>
-        </div>
-      )}
     </div>
   );
 } 

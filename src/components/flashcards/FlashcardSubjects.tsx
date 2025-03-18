@@ -118,7 +118,14 @@ export default function FlashcardSubjects() {
   }
 
   if (error) {
-    return <ErrorMessage message={error} />;
+    return (
+      <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-md flex items-start">
+        <div>
+          <h3 className="font-medium mb-1">Error</h3>
+          <p>{error}</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -141,7 +148,12 @@ export default function FlashcardSubjects() {
       )}
 
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Subjects</h1>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Subjects</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            {filteredSubjects.length} {filteredSubjects.length === 1 ? 'subject' : 'subjects'}
+          </p>
+        </div>
         
         {/* Filter tabs moved next to title */}
         <div>

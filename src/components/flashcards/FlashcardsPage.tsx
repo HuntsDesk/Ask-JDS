@@ -47,11 +47,40 @@ export default function FlashcardsPage() {
   
   // Check for mobile on mount and window resize
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    const checkMobile = () => {
+      const isMobileSize = window.innerWidth < 768;
+      const isTabletSize = window.innerWidth >= 768 && window.innerWidth < 1024;
+      
+      setIsMobile(isMobileSize);
+      
+      // For tablet sizes, ensure the sidebar response to expansion properly
+      if (isTabletSize) {
+        // Make sure the sidebar contextual state matches the global state
+        if (isExpanded !== isExpanded) {
+          setIsExpanded(isExpanded);
+        }
+      }
+    };
+    
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  }, [isExpanded, setIsExpanded]);
+  
+  // Sync sidebar expanded state between components
+  useEffect(() => {
+    // This ensures changes to the isExpanded state are properly reflected in the UI
+    const sidebarElement = document.querySelector('.sidebar-container');
+    if (sidebarElement) {
+      if (isExpanded) {
+        sidebarElement.classList.add('expanded');
+        sidebarElement.classList.remove('collapsed');
+      } else {
+        sidebarElement.classList.add('collapsed');
+        sidebarElement.classList.remove('expanded');
+      }
+    }
+  }, [isExpanded]);
 
   useEffect(() => {
     const checkSubscription = async () => {

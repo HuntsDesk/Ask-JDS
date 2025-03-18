@@ -93,7 +93,7 @@ export default function Navbar() {
               }`}
             >
               <Layers className="h-5 w-5" />
-              <span>Study All</span>
+              <span>Study</span>
             </Link>
           </div>
 

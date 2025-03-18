@@ -51,11 +51,11 @@ export default function SearchBar() {
     try {
       // Search collections
       const { data: collections, error: collectionsError } = await supabase
-        .from('flashcard_collections')
+        .from('collections')
         .select(`
           id,
           title,
-          subject:subject_id (name)
+          subjects (name)
         `)
         .ilike('title', `%${query}%`)
         .limit(5);
@@ -77,8 +77,10 @@ export default function SearchBar() {
         .select(`
           id,
           question,
-          collection_id,
-          collection:collection_id (title)
+          collections (
+            id, 
+            title
+          )
         `)
         .or(`question.ilike.%${query}%, answer.ilike.%${query}%`)
         .limit(10);
@@ -87,25 +89,41 @@ export default function SearchBar() {
 
       // Format results
       const formattedResults: SearchResult[] = [
-        ...collections.map((collection): SearchResult => ({
-          id: collection.id,
-          title: collection.title,
-          subtitle: collection.subject.name,
-          type: 'collection'
-        })),
+        ...(collections || []).map((collection) => {
+          // Extract the first subject name if available
+          const subjectName = collection.subjects && 
+                             Array.isArray(collection.subjects) && 
+                             collection.subjects.length > 0 ? 
+                             collection.subjects[0].name : 'No Subject';
+                             
+          return {
+            id: collection.id,
+            title: collection.title,
+            subtitle: subjectName,
+            type: 'collection'
+          };
+        }),
         ...subjects.map((subject): SearchResult => ({
           id: subject.id,
           title: subject.name,
           subtitle: subject.description || 'Subject',
           type: 'subject'
         })),
-        ...cards.map((card): SearchResult => ({
-          id: card.id,
-          title: card.question,
-          subtitle: `In: ${card.collection.title}`,
-          type: 'card',
-          collection_id: card.collection_id
-        }))
+        ...(cards || []).map((card): SearchResult => {
+          // Get the first collection if available
+          const collection = card.collections && 
+                            Array.isArray(card.collections) && 
+                            card.collections.length > 0 ? 
+                            card.collections[0] : null;
+                            
+          return {
+            id: card.id,
+            title: card.question,
+            subtitle: collection ? `In: ${collection.title}` : 'No Collection',
+            type: 'card',
+            collection_id: collection?.id
+          };
+        })
       ];
 
       setResults(formattedResults);

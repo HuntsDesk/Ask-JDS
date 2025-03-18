@@ -106,7 +106,7 @@ export default function SearchResults() {
           answer,
           is_mastered,
           collection_id,
-          collection:collection_id (
+          collection:collections (
             title,
             subject:subject_id (
               id,
@@ -117,7 +117,73 @@ export default function SearchResults() {
         .or(`question.ilike.%${query}%, answer.ilike.%${query}%`)
         .order('created_at', { ascending: false });
 
-      if (cardsError) throw cardsError;
+      if (cardsError) {
+        console.error("Flashcard search error:", cardsError);
+        // Try alternative query if the first one fails
+        try {
+          const { data: altCardsData, error: altCardsError } = await supabase
+            .from('flashcards')
+            .select(`
+              id,
+              question,
+              answer,
+              is_mastered,
+              collection_id
+            `)
+            .or(`question.ilike.%${query}%, answer.ilike.%${query}%`)
+            .order('created_at', { ascending: false });
+            
+          if (altCardsError) throw altCardsError;
+          
+          // Manually fetch collection data for each card
+          const enhancedCards = await Promise.all((altCardsData || []).map(async (card) => {
+            if (card.collection_id) {
+              try {
+                const { data: collectionData, error: collectionError } = await supabase
+                  .from('flashcard_collections')
+                  .select(`
+                    title,
+                    subject:subject_id (
+                      id,
+                      name
+                    )
+                  `)
+                  .eq('id', card.collection_id)
+                  .single();
+                  
+                if (!collectionError && collectionData) {
+                  return {
+                    ...card,
+                    collection: collectionData
+                  };
+                }
+              } catch (err) {
+                console.error(`Error fetching collection for card ${card.id}:`, err);
+              }
+            }
+            
+            // Return card with empty collection if no collection found
+            return {
+              ...card,
+              collection: {
+                title: "Unknown Collection",
+                subject: {
+                  id: "",
+                  name: "Unknown Subject"
+                }
+              }
+            };
+          }));
+          
+          setCards(enhancedCards || []);
+          return; // Exit after setting cards
+        } catch (fallbackErr) {
+          console.error("Fallback query also failed:", fallbackErr);
+          throw cardsError; // Throw the original error
+        }
+      }
+      
+      // If no error, set the cards from the original query
       setCards(cardsData || []);
     } catch (err: any) {
       setError(err.message);

@@ -31,6 +31,7 @@ interface Flashcard {
   collection_id: string;
   collection_title: string;
   is_mastered: boolean;
+  created_by: string;
 }
 
 interface Subject {
@@ -226,12 +227,12 @@ export default function SubjectStudy() {
       if (collectionsData && collectionsData.length > 0) {
         // Get flashcard IDs from the flashcard_collections junction table
         const { data: flashcardCollections, error: flashcardCollectionsError } = await supabase
-          .from('flashcard_collections')
+          .from('flashcard_collections_junction')
           .select('flashcard_id, collection_id')
           .in('collection_id', collectionIds);
 
         if (flashcardCollectionsError) {
-          console.error("SubjectStudy: Error fetching flashcard_collections:", flashcardCollectionsError);
+          console.error("SubjectStudy: Error fetching flashcard_collections_junction:", flashcardCollectionsError);
           throw new Error(flashcardCollectionsError.message);
         }
 
@@ -378,8 +379,7 @@ export default function SubjectStudy() {
           .insert({
             flashcard_id: currentCard.id,
             user_id: user.id,
-            is_mastered: true,
-            last_studied_at: new Date().toISOString()
+            is_mastered: true
           });
       }
       
@@ -454,8 +454,7 @@ export default function SubjectStudy() {
           .insert({
             flashcard_id: currentCard.id,
             user_id: user.id,
-            is_mastered: false,
-            last_studied_at: new Date().toISOString()
+            is_mastered: false
           });
         
         if (insertError) throw insertError;
@@ -587,7 +586,8 @@ export default function SubjectStudy() {
   
   // Force premium content blurring for testing
   const forcePremiumTest = false; // Set to false to disable premium testing
-  const isPremiumBlurred = (isOfficialContent && !hasSubscription) || forcePremiumTest;
+  const isUserCard = currentCard && user && currentCard.created_by === user.id;
+  const isPremiumBlurred = (currentCard && currentCard.is_official && !hasSubscription && !isUserCard) || forcePremiumTest;
   
   console.log("SubjectStudy render - isPremiumBlurred:", isPremiumBlurred, "isOfficialContent:", isOfficialContent, "hasSubscription:", hasSubscription);
 
@@ -622,7 +622,7 @@ export default function SubjectStudy() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Tooltip text={showMastered ? "Hide mastered cards" : "Show all cards"}>
+          <Tooltip text={showMastered ? "Hide mastered cards" : "Show all cards"} position="top">
             <button
               onClick={() => {
                 console.log("SubjectStudy: Toggling showMastered from", showMastered, "to", !showMastered);
@@ -635,7 +635,7 @@ export default function SubjectStudy() {
               {showMastered ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
           </Tooltip>
-          <Tooltip text="Shuffle cards">
+          <Tooltip text="Shuffle cards" position="top">
             <button
               onClick={shuffleCards}
               className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
@@ -660,15 +660,22 @@ export default function SubjectStudy() {
           >
             <div className="text-center w-full">
               {isPremiumBlurred && showAnswer ? (
-                <div className="premium-content-placeholder">
+                <div className="premium-content-placeholder mt-6">
                   <div className="bg-orange-100 dark:bg-orange-900/30 p-6 rounded-lg">
                     <div className="flex flex-col items-center gap-4">
                       <Lock className="h-12 w-12 text-orange-500 dark:text-orange-400" />
                       <h2 className="text-2xl font-semibold text-orange-800 dark:text-orange-300">Premium Flashcard</h2>
                       <p className="text-orange-700 dark:text-orange-300 max-w-md mx-auto">
-                        The answer is only available to premium subscribers. 
-                        Upgrade your account to access our curated library of expert flashcards.
+                        The answer is only available to premium subscribers.
                       </p>
+                      <div className="mt-2">
+                        <button
+                          onClick={() => setShowPaywall(true)}
+                          className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                        >
+                          Upgrade to Premium
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -745,17 +752,6 @@ export default function SubjectStudy() {
           </button>
         </div>
       </div>
-
-      {isPremiumBlurred && (
-        <div className="mt-8 text-center">
-          <button
-            onClick={() => setShowPaywall(true)}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-          >
-            Upgrade to Premium for Full Access
-          </button>
-        </div>
-      )}
     </div>
   );
 } 
