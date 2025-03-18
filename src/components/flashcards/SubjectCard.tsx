@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BookOpen, Lock, PlusCircle, Edit, Trash2, CheckCircle2, Layers } from 'lucide-react';
+import { BookOpen, Lock, PlusCircle, Edit, Trash2, CheckCircle2, Layers, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Tooltip from './Tooltip';
 import { supabase } from '@/lib/supabase';
@@ -172,7 +172,7 @@ export default function SubjectCard({
             </div>
             
             <div className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-blue-500" />
+              <FileText className="h-4 w-4 text-blue-500" />
               <span className="text-sm text-gray-600 dark:text-gray-400">
                 {loading ? (
                   <span className="text-gray-400 dark:text-gray-500">Loading card data...</span>

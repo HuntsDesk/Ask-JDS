@@ -465,59 +465,59 @@ export default function FlashcardStudy() {
       )}
       
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">{collection?.title}</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{collection?.title}</h1>
         <p className="text-gray-600 mt-2">{collection?.description}</p>
-        <div className="flex items-center mt-2">
+        <div className="flex flex-wrap items-center gap-2 mt-2">
           <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
             {collection?.subject.name}
           </span>
-          <span className="text-sm text-gray-500 ml-4">
+          <span className="text-sm text-gray-500">
             Card {currentIndex + 1} of {flashcards.length}
           </span>
           {isPremiumContent && !hasSubscription && (
-            <span className="text-sm bg-orange-100 text-orange-800 px-2 py-1 rounded ml-2 flex items-center">
+            <span className="text-sm bg-orange-100 text-orange-800 px-2 py-1 rounded flex items-center">
               <Lock className="h-3 w-3 mr-1" /> Premium Content
             </span>
           )}
         </div>
       </div>
       
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="bg-blue-50 p-3 rounded-lg text-center">
-          <p className="text-xl font-bold text-blue-700">{flashcards.length}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-4 mb-6">
+        <div className="bg-blue-50 p-2 md:p-3 rounded-lg text-center">
+          <p className="text-lg md:text-xl font-bold text-blue-700">{flashcards.length}</p>
           <p className="text-xs text-blue-600">Total</p>
         </div>
-        <div className="bg-green-50 p-3 rounded-lg text-center">
-          <p className="text-xl font-bold text-green-700">{stats.correct}</p>
+        <div className="bg-green-50 p-2 md:p-3 rounded-lg text-center">
+          <p className="text-lg md:text-xl font-bold text-green-700">{stats.correct}</p>
           <p className="text-xs text-green-600">Correct</p>
         </div>
-        <div className="bg-red-50 p-3 rounded-lg text-center">
-          <p className="text-xl font-bold text-red-700">{stats.incorrect}</p>
+        <div className="bg-red-50 p-2 md:p-3 rounded-lg text-center">
+          <p className="text-lg md:text-xl font-bold text-red-700">{stats.incorrect}</p>
           <p className="text-xs text-red-600">Incorrect</p>
         </div>
-        <div className="bg-orange-50 p-3 rounded-lg text-center">
-          <p className="text-xl font-bold text-[#F37022]">{stats.mastered}</p>
+        <div className="bg-orange-50 p-2 md:p-3 rounded-lg text-center">
+          <p className="text-lg md:text-xl font-bold text-[#F37022]">{stats.mastered}</p>
           <p className="text-xs text-[#F37022]">Mastered</p>
         </div>
       </div>
       
       <div 
-        className={`bg-white rounded-xl shadow-md p-8 mb-6 min-h-[300px] flex items-center justify-center cursor-pointer transition-all duration-300 ${
+        className={`bg-white rounded-xl shadow-md p-4 md:p-8 mb-6 min-h-[250px] md:min-h-[300px] flex items-center justify-center cursor-pointer transition-all duration-300 ${
           showAnswer ? 'bg-blue-50' : ''
         } ${shouldBlurAnswer ? 'relative' : ''}`}
         onClick={handleFlip}
       >
-        <div className="text-center">
-          <h3 className="text-xl font-medium text-gray-900 mb-2">
+        <div className="text-center w-full px-2 md:px-4">
+          <h3 className="text-lg md:text-xl font-medium text-gray-900 mb-2">
             {showAnswer ? 'Answer:' : 'Question:'}
           </h3>
           
           {shouldBlurAnswer ? (
-            <div className="bg-orange-100 p-6 rounded-lg mt-8">
-              <div className="flex flex-col items-center gap-4">
-                <Lock className="h-12 w-12 text-orange-500" />
-                <h2 className="text-2xl font-semibold text-orange-800">Premium Flashcard</h2>
-                <p className="text-orange-700 max-w-md mx-auto">
+            <div className="bg-orange-100 p-4 md:p-6 rounded-lg mt-4 md:mt-8">
+              <div className="flex flex-col items-center gap-3 md:gap-4">
+                <Lock className="h-8 md:h-12 w-8 md:w-12 text-orange-500" />
+                <h2 className="text-xl md:text-2xl font-semibold text-orange-800">Premium Flashcard</h2>
+                <p className="text-sm md:text-base text-orange-700 max-w-md mx-auto">
                   The answer is only available to premium subscribers. 
                   Upgrade your account to access our curated library of expert flashcards.
                 </p>
@@ -533,13 +533,13 @@ export default function FlashcardStudy() {
               </div>
             </div>
           ) : (
-            <p className="text-2xl font-bold">
+            <p className="text-xl md:text-2xl font-bold break-words">
               {showAnswer ? currentCard?.answer : currentCard?.question}
             </p>
           )}
           
           {!showAnswer && (
-            <p className="text-gray-500 mt-4 text-sm">Click to reveal answer</p>
+            <p className="text-gray-500 mt-4 text-xs md:text-sm">Click to reveal answer</p>
           )}
         </div>
       </div>

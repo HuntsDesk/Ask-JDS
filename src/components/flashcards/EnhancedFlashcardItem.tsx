@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, FileEdit, Trash2, Tag, Layers, Award } from 'lucide-react';
+import { Check, FileEdit, Trash2, BookOpen, Layers, Award } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Tooltip from './Tooltip';
 
@@ -102,59 +102,51 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
       
       {/* Premium content banner - only show if no subscription */}
       {isDefinitelyPremium && !hasSubscription && (
-        <div className="bg-[#F37022] text-white px-4 py-1 text-sm font-medium">
+        <div className="bg-[#F37022] text-white px-4 py-1 text-xs md:text-sm font-medium">
           PREMIUM CONTENT
         </div>
       )}
       
       {/* Main content */}
-      <div className="p-6 flex-grow flex flex-col min-h-[12rem]">
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
-          {flashcard.question}
-        </h3>
+      <div className="p-4 md:p-6 flex-grow">
+        <div className="mb-3">
+          <h3 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white">
+            {flashcard.question}
+          </h3>
+        </div>
         
         {shouldHideAnswer ? (
-          <div className="mb-4">
+          <div className="text-gray-700 dark:text-gray-300 mb-3 md:mb-4">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onShowPaywall && onShowPaywall();
               }}
-              className="bg-[#F37022] text-white px-3 py-1 rounded-md text-sm hover:bg-[#E36012]"
+              className="bg-[#F37022] text-white px-2 py-1 md:px-3 md:py-1 rounded-md text-xs md:text-sm hover:bg-[#E36012]"
             >
               Upgrade for access
             </button>
           </div>
         ) : (
-          <div className="mb-4">
-            <p className="text-gray-700 dark:text-gray-300 break-words">
-              {flashcard.answer}
-            </p>
-          </div>
+          <p className="text-sm md:text-base text-gray-700 dark:text-gray-300 mb-3 md:mb-4 break-words">
+            {flashcard.answer}
+          </p>
         )}
         
-        {/* Spacer to push collections/subjects to bottom when answer is short */}
-        <div className="flex-grow"></div>
-        
-        {/* Always display subject and collection info regardless of premium status */}
-        <div className="mt-4">
+        {/* Bottom metadata */}
+        <div className="space-y-2 text-xs md:text-sm">
+          {/* Subject tags */}
           {subjectsToShow.length > 0 && (
-            <div className="flex items-start mb-1">
-              <Tag className="h-4 w-4 text-green-500 mr-2 shrink-0 mt-0.5" />
-              <div className="text-sm w-full">
-                <div className="text-xs text-gray-500 mb-0.5">Subjects:</div>
+            <div className="flex items-start">
+              <BookOpen className="h-4 w-4 text-green-500 mr-2 shrink-0 mt-0.5" />
+              <div className="w-full">
+                <div className="text-xs text-gray-500 mb-0.5">Subject:</div>
                 <div className="text-gray-700 dark:text-gray-300 flex flex-wrap">
                   {subjectsToShow.map((subject, idx) => (
                     <span key={subject?.id || `subject-${idx}`} className="mr-1">
-                      {subject?.id?.startsWith("00000000-0000-0000-0000-") ? (
-                        // For placeholder subjects (those with IDs starting with zeros), just show the name without click functionality
-                        <span className="text-[#F37022] dark:text-[#F37022] font-medium">
-                          {subject.name || '(Unnamed Subject)'}
-                        </span>
-                      ) : (
-                        // For real subjects, allow navigation
+                      {subject?.id ? (
                         <Link 
-                          to={`/flashcards/subjects/${subject.id}?type=subject`}
+                          to={`/flashcards/subjects/${subject.id}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             if (onStudySubject) {
@@ -162,10 +154,14 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
                               onStudySubject(subject);
                             }
                           }}
-                          className="text-[#F37022] hover:underline bg-transparent border-none p-0 cursor-pointer font-medium"
+                          className="text-[#F37022] hover:underline font-medium"
                         >
-                          {subject.name || '(Unnamed Subject)'}
+                          {subject.name}
                         </Link>
+                      ) : (
+                        <span className="text-[#F37022] dark:text-[#F37022] font-medium">
+                          {subject?.name || '(No Subject)'}
+                        </span>
                       )}
                       {idx < subjectsToShow.length - 1 && <span className="ml-0.5 mr-1.5">,</span>}
                     </span>
@@ -175,21 +171,20 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
             </div>
           )}
           
+          {/* Collection tags */}
           {collectionsToShow.length > 0 && (
             <div className="flex items-start">
               <Layers className="h-4 w-4 text-indigo-500 mr-2 shrink-0 mt-0.5" />
-              <div className="text-sm w-full">
+              <div className="w-full">
                 <div className="text-xs text-gray-500 mb-0.5">Collections:</div>
                 <div className="text-gray-700 dark:text-gray-300 flex flex-wrap">
                   {collectionsToShow.map((collection, idx) => (
                     <span key={collection?.id || `collection-${idx}`} className="mr-1">
                       {collection?.id?.startsWith("00000000-0000-0000-0000-") ? (
-                        // For placeholder collections (those with IDs starting with zeros), just show the title without click functionality
                         <span className="text-[#F37022] dark:text-[#F37022] font-medium">
                           {collection.title || '(Untitled)'}
                         </span>
                       ) : (
-                        // For real collections, allow navigation
                         <Link 
                           to={`/flashcards/study/${collection.id}`}
                           onClick={(e) => {
@@ -214,63 +209,53 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
         </div>
       </div>
       
-      {/* Footer - Icons */}
-      <div className="px-6 pb-6 mt-auto">
+      {/* Actions footer */}
+      <div className="p-3 md:p-4 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 mt-auto">
         <div className="flex justify-between items-center">
-          {/* Left side icons */}
-          <div className="flex gap-2">
-            {!shouldHideEditDelete && (
-              <>
-                <Tooltip text="Edit card" position="top">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEdit(flashcard);
-                    }}
-                    className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
-                  >
-                    <FileEdit className="h-5 w-5" />
-                  </button>
-                </Tooltip>
-                <Tooltip text="Delete card" position="top">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(flashcard);
-                    }}
-                    className="text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                </Tooltip>
-              </>
-            )}
-            <Tooltip text={flashcard.is_mastered ? "Mark as not mastered" : "Mark as mastered"} position="top">
-              <button
+          <div className="flex items-center gap-1 md:gap-2">
+            <Tooltip text={flashcard.is_mastered ? "Unmark as mastered" : "Mark as mastered"} position="top">
+              <button 
                 onClick={(e) => {
                   e.stopPropagation();
-                  onToggleMastered(flashcard);
+                  onToggleMastered && onToggleMastered(flashcard);
                 }}
-                className={`text-gray-600 dark:text-gray-400 ${flashcard.is_mastered 
-                  ? 'text-green-600 dark:text-green-400' 
-                  : 'hover:text-[#F37022] dark:hover:text-[#F37022]'}`}
+                className={`${flashcard.is_mastered ? 'text-green-500 hover:text-green-700' : 'text-gray-400 hover:text-green-500'}`}
               >
-                <Check className="h-5 w-5" />
+                <Check className="h-4 md:h-5 w-4 md:w-5" />
               </button>
             </Tooltip>
             
-            {/* Premium indicator for subscribed users */}
-            {isPremium && hasSubscription && (
-              <div className="relative group">
-                <span className="text-[#F37022] font-semibold text-xs bg-[#F37022]/10 px-2 py-1 rounded-full flex items-center">
-                  <Award className="h-3 w-3 mr-1" />
-                  P
-                </span>
-                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
-                  Premium Content
-                </div>
-              </div>
+            {!flashcard.is_official && onEdit && (
+              <Tooltip text="Edit Card" position="top">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(flashcard);
+                  }}
+                  className="text-gray-400 hover:text-blue-500"
+                >
+                  <FileEdit className="h-4 md:h-5 w-4 md:w-5" />
+                </button>
+              </Tooltip>
             )}
+            
+            {!flashcard.is_official && onDelete && (
+              <Tooltip text="Delete Card" position="top">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(flashcard);
+                  }}
+                  className="text-gray-400 hover:text-red-500"
+                >
+                  <Trash2 className="h-4 md:h-5 w-4 md:w-5" />
+                </button>
+              </Tooltip>
+            )}
+          </div>
+          
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            {formatDate(flashcard.created_at)}
           </div>
         </div>
       </div>

@@ -159,49 +159,49 @@ export default function FlashcardDashboard() {
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Dashboard</h1>
       
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8 md:mb-12">
+        <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-100">
           <div className="flex items-center mb-4">
-            <div className="bg-blue-100 p-3 rounded-lg">
-              <Brain className="h-6 w-6 text-blue-600" />
+            <div className="bg-blue-100 p-2 md:p-3 rounded-lg">
+              <Brain className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
             </div>
-            <h3 className="ml-3 text-lg font-medium text-gray-800">Study Sessions</h3>
+            <h3 className="ml-3 text-base md:text-lg font-medium text-gray-800">Study Sessions</h3>
           </div>
-          <p className="text-3xl font-bold text-gray-900">{stats?.totalStudySessions || 0}</p>
-          <p className="text-sm text-gray-500 mt-1">Total sessions completed</p>
+          <p className="text-2xl md:text-3xl font-bold text-gray-900">{stats?.totalStudySessions || 0}</p>
+          <p className="text-xs md:text-sm text-gray-500 mt-1">Total sessions completed</p>
         </div>
         
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-100">
           <div className="flex items-center mb-4">
-            <div className="bg-indigo-100 p-3 rounded-lg">
-              <BookOpen className="h-6 w-6 text-indigo-600" />
+            <div className="bg-indigo-100 p-2 md:p-3 rounded-lg">
+              <BookOpen className="h-5 w-5 md:h-6 md:w-6 text-indigo-600" />
             </div>
-            <h3 className="ml-3 text-lg font-medium text-gray-800">Cards Studied</h3>
+            <h3 className="ml-3 text-base md:text-lg font-medium text-gray-800">Cards Studied</h3>
           </div>
-          <p className="text-3xl font-bold text-gray-900">{stats?.totalCardsStudied || 0}</p>
-          <p className="text-sm text-gray-500 mt-1">Total cards reviewed</p>
+          <p className="text-2xl md:text-3xl font-bold text-gray-900">{stats?.totalCardsStudied || 0}</p>
+          <p className="text-xs md:text-sm text-gray-500 mt-1">Total cards reviewed</p>
         </div>
         
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-100">
           <div className="flex items-center mb-4">
-            <div className="bg-green-100 p-3 rounded-lg">
-              <BadgeCheck className="h-6 w-6 text-green-600" />
+            <div className="bg-green-100 p-2 md:p-3 rounded-lg">
+              <BadgeCheck className="h-5 w-5 md:h-6 md:w-6 text-green-600" />
             </div>
-            <h3 className="ml-3 text-lg font-medium text-gray-800">Mastered</h3>
+            <h3 className="ml-3 text-base md:text-lg font-medium text-gray-800">Mastered</h3>
           </div>
-          <p className="text-3xl font-bold text-gray-900">{stats?.masteredCards || 0}</p>
-          <p className="text-sm text-gray-500 mt-1">Cards you've mastered</p>
+          <p className="text-2xl md:text-3xl font-bold text-gray-900">{stats?.masteredCards || 0}</p>
+          <p className="text-xs md:text-sm text-gray-500 mt-1">Cards you've mastered</p>
         </div>
         
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 border border-gray-100">
           <div className="flex items-center mb-4">
-            <div className="bg-purple-100 p-3 rounded-lg">
-              <Clock className="h-6 w-6 text-purple-600" />
+            <div className="bg-purple-100 p-2 md:p-3 rounded-lg">
+              <Clock className="h-5 w-5 md:h-6 md:w-6 text-purple-600" />
             </div>
-            <h3 className="ml-3 text-lg font-medium text-gray-800">Success Rate</h3>
+            <h3 className="ml-3 text-base md:text-lg font-medium text-gray-800">Success Rate</h3>
           </div>
-          <p className="text-3xl font-bold text-gray-900">{stats?.averageScore || 0}%</p>
-          <p className="text-sm text-gray-500 mt-1">Average correct answers</p>
+          <p className="text-2xl md:text-3xl font-bold text-gray-900">{stats?.averageScore || 0}%</p>
+          <p className="text-xs md:text-sm text-gray-500 mt-1">Average correct answers</p>
         </div>
       </div>
 
@@ -239,9 +239,9 @@ export default function FlashcardDashboard() {
       </div>
 
       {/* Popular Flashcard Sets */}
-      <div className="mb-12">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-900">Popular Sets</h2>
+      <div className="mb-8 md:mb-12">
+        <div className="flex justify-between items-center mb-4 md:mb-6">
+          <h2 className="text-xl md:text-2xl font-semibold text-gray-900">Popular Sets</h2>
           <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] text-sm font-medium">
             View All Collections
           </Link>
@@ -256,7 +256,7 @@ export default function FlashcardDashboard() {
             actionLink="/flashcards/create-collection"
           />
         ) : (
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
             {popularSets.map(set => (
               <Card 
                 key={set.id}

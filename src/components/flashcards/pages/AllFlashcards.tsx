@@ -1297,32 +1297,32 @@ export default function AllFlashcards() {
       </Dialog>
       
       <div className="flex flex-col space-y-4 mb-6">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
               <p className="text-gray-600 dark:text-gray-400 flashcard-count">
                 {totalCardCount} {totalCardCount === 1 ? 'card' : 'cards'} {!showMastered ? 'to study' : ''}
               </p>
             </div>
             
             {/* Controls */}
-            <div className="flex items-center gap-3 ml-4">
+            <div className="flex items-center gap-2 md:gap-3 md:ml-4">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="flex items-center gap-1 md:gap-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 md:px-4 md:py-2 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
               >
-                <Filter className="h-5 w-5" />
-                Filters
+                <Filter className="h-4 w-4 md:h-5 md:w-5" />
+                <span className="md:inline">Filters</span>
               </button>
               
               <button
                 onClick={handleToggleMastered}
-                className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="flex items-center gap-1 md:gap-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 md:px-4 md:py-2 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
                 aria-label={showMastered ? "Hide mastered cards" : "Show all cards"}
               >
-                {showMastered ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                {showMastered ? "Hide Mastered" : "Show All"}
+                {showMastered ? <EyeOff className="h-4 w-4 md:h-5 md:w-5" /> : <Eye className="h-4 w-4 md:h-5 md:w-5" />}
+                <span className="hidden xs:inline">{showMastered ? "Hide Mastered" : "Show All"}</span>
               </button>
             </div>
           </div>
@@ -1354,10 +1354,10 @@ export default function AllFlashcards() {
         </div>
       </div>
       
-        {/* Filters */}
+      {/* Filters */}
       {showFilters && (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6 dark:border dark:border-gray-700">
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label htmlFor="subject-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Filter by Subject
@@ -1419,7 +1419,7 @@ export default function AllFlashcards() {
       )}
       
         {/* Cards grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {filteredCards.length === 0 ? (
           <div className="col-span-1 md:col-span-2 lg:col-span-3">
             {filter === 'my' ? (
