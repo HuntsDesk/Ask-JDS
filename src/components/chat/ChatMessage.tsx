@@ -21,7 +21,7 @@ export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
     >
       <div 
         className={`flex flex-col max-w-[80%] min-w-[100px] ${
-          isUserMessage ? "ml-auto mr-4" : "ml-4"
+          isUserMessage ? "ml-auto mr-4" : "ml-8"
         }`}
       >
         <div 
