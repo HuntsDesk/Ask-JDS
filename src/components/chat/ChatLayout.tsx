@@ -11,6 +11,8 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { SelectedThreadContext, SidebarContext } from '@/App';
+import useMediaQuery from '@/hooks/useMediaQuery';
+import { X } from 'lucide-react';
 
 // Export as default for lazy loading
 const ChatLayout = () => {
@@ -48,6 +50,9 @@ const ChatLayout = () => {
   const { selectedThreadId, setSelectedThreadId } = useContext(SelectedThreadContext);
   const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
   const messagesTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const isDesktop = useMediaQuery('(min-width: 768px)');
 
   // A helper function to log thread details
   const logThreadInfo = () => {
@@ -536,6 +541,13 @@ const ChatLayout = () => {
     );
   };
 
+  // Close sidebar when switching to mobile view
+  useEffect(() => {
+    if (!isDesktop) {
+      setIsSidebarOpen(false);
+    }
+  }, [isDesktop]);
+
   if (originalThreadsLoading && !loadingTimeout && !isThreadDeletion) {
     console.log('ChatLayout: Showing loading spinner for threads');
     return (
@@ -561,105 +573,56 @@ const ChatLayout = () => {
   });
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar
-        setActiveTab={handleSetActiveThread}
-        isDesktopExpanded={isExpanded}
-        onDesktopExpandedChange={setIsExpanded}
-        onNewChat={handleNewChat}
-        onSignOut={handleSignOut}
-        onDeleteThread={handleDeleteThread}
-        onRenameThread={handleRenameThread}
-        sessions={originalThreads.map(thread => ({
-          id: thread.id,
-          title: thread.title,
-          created_at: thread.created_at
-        }))}
-        currentSession={activeThread}
-      />
-      
-      <main 
-        className="flex-1 h-screen overflow-hidden w-full relative"
-        style={{ 
-          marginLeft: isMobile 
-            ? (isExpanded ? 'var(--sidebar-width)' : '0')
-            : (isExpanded ? 'var(--sidebar-width)' : 'var(--sidebar-collapsed-width)'),
-          width: isMobile
-            ? (isExpanded ? `calc(100% - var(--sidebar-width))` : '100%')
-            : `calc(100% - ${isExpanded ? 'var(--sidebar-width)' : 'var(--sidebar-collapsed-width)'})`,
-          boxSizing: 'border-box',
-          isolation: 'isolate' // Creates a new stacking context
-        }}
-      >
-        <div className="h-full relative w-full">
-          {(originalThreadsLoading || !initialLoadComplete) && !loadingTimeout ? (
-            <div className="flex flex-col items-center justify-center h-full">
-              <LoadingSpinner size="lg" />
-              <p className="mt-4 text-sm text-gray-500">Loading conversations...</p>
-            </div>
-          ) : loadingTimeout ? (
-            <div className="flex flex-col items-center justify-center h-full">
-              <div className="text-center max-w-md mx-auto p-6">
-                <h3 className="text-xl font-semibold mb-2">Taking longer than expected</h3>
-                <p className="mb-4 text-gray-600">
-                  We're having trouble loading your conversations. The database might be slow to respond.
-                </p>
-                <div className="flex justify-center">
-                  <button
-                    onClick={handleRefresh}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                  >
-                    Refresh
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <>
-              {activeThread ? (
-                <ChatInterface
-                  threadId={activeThread}
-                  messages={threadMessages}
-                  loading={messagesLoading}
-                  loadingTimeout={messagesTimeoutIdRef.current !== null && messagesLoading}
-                  onSend={messagesResult?.sendMessage}
-                  onRefresh={handleRefresh}
-                  messageCount={messageCount}
-                  messageLimit={messageLimit}
-                  preservedMessage={preservedMessage}
-                  showPaywall={showPaywall}
-                />
-              ) : initialLoadComplete && (
-                <div className="flex flex-col items-center justify-center h-full">
-                  <div className="text-center max-w-md mx-auto p-6">
-                    <h3 className="text-xl font-semibold mb-2">No conversation selected</h3>
-                    <p className="mb-4 text-gray-600">
-                      {originalThreads.length === 0 ? 
-                        "We couldn't load any conversations. The database might be responding slowly." : 
-                        "Select a conversation from the sidebar or create a new one to get started."}
-                    </p>
-                    <div className="flex justify-center gap-4">
-                      <button
-                        onClick={handleRefresh}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                      >
-                        Refresh
-                      </button>
-                      <button
-                        onClick={handleNewChat}
-                        className="px-4 py-2 bg-[#FF5A1F] text-white rounded-md hover:bg-[#E36012] transition-colors"
-                      >
-                        New Chat
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {showPaywall && renderPaywall()}
-            </>
-          )}
+    <div className="flex h-full bg-gray-50 dark:bg-gray-900 overflow-hidden">
+      {/* Mobile sidebar overlay */}
+      {isSidebarOpen && !isDesktop && (
+        <div 
+          className="fixed inset-0 bg-black/30 z-20"
+          onClick={() => setIsSidebarOpen(false)}
+        >
+          <button 
+            className="absolute top-4 right-4 p-2 rounded-full bg-gray-800 text-white" 
+            onClick={() => setIsSidebarOpen(false)}
+            aria-label="Close sidebar"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
-      </main>
+      )}
+
+      {/* Sidebar - conditionally shown based on state for mobile */}
+      <div 
+        className={`${
+          isSidebarOpen || isDesktop ? 'translate-x-0' : '-translate-x-full'
+        } ${
+          isDesktop ? 'relative' : 'fixed'
+        } w-64 h-full transition-transform duration-300 ease-in-out z-30 md:z-10`}
+      >
+        <Sidebar
+          setActiveTab={handleSetActiveThread}
+          isDesktopExpanded={isExpanded}
+          onDesktopExpandedChange={setIsExpanded}
+          onNewChat={handleNewChat}
+          onSignOut={handleSignOut}
+          onDeleteThread={handleDeleteThread}
+          onRenameThread={handleRenameThread}
+          sessions={originalThreads.map(thread => ({
+            id: thread.id,
+            title: thread.title,
+            created_at: thread.created_at
+          }))}
+          currentSession={activeThread}
+        />
+      </div>
+
+      {/* Main chat area */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        <ChatInterface 
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
+          isSidebarOpen={isSidebarOpen}
+          isDesktop={isDesktop}
+        />
+      </div>
     </div>
   );
 };
