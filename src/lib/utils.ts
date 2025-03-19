@@ -8,18 +8,23 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Format a date string into a human-readable format
  */
-export function formatDate(dateString: string): string {
+export function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return '';
   
-  const date = new Date(dateString);
-  
-  // Check if the date is valid
-  if (isNaN(date.getTime())) return '';
-  
-  // Format the date as Month Day, Year
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
-  }).format(date);
+  try {
+    const date = new Date(dateString);
+    
+    // Check if the date is valid
+    if (isNaN(date.getTime())) return '';
+    
+    // Format the date as Month Day, Year
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(date);
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return '';
+  }
 }
