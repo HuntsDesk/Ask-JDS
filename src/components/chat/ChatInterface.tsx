@@ -1,9 +1,15 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import { Menu } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { SidebarContext } from '@/App';
+import { PaperAirplaneIcon, ChevronDownIcon, XIcon } from '@heroicons/react/solid';
+import { format } from 'date-fns';
+import VirtualMessageList from './VirtualMessageList';
+import { cn } from '@/lib/utils';
+import { Menu as MenuIcon } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -15,14 +21,15 @@ interface Message {
 interface ChatInterfaceProps {
   onToggleSidebar: () => void;
   isSidebarOpen: boolean;
-  isDesktop: boolean;
+  isDesktop?: boolean;
 }
 
 export function ChatInterface({
   onToggleSidebar,
   isSidebarOpen,
-  isDesktop
+  isDesktop = false,
 }: ChatInterfaceProps) {
+  const { sidebarZIndex } = useContext(SidebarContext);
   const { id } = useParams();
   const messageEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -30,6 +37,9 @@ export function ChatInterface({
   const [isTyping, setIsTyping] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [hasMultipleClicks, setHasMultipleClicks] = useState(false);
+  const clickCount = useRef(0);
+  const clickTimer = useRef<NodeJS.Timeout | null>(null);
   
   useEffect(() => {
     // Scroll to bottom when messages change
@@ -45,6 +55,46 @@ export function ChatInterface({
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [message]);
+
+  // Handle multiple rapid clicks on menu button
+  const handleMenuClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Increment click counter and set flag for multiple clicks
+    clickCount.current += 1;
+    
+    // Clear existing timer
+    if (clickTimer.current) {
+      clearTimeout(clickTimer.current);
+    }
+    
+    // Set a timer to reset click count after 500ms
+    clickTimer.current = setTimeout(() => {
+      if (clickCount.current > 1) {
+        console.log('Multiple clicks detected:', clickCount.current);
+        setHasMultipleClicks(true);
+        
+        // Auto-reset after 2 seconds
+        setTimeout(() => {
+          setHasMultipleClicks(false);
+        }, 2000);
+      }
+      clickCount.current = 0;
+    }, 500);
+    
+    // Call the sidebar toggle function
+    onToggleSidebar();
+  };
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      if (clickTimer.current) {
+        clearTimeout(clickTimer.current);
+      }
+    };
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
@@ -105,12 +155,25 @@ export function ChatInterface({
       {/* Header */}
       <header className="border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex items-center justify-between">
         <button
-          onClick={onToggleSidebar}
+          onClick={handleMenuClick}
           className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800"
+          style={{ zIndex: sidebarZIndex + 10 }}
           aria-label="Toggle sidebar"
         >
-          <Menu className="h-5 w-5" />
+          {isDesktop ? (
+            <MenuIcon className="h-6 w-6 text-gray-700 dark:text-gray-300" />
+          ) : (
+            <MenuIcon className="h-6 w-6 text-gray-700 dark:text-gray-300" />
+          )}
         </button>
+
+        {/* Show warning if multiple clicks detected */}
+        {hasMultipleClicks && (
+          <div className="fixed top-16 left-0 right-0 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 p-2 text-center text-sm animate-pulse">
+            The menu button was clicked multiple times. Try a single click instead.
+          </div>
+        )}
+
         <h1 className="text-xl font-semibold text-gray-800 dark:text-white">Chat</h1>
         <div className="w-9"></div> {/* Spacer for alignment */}
       </header>
