@@ -5,7 +5,7 @@ import { createCheckoutSession } from '@/lib/subscription';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { BookOpen, MessageSquare, Clock } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/lib/auth';
 import { useNavigate } from 'react-router-dom';
 
 interface FlashcardPaywallProps {
