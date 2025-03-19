@@ -41,9 +41,13 @@ export const SelectedThreadContext = createContext<{
 export const SidebarContext = createContext<{
   isExpanded: boolean;
   setIsExpanded: (expanded: boolean) => void;
+  sidebarZIndex: number;
+  setSidebarZIndex: (zIndex: number) => void;
 }>({
   isExpanded: false,
   setIsExpanded: () => {},
+  sidebarZIndex: 100,
+  setSidebarZIndex: () => {}
 });
 
 // Provider component for the selected thread
@@ -53,6 +57,11 @@ function SelectedThreadProvider({ children }: { children: React.ReactNode }) {
   // Log changes to the selected thread for debugging
   useEffect(() => {
     console.log('Global thread selection changed to:', selectedThreadId);
+    
+    // Cleanup function to handle page changes
+    return () => {
+      console.log('SelectedThreadProvider cleanup');
+    };
   }, [selectedThreadId]);
   
   return (
@@ -65,11 +74,14 @@ function SelectedThreadProvider({ children }: { children: React.ReactNode }) {
 // Provider component for sidebar state
 function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
+  const [sidebarZIndex, setSidebarZIndex] = useState<number>(100);
   
   return (
     <SidebarContext.Provider value={{ 
       isExpanded, 
-      setIsExpanded 
+      setIsExpanded,
+      sidebarZIndex,
+      setSidebarZIndex
     }}>
       {children}
     </SidebarContext.Provider>
