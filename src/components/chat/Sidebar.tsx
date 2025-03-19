@@ -114,14 +114,18 @@ export function Sidebar({
   }, []);
 
   const handleMouseEnter = useCallback(() => {
+    console.log('Mouse enter - isContextMenuOpen:', isContextMenuOpen, 'isPinned:', isPinned);
     if (!isMobile && !isContextMenuOpen && !isPinned) {
+      console.log('Expanding sidebar on hover');
       onDesktopExpandedChange(true);
       setIsExpanded(true);
     }
   }, [isMobile, isContextMenuOpen, isPinned, onDesktopExpandedChange, setIsExpanded]);
 
   const handleMouseLeave = useCallback(() => {
+    console.log('Mouse leave - isContextMenuOpen:', isContextMenuOpen, 'isPinned:', isPinned);
     if (!isMobile && !isContextMenuOpen && !isPinned) {
+      console.log('Collapsing sidebar on leave');
       onDesktopExpandedChange(false);
       setIsExpanded(false);
     }
@@ -346,8 +350,9 @@ export function Sidebar({
           isMobile && !isDesktopExpanded ? "opacity-0 pointer-events-none w-0 -translate-x-full sidebar-hidden-mobile" : "",
           isMobile && isDesktopExpanded ? "w-[var(--sidebar-width)] shadow-xl expanded" : ""
         )}
-        onMouseEnter={!isMobile ? handleMouseEnter : undefined}
-        onMouseLeave={!isMobile ? handleMouseLeave : undefined}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        style={{ overflow: 'hidden' }}
       >
         {/* Logo section */}
         <div className="sticky top-0 z-30 bg-background border-b">

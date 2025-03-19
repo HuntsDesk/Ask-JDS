@@ -14,10 +14,10 @@ import { SelectedThreadContext, SidebarContext } from '@/App';
 import useMediaQuery from '@/hooks/useMediaQuery';
 import { X } from 'lucide-react';
 
-// Change from named export to default function
-export default function ChatLayout() {
+// Export as default for lazy loading
+const ChatLayout = () => {
   const { user, signOut } = useAuth();
-  const { isExpanded, setIsExpanded, sidebarZIndex, setSidebarZIndex } = useContext(SidebarContext);
+  const { isExpanded, setIsExpanded } = useContext(SidebarContext);
   const [activeThread, setActiveThread] = useState<string | null>(null);
   const [activeThreadTitle, setActiveThreadTitle] = useState<string>('');
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -29,14 +29,12 @@ export default function ChatLayout() {
   const [isMobile, setIsMobile] = useState(false);
   const [isThreadDeletion, setIsThreadDeletion] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  // Add state for tracking mobile sidebar
-  const [mobileOverlayActive, setMobileOverlayActive] = useState(false);
   
   const navigate = useNavigate();
-  const params = useParams<{ id?: string }>();
+  const params = useParams<{ threadId?: string }>();
   const [searchParams] = useSearchParams();
   
-  const threadId = params.id || null;
+  const threadId = params.threadId || null;
   const initialTitle = threadId ? searchParams.get('title') || 'New Chat' : 'New Chat';
 
   const {
@@ -55,9 +53,6 @@ export default function ChatLayout() {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isDesktop = useMediaQuery('(min-width: 768px)');
-  
-  // Track when sidebar interaction happens
-  const sidebarInteractionCountRef = useRef(0);
 
   // A helper function to log thread details
   const logThreadInfo = () => {
@@ -214,7 +209,7 @@ export default function ChatLayout() {
   // Create a callback for updating thread titles
   const handleThreadTitleGenerated = async (title: string) => {
     if (activeThread) {
-      console.log(`Updating thread title to "${title}" after 3 messages`);
+      console.log(`Updating thread title to "${title}" after 2 messages`);
       await updateThread(activeThread, { title });
     }
   };
@@ -546,29 +541,12 @@ export default function ChatLayout() {
     );
   };
 
-  // Toggle sidebar with better mobile handling
-  const toggleSidebar = () => {
-    console.log('Toggling sidebar. Current state:', isSidebarOpen);
-    sidebarInteractionCountRef.current += 1;
-    
-    // On mobile, we need to manage a different UX experience
+  // Close sidebar when switching to mobile view
+  useEffect(() => {
     if (!isDesktop) {
-      // Track that mobile overlay is active when opening, inactive when closing
-      setMobileOverlayActive(!isSidebarOpen);
-      
-      // Set z-index for proper overlay stacking
-      if (!isSidebarOpen) {
-        setSidebarZIndex(1000);
-      } else {
-        // Reset z-index when closing
-        setTimeout(() => {
-          setSidebarZIndex(100);
-        }, 300); // Match transition duration
-      }
+      setIsSidebarOpen(false);
     }
-    
-    setIsSidebarOpen(!isSidebarOpen);
-  };
+  }, [isDesktop]);
 
   if (originalThreadsLoading && !loadingTimeout && !isThreadDeletion) {
     console.log('ChatLayout: Showing loading spinner for threads');
@@ -594,77 +572,75 @@ export default function ChatLayout() {
     messagesCount: threadMessages.length 
   });
 
+  // For desktop: calculate the sidebar width based on expanded state
+  const sidebarWidth = isDesktop ? (isExpanded ? 'w-64' : 'w-16') : 'w-64';
+  
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900 relative">
-      {/* Toggle sidebar button overlay for mobile - separate from ChatInterface */}
-      {!isDesktop && (
+    <div className="flex h-full bg-gray-50 dark:bg-gray-900 overflow-hidden">
+      {/* Mobile sidebar overlay */}
+      {isSidebarOpen && !isDesktop && (
         <div 
-          className="fixed top-4 left-4 z-[1001] md:hidden" 
-          style={{ pointerEvents: mobileOverlayActive ? 'none' : 'auto' }}
+          className="fixed inset-0 bg-black/30 z-20"
+          onClick={() => setIsSidebarOpen(false)}
         >
-          <button
-            onClick={toggleSidebar}
-            className="p-2 rounded-md bg-gray-100 dark:bg-gray-800 shadow-md"
-            aria-label="Toggle sidebar"
+          <button 
+            className="absolute top-4 right-4 p-2 rounded-full bg-gray-800 text-white" 
+            onClick={() => setIsSidebarOpen(false)}
+            aria-label="Close sidebar"
           >
-            <svg
-              className="w-6 h-6 text-gray-700 dark:text-gray-300"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
+            <X className="h-5 w-5" />
           </button>
         </div>
       )}
 
-      {/* Sidebar */}
-      <div style={{ zIndex: sidebarZIndex }} className="sidebar-container">
+      {/* Sidebar with proper width handling */}
+      <div 
+        className={`${
+          isSidebarOpen || isDesktop ? 'translate-x-0' : '-translate-x-full'
+        } ${
+          isDesktop ? 'relative' : 'fixed'
+        } ${sidebarWidth} h-full transition-all duration-300 ease-in-out z-30 md:z-10 shrink-0`}
+      >
         <Sidebar
-          currentSession={activeThread}
-          isExpanded={isDesktop ? isExpanded : isSidebarOpen}
           setActiveTab={handleSetActiveThread}
-          isPinned={isExpanded}
+          isDesktopExpanded={isExpanded}
+          onDesktopExpandedChange={setIsExpanded}
           onNewChat={handleNewChat}
           onSignOut={handleSignOut}
           onDeleteThread={handleDeleteThread}
           onRenameThread={handleRenameThread}
-          sessions={threads}
-          isMobile={!isDesktop}
+          sessions={originalThreads.map(thread => ({
+            id: thread.id,
+            title: thread.title,
+            created_at: thread.created_at
+          }))}
+          currentSession={activeThread}
         />
       </div>
 
-      {/* Mobile overlay to handle closing sidebar when tapping outside */}
-      {!isDesktop && isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-[999]" 
-          onClick={toggleSidebar}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Main chat area */}
-      <div 
-        className="flex-1 flex flex-col overflow-hidden"
-        style={{ 
-          marginLeft: isDesktop 
-            ? (isExpanded ? 'var(--sidebar-width)' : '0')
-            : '0'
-        }}
-      >
-        <ChatInterface
-          onToggleSidebar={toggleSidebar}
+      {/* Main chat area with full width when sidebar is minimized */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden w-full">
+        <ChatInterface 
+          threadId={activeThread}
+          messages={threadMessages}
+          loading={messagesLoading}
+          loadingTimeout={messagesTimeoutIdRef.current !== null && messagesLoading}
+          onSend={messagesResult?.sendMessage}
+          onRefresh={handleRefresh}
+          messageCount={messageCount}
+          messageLimit={messageLimit}
+          preservedMessage={preservedMessage}
+          showPaywall={showPaywall}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
           isSidebarOpen={isSidebarOpen}
           isDesktop={isDesktop}
+          isGenerating={isGenerating}
         />
       </div>
     </div>
   );
-}
+};
+
+// Export both as default and named export for compatibility
+export { ChatLayout };
+export default ChatLayout;
