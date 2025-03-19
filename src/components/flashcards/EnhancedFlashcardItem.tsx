@@ -3,6 +3,23 @@ import { Check, FileEdit, Trash2, BookOpen, Layers, Award } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Tooltip from './Tooltip';
 
+// Add the formatDate utility function
+const formatDate = (dateString: string | null | undefined) => {
+  if (!dateString) return '';
+  
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString(undefined, { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return '';
+  }
+};
+
 interface EnhancedFlashcardItemProps {
   flashcard: any;
   onToggleMastered: (flashcard: any) => void;
