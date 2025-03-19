@@ -5,14 +5,19 @@ import { createCheckoutSession } from '@/lib/subscription';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { BookOpen, MessageSquare, Clock } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface FlashcardPaywallProps {
   onCancel?: () => void;
 }
 
 export function FlashcardPaywall({ onCancel }: FlashcardPaywallProps) {
-  const [isLoading, setIsLoading] = React.useState(false);
+  console.log('FlashcardPaywall rendered, localStorage.forceSubscription:', localStorage.getItem('forceSubscription'));
   const { toast, dismiss } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = React.useState(false);
 
   // Dismiss toasts when component mounts
   React.useEffect(() => {

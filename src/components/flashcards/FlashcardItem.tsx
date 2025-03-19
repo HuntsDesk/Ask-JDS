@@ -67,8 +67,8 @@ const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
 
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col h-full ${flashcard.is_mastered ? "border-l-4 border-green-500" : ""}`}>
-      {/* Premium banner - show on ALL premium cards, regardless of tab */}
-      {isPremium && (
+      {/* Premium banner - show only if user doesn't have subscription */}
+      {isPremium && !hasSubscription && (
         <div className="bg-[#F37022] text-white px-4 py-1 text-sm font-medium">
           PREMIUM CONTENT
         </div>

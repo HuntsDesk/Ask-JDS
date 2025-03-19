@@ -34,16 +34,17 @@ export default function Card({
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col h-full">
       <div className="p-4 md:p-6 flex-grow">
-        <div className="flex items-center gap-2 mb-3">
-          <Layers className="h-5 w-5 text-[#F37022]" />
-          <h3 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-1">
-            {title}
-            {isOfficial && <Lock className="h-4 w-4 text-[#F37022] ml-1" />}
-          </h3>
+        <div className="flex items-start gap-2 mb-3">
+          <Layers className="h-5 w-5 flex-shrink-0 mt-1 text-[#F37022]" />
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white break-words hyphens-auto">
+              {title}
+            </h3>
+          </div>
         </div>
         
         {description && (
-          <p className="text-sm md:text-base text-gray-700 dark:text-gray-300 mb-4">
+          <p className="text-sm md:text-base text-gray-700 dark:text-gray-300 mb-4 line-clamp-2">
             {description}
           </p>
         )}
@@ -52,8 +53,8 @@ export default function Card({
           <div className="flex flex-col space-y-2">
             {tag && subjectId && (
               <div className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-indigo-500" />
-                <span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
+                <BookOpen className="h-4 w-4 flex-shrink-0 text-indigo-500" />
+                <span className="text-xs md:text-sm text-gray-600 dark:text-gray-400 truncate">
                   <Link 
                     to={`/flashcards/subjects/${subjectId}`}
                     className="font-medium text-[#F37022] hover:text-[#E36012] hover:underline"
@@ -65,14 +66,14 @@ export default function Card({
             )}
             
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-blue-500" />
+              <FileText className="h-4 w-4 flex-shrink-0 text-blue-500" />
               <span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
                 <span className="font-medium">{count}</span> cards
               </span>
             </div>
             
             <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
+              <CheckCircle className="h-4 w-4 flex-shrink-0 text-green-500" />
               <span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
                 <span className="font-medium">{masteredCount}</span> mastered
                 {count > 0 && <span className="text-xs ml-1 text-gray-500 dark:text-gray-500">({masteryPercentage}%)</span>}
@@ -82,9 +83,9 @@ export default function Card({
         </div>
       </div>
       
-      <div className="p-4 md:p-6 pt-0 mt-auto">
+      <div className="p-4 md:p-6 pt-3 pb-3 mt-auto bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
         <div className="flex justify-between items-center">
-          <div className="flex gap-1 md:gap-2">
+          <div className="flex gap-1 md:gap-2 items-center">
             <Tooltip text="Add Card" position="top">
               <Link
                 to={`/flashcards/add-card/${collectionId}`}
@@ -114,6 +115,14 @@ export default function Card({
                   </Tooltip>
                 )}
               </>
+            )}
+            
+            {isOfficial && (
+              <Tooltip text="Official Collection" position="top">
+                <div className="flex-shrink-0 text-[#F37022]">
+                  <Lock className="h-4 md:h-5 w-4 md:w-5" />
+                </div>
+              </Tooltip>
             )}
           </div>
           

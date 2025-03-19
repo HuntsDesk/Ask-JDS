@@ -1,8 +1,15 @@
 import React, { useState } from 'react';
-import { Check, FileEdit, Trash2, BookOpen, Layers, Award } from 'lucide-react';
+import { Check, FileEdit, Trash2, BookOpen, Layers, Award, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Tooltip from './Tooltip';
 import { formatDate } from '@/lib/utils';
+
+// Create a custom Premium "P" icon component
+const PremiumIcon = () => (
+  <div className="h-4 w-4 flex items-center justify-center rounded-full bg-[#F37022] text-white font-bold text-[10px]">
+    P
+  </div>
+);
 
 interface EnhancedFlashcardItemProps {
   flashcard: any;
@@ -111,7 +118,7 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
       {/* Main content */}
       <div className="p-4 md:p-6 flex-grow">
         <div className="mb-3">
-          <h3 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white">
+          <h3 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white break-words hyphens-auto">
             {flashcard.question}
           </h3>
         </div>
@@ -150,10 +157,6 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
                           to={`/flashcards/subjects/${subject.id}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (onStudySubject) {
-                              e.preventDefault();
-                              onStudySubject(subject);
-                            }
                           }}
                           className="text-[#F37022] hover:underline font-medium"
                         >
@@ -256,7 +259,15 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
           </div>
           
           <div className="text-xs text-gray-500 dark:text-gray-400">
-            {formatDate(flashcard.created_at)}
+            {isDefinitelyPremium ? (
+              <Tooltip text="Premium Content" position="top">
+                <div className="flex-shrink-0 text-[#F37022]">
+                  <PremiumIcon />
+                </div>
+              </Tooltip>
+            ) : (
+              formatDate(flashcard.created_at)
+            )}
           </div>
         </div>
       </div>

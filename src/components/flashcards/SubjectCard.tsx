@@ -146,34 +146,35 @@ export default function SubjectCard({
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col h-full">
-      <div className="p-6 flex-grow">
-        <div className="flex items-center gap-2 mb-3">
-          <BookOpen className="h-5 w-5 text-[#F37022]" />
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1">
-            {name}
-            {isOfficial && <Lock className="h-4 w-4 text-[#F37022] ml-1" />}
-          </h3>
+      <div className="p-4 md:p-6 flex-grow">
+        <div className="flex items-start gap-2 mb-3">
+          <BookOpen className="h-5 w-5 flex-shrink-0 mt-1 text-[#F37022]" />
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100 break-words hyphens-auto">
+              {name}
+            </h3>
+          </div>
         </div>
         
         {/* Only show description if it exists */}
         {description && (
-          <p className="text-gray-700 dark:text-gray-300 mb-4">
+          <p className="text-sm md:text-base text-gray-700 dark:text-gray-300 mb-4 line-clamp-2">
             {description}
           </p>
         )}
         
-        <div className="mb-5">
+        <div className="mb-4">
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
-              <Layers className="h-4 w-4 text-indigo-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <Layers className="h-4 w-4 flex-shrink-0 text-indigo-500" />
+              <span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
                 <span className="font-medium">{collectionCount}</span> {collectionCount === 1 ? 'collection' : 'collections'}
               </span>
             </div>
             
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-blue-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <FileText className="h-4 w-4 flex-shrink-0 text-blue-500" />
+              <span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
                 {loading ? (
                   <span className="text-gray-400 dark:text-gray-500">Loading card data...</span>
                 ) : (
@@ -185,8 +186,8 @@ export default function SubjectCard({
             </div>
             
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-green-500" />
+              <span className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
                 {loading ? (
                   <span className="text-gray-400 dark:text-gray-500">Loading...</span>
                 ) : (
@@ -207,15 +208,15 @@ export default function SubjectCard({
         </div>
       </div>
       
-      <div className="p-6 pt-0 mt-auto">
+      <div className="p-4 md:p-6 pt-3 pb-3 mt-auto bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
         <div className="flex justify-between items-center">
-          <div className="flex gap-2">
+          <div className="flex gap-1 md:gap-2 items-center">
             <Tooltip text="Create Flashcard Collection" position="top">
               <Link
                 to={`/flashcards/create-collection?subject=${id}`}
                 className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
               >
-                <PlusCircle className="h-5 w-5" />
+                <PlusCircle className="h-4 md:h-5 w-4 md:w-5" />
               </Link>
             </Tooltip>
             {!isOfficial && (
@@ -225,7 +226,7 @@ export default function SubjectCard({
                     to={`/flashcards/edit-subject/${id}`}
                     className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
                   >
-                    <Edit className="h-5 w-5" />
+                    <Edit className="h-4 md:h-5 w-4 md:w-5" />
                   </Link>
                 </Tooltip>
                 {showDeleteButton && onDelete && (
@@ -234,16 +235,25 @@ export default function SubjectCard({
                       onClick={onDelete}
                       className="text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
                     >
-                      <Trash2 className="h-5 w-5" />
+                      <Trash2 className="h-4 md:h-5 w-4 md:w-5" />
                     </button>
                   </Tooltip>
                 )}
               </>
             )}
+            
+            {isOfficial && (
+              <Tooltip text="Official Subject" position="top">
+                <div className="flex-shrink-0 text-[#F37022]">
+                  <Lock className="h-4 md:h-5 w-4 md:w-5" />
+                </div>
+              </Tooltip>
+            )}
           </div>
+          
           <button
             onClick={onStudy}
-            className="bg-[#F37022]/10 text-[#F37022] px-4 py-2 rounded-md hover:bg-[#F37022]/20 dark:bg-[#F37022]/20 dark:hover:bg-[#F37022]/30"
+            className="bg-[#F37022]/10 text-[#F37022] px-3 py-1 md:px-4 md:py-2 text-sm rounded-md hover:bg-[#F37022]/20 dark:bg-[#F37022]/20 dark:hover:bg-[#F37022]/30"
           >
             Study Now
           </button>
