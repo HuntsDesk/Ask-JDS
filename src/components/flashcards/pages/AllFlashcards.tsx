@@ -74,7 +74,7 @@ export default function AllFlashcards() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalCardCount, setTotalCardCount] = useState(0);
-  const ITEMS_PER_PAGE = 12;
+  const ITEMS_PER_PAGE = 15;
   
   // Improved intersection observer setup
   const observerRef = useRef<IntersectionObserver | null>(null);
