@@ -33,3 +33,14 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
           SOURCE_DIR: "dist"  # Ensure this matches your React output directory
+
+      # New step: Invalidate CloudFront cache
+      - name: Invalidate CloudFront Cache
+        uses: koki-develop/cloudfront-invalidate-action@v1
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        with:
+          id: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+          # 'paths' input is optional; defaults to '/*' to clear all files [oai_citation_attribution:5‡github.com](https://github.com/koki-develop/cloudfront-invalidate-action#:~:text=Name%20Description%20,The%20default%20is)
