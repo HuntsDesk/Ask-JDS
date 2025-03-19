@@ -421,7 +421,7 @@ export function Sidebar({
                     {isPinned ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
+                <TooltipContent className="bg-gray-900 text-white">
                   {isPinned ? "Unpin sidebar" : "Pin sidebar open"}
                 </TooltipContent>
               </Tooltip>
