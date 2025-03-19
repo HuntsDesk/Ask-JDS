@@ -123,6 +123,49 @@ export default function SubjectStudy() {
     }
   }, [id, showMastered, retryCount]);
 
+  // Effect to load data when id or showMastered changes
+  useEffect(() => {
+    if (id) {
+      // Reset index and show answer state when toggling mastered cards
+      setCurrentIndex(0);
+      setShowAnswer(false);
+      loadData().catch(err => {
+        console.error("Failed to load data:", err);
+        setError(`Failed to load data: ${err.message || "Unknown error"}`);
+        setLoading(false);
+      });
+    } else {
+      setError("Missing subject ID");
+      setLoading(false);
+    }
+  }, [id, showMastered, retryCount]);
+  
+  // Effect to recheck subscription status periodically
+  useEffect(() => {
+    const checkSubscriptionStatus = async () => {
+      if (user) {
+        try {
+          console.log("SubjectStudy: Rechecking subscription status");
+          const hasAccess = await hasActiveSubscription(user.id);
+          console.log("SubjectStudy: Updated subscription status:", hasAccess);
+          setHasSubscription(hasAccess);
+        } catch (err) {
+          console.error("Error rechecking subscription:", err);
+          // On error, default to true to allow access
+          setHasSubscription(true);
+        }
+      }
+    };
+    
+    // Check immediately when component mounts
+    checkSubscriptionStatus();
+    
+    // Set up interval to check every 30 seconds
+    const intervalId = setInterval(checkSubscriptionStatus, 30000);
+    
+    return () => clearInterval(intervalId);
+  }, [user]);
+
   const hideToast = () => {
     setToast(null);
   };
@@ -589,7 +632,12 @@ export default function SubjectStudy() {
   const isUserCard = currentCard && user && currentCard.created_by === user.id;
   const isPremiumBlurred = (currentCard && currentCard.is_official && !hasSubscription && !isUserCard) || forcePremiumTest;
   
-  console.log("SubjectStudy render - isPremiumBlurred:", isPremiumBlurred, "isOfficialContent:", isOfficialContent, "hasSubscription:", hasSubscription);
+  console.log("SubjectStudy render - isPremiumBlurred:", isPremiumBlurred, 
+    "isOfficialContent:", isOfficialContent, 
+    "hasSubscription:", hasSubscription,
+    "card.is_official:", currentCard?.is_official,
+    "isUserCard:", isUserCard,
+    "localStorage.forceSubscription:", localStorage.getItem('forceSubscription'));
 
   return (
     <div className="max-w-3xl mx-auto">

@@ -594,11 +594,20 @@ export function clearCachedSubscription(): void {
  * Check if the user has an active subscription
  */
 export async function hasActiveSubscription(userId?: string): Promise<boolean> {
+  // DEV ONLY: Enable force subscription flag via localStorage
+  if (process.env.NODE_ENV === 'development') {
+    const forceSubscription = localStorage.getItem('forceSubscription');
+    if (forceSubscription === 'true') {
+      console.log('DEV: Forcing subscription to true via localStorage flag');
+      return true;
+    }
+  }
+
   // Create a promise that resolves after a timeout
   const timeoutPromise = new Promise<boolean>((resolve) => {
     setTimeout(() => {
-      console.warn('hasActiveSubscription timeout - defaulting to false');
-      resolve(false);
+      console.warn('hasActiveSubscription timeout - defaulting to true for user experience');
+      resolve(true); // Default to true on timeout to allow access
     }, 5000); // 5 second timeout
   });
   
@@ -644,7 +653,8 @@ export async function hasActiveSubscription(userId?: string): Promise<boolean> {
       return isActive;
     } catch (error) {
       console.error('Error checking subscription status:', error);
-      return false;
+      // Default to true on error to allow access rather than blocking
+      return true;
     }
   })();
   

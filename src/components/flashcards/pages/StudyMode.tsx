@@ -438,6 +438,32 @@ export default function StudyMode() {
     loadData();
   }, [id, user, showMastered]);
 
+  // Recheck subscription status periodically
+  useEffect(() => {
+    const checkSubscriptionStatus = async () => {
+      if (user) {
+        try {
+          console.log("StudyMode: Rechecking subscription status");
+          const hasAccess = await hasActiveSubscription(user.id);
+          console.log("StudyMode: Updated subscription status:", hasAccess);
+          setHasSubscription(hasAccess);
+        } catch (err) {
+          console.error("Error rechecking subscription:", err);
+          // On error, default to true to allow access
+          setHasSubscription(true);
+        }
+      }
+    };
+    
+    // Check immediately when component mounts
+    checkSubscriptionStatus();
+    
+    // Set up interval to check every 30 seconds
+    const intervalId = setInterval(checkSubscriptionStatus, 30000);
+    
+    return () => clearInterval(intervalId);
+  }, [user]);
+
   const shuffleCards = () => {
     const shuffled = [...cards]
       .map(value => ({ value, sort: Math.random() }))
@@ -708,7 +734,12 @@ export default function StudyMode() {
   
   const isPremiumBlurred = currentCard && currentCard.is_official === true && hasSubscription === false && !isUserCard;
   
-  console.log("StudyMode render - isPremiumBlurred:", isPremiumBlurred, "isOfficialContent:", isOfficialContent, "hasSubscription:", hasSubscription);
+  console.log("StudyMode render - isPremiumBlurred:", isPremiumBlurred, 
+    "isOfficialContent:", isOfficialContent, 
+    "hasSubscription:", hasSubscription,
+    "card.is_official:", currentCard?.is_official,
+    "isUserCard:", isUserCard,
+    "localStorage.forceSubscription:", localStorage.getItem('forceSubscription'));
 
   return (
     <div className="max-w-3xl mx-auto">
