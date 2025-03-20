@@ -649,66 +649,40 @@ export default function FlashcardCollections() {
       )}
 
       <div className="flex flex-col space-y-4 mb-6">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                {selectedSubject ? `${selectedSubject.name} Collections` : 'Collections'}
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                {totalCollectionCount} {totalCollectionCount === 1 ? 'collection' : 'collections'}
-              </p>
-            </div>
-            
-            {/* Subject filter moved to the left of the slider */}
-            <div className="relative">
-              <select
-                className="pl-8 pr-4 py-2 border rounded-md bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white appearance-none"
-                value={selectedSubjectId}
-                onChange={(e) => handleSubjectFilter(e.target.value)}
-                style={{ minWidth: '150px' }}
+        {/* Title and count section */}
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            {selectedSubject ? `${selectedSubject.name} Collections` : 'Collections'}
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            {totalCollectionCount} {totalCollectionCount === 1 ? 'collection' : 'collections'}
+          </p>
+        </div>
+
+        {/* Filter tabs */}
+        <div>
+          <Tabs value={filter} onValueChange={handleFilterChange}>
+            <TabsList className="grid grid-cols-3" style={{ backgroundColor: 'var(--background)' }}>
+              <TabsTrigger 
+                value="all"
+                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
               >
-                <option value="" className="bg-white dark:bg-gray-700">All Subjects</option>
-                {subjects.map((subject) => (
-                  <option key={subject.id} value={subject.id} className="bg-white dark:bg-gray-700">
-                    {subject.name}
-                  </option>
-                ))}
-              </select>
-              <Book className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 h-5 w-5" />
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-              </div>
-            </div>
-          </div>
-          
-          {/* Filter tabs */}
-          <div>
-            <Tabs value={filter} onValueChange={handleFilterChange}>
-              <TabsList className="grid grid-cols-3" style={{ backgroundColor: 'var(--background)' }}>
-                <TabsTrigger 
-                  value="all"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  All
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="official"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  Premium
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="my"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  My Collections
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+                All
+              </TabsTrigger>
+              <TabsTrigger 
+                value="official"
+                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+              >
+                Premium
+              </TabsTrigger>
+              <TabsTrigger 
+                value="my"
+                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+              >
+                My Collections
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
       </div>
 
