@@ -8,6 +8,7 @@ import SubjectCard from './SubjectCard';
 import useToast from '@/hooks/useFlashcardToast';
 import Toast from './Toast';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useNavbar } from '@/contexts/NavbarContext';
 
 interface Subject {
   id: string;
@@ -23,6 +24,7 @@ type SubjectFilter = 'all' | 'official' | 'my';
 export default function FlashcardSubjects() {
   const navigate = useNavigate();
   const { toast, showToast, hideToast } = useToast();
+  const { updateCount } = useNavbar();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +34,11 @@ export default function FlashcardSubjects() {
   useEffect(() => {
     loadSubjects();
   }, []);
+
+  // Update filtered subjects count when filter changes
+  useEffect(() => {
+    updateCount(filteredSubjects.length);
+  }, [filteredSubjects.length, updateCount]);
 
   async function loadSubjects() {
     try {
@@ -129,7 +136,7 @@ export default function FlashcardSubjects() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto pb-20 md:pb-8">
       <DeleteConfirmation
         isOpen={!!subjectToDelete}
         onClose={() => setSubjectToDelete(null)}
