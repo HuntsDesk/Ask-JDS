@@ -82,39 +82,87 @@ export default function Navbar() {
     </Link>
   );
 
+  const MobileNavLink = ({ to, icon, text }) => (
+    <Link 
+      to={to} 
+      className={`flex flex-col items-center justify-center px-2 py-1 ${
+        (location.pathname === to || 
+        (to === '/flashcards/subjects' && location.pathname.includes('/flashcards/subjects/')) ||
+        (to === '/flashcards/collections' && (location.pathname === to || location.pathname.includes('/flashcards/study/'))))
+          ? 'text-[#F37022]' 
+          : 'text-gray-600'
+      }`}
+      onClick={() => setIsMenuOpen(false)}
+    >
+      {icon}
+      <span className="text-xs mt-1">{text}</span>
+    </Link>
+  );
+
   return (
     <nav className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 sticky top-0 z-20 w-full">
       <div className="max-w-6xl mx-auto px-4">
         {/* Mobile header */}
         {isMobile && (
-          <div className="py-3 flex items-center justify-between">
-            <div className="flex items-center">
-              <button
-                className="text-gray-600 dark:text-gray-300 hover:text-[#F37022] focus:outline-none p-2 rounded-md"
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                aria-label="Toggle menu"
+          <>
+            <div className="py-3 flex items-center justify-between">
+              <div className="flex items-center">
+                <button
+                  className="text-gray-600 dark:text-gray-300 hover:text-[#F37022] focus:outline-none p-2 rounded-md"
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  aria-label="Toggle menu"
+                >
+                  {isMenuOpen ? (
+                    <X className="h-6 w-6" />
+                  ) : (
+                    <Menu className="h-6 w-6" />
+                  )}
+                </button>
+                <h1 className="ml-2 text-lg font-semibold">{getCurrentPageTitle()}</h1>
+              </div>
+              <Link
+                to={createConfig.link}
+                className="flex items-center space-x-1 bg-[#F37022] text-white px-3 py-1.5 rounded-md text-sm"
               >
-                {isMenuOpen ? (
-                  <X className="h-6 w-6" />
-                ) : (
-                  <Menu className="h-6 w-6" />
-                )}
-              </button>
-              <h1 className="ml-2 text-lg font-semibold">{getCurrentPageTitle()}</h1>
+                <PlusCircle className="h-4 w-4" />
+                <span>{createConfig.text}</span>
+              </Link>
             </div>
-            <Link
-              to={createConfig.link}
-              className="flex items-center space-x-1 bg-[#F37022] text-white px-3 py-1.5 rounded-md text-sm"
-            >
-              <PlusCircle className="h-4 w-4" />
-              <span>{createConfig.text}</span>
-            </Link>
-          </div>
+
+            {/* Mobile navigation bar */}
+            <div className="border-t border-gray-100">
+              <div className="flex justify-between items-center py-2">
+                <MobileNavLink 
+                  to="/flashcards/subjects" 
+                  icon={<BookOpen className="h-5 w-5" />} 
+                  text="Subjects" 
+                />
+                <MobileNavLink 
+                  to="/flashcards/collections" 
+                  icon={<Layers className="h-5 w-5" />} 
+                  text="Collections" 
+                />
+                <MobileNavLink 
+                  to="/flashcards/flashcards" 
+                  icon={<FileText className="h-5 w-5" />} 
+                  text="Flashcards" 
+                />
+                <MobileNavLink 
+                  to="/flashcards/unified-study" 
+                  icon={<Layers className="h-5 w-5" />} 
+                  text="Study" 
+                />
+              </div>
+              <div className="py-2 border-t border-gray-100">
+                <SearchBar />
+              </div>
+            </div>
+          </>
         )}
 
-        <div className="flex items-center justify-between h-16">
-          {/* Desktop navigation */}
-          <div className="hidden md:flex items-center space-x-6">
+        {/* Desktop navigation */}
+        <div className="hidden md:flex items-center justify-between h-16">
+          <div className="flex items-center space-x-6">
             <NavLink 
               to="/flashcards/subjects" 
               icon={<BookOpen className="h-5 w-5" />} 
@@ -138,12 +186,12 @@ export default function Navbar() {
           </div>
 
           {/* Desktop search */}
-          <div className="hidden md:block flex-grow mx-4">
+          <div className="flex-grow mx-4">
             <SearchBar />
           </div>
 
           {/* Desktop create button */}
-          <div className="hidden md:block">
+          <div>
             <Link
               to={createConfig.link}
               className="flex items-center space-x-1 bg-[#F37022] text-white px-4 py-2 rounded-md"
@@ -156,8 +204,8 @@ export default function Navbar() {
 
         {/* Mobile menu */}
         {isMobile && isMenuOpen && (
-          <div className="md:hidden">
-            <div className="flex flex-col space-y-3 pt-2 pb-4">
+          <div className="border-t border-gray-100">
+            <div className="flex flex-col space-y-3 py-4">
               <NavLink 
                 to="/flashcards/subjects" 
                 icon={<BookOpen className="h-5 w-5" />} 
@@ -178,11 +226,6 @@ export default function Navbar() {
                 icon={<Layers className="h-5 w-5" />} 
                 text="Study" 
               />
-              
-              {/* Mobile search in menu */}
-              <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-                <SearchBar />
-              </div>
             </div>
           </div>
         )}
