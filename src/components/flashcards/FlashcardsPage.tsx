@@ -76,11 +76,16 @@ export default function FlashcardsPage() {
       if (isExpanded) {
         sidebarElement.classList.add('expanded');
         sidebarElement.classList.remove('collapsed');
+        sidebarElement.style.width = 'var(--sidebar-width)';
       } else {
         sidebarElement.classList.add('collapsed');
         sidebarElement.classList.remove('expanded');
+        sidebarElement.style.width = 'var(--sidebar-collapsed-width)';
       }
     }
+    
+    // Force a reflow to ensure the sidebar width is applied
+    window.dispatchEvent(new Event('resize'));
   }, [isExpanded]);
 
   useEffect(() => {
@@ -272,8 +277,7 @@ export default function FlashcardsPage() {
                   component={StudyMode} 
                 />
               } />
-              <Route path="/study" element={<UnifiedStudyMode />} />
-              <Route index element={<Navigate to="/flashcards/study" replace />} />
+              <Route path="/unified-study" element={<UnifiedStudyMode />} />
               <Route path="/create-collection" element={<CreateSet />} />
               <Route path="/create" element={<Navigate to="/flashcards/create-collection" replace />} />
               <Route path="/edit/:id" element={<EditCollection />} />
