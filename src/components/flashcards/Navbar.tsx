@@ -127,19 +127,19 @@ export default function Navbar() {
           <div className="flex items-center justify-between h-16">
             {/* Mobile header */}
             <div className="md:hidden flex items-center justify-between w-full">
-              <div className="flex flex-col">
-                <h1 className="text-lg font-semibold pl-2">
+              <div className="flex flex-col flex-grow">
+                <h1 className="text-lg font-semibold text-center">
                   {pageInfo.title}
                 </h1>
                 {pageInfo.countKey && (
-                  <p className="text-sm text-gray-500 pl-2">
+                  <p className="text-sm text-gray-500 text-center">
                     {/* The count will be populated by the page component */}
                   </p>
                 )}
               </div>
               <button
                 onClick={() => setIsMenuOpen(true)}
-                className="text-gray-600 flex items-center gap-1"
+                className="text-gray-600 flex items-center gap-1 ml-4"
               >
                 <Search className="h-5 w-5" />
               </button>
