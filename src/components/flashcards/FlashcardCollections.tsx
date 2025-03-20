@@ -11,6 +11,7 @@ import useToast from '@/hooks/useFlashcardToast';
 import Toast from './Toast';
 import useFlashcardAuth from '@/hooks/useFlashcardAuth';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useNavbar } from '@/contexts/NavbarContext';
 
 interface FlashcardCollection {
   id: string;
@@ -36,6 +37,7 @@ export default function FlashcardCollections() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast, showToast, hideToast } = useToast();
   const { user } = useFlashcardAuth();
+  const { updateTotalCollectionCount } = useNavbar();
   
   const [collections, setCollections] = useState<FlashcardCollection[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -104,21 +106,25 @@ export default function FlashcardCollections() {
     setHasMore(true);
     setCollections([]);
     
+    // Get filter from URL if present
+    const filterParam = searchParams.get('filter');
+    if (filterParam && ['all', 'official', 'my'].includes(filterParam)) {
+      setFilter(filterParam as 'all' | 'official' | 'my');
+    }
+    
+    // Get subject from URL if present
+    const subjectParam = searchParams.get('subject');
+    if (subjectParam) {
+      setSelectedSubjectId(subjectParam);
+    }
+    
+    // Load data
     Promise.all([
       loadCollections(),
       loadSubjects()
-    ]).then(() => {
-      // Check if there's a filter in the URL
-      const filterParam = searchParams.get('filter');
-      if (filterParam && ['all', 'official', 'my'].includes(filterParam)) {
-        setFilter(filterParam as 'all' | 'official' | 'my');
-      }
-      
-      // Check if there's a subject filter in the URL
-      const subjectParam = searchParams.get('subject');
-      if (subjectParam) {
-        setSelectedSubjectId(subjectParam);
-      }
+    ]).catch(err => {
+      console.error("Error loading initial data:", err);
+      setError("Failed to load collections. Please try again.");
     });
   }, [searchParams]);
   
@@ -133,7 +139,19 @@ export default function FlashcardCollections() {
     try {
       setLoading(true);
       
-      // First, get the total count based on filters
+      // First, get the total count of ALL collections for the navbar
+      const { count: totalCount, error: totalCountError } = await supabase
+        .from('collections')
+        .select('id', { count: 'exact' });
+      
+      if (totalCountError) {
+        console.error("Error getting total count:", totalCountError);
+      } else {
+        // Always update the navbar with the total count
+        updateTotalCollectionCount(totalCount || 0);
+      }
+      
+      // Now get the filtered count based on current view
       let countQuery = supabase.from('collections').select('id', { count: 'exact' });
       
       // Apply filters to count query
@@ -146,7 +164,6 @@ export default function FlashcardCollections() {
       // Apply subject filter if selected
       const subjectId = searchParams.get('subject');
       if (subjectId) {
-        // We'll get the count from the filtered results later
         const { data: collectionSubjects } = await supabase
           .from('collection_subjects')
           .select('collection_id')
@@ -156,7 +173,6 @@ export default function FlashcardCollections() {
         if (collectionIds.length > 0) {
           countQuery = countQuery.in('id', collectionIds);
         } else {
-          // No collections for this subject
           setCollections([]);
           setTotalCollectionCount(0);
           setHasMore(false);
@@ -165,25 +181,23 @@ export default function FlashcardCollections() {
         }
       }
       
-      // Get the count
-      const { count, error: countError } = await countQuery;
+      // Get the filtered count
+      const { count: filteredCount, error: countError } = await countQuery;
       
       if (countError) {
-        console.error("Error getting total count:", countError);
+        console.error("Error getting filtered count:", countError);
       } else {
-        setTotalCollectionCount(count || 0);
-        console.log(`Total collections: ${count}`);
+        // Update the local count for the current view
+        setTotalCollectionCount(filteredCount || 0);
         
-        // If count is 0 or less than or equal to initial page size, set hasMore to false
-        if (count === 0 || count <= ITEMS_PER_PAGE) {
-          console.log(`Count (${count}) <= ITEMS_PER_PAGE (${ITEMS_PER_PAGE}), setting hasMore=false`);
+        if (filteredCount === 0 || filteredCount <= ITEMS_PER_PAGE) {
           setHasMore(false);
         } else {
           setHasMore(true);
         }
       }
       
-      // First, get collections with pagination
+      // Get collections with pagination
       let query = supabase
         .from('collections')
         .select(`
@@ -211,9 +225,7 @@ export default function FlashcardCollections() {
       // Apply subject filter if selected
       let filteredCollections = collectionsData || [];
       
-      // If subject filter is applied, filter collections using the junction table
       if (subjectId) {
-        // Get collection IDs for this subject from the junction table
         const { data: collectionSubjects, error: junctionError } = await supabase
           .from('collection_subjects')
           .select('collection_id')
@@ -221,7 +233,6 @@ export default function FlashcardCollections() {
           
         if (junctionError) throw junctionError;
         
-        // Filter collections by the IDs we got from the junction table
         const collectionIds = collectionSubjects?.map(cs => cs.collection_id) || [];
         filteredCollections = filteredCollections.filter(c => collectionIds.includes(c.id));
       }
@@ -630,7 +641,7 @@ export default function FlashcardCollections() {
   const selectedSubject = subjects.find(s => s.id === selectedSubjectId);
 
   return (
-    <div className="max-w-6xl mx-auto pb-20 md:pb-8">
+    <div className="w-full max-w-6xl mx-auto px-4 py-6">
       <DeleteConfirmation
         isOpen={!!collectionToDelete}
         onClose={() => setCollectionToDelete(null)}
@@ -648,45 +659,7 @@ export default function FlashcardCollections() {
         />
       )}
 
-      {/* Desktop layout */}
-      <div className="hidden md:block mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Collections</h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              {totalCollectionCount} {totalCollectionCount === 1 ? 'collection' : 'collections'}
-            </p>
-          </div>
-          
-          <div className="w-[340px]">
-            <Tabs value={filter} onValueChange={handleFilterChange}>
-              <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
-                <TabsTrigger 
-                  value="all"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  All
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="official"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  Premium
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="my"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  My Collections
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile layout - only filter tabs */}
-      <div className="md:hidden mb-6">
+      <div className="w-full sm:w-[340px] mb-6">
         <Tabs value={filter} onValueChange={handleFilterChange}>
           <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
             <TabsTrigger 
@@ -709,18 +682,6 @@ export default function FlashcardCollections() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-      </div>
-
-      {/* Mobile header */}
-      <div className="md:hidden flex items-center justify-between w-full">
-        <div className="flex flex-col flex-grow">
-          <h1 className="text-lg font-semibold text-center">
-            Collections
-          </h1>
-          <p className="text-sm text-gray-500 text-center">
-            {totalCollectionCount} {totalCollectionCount === 1 ? 'collection' : 'collections'}
-          </p>
-        </div>
       </div>
 
       {/* Collections grid */}

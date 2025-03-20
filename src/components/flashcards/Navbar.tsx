@@ -10,7 +10,7 @@ export default function Navbar() {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const { itemCount } = useNavbar();
+  const { itemCount, totalCollectionCount, totalCardCount } = useNavbar();
 
   // Check if device is mobile
   useEffect(() => {
@@ -53,6 +53,25 @@ export default function Navbar() {
     };
   };
 
+  // Get the count based on the current page
+  const getCount = () => {
+    const path = location.pathname;
+    const searchParams = new URLSearchParams(location.search);
+    const currentFilter = searchParams.get('filter');
+    
+    if (path.includes('/flashcards/collections')) {
+      // For filtered views (my/official), use the itemCount
+      if (currentFilter === 'my' || currentFilter === 'official') {
+        return itemCount;
+      }
+      // For 'all' view or no filter, use the total count
+      return totalCollectionCount;
+    } else if (path.includes('/flashcards/flashcards')) {
+      return totalCardCount;
+    }
+    return itemCount;
+  };
+
   // Determine create button text and link based on current page
   const getCreateConfig = () => {
     const path = location.pathname;
@@ -87,11 +106,7 @@ export default function Navbar() {
 
   const createConfig = getCreateConfig();
   const pageInfo = getPageInfo();
-
-  // Update count from page components
-  const updateCount = (count: number) => {
-    setItemCount(count);
-  };
+  const count = getCount();
 
   const NavLink = ({ to, icon, text, className = '' }) => (
     <Link 
@@ -139,7 +154,7 @@ export default function Navbar() {
                 </h1>
                 {pageInfo.countKey && (
                   <p className="text-sm text-gray-500 text-center">
-                    {itemCount} {pageInfo.title.toLowerCase()}
+                    {count} {pageInfo.title.toLowerCase()}
                   </p>
                 )}
               </div>
