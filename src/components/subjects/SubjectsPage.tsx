@@ -16,7 +16,7 @@ export default function SubjectsPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalSubjectCount, setTotalSubjectCount] = useState(0);
-  const ITEMS_PER_PAGE = 15;
+  const ITEMS_PER_PAGE = 20;
   
   // Improved intersection observer setup
   const observerRef = useRef<IntersectionObserver | null>(null);

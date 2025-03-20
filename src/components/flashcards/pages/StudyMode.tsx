@@ -446,7 +446,13 @@ export default function StudyMode() {
           console.log("StudyMode: Rechecking subscription status");
           const hasAccess = await hasActiveSubscription(user.id);
           console.log("StudyMode: Updated subscription status:", hasAccess);
-          setHasSubscription(hasAccess);
+          // Only update state if the value has changed
+          setHasSubscription(prevStatus => {
+            if (prevStatus !== hasAccess) {
+              return hasAccess;
+            }
+            return prevStatus;
+          });
         } catch (err) {
           console.error("Error rechecking subscription:", err);
           // On error, default to true to allow access
@@ -458,10 +464,14 @@ export default function StudyMode() {
     // Check immediately when component mounts
     checkSubscriptionStatus();
     
-    // Set up interval to check every 30 seconds
-    const intervalId = setInterval(checkSubscriptionStatus, 30000);
+    // Set up interval to check every 5 minutes instead of 30 seconds
+    const intervalId = setInterval(checkSubscriptionStatus, 300000);
     
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+      // Clean up any pending state updates
+      setHasSubscription(prev => prev);
+    };
   }, [user]);
 
   const shuffleCards = () => {
@@ -615,6 +625,21 @@ export default function StudyMode() {
     navigate('/flashcards/collections');
   };
 
+  const currentCard = cards[currentIndex];
+  
+  // Move all hooks to the top level, before any conditional logic
+  const isUserCard = React.useMemo(() => {
+    if (!currentCard || !user) return false;
+    return currentCard.created_by === user.id;
+  }, [currentCard, user]);
+  
+  const isPremiumBlurred = React.useMemo(() => {
+    if (!currentCard) return false;
+    return currentCard.is_official === true && 
+           hasSubscription === false && 
+           !isUserCard;
+  }, [currentCard, hasSubscription, isUserCard]);
+
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center py-12">
@@ -723,24 +748,6 @@ export default function StudyMode() {
     );
   }
 
-  const currentCard = cards[currentIndex];
-  
-  // Determine if the current card should be premium blurred:
-  // 1. Card is official/premium
-  // 2. User doesn't have subscription
-  // 3. Card was NOT created by the current user (user-created cards should always be visible to that user)
-  const isUserCard = currentCard && user && currentCard.created_by === user.id;
-  console.log("StudyMode render - isUserCard:", isUserCard, "userID:", user?.id, "cardCreatedBy:", currentCard?.created_by);
-  
-  const isPremiumBlurred = currentCard && currentCard.is_official === true && hasSubscription === false && !isUserCard;
-  
-  console.log("StudyMode render - isPremiumBlurred:", isPremiumBlurred, 
-    "isOfficialContent:", isOfficialContent, 
-    "hasSubscription:", hasSubscription,
-    "card.is_official:", currentCard?.is_official,
-    "isUserCard:", isUserCard,
-    "localStorage.forceSubscription:", localStorage.getItem('forceSubscription'));
-
   return (
     <div className="max-w-3xl mx-auto">
       {/* Toast notification */}
@@ -756,188 +763,195 @@ export default function StudyMode() {
         <FlashcardPaywall onCancel={handleClosePaywall} />
       )}
       
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
-            <ChevronLeft className="h-4 w-4" />
-            <span className="ml-1">Back to Collections</span>
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white hover:text-[#F37022] dark:hover:text-[#F37022] transition-colors">
-            {id === 'official' ? 'Premium Flashcards' : collection.title}
-          </h1>
-          {(id === 'official' || collection.description) && (
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              {id === 'official' 
-                ? 'Study premium flashcards from our curated collection'
-                : collection.description}
-            </p>
-          )}
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            {cards.length} {cards.length === 1 ? 'card' : 'cards'} • 
-            {currentIndex + 1} of {cards.length}
-          </p>
-        </div>
-        
-        <div className="text-right">
-          {id !== 'official' && collection.subject?.id && (
-          <Link to={`/flashcards/subjects/${collection.subject.id}`} className="text-[#F37022] font-medium mb-2 hover:underline block">
-              Subject: {collection.subject.name}
-          </Link>
-          )}
-          
-          <div className="flex items-center gap-3 justify-end">
-            {user && (
-              <Tooltip text="Edit Collection" position="top">
-                <Link 
-                  to={`/flashcards/edit/${id}`} 
-                  className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
-                >
-                  <FolderCog className="h-5 w-5" />
-                </Link>
-              </Tooltip>
-            )}
-            {user && (
-              <Tooltip text="Edit Cards" position="top">
-                <Link 
-                  to={`/flashcards/manage-cards/${id}`} 
-                  className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
-                >
-                  <FileEdit className="h-5 w-5" />
-                </Link>
-              </Tooltip>
-            )}
-            <Tooltip text={showMastered ? "Hide mastered cards" : "Show all cards"} position="top">
-              <button
-                onClick={() => {
-                  console.log("Toggling showMastered from", showMastered, "to", !showMastered);
-                  setShowMastered(!showMastered);
-                  // Reset to first card when toggling to avoid out-of-range errors
-                  setCurrentIndex(0);
-                }}
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-              >
-                {showMastered ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </button>
-            </Tooltip>
-            <Tooltip text="Shuffle cards" position="top">
-              <button
-                onClick={shuffleCards}
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-              >
-                <Shuffle className="h-5 w-5" />
-              </button>
-            </Tooltip>
+      <div className="fixed top-[64px] left-0 right-0 bg-white dark:bg-gray-900 z-10 border-b border-gray-200 dark:border-gray-800">
+        <div className="max-w-3xl mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
+                <ChevronLeft className="h-4 w-4" />
+                <span className="ml-1">Back to Collections</span>
+              </Link>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white hover:text-[#F37022] dark:hover:text-[#F37022] transition-colors">
+                {id === 'official' ? 'Premium Flashcards' : collection.title}
+              </h1>
+              {(id === 'official' || collection.description) && (
+                <p className="text-gray-600 dark:text-gray-400 mt-1">
+                  {id === 'official' 
+                    ? 'Study premium flashcards from our curated collection'
+                    : collection.description}
+                </p>
+              )}
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                {cards.length} {cards.length === 1 ? 'card' : 'cards'} • 
+                {currentIndex + 1} of {cards.length}
+              </p>
+            </div>
+            
+            <div className="text-right">
+              {id !== 'official' && collection.subject?.id && (
+              <Link to={`/flashcards/subjects/${collection.subject.id}`} className="text-[#F37022] font-medium mb-2 hover:underline block">
+                  Subject: {collection.subject.name}
+              </Link>
+              )}
+              
+              <div className="flex items-center gap-3 justify-end">
+                {user && !collection.is_official && (
+                  <Tooltip text="Edit Collection" position="top">
+                    <Link 
+                      to={`/flashcards/edit/${id}`} 
+                      className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
+                    >
+                      <FolderCog className="h-5 w-5" />
+                    </Link>
+                  </Tooltip>
+                )}
+                {user && !collection.is_official && (
+                  <Tooltip text="Edit Cards" position="top">
+                    <Link 
+                      to={`/flashcards/manage-cards/${id}`} 
+                      className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
+                    >
+                      <FileEdit className="h-5 w-5" />
+                    </Link>
+                  </Tooltip>
+                )}
+                <Tooltip text={showMastered ? "Hide mastered cards" : "Show all cards"} position="top">
+                  <button
+                    onClick={() => {
+                      console.log("Toggling showMastered from", showMastered, "to", !showMastered);
+                      setShowMastered(!showMastered);
+                      // Reset to first card when toggling to avoid out-of-range errors
+                      setCurrentIndex(0);
+                    }}
+                    className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  >
+                    {showMastered ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </Tooltip>
+                <Tooltip text="Shuffle cards" position="top">
+                  <button
+                    onClick={shuffleCards}
+                    className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  >
+                    <Shuffle className="h-5 w-5" />
+                  </button>
+                </Tooltip>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden relative" style={{ isolation: 'isolate' }}>
-        {isPremiumBlurred && (
-          <div className="absolute top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-5 font-bold">
-            PREMIUM CONTENT - SUBSCRIPTION REQUIRED
-          </div>
-        )}
-        
-        <div className="p-8 flex flex-col">
-          <div
-            className="min-h-[250px] flex items-center justify-center cursor-pointer"
-            onClick={toggleAnswer}
-            style={{ zIndex: 5 }}
-          >
-            <div className="text-center w-full">
-              {isPremiumBlurred && showAnswer ? (
-                <div className="premium-content-placeholder mt-6">
-                  <div className="bg-orange-100 dark:bg-orange-900/30 p-6 rounded-lg">
-                    <div className="flex flex-col items-center gap-4">
-                      <Lock className="h-12 w-12 text-orange-500 dark:text-orange-400" />
-                      <h2 className="text-2xl font-semibold text-orange-800 dark:text-orange-300">Premium Flashcard</h2>
-                      <p className="text-orange-700 dark:text-orange-300 max-w-md mx-auto">
-                        The answer is only available to premium subscribers. 
-                      </p>
-                      {!hasSubscription && (
-                        <Link 
-                          to="/pricing" 
-                          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md font-medium flex items-center gap-2"
-                        >
-                          <Sparkles className="h-4 w-4" />
-                          Upgrade Now
-                        </Link>
-                      )}
+      {/* Add padding to account for fixed header */}
+      <div className="pt-[200px]">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden relative" style={{ isolation: 'isolate' }}>
+          {isPremiumBlurred && (
+            <div className="absolute top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-5 font-bold">
+              PREMIUM CONTENT - SUBSCRIPTION REQUIRED
+            </div>
+          )}
+          
+          <div className="p-8 flex flex-col">
+            <div
+              className="min-h-[250px] flex items-center justify-center cursor-pointer"
+              onClick={toggleAnswer}
+              style={{ zIndex: 5 }}
+            >
+              <div className="text-center w-full">
+                {isPremiumBlurred && showAnswer ? (
+                  <div className="premium-content-placeholder mt-6">
+                    <div className="bg-orange-100 dark:bg-orange-900/30 p-6 rounded-lg">
+                      <div className="flex flex-col items-center gap-4">
+                        <Lock className="h-12 w-12 text-orange-500 dark:text-orange-400" />
+                        <h2 className="text-2xl font-semibold text-orange-800 dark:text-orange-300">Premium Flashcard</h2>
+                        <p className="text-orange-700 dark:text-orange-300 max-w-md mx-auto">
+                          The answer is only available to premium subscribers. 
+                        </p>
+                        {!hasSubscription && (
+                          <Link 
+                            to="/pricing" 
+                            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md font-medium flex items-center gap-2"
+                          >
+                            <Sparkles className="h-4 w-4" />
+                            Upgrade Now
+                          </Link>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                  {showAnswer ? currentCard.answer : currentCard.question}
-                </h2>
-              )}
+                ) : (
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                    {showAnswer ? currentCard.answer : currentCard.question}
+                  </h2>
+                )}
+              </div>
+            </div>
+            
+            <div className="text-center mt-4">
+              <button
+                className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-2 mx-auto"
+                onClick={toggleAnswer}
+                disabled={false}
+              >
+                <Rotate className="h-5 w-5" />
+                {showAnswer ? 'Show Question' : 'Show Answer'}
+              </button>
             </div>
           </div>
-          
-          <div className="text-center mt-4">
+
+          <div className="bg-gray-50 dark:bg-gray-700 px-8 py-4 flex justify-between items-center relative" style={{ isolation: 'isolate', zIndex: 1 }}>
             <button
-              className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 flex items-center gap-2 mx-auto"
-              onClick={toggleAnswer}
-              disabled={false}
+              onClick={goToPreviousCard}
+              disabled={currentIndex === 0}
+              className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
             >
-              <Rotate className="h-5 w-5" />
-              {showAnswer ? 'Show Question' : 'Show Answer'}
+              <ArrowLeft className="h-5 w-5" />
+              Previous
+            </button>
+
+            <div className="flex items-center gap-3" style={{ pointerEvents: 'auto', position: 'relative', zIndex: 50 }}>
+              {!currentCard.is_mastered && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log("Mark Mastered button clicked");
+                    markAsMastered();
+                  }}
+                  type="button"
+                  className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-700 cursor-pointer flex items-center gap-1 px-3 py-1 rounded-md font-medium"
+                >
+                  <Check className="h-4 w-4" />
+                  Mark Mastered
+                </button>
+              )}
+              
+              {currentCard.is_mastered && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log("Undo Mastered button clicked");
+                    unmarkAsMastered();
+                  }}
+                  type="button"
+                  className="bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-500 cursor-pointer flex items-center gap-1 px-3 py-1 rounded-md"
+                >
+                  <Check className="h-4 w-4" />
+                  Undo Mastered
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={goToNextCard}
+              disabled={currentIndex === cards.length - 1}
+              className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
+            >
+              Next
+              <ArrowRight className="h-5 w-5" />
             </button>
           </div>
-        </div>
-
-        <div className="bg-gray-50 dark:bg-gray-700 px-8 py-4 flex justify-between items-center relative" style={{ isolation: 'isolate', zIndex: 1 }}>
-          <button
-            onClick={goToPreviousCard}
-            disabled={currentIndex === 0}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            Previous
-          </button>
-
-          <div className="flex items-center gap-3" style={{ pointerEvents: 'auto', position: 'relative', zIndex: 50 }}>
-            {!currentCard.is_mastered && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log("Mark Mastered button clicked");
-                  markAsMastered();
-                }}
-                type="button"
-                className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-700 cursor-pointer flex items-center gap-1 px-3 py-1 rounded-md font-medium"
-              >
-                <Check className="h-4 w-4" />
-                Mark Mastered
-              </button>
-            )}
-            
-            {currentCard.is_mastered && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log("Undo Mastered button clicked");
-                  unmarkAsMastered();
-                }}
-                type="button"
-                className="bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-500 cursor-pointer flex items-center gap-1 px-3 py-1 rounded-md"
-              >
-                <Check className="h-4 w-4" />
-                Undo Mastered
-              </button>
-            )}
-          </div>
-
-          <button
-            onClick={goToNextCard}
-            disabled={currentIndex === cards.length - 1}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
-          >
-            Next
-            <ArrowRight className="h-5 w-5" />
-          </button>
         </div>
       </div>
     </div>
