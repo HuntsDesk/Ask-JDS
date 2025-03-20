@@ -14,6 +14,7 @@ import { FlashcardPaywall } from '../../FlashcardPaywall';
 import EnhancedFlashcardItem from '../EnhancedFlashcardItem';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useNavbar } from '@/contexts/NavbarContext';
 
 // Types
 interface Subject {
@@ -59,6 +60,7 @@ export default function AllFlashcards() {
   const { user } = useAuth();
   const { toast, showToast, hideToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { updateTotalCardCount } = useNavbar();
 
   // Core state
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -321,12 +323,15 @@ export default function AllFlashcards() {
         console.error("Error getting total count:", countError);
       } else {
         setTotalCardCount(count || 0);
+        updateTotalCardCount(count || 0);
         console.log(`Total cards for filter ${currentFilter}: ${count}`);
         
         // If count is 0 or less than or equal to initial page size, set hasMore to false
         if (count === 0 || count <= ITEMS_PER_PAGE) {
           console.log(`Count (${count}) <= ITEMS_PER_PAGE (${ITEMS_PER_PAGE}), setting hasMore=false`);
           setHasMore(false);
+        } else {
+          setHasMore(true);
         }
       }
       
@@ -1246,13 +1251,13 @@ export default function AllFlashcards() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto pb-20 md:pb-8">
+    <div className="w-full max-w-6xl mx-auto px-4 py-6">
       <DeleteConfirmation
         isOpen={!!cardToDelete}
         onClose={() => setCardToDelete(null)}
         onConfirm={deleteCard}
-        title="Delete Flashcard"
-        message="Are you sure you want to delete this flashcard? This action cannot be undone."
+        title="Delete Card"
+        message="Are you sure you want to delete this card? This action cannot be undone."
         itemName={cardToDelete?.question}
       />
 
@@ -1264,45 +1269,7 @@ export default function AllFlashcards() {
         />
       )}
 
-      {/* Desktop layout */}
-      <div className="hidden md:block mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              {totalCardCount} {totalCardCount === 1 ? 'card' : 'cards'}
-            </p>
-          </div>
-          
-          <div className="w-[340px]">
-            <Tabs value={filter} onValueChange={handleFilterChange}>
-              <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
-                <TabsTrigger 
-                  value="all"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  All
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="official"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  Premium
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="my"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  My Cards
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile layout - only filter tabs */}
-      <div className="md:hidden mb-6">
+      <div className="w-full sm:w-[340px] mb-6">
         <Tabs value={filter} onValueChange={handleFilterChange}>
           <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
             <TabsTrigger 
@@ -1460,18 +1427,6 @@ export default function AllFlashcards() {
             )}
           </>
         )}
-      </div>
-
-      {/* Mobile header */}
-      <div className="md:hidden flex items-center justify-between w-full">
-        <div className="flex flex-col flex-grow">
-          <h1 className="text-lg font-semibold text-center">
-            Flashcards
-          </h1>
-          <p className="text-sm text-gray-500 text-center">
-            {totalCardCount} {totalCardCount === 1 ? 'card' : 'cards'}
-          </p>
-        </div>
       </div>
     </div>
   );
