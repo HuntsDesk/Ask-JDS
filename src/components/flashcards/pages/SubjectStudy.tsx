@@ -286,7 +286,10 @@ export default function SubjectStudy() {
           return;
         }
 
-        const flashcardIds = flashcardCollections.map(fc => fc.flashcard_id);
+        // Deduplicate flashcard IDs to ensure cards that appear in multiple collections
+        // within this subject are only counted once
+        const uniqueFlashcardIds = Array.from(new Set(flashcardCollections.map(fc => fc.flashcard_id)));
+        console.log(`SubjectStudy: Found ${flashcardCollections.length} total flashcard references, ${uniqueFlashcardIds.length} unique flashcards`);
 
         // Get flashcard progress if user is logged in
         let progressMap = new Map();
@@ -295,7 +298,7 @@ export default function SubjectStudy() {
             .from('flashcard_progress')
             .select('flashcard_id, is_mastered')
             .eq('user_id', user.id)
-            .in('flashcard_id', flashcardIds);
+            .in('flashcard_id', uniqueFlashcardIds);
 
           if (progressError) {
             console.error("SubjectStudy: Error fetching flashcard progress:", progressError);
@@ -310,7 +313,7 @@ export default function SubjectStudy() {
         let query = supabase
           .from('flashcards')
           .select('*')
-          .in('id', flashcardIds);
+          .in('id', uniqueFlashcardIds);
 
         const { data: cardsData, error: cardsError } = await query;
 

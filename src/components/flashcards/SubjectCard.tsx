@@ -82,16 +82,24 @@ function useCardStats(subjectId: string): {
         
         const flashcardIds = flashcardCollections.map(fc => fc.flashcard_id);
         
+        // Deduplicate flashcard IDs to ensure each card is only counted once
+        const uniqueFlashcardIds = Array.from(new Set(flashcardIds));
+        
+        // Log the count difference if any
+        if (flashcardIds.length !== uniqueFlashcardIds.length) {
+          console.log(`Subject ${subjectId}: found ${flashcardIds.length} total references, ${uniqueFlashcardIds.length} unique flashcards`);
+        }
+        
         // Use a single batched query to get both total and mastered counts
         const [totalResult, masteredResult] = await Promise.all([
-          // Total is just the length of flashcardIds
-          Promise.resolve({ count: flashcardIds.length }),
+          // Total is the length of unique flashcardIds
+          Promise.resolve({ count: uniqueFlashcardIds.length }),
           
-          // Get mastered card count from progress table
+          // Get mastered card count from progress table - only use unique IDs
           supabase
             .from('flashcard_progress')
             .select('*', { count: 'exact', head: true })
-            .in('flashcard_id', flashcardIds)
+            .in('flashcard_id', uniqueFlashcardIds)
             .eq('is_mastered', true)
         ]);
         
