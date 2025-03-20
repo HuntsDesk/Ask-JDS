@@ -146,7 +146,7 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
           {/* Subject tags */}
           {subjectsToShow.length > 0 && (
             <div className="flex items-start">
-              <BookOpen className="h-4 w-4 text-green-500 mr-2 shrink-0 mt-0.5" />
+              <BookOpen className="h-4 w-4 text-[#F37022] mr-2 shrink-0 mt-0.5" />
               <div className="w-full">
                 <div className="text-xs text-gray-500 mb-0.5">Subject:</div>
                 <div className="text-gray-700 dark:text-gray-300 flex flex-wrap">
@@ -178,7 +178,7 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
           {/* Collection tags */}
           {collectionsToShow.length > 0 && (
             <div className="flex items-start">
-              <Layers className="h-4 w-4 text-indigo-500 mr-2 shrink-0 mt-0.5" />
+              <Layers className="h-4 w-4 text-[#F37022] mr-2 shrink-0 mt-0.5" />
               <div className="w-full">
                 <div className="text-xs text-gray-500 mb-0.5">Collections:</div>
                 <div className="text-gray-700 dark:text-gray-300 flex flex-wrap">

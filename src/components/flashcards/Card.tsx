@@ -53,7 +53,7 @@ export default function Card({
           <div className="flex flex-col space-y-2">
             {tag && subjectId && (
               <div className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4 flex-shrink-0 text-indigo-500" />
+                <BookOpen className="h-4 w-4 flex-shrink-0 text-[#F37022]" />
                 <span className="text-xs md:text-sm text-gray-600 dark:text-gray-400 truncate">
                   <Link 
                     to={`/flashcards/study/${subjectId}?type=subject`}
