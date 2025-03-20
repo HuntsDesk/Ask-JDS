@@ -663,7 +663,43 @@ export default function FlashcardCollections() {
         />
       )}
 
-      <div className="w-full sm:w-[340px] mb-6">
+      {/* Desktop header with title and count - hidden on mobile */}
+      <div className="hidden md:flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Collections</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            {totalCollectionCount} {totalCollectionCount === 1 ? 'collection' : 'collections'}
+          </p>
+        </div>
+        
+        <div className="w-[340px]">
+          <Tabs value={filter} onValueChange={handleFilterChange}>
+            <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
+              <TabsTrigger 
+                value="all"
+                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+              >
+                All
+              </TabsTrigger>
+              <TabsTrigger 
+                value="official"
+                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+              >
+                Premium
+              </TabsTrigger>
+              <TabsTrigger 
+                value="my"
+                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+              >
+                My Collections
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </div>
+
+      {/* Mobile tabs - only shown on mobile */}
+      <div className="md:hidden w-full mb-6">
         <Tabs value={filter} onValueChange={handleFilterChange}>
           <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
             <TabsTrigger 
