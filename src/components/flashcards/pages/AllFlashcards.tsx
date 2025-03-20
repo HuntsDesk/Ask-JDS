@@ -1246,7 +1246,7 @@ export default function AllFlashcards() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto pb-20 md:pb-8">
       <DeleteConfirmation
         isOpen={!!cardToDelete}
         onClose={() => setCardToDelete(null)}

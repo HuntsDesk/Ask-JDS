@@ -3,13 +3,14 @@ import { Link, useLocation } from 'react-router-dom';
 import { PlusCircle, BookOpen, FileText, Layers, Menu, X, Search, Brain } from 'lucide-react';
 import SearchBar from './SearchBar';
 import useFlashcardAuth from '@/hooks/useFlashcardAuth';
+import { useNavbar } from '@/contexts/NavbarContext';
 
 export default function Navbar() {
   const { user } = useFlashcardAuth();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [itemCount, setItemCount] = useState(0);
+  const { itemCount } = useNavbar();
 
   // Check if device is mobile
   useEffect(() => {
@@ -87,6 +88,11 @@ export default function Navbar() {
   const createConfig = getCreateConfig();
   const pageInfo = getPageInfo();
 
+  // Update count from page components
+  const updateCount = (count: number) => {
+    setItemCount(count);
+  };
+
   const NavLink = ({ to, icon, text, className = '' }) => (
     <Link 
       to={to} 
@@ -133,7 +139,7 @@ export default function Navbar() {
                 </h1>
                 {pageInfo.countKey && (
                   <p className="text-sm text-gray-500 text-center">
-                    {/* The count will be populated by the page component */}
+                    {itemCount} {pageInfo.title.toLowerCase()}
                   </p>
                 )}
               </div>
