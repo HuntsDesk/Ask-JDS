@@ -1247,7 +1247,15 @@ export default function AllFlashcards() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      {/* Toast notification */}
+      <DeleteConfirmation
+        isOpen={!!cardToDelete}
+        onClose={() => setCardToDelete(null)}
+        onConfirm={deleteCard}
+        title="Delete Flashcard"
+        message="Are you sure you want to delete this flashcard? This action cannot be undone."
+        itemName={cardToDelete?.question}
+      />
+
       {toast && (
         <Toast 
           message={toast.message} 
@@ -1255,115 +1263,20 @@ export default function AllFlashcards() {
           onClose={hideToast} 
         />
       )}
-      
-      {/* Delete Confirmation Modal */}
-      {cardToDelete && (
-        <DeleteConfirmation
-          isOpen={!!cardToDelete}
-          onClose={() => setCardToDelete(null)}
-          onConfirm={deleteCard}
-          title="Delete Flashcard"
-          message="Are you sure you want to delete this flashcard? This action cannot be undone."
-          itemName={cardToDelete?.question}
-        />
-      )}
-      
-      {/* Paywall Modal */}
-      {showPaywall && (
-        <FlashcardPaywall onCancel={handleClosePaywall} />
-      )}
-      
-      {/* Collection Selector Dialog */}
-      <Dialog open={showCollectionSelector} onOpenChange={setShowCollectionSelector}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Choose a Collection</DialogTitle>
-            <DialogDescription>
-              This flashcard appears in multiple collections. Which one would you like to study?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 mt-4">
-            {cardCollections.map(collection => (
-              <button
-                key={collection.id}
-                onClick={() => handleCollectionSelect(collection.id)}
-                className="w-full text-left px-4 py-3 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                <p className="font-medium">{collection.title}</p>
-              </button>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      <div className="mb-6">
-        {/* Desktop layout */}
-        <div className="hidden md:flex items-center justify-between">
+
+      {/* Desktop layout */}
+      <div className="hidden md:block mb-6">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
-            <p className="text-gray-600 dark:text-gray-400 flashcard-count">
-              {totalCardCount} {totalCardCount === 1 ? 'card' : 'cards'} {!showMastered ? 'to study' : ''}
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              {totalCardCount} {totalCardCount === 1 ? 'card' : 'cards'}
             </p>
           </div>
           
           <div className="w-auto">
             <Tabs value={filter} onValueChange={handleFilterChange}>
-              <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: 'var(--background)' }}>
-                <TabsTrigger 
-                  value="all"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  All
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="official"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  Premium
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="my"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  My Cards
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        </div>
-
-        {/* Mobile layout */}
-        <div className="md:hidden flex flex-col gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
-            <p className="text-gray-600 dark:text-gray-400 flashcard-count">
-              {totalCardCount} {totalCardCount === 1 ? 'card' : 'cards'} {!showMastered ? 'to study' : ''}
-            </p>
-          </div>
-          
-          {/* Controls */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              <Filter className="h-4 w-4" />
-              <span>Filters</span>
-            </button>
-            
-            <button
-              onClick={handleToggleMastered}
-              className="flex items-center gap-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
-              aria-label={showMastered ? "Hide mastered cards" : "Show all cards"}
-            >
-              {showMastered ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              <span className="hidden xs:inline">{showMastered ? "Hide Mastered" : "Show All"}</span>
-            </button>
-          </div>
-          
-          <div className="w-full">
-            <Tabs value={filter} onValueChange={handleFilterChange}>
-              <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: 'var(--background)' }}>
+              <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
                 <TabsTrigger 
                   value="all"
                   className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
@@ -1387,7 +1300,33 @@ export default function AllFlashcards() {
           </div>
         </div>
       </div>
-      
+
+      {/* Mobile layout - only filter tabs */}
+      <div className="md:hidden mb-6">
+        <Tabs value={filter} onValueChange={handleFilterChange}>
+          <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
+            <TabsTrigger 
+              value="all"
+              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+            >
+              All
+            </TabsTrigger>
+            <TabsTrigger 
+              value="official"
+              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+            >
+              Premium
+            </TabsTrigger>
+            <TabsTrigger 
+              value="my"
+              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+            >
+              My Cards
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
       {/* Filters */}
       {showFilters && (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6 dark:border dark:border-gray-700">

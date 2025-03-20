@@ -9,6 +9,7 @@ export default function Navbar() {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [itemCount, setItemCount] = useState(0);
 
   // Check if device is mobile
   useEffect(() => {
@@ -20,6 +21,36 @@ export default function Navbar() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Get the current page title and count
+  const getPageInfo = () => {
+    const path = location.pathname;
+    if (path.includes('/flashcards/subjects')) {
+      return {
+        title: 'Subjects',
+        countKey: 'subjectCount'
+      };
+    } else if (path.includes('/flashcards/collections')) {
+      return {
+        title: 'Collections',
+        countKey: 'collectionCount'
+      };
+    } else if (path.includes('/flashcards/flashcards')) {
+      return {
+        title: 'Flashcards',
+        countKey: 'flashcardCount'
+      };
+    } else if (path.includes('/flashcards/unified-study')) {
+      return {
+        title: 'Study',
+        countKey: null
+      };
+    }
+    return {
+      title: 'Flashcards',
+      countKey: null
+    };
+  };
 
   // Determine create button text and link based on current page
   const getCreateConfig = () => {
@@ -54,6 +85,7 @@ export default function Navbar() {
   };
 
   const createConfig = getCreateConfig();
+  const pageInfo = getPageInfo();
 
   const NavLink = ({ to, icon, text, className = '' }) => (
     <Link 
@@ -95,12 +127,16 @@ export default function Navbar() {
           <div className="flex items-center justify-between h-16">
             {/* Mobile header */}
             <div className="md:hidden flex items-center justify-between w-full">
-              <h1 className="text-lg font-semibold">
-                {location.pathname.includes('/flashcards/subjects') ? 'Subjects' :
-                 location.pathname.includes('/flashcards/collections') ? 'Collections' :
-                 location.pathname.includes('/flashcards/flashcards') ? 'Flashcards' :
-                 location.pathname.includes('/flashcards/unified-study') ? 'Study' : 'Flashcards'}
-              </h1>
+              <div className="flex flex-col">
+                <h1 className="text-lg font-semibold pl-2">
+                  {pageInfo.title}
+                </h1>
+                {pageInfo.countKey && (
+                  <p className="text-sm text-gray-500 pl-2">
+                    {/* The count will be populated by the page component */}
+                  </p>
+                )}
+              </div>
               <button
                 onClick={() => setIsMenuOpen(true)}
                 className="text-gray-600 flex items-center gap-1"
@@ -138,7 +174,7 @@ export default function Navbar() {
               <SearchBar />
             </div>
 
-            {/* Create button - visible on both desktop and mobile */}
+            {/* Create button - visible on desktop only */}
             <div className="hidden md:block flex-shrink-0">
               {user && !location.pathname.includes('/flashcards/create') && (
                 <Link 
