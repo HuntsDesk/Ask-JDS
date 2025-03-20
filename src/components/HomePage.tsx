@@ -86,7 +86,7 @@ const questions = [
   },
   {
     icon: MessagesSquare,
-    text: "Group project gone wrong. Hadley v. Baxendale—what’s the damage?",
+    text: "Group project gone wrong. Hadley v. Baxendale—what's the damage?",
     category: "Case Analysis",
     color: "text-green-500",
     bgColor: "bg-green-500/5"
@@ -150,7 +150,13 @@ export function HomePage() {
   }
   
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white force-light-mode">
+    <div 
+      className="min-h-screen bg-gradient-to-b from-gray-50 to-white force-light-mode"
+      style={{ 
+        minHeight: '100vh',
+        WebkitOverflowScrolling: 'touch'
+      }}
+    >
       {/* Top Menu */}
       <nav className="fixed top-0 left-0 right-0 bg-white z-50 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between text-gray-900">
@@ -224,19 +230,19 @@ export function HomePage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 bg-gradient-to-b from-gray-50 to-white animated-gradient">
-        <div className="max-w-4xl mx-auto px-4">
+      <section className="pt-32 pb-20 bg-gradient-to-b from-gray-50 to-white animated-gradient overflow-x-hidden">
+        <div className="max-w-4xl mx-auto px-4 box-border">
           {/* Hero Logo Section - Larger, vertically stacked */}
           <div className="flex flex-col items-center justify-center mb-8">
             <div className="relative w-32 h-32 mb-3">
               <div className="absolute -top-4 -right-4 animate-float-delayed z-0">
-                <Scale className="w-12 h-12 text-yellow-500 opacity-60" />
+                <Scale className="w-12 h-12 text-[#F5B111] opacity-60" />
               </div>
               <div className="absolute -bottom-3 -left-4 animate-float z-0">
-                <BookOpenCheck className="w-12 h-12 text-purple-500 opacity-70" />
+                <BookOpenCheck className="w-12 h-12 text-[#9333EA] opacity-70" />
               </div>
               <div className="absolute -bottom-4 -right-3 z-0">
-                <Sparkles className="w-10 h-10 text-sky-400 animate-pulse" />
+                <Sparkles className="w-10 h-10 text-[#38BDF8] animate-pulse" />
               </div>
               <div className="absolute top-0 left-0 animate-float-slow z-10">
                 <Brain className="w-32 h-32 text-[#F37022]" />
@@ -283,10 +289,12 @@ export function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 bg-gradient-to-b from-[#00178E]/5 to-[#00178E]/5">
-        <div className="max-w-6xl mx-auto px-4">
+      <section className="py-20 bg-gradient-to-b from-[#00178E]/5 to-[#00178E]/5 overflow-x-hidden" style={{
+        background: 'linear-gradient(180deg, rgba(0, 23, 142, 0.05), rgba(0, 23, 142, 0.05))'
+      }}>
+        <div className="max-w-6xl mx-auto px-4 box-border">
           <h2 className="text-4xl font-bold text-center mb-16 text-black">How It Works</h2>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-white p-8 rounded-xl shadow-sm">
               <MessageSquare className="w-12 h-12 text-[#00178E] mb-4" />
               <h3 className="text-xl font-semibold mb-4 text-[#F37022]">Ask a Question</h3>
@@ -307,9 +315,11 @@ export function HomePage() {
       </section>
 
       {/* Benefits */}
-      <section className="py-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white"></div>
-        <div className="max-w-6xl mx-auto px-4 relative">
+      <section className="py-20 relative overflow-hidden box-border">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white" style={{
+          background: 'linear-gradient(135deg, rgb(249, 250, 251), rgb(255, 255, 255))'
+        }}></div>
+        <div className="max-w-6xl mx-auto px-4 relative box-border">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-black mb-4">Why Use Ask JDS?</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -346,8 +356,8 @@ export function HomePage() {
       </section>
 
       {/* FAQ */}
-      <section className="py-20 bg-[#00178E]/5">
-        <div className="max-w-6xl mx-auto px-4">
+      <section className="py-20 bg-[#00178E]/5 overflow-x-hidden">
+        <div className="max-w-6xl mx-auto px-4 box-border">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-black mb-4">What Can You Ask?</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -380,14 +390,14 @@ export function HomePage() {
       </section>
 
       {/* Pricing Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-4xl mx-auto text-center">
+      <section className="py-20 bg-gray-50 overflow-x-hidden">
+        <div className="max-w-4xl mx-auto text-center px-4 box-border">
           <h2 className="text-4xl font-bold text-black">Simple, Transparent Pricing</h2>
           <p className="text-lg text-gray-600 mt-2">
             Ask JDS. Smarter than your group chat, cheaper than a tutor.
           </p>
         </div>
-        <div className="mt-12 flex flex-col md:flex-row justify-center gap-8 max-w-5xl mx-auto">
+        <div className="mt-12 flex flex-col md:flex-row justify-center gap-8 max-w-5xl mx-auto px-4 box-border">
           {[
             {
               title: "Free",
@@ -481,8 +491,10 @@ export function HomePage() {
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-[#00178E]/5 relative overflow-hidden">
-        <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
+      <section className="py-20 bg-[#00178E]/5 relative overflow-hidden" style={{
+        backgroundColor: 'rgba(0, 23, 142, 0.05)'
+      }}>
+        <div className="max-w-4xl mx-auto px-4 text-center relative z-10 box-border">
           <h2 className="text-5xl font-bold text-[#00178E] mb-6">
             {user ? (hasSubscription ? "You're All Set!" : "Upgrade Your Experience") : "Sign Up Now"}
           </h2>
@@ -516,8 +528,8 @@ export function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-[#00178E] text-white py-16">
-        <div className="max-w-6xl mx-auto px-4">
+      <footer className="bg-[#00178E] text-white py-16 overflow-x-hidden">
+        <div className="max-w-6xl mx-auto px-4 box-border">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {/* Logo and Description */}
             <div className="col-span-1 md:col-span-2">
