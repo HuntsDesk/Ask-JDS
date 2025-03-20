@@ -106,29 +106,9 @@ const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
         {/* Subjects and Collections - show on ALL cards */}
         <div className="mb-4">
           <div className="flex flex-col space-y-2">
-            {collections.length > 0 && (
-              <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-indigo-500" />
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {collections.slice(0, MAX_TAGS_PER_CATEGORY).map((collection, index) => (
-                    <React.Fragment key={collection.id}>
-                      {index > 0 && ', '}
-                      <Link 
-                        to={`/flashcards/collections/${collection.id}`}
-                        className="font-medium text-[#F37022] hover:text-[#E36012] hover:underline"
-                      >
-                        {collection.title}
-                      </Link>
-                    </React.Fragment>
-                  ))}
-                  {hasMoreCollections && `, +${collections.length - MAX_TAGS_PER_CATEGORY} more`}
-                </span>
-              </div>
-            )}
-            
             {subjectsToShow.length > 0 && (
               <div className="flex items-center gap-2">
-                <Tag className="h-4 w-4 text-green-500" />
+                <BookOpen className="h-4 w-4 flex-shrink-0 text-[#F37022]" />
                 <span className="text-sm text-gray-600 dark:text-gray-400">
                   {subjectsToShow.slice(0, MAX_TAGS_PER_CATEGORY).map((subject, index) => (
                     <React.Fragment key={subject.id || `subject-${index}`}>
@@ -142,6 +122,26 @@ const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
                     </React.Fragment>
                   ))}
                   {hasMoreSubjects && `, +${subjects.length - MAX_TAGS_PER_CATEGORY} more`}
+                </span>
+              </div>
+            )}
+            
+            {collections.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 flex-shrink-0 text-indigo-500" />
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {collections.slice(0, MAX_TAGS_PER_CATEGORY).map((collection, index) => (
+                    <React.Fragment key={collection.id}>
+                      {index > 0 && ', '}
+                      <Link 
+                        to={`/flashcards/collections/${collection.id}`}
+                        className="font-medium text-[#F37022] hover:text-[#E36012] hover:underline"
+                      >
+                        {collection.title}
+                      </Link>
+                    </React.Fragment>
+                  ))}
+                  {hasMoreCollections && `, +${collections.length - MAX_TAGS_PER_CATEGORY} more`}
                 </span>
               </div>
             )}

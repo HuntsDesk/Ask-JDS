@@ -272,7 +272,8 @@ export default function FlashcardsPage() {
                   component={StudyMode} 
                 />
               } />
-              <Route path="/unified-study" element={<UnifiedStudyMode />} />
+              <Route path="/study" element={<UnifiedStudyMode />} />
+              <Route index element={<Navigate to="/flashcards/study" replace />} />
               <Route path="/create-collection" element={<CreateSet />} />
               <Route path="/create" element={<Navigate to="/flashcards/create-collection" replace />} />
               <Route path="/edit/:id" element={<EditCollection />} />

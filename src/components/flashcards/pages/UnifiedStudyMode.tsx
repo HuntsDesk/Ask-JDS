@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, ArrowRight, Rotate3D as Rotate, BookOpen, Shuffle, 
   Check, Edit, EyeOff, Eye, FileEdit, FolderCog, ChevronLeft, 
-  Settings, PlusCircle, FileText, Lock, Filter, FilterX, Tag
+  Settings, PlusCircle, FileText, Lock, Filter, FilterX, Tag, Layers
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import LoadingSpinner from '../LoadingSpinner';
@@ -741,7 +741,7 @@ export default function UnifiedStudyMode() {
           {/* Collection tags */}
           {currentCard?.collections?.map(collection => (
             <span key={collection.id} className="inline-flex items-center bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 text-xs px-2 py-1 rounded">
-              <Tag className="h-3 w-3 mr-1" />
+              <Layers className="h-3 w-3 mr-1" />
               {collection.title}
             </span>
           ))}
