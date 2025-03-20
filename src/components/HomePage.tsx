@@ -61,8 +61,8 @@ const benefits = [
   },
   {
     icon: PiggyBank,
-    title: "Only $5/Month",
-    description: '$5 dolla make you holla (because law school is already expensive enough).',
+    title: "Only $10/Month",
+    description: '$10 dolla make you holla (because law school is already expensive enough).',
     color: "text-purple-500",
     gradient: "from-purple-500/20 to-purple-500/5"
   }
@@ -415,7 +415,7 @@ export function HomePage() {
             },
             {
               title: "Premium",
-              price: "$5",
+              price: "$10",
               tagline: "MOST POPULAR",
               features: [
                 "Unlimited Ask JDS Messages",
@@ -501,7 +501,7 @@ export function HomePage() {
           <p className="text-2xl text-[#00178E] mb-10">
             {hasSubscription 
               ? "You're all set with your premium subscription! Head to the chat to start asking questions."
-              : "Skip the overpriced tutors and questionable Reddit advice—Ask JDS is your $5/month legal survival guide."}
+              : "Skip the overpriced tutors and questionable Reddit advice—Ask JDS is your $10/month legal survival guide."}
           </p>
           <div className="flex flex-col items-center gap-8">
             <div className="flex flex-col md:flex-row gap-4 justify-center">

@@ -1461,6 +1461,18 @@ export default function AllFlashcards() {
           </>
         )}
       </div>
+
+      {/* Mobile header */}
+      <div className="md:hidden flex items-center justify-between w-full">
+        <div className="flex flex-col flex-grow">
+          <h1 className="text-lg font-semibold text-center">
+            Flashcards
+          </h1>
+          <p className="text-sm text-gray-500 text-center">
+            {totalCardCount} {totalCardCount === 1 ? 'card' : 'cards'}
+          </p>
+        </div>
+      </div>
     </div>
   );
 } 

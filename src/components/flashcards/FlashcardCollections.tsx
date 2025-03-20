@@ -711,6 +711,18 @@ export default function FlashcardCollections() {
         </Tabs>
       </div>
 
+      {/* Mobile header */}
+      <div className="md:hidden flex items-center justify-between w-full">
+        <div className="flex flex-col flex-grow">
+          <h1 className="text-lg font-semibold text-center">
+            Collections
+          </h1>
+          <p className="text-sm text-gray-500 text-center">
+            {totalCollectionCount} {totalCollectionCount === 1 ? 'collection' : 'collections'}
+          </p>
+        </div>
+      </div>
+
       {/* Collections grid */}
       <div>
         {filteredCollections.length === 0 ? (
