@@ -60,12 +60,12 @@ export default function Navbar() {
     const currentFilter = searchParams.get('filter');
     
     if (path.includes('/flashcards/collections')) {
-      // For filtered views (my/official), use the itemCount
-      if (currentFilter === 'my' || currentFilter === 'official') {
-        return itemCount;
+      // When viewing "all" collections, show total count
+      if (!currentFilter || currentFilter === 'all') {
+        return totalCollectionCount;
       }
-      // For 'all' view or no filter, use the total count
-      return totalCollectionCount;
+      // For filtered views (my/official), use the itemCount
+      return itemCount;
     } else if (path.includes('/flashcards/flashcards')) {
       return totalCardCount;
     }
