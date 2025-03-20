@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Library, BookOpen, FileText, ArrowLeft, Check, FileEdit, Trash2 } from 'lucide-react';
+import { Layers, BookOpen, FileText, ArrowLeft, Check, FileEdit, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import LoadingSpinner from '../LoadingSpinner';
 import ErrorMessage from '../ErrorMessage';
@@ -9,6 +9,14 @@ import useFlashcardAuth from '@/hooks/useFlashcardAuth';
 import useToast from '@/hooks/useFlashcardToast';
 import Toast from '../Toast';
 import DeleteConfirmation from '../DeleteConfirmation';
+import Tooltip from '../Tooltip';
+
+// Create the custom Premium "P" icon component
+const PremiumIcon = () => (
+  <div className="h-4 w-4 flex items-center justify-center rounded-full bg-[#F37022] text-white font-bold text-[10px]">
+    P
+  </div>
+);
 
 interface Collection {
   id: string;
@@ -31,6 +39,7 @@ interface Flashcard {
   question: string;
   answer: string;
   is_mastered: boolean;
+  is_official: boolean;
   collection_id: string;
   collection: {
     title: string;
@@ -69,23 +78,37 @@ export default function SearchResults() {
     
     setLoading(true);
     try {
-      // Search collections
+      // Search collections with proper joins through collection_subjects
       const { data: collectionsData, error: collectionsError } = await supabase
-        .from('flashcard_collections')
+        .from('collections')
         .select(`
           id,
           title,
           description,
-          subject:subject_id (
-            id,
-            name
+          collection_subjects!inner (
+            subject:subject_id (
+              id,
+              name
+            )
           )
         `)
         .ilike('title', `%${query}%`)
         .order('title');
 
       if (collectionsError) throw collectionsError;
-      setCollections(collectionsData || []);
+      
+      // Transform the data to match the Collection interface
+      const transformedCollections = (collectionsData || []).map(collection => ({
+        id: collection.id,
+        title: collection.title,
+        description: collection.description,
+        subject: collection.collection_subjects[0]?.subject || {
+          id: '',
+          name: 'Unknown Subject'
+        }
+      }));
+      
+      setCollections(transformedCollections);
 
       // Search subjects
       const { data: subjectsData, error: subjectsError } = await supabase
@@ -97,7 +120,7 @@ export default function SearchResults() {
       if (subjectsError) throw subjectsError;
       setSubjects(subjectsData || []);
 
-      // Search flashcards
+      // Search flashcards with proper joins through junction table
       const { data: cardsData, error: cardsError } = await supabase
         .from('flashcards')
         .select(`
@@ -105,12 +128,16 @@ export default function SearchResults() {
           question,
           answer,
           is_mastered,
-          collection_id,
-          collection:collections (
-            title,
-            subject:subject_id (
-              id,
-              name
+          is_official,
+          flashcard_collections_junction!inner (
+            collection:collection_id (
+              title,
+              collection_subjects!inner (
+                subject:subject_id (
+                  id,
+                  name
+                )
+              )
             )
           )
         `)
@@ -128,7 +155,9 @@ export default function SearchResults() {
               question,
               answer,
               is_mastered,
-              collection_id
+              flashcard_collections_junction!inner (
+                collection_id
+              )
             `)
             .or(`question.ilike.%${query}%, answer.ilike.%${query}%`)
             .order('created_at', { ascending: false });
@@ -137,24 +166,33 @@ export default function SearchResults() {
           
           // Manually fetch collection data for each card
           const enhancedCards = await Promise.all((altCardsData || []).map(async (card) => {
-            if (card.collection_id) {
+            const collectionId = card.flashcard_collections_junction[0]?.collection_id;
+            if (collectionId) {
               try {
                 const { data: collectionData, error: collectionError } = await supabase
-                  .from('flashcard_collections')
+                  .from('collections')
                   .select(`
                     title,
-                    subject:subject_id (
-                      id,
-                      name
+                    collection_subjects!inner (
+                      subject:subject_id (
+                        id,
+                        name
+                      )
                     )
                   `)
-                  .eq('id', card.collection_id)
+                  .eq('id', collectionId)
                   .single();
                   
                 if (!collectionError && collectionData) {
                   return {
                     ...card,
-                    collection: collectionData
+                    collection: {
+                      title: collectionData.title,
+                      subject: collectionData.collection_subjects[0]?.subject || {
+                        id: "",
+                        name: "Unknown Subject"
+                      }
+                    }
                   };
                 }
               } catch (err) {
@@ -183,8 +221,19 @@ export default function SearchResults() {
         }
       }
       
-      // If no error, set the cards from the original query
-      setCards(cardsData || []);
+      // Transform the cards data to match the Flashcard interface
+      const transformedCards = (cardsData || []).map(card => ({
+        ...card,
+        collection: {
+          title: card.flashcard_collections_junction[0].collection.title,
+          subject: card.flashcard_collections_junction[0].collection.collection_subjects[0]?.subject || {
+            id: "",
+            name: "Unknown Subject"
+          }
+        }
+      }));
+      
+      setCards(transformedCards);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -290,7 +339,7 @@ export default function SearchResults() {
           {collections.length > 0 && (
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                <Library className="h-5 w-5 mr-2 text-[#F37022]" />
+                <Layers className="h-5 w-5 mr-2 text-[#F37022]" />
                 Collections ({collections.length})
               </h2>
               
@@ -305,7 +354,7 @@ export default function SearchResults() {
                         {collection.title}
                       </Link>
                       <div className="flex items-center text-sm text-gray-500 mt-1">
-                        <BookOpen className="h-4 w-4 mr-1" />
+                        <Layers className="h-5 w-5 mr-1" />
                         <Link 
                           to={`/flashcards/subjects/${collection.subject.id}`}
                           className="hover:text-[#F37022] hover:underline"
@@ -327,7 +376,7 @@ export default function SearchResults() {
           {subjects.length > 0 && (
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                <BookOpen className="h-5 w-5 mr-2 text-indigo-600" />
+                <BookOpen className="h-5 w-5 mr-2 text-[#F37022]" />
                 Subjects ({subjects.length})
               </h2>
               
@@ -337,7 +386,7 @@ export default function SearchResults() {
                     <div className="p-4">
                       <Link 
                         to={`/flashcards/subjects/${subject.id}`}
-                        className="text-lg font-medium text-indigo-600 hover:underline"
+                        className="text-lg font-medium text-[#F37022] hover:underline"
                       >
                         {subject.name}
                       </Link>
@@ -355,7 +404,7 @@ export default function SearchResults() {
           {cards.length > 0 && (
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                <FileText className="h-5 w-5 mr-2 text-indigo-600" />
+                <FileText className="h-5 w-5 mr-2 text-[#F37022]" />
                 Flashcards ({cards.length})
               </h2>
               
@@ -367,15 +416,15 @@ export default function SearchResults() {
                         <div>
                           <Link 
                             to={`/flashcards/study/${card.collection_id}`}
-                            className="text-sm font-medium text-indigo-600 hover:underline"
+                            className="text-sm font-medium text-[#F37022] hover:underline"
                           >
                             {card.collection.title}
                           </Link>
                           <div className="flex items-center text-sm text-gray-500 mt-1">
-                            <BookOpen className="h-4 w-4 mr-1" />
+                            <Layers className="h-5 w-5 mr-1" />
                             <Link 
                               to={`/flashcards/subjects/${card.collection.subject.id}`}
-                              className="hover:text-indigo-600 hover:underline"
+                              className="hover:text-[#F37022] hover:underline"
                             >
                               {card.collection.subject.name}
                             </Link>
@@ -394,11 +443,11 @@ export default function SearchResults() {
                           >
                             <Check className="h-5 w-5" />
                           </button>
-                          {user && (
+                          {user && !card.is_official && (
                             <>
                               <button
                                 onClick={() => handleEditCard(card)}
-                                className="p-1 rounded-full text-gray-600 hover:text-indigo-600 hover:bg-indigo-100"
+                                className="p-1 rounded-full text-gray-600 hover:text-[#F37022] hover:bg-[#FFF1E9]"
                                 title="Edit card"
                               >
                                 <FileEdit className="h-5 w-5" />
@@ -411,6 +460,13 @@ export default function SearchResults() {
                                 <Trash2 className="h-5 w-5" />
                               </button>
                             </>
+                          )}
+                          {user && card.is_official && (
+                            <Tooltip text="Premium Content" position="top">
+                              <div className="flex-shrink-0">
+                                <PremiumIcon />
+                              </div>
+                            </Tooltip>
                           )}
                         </div>
                       </div>

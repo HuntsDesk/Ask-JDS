@@ -31,6 +31,14 @@ export default function FlashcardSubjects() {
   const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
   const [filter, setFilter] = useState<SubjectFilter>('all');
 
+  // Filter subjects based on the selected filter
+  const filteredSubjects = subjects.filter(subject => {
+    if (filter === 'all') return true;
+    if (filter === 'official') return subject.is_official;
+    if (filter === 'my') return !subject.is_official;
+    return true;
+  });
+
   useEffect(() => {
     loadSubjects();
   }, []);
@@ -111,14 +119,6 @@ export default function FlashcardSubjects() {
   const handleFilterChange = (value: string) => {
     setFilter(value as 'all' | 'official' | 'my');
   };
-
-  // Filter subjects based on the selected filter
-  const filteredSubjects = subjects.filter(subject => {
-    if (filter === 'all') return true;
-    if (filter === 'official') return subject.is_official;
-    if (filter === 'my') return !subject.is_official;
-    return true;
-  });
 
   if (loading) {
     return <LoadingSpinner />;
