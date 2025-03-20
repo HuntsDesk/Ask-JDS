@@ -49,6 +49,13 @@ export default function EditCollection() {
           .single();
 
         if (collectionError) throw collectionError;
+
+        // Prevent editing official collections
+        if (collectionData.is_official) {
+          showToast('Official collections cannot be edited', 'error');
+          navigate('/flashcards/collections');
+          return;
+        }
         
         // Get the subjects for this collection from the junction table
         const { data: subjectJunctions, error: junctionError } = await supabase

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Plus, Search, BookOpen, Trash2, Filter, Library, Book } from 'lucide-react';
+import { Plus, Search, BookOpen, Trash2, Filter, Library, Book, Layers } from 'lucide-react';
 import Card from './Card';
 import EmptyState from './EmptyState';
 import LoadingSpinner from './LoadingSpinner';
@@ -52,7 +52,7 @@ export default function FlashcardCollections() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalCollectionCount, setTotalCollectionCount] = useState(0);
-  const ITEMS_PER_PAGE = 15;
+  const ITEMS_PER_PAGE = 20;
   
   // Improved intersection observer setup
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -658,7 +658,7 @@ export default function FlashcardCollections() {
             </p>
           </div>
           
-          <div className="w-auto">
+          <div className="w-[340px]">
             <Tabs value={filter} onValueChange={handleFilterChange}>
               <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
                 <TabsTrigger 
@@ -712,10 +712,10 @@ export default function FlashcardCollections() {
       </div>
 
       {/* Collections grid */}
-      <div className="mb-8">
+      <div>
         {filteredCollections.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-            <Library className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <Layers className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-2">No collections found</h3>
             <p className="text-gray-500 dark:text-gray-400 mb-4">
               {filter === 'my' 

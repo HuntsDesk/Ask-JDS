@@ -143,6 +143,13 @@ export default function EditCard() {
           throw new Error('Card not found');
         }
 
+        // Prevent editing official cards
+        if (cardData.is_official) {
+          showToast('Official flashcards cannot be edited', 'error');
+          navigate('/flashcards/collections');
+          return;
+        }
+
         // Set card details
         setQuestion(cardData.question);
         setAnswer(cardData.answer);

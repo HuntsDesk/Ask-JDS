@@ -56,7 +56,7 @@ export default function Card({
                 <BookOpen className="h-4 w-4 flex-shrink-0 text-indigo-500" />
                 <span className="text-xs md:text-sm text-gray-600 dark:text-gray-400 truncate">
                   <Link 
-                    to={`/flashcards/subjects/${subjectId}`}
+                    to={`/flashcards/study/${subjectId}?type=subject`}
                     className="font-medium text-[#F37022] hover:text-[#E36012] hover:underline"
                   >
                     {tag}

@@ -74,7 +74,7 @@ export default function AllFlashcards() {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalCardCount, setTotalCardCount] = useState(0);
-  const ITEMS_PER_PAGE = 15;
+  const ITEMS_PER_PAGE = 20;
   
   // Improved intersection observer setup
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -1274,7 +1274,7 @@ export default function AllFlashcards() {
             </p>
           </div>
           
-          <div className="w-auto">
+          <div className="w-[340px]">
             <Tabs value={filter} onValueChange={handleFilterChange}>
               <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
                 <TabsTrigger 

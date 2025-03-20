@@ -164,7 +164,7 @@ export default function FlashcardSubjects() {
             </p>
           </div>
           
-          <div className="w-auto">
+          <div className="w-[340px]">
             <Tabs value={filter} onValueChange={handleFilterChange}>
               <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
                 <TabsTrigger 
