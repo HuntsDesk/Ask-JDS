@@ -135,7 +135,7 @@ export default function FlashcardSubjects() {
         onClose={() => setSubjectToDelete(null)}
         onConfirm={handleDeleteSubject}
         title="Delete Subject"
-        message="Are you sure you want to delete this subject? All collections in this subject will also be deleted."
+        message="Are you sure you want to delete this subject? This will not delete any collections or flashcards."
         itemName={subjectToDelete?.name}
       />
 
@@ -147,18 +147,19 @@ export default function FlashcardSubjects() {
         />
       )}
 
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col space-y-4 mb-6">
+        {/* Title and count section */}
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Subjects</h1>
           <p className="text-gray-600 dark:text-gray-400">
-            {filteredSubjects.length} {filteredSubjects.length === 1 ? 'subject' : 'subjects'}
+            {subjects.length} {subjects.length === 1 ? 'subject' : 'subjects'}
           </p>
         </div>
-        
-        {/* Filter tabs moved next to title */}
+
+        {/* Filter tabs */}
         <div>
-          <Tabs value={filter} onValueChange={handleFilterChange}>
-            <TabsList className="grid grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
+          <Tabs value={filter} onValueChange={setFilter}>
+            <TabsList className="grid grid-cols-3" style={{ backgroundColor: 'var(--background)' }}>
               <TabsTrigger 
                 value="all"
                 className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
@@ -166,7 +167,7 @@ export default function FlashcardSubjects() {
                 All
               </TabsTrigger>
               <TabsTrigger 
-                value="official"
+                value="premium"
                 className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
               >
                 Premium

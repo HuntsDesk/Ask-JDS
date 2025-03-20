@@ -21,6 +21,16 @@ export default function Navbar() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Get current page title
+  const getCurrentPageTitle = () => {
+    const path = location.pathname;
+    if (path.includes('/subjects')) return 'Subjects';
+    if (path.includes('/collections')) return 'Collections';
+    if (path.includes('/flashcards')) return 'Flashcards';
+    if (path.includes('/unified-study')) return 'Study';
+    return 'Flashcards';
+  };
+
   // Determine create button text and link based on current page
   const getCreateConfig = () => {
     const path = location.pathname;
@@ -75,22 +85,34 @@ export default function Navbar() {
   return (
     <nav className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 sticky top-0 z-20 w-full">
       <div className="max-w-6xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          {/* Mobile menu button - always visible on mobile */}
-          <div className="md:hidden flex items-center z-20">
-            <button
-              className="text-gray-600 dark:text-gray-300 hover:text-[#F37022] focus:outline-none p-2 rounded-md"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-label="Toggle menu"
+        {/* Mobile header */}
+        {isMobile && (
+          <div className="py-3 flex items-center justify-between">
+            <div className="flex items-center">
+              <button
+                className="text-gray-600 dark:text-gray-300 hover:text-[#F37022] focus:outline-none p-2 rounded-md"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                aria-label="Toggle menu"
+              >
+                {isMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </button>
+              <h1 className="ml-2 text-lg font-semibold">{getCurrentPageTitle()}</h1>
+            </div>
+            <Link
+              to={createConfig.link}
+              className="flex items-center space-x-1 bg-[#F37022] text-white px-3 py-1.5 rounded-md text-sm"
             >
-              {isMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
-            </button>
+              <PlusCircle className="h-4 w-4" />
+              <span>{createConfig.text}</span>
+            </Link>
           </div>
+        )}
 
+        <div className="flex items-center justify-between h-16">
           {/* Desktop navigation */}
           <div className="hidden md:flex items-center space-x-6">
             <NavLink 
@@ -120,75 +142,48 @@ export default function Navbar() {
             <SearchBar />
           </div>
 
-          {/* Create button - visible on both desktop and mobile */}
-          <div className="flex-shrink-0">
-            {user && !location.pathname.includes('/flashcards/create') && (
-              <Link 
-                to={createConfig.link} 
-                className="flex items-center gap-1 bg-[#F37022] text-white px-3 py-2 text-sm md:text-base md:px-4 rounded-md hover:bg-[#E36012]"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <PlusCircle className="h-4 w-4" />
-                <span className={isMobile ? "sr-only" : "inline"}>{createConfig.text}</span>
-              </Link>
-            )}
+          {/* Desktop create button */}
+          <div className="hidden md:block">
+            <Link
+              to={createConfig.link}
+              className="flex items-center space-x-1 bg-[#F37022] text-white px-4 py-2 rounded-md"
+            >
+              <PlusCircle className="h-5 w-5" />
+              <span>{createConfig.text}</span>
+            </Link>
           </div>
         </div>
-        
-        {/* Mobile menu with overlay */}
-        {isMenuOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden" onClick={() => setIsMenuOpen(false)}>
-            <div 
-              className="absolute top-16 left-0 w-full bg-white dark:bg-gray-800 shadow-lg p-4 rounded-b-lg transform transition-transform"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex flex-col space-y-3 pt-2 pb-4">
-                <NavLink 
-                  to="/flashcards/subjects" 
-                  icon={<BookOpen className="h-5 w-5" />} 
-                  text="Subjects" 
-                />
-                <NavLink 
-                  to="/flashcards/collections" 
-                  icon={<Layers className="h-5 w-5" />} 
-                  text="Collections" 
-                />
-                <NavLink 
-                  to="/flashcards/flashcards" 
-                  icon={<FileText className="h-5 w-5" />} 
-                  text="Flashcards" 
-                />
-                <NavLink 
-                  to="/flashcards/unified-study" 
-                  icon={<Layers className="h-5 w-5" />} 
-                  text="Study" 
-                />
-                
-                {/* Mobile search in menu for better UX */}
-                <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-                  <SearchBar />
-                </div>
+
+        {/* Mobile menu */}
+        {isMobile && isMenuOpen && (
+          <div className="md:hidden">
+            <div className="flex flex-col space-y-3 pt-2 pb-4">
+              <NavLink 
+                to="/flashcards/subjects" 
+                icon={<BookOpen className="h-5 w-5" />} 
+                text="Subjects" 
+              />
+              <NavLink 
+                to="/flashcards/collections" 
+                icon={<Layers className="h-5 w-5" />} 
+                text="Collections" 
+              />
+              <NavLink 
+                to="/flashcards/flashcards" 
+                icon={<FileText className="h-5 w-5" />} 
+                text="Flashcards" 
+              />
+              <NavLink 
+                to="/flashcards/unified-study" 
+                icon={<Layers className="h-5 w-5" />} 
+                text="Study" 
+              />
+              
+              {/* Mobile search in menu */}
+              <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                <SearchBar />
               </div>
             </div>
-          </div>
-        )}
-        
-        {/* Mobile search bar - now hidden in normal view and shown inside menu for better UX */}
-        {!isMenuOpen && (
-          <div className="md:hidden pb-3 pt-1 flex items-center justify-between">
-            <div className="text-sm text-gray-500">
-              {location.pathname.includes('/flashcards/subjects') ? 'Subjects' :
-               location.pathname.includes('/flashcards/collections') ? 'Collections' :
-               location.pathname.includes('/flashcards/flashcards') ? 'Flashcards' :
-               location.pathname.includes('/flashcards/unified-study') ? 'Study' : 'Flashcards'}
-            </div>
-            <button
-              onClick={() => setIsMenuOpen(true)}
-              className="text-gray-600 flex items-center gap-1 text-sm"
-            >
-              <Search className="h-4 w-4" />
-              <span>Search</span>
-            </button>
           </div>
         )}
       </div>
