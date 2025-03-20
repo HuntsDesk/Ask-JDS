@@ -147,9 +147,9 @@ export default function FlashcardSubjects() {
         />
       )}
 
-      <div className="mb-6">
-        {/* Desktop layout */}
-        <div className="hidden md:flex items-center justify-between">
+      {/* Desktop layout */}
+      <div className="hidden md:block mb-6">
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Subjects</h1>
             <p className="text-gray-600 dark:text-gray-400">
@@ -182,41 +182,32 @@ export default function FlashcardSubjects() {
             </Tabs>
           </div>
         </div>
+      </div>
 
-        {/* Mobile layout */}
-        <div className="md:hidden flex flex-col gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Subjects</h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              {filteredSubjects.length} {filteredSubjects.length === 1 ? 'subject' : 'subjects'}
-            </p>
-          </div>
-          
-          <div className="w-full">
-            <Tabs value={filter} onValueChange={handleFilterChange}>
-              <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
-                <TabsTrigger 
-                  value="all"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  All
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="official"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  Premium
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="my"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  My Subjects
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        </div>
+      {/* Mobile layout - only filter tabs */}
+      <div className="md:hidden mb-6">
+        <Tabs value={filter} onValueChange={handleFilterChange}>
+          <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
+            <TabsTrigger 
+              value="all"
+              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+            >
+              All
+            </TabsTrigger>
+            <TabsTrigger 
+              value="official"
+              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+            >
+              Premium
+            </TabsTrigger>
+            <TabsTrigger 
+              value="my"
+              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+            >
+              My Subjects
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {filteredSubjects.length === 0 ? (
