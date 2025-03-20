@@ -115,37 +115,37 @@ export function Sidebar({
 
   const handleMouseEnter = useCallback(() => {
     console.log('Mouse enter - isContextMenuOpen:', isContextMenuOpen, 'isPinned:', isPinned);
-    if (!isMobile && !isContextMenuOpen && !isPinned) {
+    if (!isMobile && !isPinned) {
       console.log('Expanding sidebar on hover');
       onDesktopExpandedChange(true);
       setIsExpanded(true);
     }
-  }, [isMobile, isContextMenuOpen, isPinned, onDesktopExpandedChange, setIsExpanded]);
+  }, [isMobile, isPinned, onDesktopExpandedChange, setIsExpanded]);
 
   const handleMouseLeave = useCallback(() => {
     console.log('Mouse leave - isContextMenuOpen:', isContextMenuOpen, 'isPinned:', isPinned);
-    if (!isMobile && !isContextMenuOpen && !isPinned) {
+    if (!isMobile && !isPinned) {
       console.log('Collapsing sidebar on leave');
       onDesktopExpandedChange(false);
       setIsExpanded(false);
     }
-  }, [isMobile, isContextMenuOpen, isPinned, onDesktopExpandedChange, setIsExpanded]);
+  }, [isMobile, isPinned, onDesktopExpandedChange, setIsExpanded]);
 
   const togglePin = () => {
     const newPinState = !isPinned;
     setIsPinned(newPinState);
     
-    // If pinning, ensure sidebar is expanded
-    if (newPinState) {
-      setIsExpanded(true);
-      onDesktopExpandedChange(true);
-    } else if (!isMobile) {
-      // When unpinning on tablet or desktop, collapse the sidebar
-      // This ensures that when unpinned on tablet devices (768-1024px), the sidebar collapses properly
-      setIsExpanded(false);
-      onDesktopExpandedChange(false);
-    }
+    // Always ensure expanded state matches pin state
+    setIsExpanded(newPinState);
+    onDesktopExpandedChange(newPinState);
   };
+
+  // Sync expanded states
+  useEffect(() => {
+    if (!isMobile) {
+      setIsExpanded(isDesktopExpanded);
+    }
+  }, [isDesktopExpanded, isMobile]);
 
   const handleStartEdit = (threadId: string, currentTitle: string) => {
     setEditingThread(threadId);
