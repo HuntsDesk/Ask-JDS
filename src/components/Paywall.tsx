@@ -89,7 +89,7 @@ export function Paywall({ onCancel, preservedMessage }: PaywallProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-lg bg-muted p-4">
-            <h3 className="font-medium mb-2">For just $5/month, you get:</h3>
+            <h3 className="font-medium mb-2">For just $10/month, you get:</h3>
             <ul className="space-y-2 text-sm">
               <li className="flex items-start">
                 <MessageSquare className="h-5 w-5 mr-2 text-green-500 flex-shrink-0" />
@@ -106,7 +106,7 @@ export function Paywall({ onCancel, preservedMessage }: PaywallProps) {
             </ul>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold">$5/month</p>
+            <p className="text-2xl font-bold">$10/month</p>
             <p className="text-sm italic text-muted-foreground">Smarter than your group chat. Cheaper than failing out of law school.</p>
           </div>
         </CardContent>

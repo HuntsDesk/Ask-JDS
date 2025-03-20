@@ -33,7 +33,7 @@ import { supabase } from '@/lib/supabase';
 
 // Constants
 const FREE_TIER_LIMIT = FREE_MESSAGE_LIMIT;
-const SUBSCRIPTION_PRICE = '$5';
+const SUBSCRIPTION_PRICE = '$10';
 
 export function SubscriptionSettings() {
   const [isLoading, setIsLoading] = useState(true);
