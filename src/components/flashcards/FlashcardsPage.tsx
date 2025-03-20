@@ -263,6 +263,7 @@ export default function FlashcardsPage() {
             <Routes>
               <Route path="/" element={<Navigate to="/flashcards/subjects" replace />} />
               <Route path="/subjects" element={<ManageSubjects />} />
+              <Route path="/subjects/:id" element={<SubjectStudy />} />
               <Route path="/collections" element={<FlashcardCollections />} />
               <Route path="/flashcards" element={<AllFlashcards />} />
               <Route path="/study/:id" element={

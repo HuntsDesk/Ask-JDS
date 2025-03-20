@@ -37,7 +37,7 @@ export default function FlashcardCollections() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast, showToast, hideToast } = useToast();
   const { user } = useFlashcardAuth();
-  const { updateTotalCollectionCount } = useNavbar();
+  const { updateTotalCollectionCount, updateCount } = useNavbar();
   
   const [collections, setCollections] = useState<FlashcardCollection[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -108,8 +108,11 @@ export default function FlashcardCollections() {
     
     // Get filter from URL if present
     const filterParam = searchParams.get('filter');
+    let currentFilter: 'all' | 'official' | 'my' = 'all';
+    
     if (filterParam && ['all', 'official', 'my'].includes(filterParam)) {
-      setFilter(filterParam as 'all' | 'official' | 'my');
+      currentFilter = filterParam as 'all' | 'official' | 'my';
+      setFilter(currentFilter);
     }
     
     // Get subject from URL if present
@@ -118,13 +121,18 @@ export default function FlashcardCollections() {
       setSelectedSubjectId(subjectParam);
     }
     
-    // Load data
-    Promise.all([
-      loadCollections(),
-      loadSubjects()
-    ]).catch(err => {
-      console.error("Error loading initial data:", err);
-      setError("Failed to load collections. Please try again.");
+    // First update the counts for the current filter
+    updateCountsForCurrentFilter(currentFilter).then(() => {
+      // Then load collections with the explicitly passed filter
+      loadCollections(currentFilter).catch(err => {
+        console.error("Error loading collections:", err);
+        setError("Failed to load collections. Please try again.");
+      });
+    });
+    
+    // Load subjects in parallel
+    loadSubjects().catch(err => {
+      console.error("Error loading subjects:", err);
     });
   }, [searchParams]);
   
@@ -135,67 +143,12 @@ export default function FlashcardCollections() {
     }
   }, [page]);
 
-  async function loadCollections() {
+  async function loadCollections(currentFilter?: 'all' | 'official' | 'my') {
     try {
       setLoading(true);
       
-      // First, get the total count of ALL collections for the navbar
-      const { count: totalCount, error: totalCountError } = await supabase
-        .from('collections')
-        .select('id', { count: 'exact' });
-      
-      if (totalCountError) {
-        console.error("Error getting total count:", totalCountError);
-      } else {
-        // Always update the navbar with the total count
-        updateTotalCollectionCount(totalCount || 0);
-      }
-      
-      // Now get the filtered count based on current view
-      let countQuery = supabase.from('collections').select('id', { count: 'exact' });
-      
-      // Apply filters to count query
-      if (filter === 'official') {
-        countQuery = countQuery.eq('is_official', true);
-      } else if (filter === 'my' && user) {
-        countQuery = countQuery.eq('user_id', user.id);
-      }
-      
-      // Apply subject filter if selected
-      const subjectId = searchParams.get('subject');
-      if (subjectId) {
-        const { data: collectionSubjects } = await supabase
-          .from('collection_subjects')
-          .select('collection_id')
-          .eq('subject_id', subjectId);
-          
-        const collectionIds = collectionSubjects?.map(cs => cs.collection_id) || [];
-        if (collectionIds.length > 0) {
-          countQuery = countQuery.in('id', collectionIds);
-        } else {
-          setCollections([]);
-          setTotalCollectionCount(0);
-          setHasMore(false);
-          setLoading(false);
-          return;
-        }
-      }
-      
-      // Get the filtered count
-      const { count: filteredCount, error: countError } = await countQuery;
-      
-      if (countError) {
-        console.error("Error getting filtered count:", countError);
-      } else {
-        // Update the local count for the current view
-        setTotalCollectionCount(filteredCount || 0);
-        
-        if (filteredCount === 0 || filteredCount <= ITEMS_PER_PAGE) {
-          setHasMore(false);
-        } else {
-          setHasMore(true);
-        }
-      }
+      // Use the provided filter or fall back to the state filter
+      const filterToUse = currentFilter || filter;
       
       // Get collections with pagination
       let query = supabase
@@ -212,9 +165,9 @@ export default function FlashcardCollections() {
         .range(0, ITEMS_PER_PAGE - 1);
       
       // Apply filters
-      if (filter === 'official') {
+      if (filterToUse === 'official') {
         query = query.eq('is_official', true);
-      } else if (filter === 'my' && user) {
+      } else if (filterToUse === 'my' && user) {
         query = query.eq('user_id', user.id);
       }
       
@@ -225,16 +178,22 @@ export default function FlashcardCollections() {
       // Apply subject filter if selected
       let filteredCollections = collectionsData || [];
       
+      const subjectId = searchParams.get('subject');
       if (subjectId) {
-        const { data: collectionSubjects, error: junctionError } = await supabase
+        const { data: collectionSubjects } = await supabase
           .from('collection_subjects')
           .select('collection_id')
           .eq('subject_id', subjectId);
           
-        if (junctionError) throw junctionError;
-        
         const collectionIds = collectionSubjects?.map(cs => cs.collection_id) || [];
-        filteredCollections = filteredCollections.filter(c => collectionIds.includes(c.id));
+        if (collectionIds.length > 0) {
+          filteredCollections = filteredCollections.filter(c => collectionIds.includes(c.id));
+        } else {
+          setCollections([]);
+          setHasMore(false);
+          setLoading(false);
+          return;
+        }
       }
       
       // Get subjects for each collection using the junction table
@@ -340,10 +299,11 @@ export default function FlashcardCollections() {
         .order('created_at', { ascending: false })
         .range(startIndex, endIndex);
       
-      // Apply filters
-      if (filter === 'official') {
+      // Apply filters - use the current filter from state
+      const currentFilter = filter;
+      if (currentFilter === 'official') {
         query = query.eq('is_official', true);
-      } else if (filter === 'my' && user) {
+      } else if (currentFilter === 'my' && user) {
         query = query.eq('user_id', user.id);
       }
       
@@ -592,6 +552,7 @@ export default function FlashcardCollections() {
     // For now, we'll just filter the collections client-side
   }
 
+  // This function needs to run after filter changes to update counts correctly
   function handleFilterChange(value: string) {
     if (['all', 'official', 'my'].includes(value)) {
       // Reset pagination when filter changes
@@ -607,9 +568,52 @@ export default function FlashcardCollections() {
       params.set('filter', newFilter);
       setSearchParams(params);
       
+      // Clear collections while loading to avoid showing stale data
+      setCollections([]);
+      
       // Force reload with new filter
       setLoading(true);
-      loadCollections();
+      
+      // Get counts first before loading collections
+      updateCountsForCurrentFilter(newFilter).then(() => {
+        // Pass the new filter directly to loadCollections
+        loadCollections(newFilter);
+      });
+    }
+  }
+  
+  // Separate function to update counts based on filter
+  async function updateCountsForCurrentFilter(currentFilter: 'all' | 'official' | 'my') {
+    try {
+      // First, get the total count of ALL collections for the navbar
+      const { count: totalCount } = await supabase
+        .from('collections')
+        .select('id', { count: 'exact' });
+      
+      // Always update the total collection count in the navbar
+      updateTotalCollectionCount(totalCount || 0);
+      
+      // Now get the filtered count
+      let filteredQuery = supabase.from('collections').select('id', { count: 'exact' });
+      
+      if (currentFilter === 'official') {
+        filteredQuery = filteredQuery.eq('is_official', true);
+      } else if (currentFilter === 'my' && user) {
+        filteredQuery = filteredQuery.eq('user_id', user.id);
+      }
+      
+      const { count: filteredCount } = await filteredQuery;
+      
+      // Update the local state with filtered count
+      setTotalCollectionCount(filteredCount || 0);
+      
+      // Update the item count in the navbar
+      updateCount(filteredCount || 0);
+      
+      return { totalCount, filteredCount };
+    } catch (error) {
+      console.error("Error updating counts:", error);
+      return { totalCount: 0, filteredCount: 0 };
     }
   }
 

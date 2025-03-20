@@ -44,7 +44,7 @@ interface Subject {
 }
 
 export default function SubjectStudy() {
-  const { subject: id } = useParams<{ subject: string }>();
+  const { id } = useParams<{ id: string }>();
   const { user } = useFlashcardAuth();
   const navigate = useNavigate();
   
