@@ -1246,7 +1246,7 @@ export default function AllFlashcards() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto">
       {/* Toast notification */}
       {toast && (
         <Toast 
@@ -1296,41 +1296,19 @@ export default function AllFlashcards() {
         </DialogContent>
       </Dialog>
       
-      <div className="flex flex-col space-y-4 mb-6">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          <div className="flex flex-col md:flex-row md:items-center gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
-              <p className="text-gray-600 dark:text-gray-400 flashcard-count">
-                {totalCardCount} {totalCardCount === 1 ? 'card' : 'cards'} {!showMastered ? 'to study' : ''}
-              </p>
-            </div>
-            
-            {/* Controls */}
-            <div className="flex items-center gap-2 md:gap-3 md:ml-4">
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-1 md:gap-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 md:px-4 md:py-2 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                <Filter className="h-4 w-4 md:h-5 md:w-5" />
-                <span className="md:inline">Filters</span>
-              </button>
-              
-              <button
-                onClick={handleToggleMastered}
-                className="flex items-center gap-1 md:gap-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 md:px-4 md:py-2 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
-                aria-label={showMastered ? "Hide mastered cards" : "Show all cards"}
-              >
-                {showMastered ? <EyeOff className="h-4 w-4 md:h-5 md:w-5" /> : <Eye className="h-4 w-4 md:h-5 md:w-5" />}
-                <span className="hidden xs:inline">{showMastered ? "Hide Mastered" : "Show All"}</span>
-              </button>
-            </div>
+      <div className="mb-6">
+        {/* Desktop layout */}
+        <div className="hidden md:flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
+            <p className="text-gray-600 dark:text-gray-400 flashcard-count">
+              {totalCardCount} {totalCardCount === 1 ? 'card' : 'cards'} {!showMastered ? 'to study' : ''}
+            </p>
           </div>
           
-          {/* Tabs */}
-          <div>
+          <div className="w-auto">
             <Tabs value={filter} onValueChange={handleFilterChange}>
-              <TabsList className="grid grid-cols-3" style={{ backgroundColor: 'var(--background)' }}>
+              <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: 'var(--background)' }}>
                 <TabsTrigger 
                   value="all"
                   className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
@@ -1340,8 +1318,8 @@ export default function AllFlashcards() {
                 <TabsTrigger 
                   value="official"
                   className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-              >
-                Premium
+                >
+                  Premium
                 </TabsTrigger>
                 <TabsTrigger 
                   value="my"
@@ -1351,13 +1329,69 @@ export default function AllFlashcards() {
                 </TabsTrigger>
               </TabsList>
             </Tabs>
+          </div>
+        </div>
+
+        {/* Mobile layout */}
+        <div className="md:hidden flex flex-col gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
+            <p className="text-gray-600 dark:text-gray-400 flashcard-count">
+              {totalCardCount} {totalCardCount === 1 ? 'card' : 'cards'} {!showMastered ? 'to study' : ''}
+            </p>
+          </div>
+          
+          {/* Controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              <Filter className="h-4 w-4" />
+              <span>Filters</span>
+            </button>
+            
+            <button
+              onClick={handleToggleMastered}
+              className="flex items-center gap-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 text-sm rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
+              aria-label={showMastered ? "Hide mastered cards" : "Show all cards"}
+            >
+              {showMastered ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              <span className="hidden xs:inline">{showMastered ? "Hide Mastered" : "Show All"}</span>
+            </button>
+          </div>
+          
+          <div className="w-full">
+            <Tabs value={filter} onValueChange={handleFilterChange}>
+              <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: 'var(--background)' }}>
+                <TabsTrigger 
+                  value="all"
+                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                >
+                  All
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="official"
+                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                >
+                  Premium
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="my"
+                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                >
+                  My Cards
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
       </div>
       
       {/* Filters */}
       {showFilters && (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6 dark:border dark:border-gray-700">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label htmlFor="subject-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Filter by Subject
@@ -1365,7 +1399,7 @@ export default function AllFlashcards() {
               <select
                 id="subject-filter"
                 value={filterSubject}
-                  onChange={(e) => setFilterSubject(e.target.value)}
+                onChange={(e) => setFilterSubject(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
               >
                 <option value="all">All Subjects</option>
@@ -1388,28 +1422,28 @@ export default function AllFlashcards() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
               >
                 <option value="all">All Collections</option>
-                  {collections.map((collection) => (
+                {collections.map((collection) => (
                   <option key={collection.id} value={collection.id}>
                     {collection.title}
                   </option>
                 ))}
               </select>
             </div>
-              
-              <div>
-                <label htmlFor="exam-type-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Filter by Exam Type
-                </label>
-                <select
-                  id="exam-type-filter"
-                  value={filterExamType}
-                  onChange={(e) => setFilterExamType(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
-                >
-                  <option value="all">All Exam Types</option>
-                  {examTypes.map((examType) => (
-                    <option key={examType.id} value={examType.id}>
-                      {examType.name}
+            
+            <div>
+              <label htmlFor="exam-type-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Filter by Exam Type
+              </label>
+              <select
+                id="exam-type-filter"
+                value={filterExamType}
+                onChange={(e) => setFilterExamType(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+              >
+                <option value="all">All Exam Types</option>
+                {examTypes.map((examType) => (
+                  <option key={examType.id} value={examType.id}>
+                    {examType.name}
                   </option>
                 ))}
               </select>
@@ -1418,9 +1452,9 @@ export default function AllFlashcards() {
         </div>
       )}
       
-        {/* Cards grid */}
+      {/* Cards grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {filteredCards.length === 0 ? (
+        {filteredCards.length === 0 ? (
           <div className="col-span-1 md:col-span-2 lg:col-span-3">
             {filter === 'my' ? (
               <EmptyState 
@@ -1428,7 +1462,7 @@ export default function AllFlashcards() {
                 title="No Flashcards Found" 
                 description="You haven't created any flashcards yet or they're being filtered out. Try creating your first flashcard or checking your filter settings."
                 actionText="Create a Flashcard"
-                  actionLink="/flashcards/create-flashcard"
+                actionLink="/flashcards/create-flashcard"
               />
             ) : filter === 'official' ? (
               <EmptyState 
@@ -1445,65 +1479,48 @@ export default function AllFlashcards() {
                 title="No Flashcards Found" 
                 description="No flashcards match your current filters. Try adjusting your filter settings."
                 actionText="Create a Flashcard"
-                  actionLink="/flashcards/create-flashcard"
+                actionLink="/flashcards/create-flashcard"
               />
             )}
           </div>
         ) : (
           <>
-              {filteredCards.map((card, index) => {
-                // Check if this card is a premium/official card (official = premium)
-                const isPremium = card.is_official === true;
-                
-                // Log subscription status and collections for debugging
-                if (process.env.NODE_ENV === 'development' && isPremium && index < 2) {
-                  console.log(`Premium card ${card.id.substring(0, 8)}: isPremium=${isPremium}, hasSubscription=${hasSubscription}`);
-                  console.log(`Premium card ${card.id.substring(0, 8)} collections:`, card.relationships?.collections?.map(c => c.title) || []);
-                  console.log(`Premium card ${card.id.substring(0, 8)} subjects:`, card.relationships?.subjects?.map(s => s.name) || []);
-                }
-              
-              // Determine if the user can edit/delete this card
-                // Only allow editing/deleting if:
-                // 1. It's not a premium card (premium cards can never be edited)
-                // 2. It's the user's own card
-                const isUserOwned = user && (card.created_by === user.id);
-                
-                const canModify = !isPremium && isUserOwned;
-                
-                // If this is the last item and we might have more, use the ref
-                const isLastItem = index === filteredCards.length - 1;
+            {filteredCards.map((card, index) => {
+              const isPremium = card.is_official === true;
+              const isUserOwned = user && (card.created_by === user.id);
+              const canModify = !isPremium && isUserOwned;
+              const isLastItem = index === filteredCards.length - 1;
               
               return (
-                  <div 
-                    key={`${filter}-${card.id}-${index}`}
-                    ref={isLastItem && hasMore ? lastCardRef : null}
-                  >
-                <EnhancedFlashcardItem
-                  flashcard={card}
-                  onToggleMastered={toggleMastered}
-                  onEdit={canModify ? handleEditCard : undefined}
-                      onDelete={canModify ? handleDeleteAction : undefined}
-                  onView={handleViewCard}
-                      onStudySubject={handleStudySubject}
-                      onStudyCollection={handleStudyCollection}
-                      isPremium={isPremium}
-                  hasSubscription={hasSubscription}
-                  onShowPaywall={handleShowPaywall}
-                      key={`flashcard-${card.id}`}
-                />
-                  </div>
+                <div 
+                  key={`${filter}-${card.id}-${index}`}
+                  ref={isLastItem && hasMore ? lastCardRef : null}
+                >
+                  <EnhancedFlashcardItem
+                    flashcard={card}
+                    onToggleMastered={toggleMastered}
+                    onEdit={canModify ? handleEditCard : undefined}
+                    onDelete={canModify ? handleDeleteAction : undefined}
+                    onView={handleViewCard}
+                    onStudySubject={handleStudySubject}
+                    onStudyCollection={handleStudyCollection}
+                    isPremium={isPremium}
+                    hasSubscription={hasSubscription}
+                    onShowPaywall={handleShowPaywall}
+                    key={`flashcard-${card.id}`}
+                  />
+                </div>
               );
             })}
-              
-              {/* Loading indicator for infinite scroll */}
-              {loadingMore && (
-                <div className="col-span-1 md:col-span-2 lg:col-span-3 py-4 flex justify-center">
-                  <LoadingSpinner />
-                </div>
-              )}
+            
+            {/* Loading indicator for infinite scroll */}
+            {loadingMore && (
+              <div className="col-span-1 md:col-span-2 lg:col-span-3 py-4 flex justify-center">
+                <LoadingSpinner />
+              </div>
+            )}
           </>
         )}
-        </div>
       </div>
     </div>
   );
