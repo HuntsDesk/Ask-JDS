@@ -10,6 +10,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useThreads } from '@/hooks/use-threads';
 import { SelectedThreadContext, SidebarContext } from '@/App';
 import { FlashcardPaywall } from '@/components/FlashcardPaywall';
+import { NavbarProvider } from '@/contexts/NavbarContext';
 
 // Import pages
 import Home from './pages/Home';
@@ -90,17 +91,20 @@ export default function FlashcardsPage() {
           console.log("Checking subscription status...")
           const hasAccess = await hasActiveSubscription(user.id);
           console.log("Subscription status:", hasAccess);
-          // Use actual subscription status instead of forcing to false
           setHasSubscription(hasAccess);
+          // Don't show paywall by default - only show it when accessing premium content
+          setShowPaywall(false);
         } catch (error) {
           console.error("Error checking subscription:", error);
-          setHasSubscription(false);
+          setHasSubscription(true);
+          setShowPaywall(false);
         } finally {
           setLoading(false);
         }
       } else {
         console.log("No user logged in, setting hasSubscription to false");
         setHasSubscription(false);
+        setShowPaywall(false);
         setLoading(false);
       }
     };
@@ -226,7 +230,7 @@ export default function FlashcardsPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen dark:bg-gray-900">
+      <div className="flex justify-center items-center h-screen dark:bg-gray-900 pt-6">
         <LoadingSpinner size="lg" />
         <p className="ml-2 dark:text-gray-300">Checking access...</p>
       </div>
@@ -244,29 +248,23 @@ export default function FlashcardsPage() {
         onSignOut={handleSignOut}
         onDeleteThread={handleDeleteThread}
         onRenameThread={handleRenameThread}
-        sessions={threads} // Use actual threads instead of empty array
+        sessions={threads}
         currentSession={null}
       />
       
-      {/* Main Content */}
-      <div 
-        className="flex-1 transition-all duration-300 overflow-x-hidden w-full max-w-full"
-        style={{ 
-          marginLeft: isMobile 
-            ? (isExpanded ? 'var(--sidebar-width)' : '0')
-            : (isExpanded ? 'var(--sidebar-width)' : 'var(--sidebar-collapsed-width)')
-        }}
-      >
-        <Navbar />
-        <main className="container mx-auto px-4 py-8 dark:text-gray-200 w-full max-w-full overflow-x-hidden">
-          {/* Show paywall if needed */}
-          {showPaywall ? (
-            <FlashcardPaywall onCancel={handleClosePaywall} />
-          ) : (
+      {/* Main content */}
+      <div className={cn(
+        "flex-1 overflow-auto",
+        isExpanded ? 'md:ml-64' : 'md:ml-20'
+      )}>
+        <NavbarProvider>
+          <Navbar />
+          <div className="container mx-auto px-4 pt-6">
             <Routes>
-              {/* Redirect from root directly to subjects */}
               <Route path="/" element={<Navigate to="/flashcards/subjects" replace />} />
+              <Route path="/subjects" element={<ManageSubjects />} />
               <Route path="/collections" element={<FlashcardCollections />} />
+              <Route path="/flashcards" element={<AllFlashcards />} />
               <Route path="/study/:id" element={
                 <ProtectedResource 
                   checkAccess={checkAccessToCollection}
@@ -274,8 +272,6 @@ export default function FlashcardsPage() {
                 />
               } />
               <Route path="/unified-study" element={<UnifiedStudyMode />} />
-              <Route path="/subjects" element={<ManageSubjects />} />
-              <Route path="/subjects/:subject" element={<SubjectStudy />} />
               <Route path="/create-collection" element={<CreateSet />} />
               <Route path="/create" element={<Navigate to="/flashcards/create-collection" replace />} />
               <Route path="/edit/:id" element={<EditCollection />} />
@@ -283,7 +279,6 @@ export default function FlashcardsPage() {
               <Route path="/add-card/:id" element={<AddCard />} />
               <Route path="/edit-card/:cardId" element={<EditCard />} />
               <Route path="/all-flashcards" element={<AllFlashcards />} />
-              <Route path="/flashcards" element={<AllFlashcards />} />
               <Route path="/search" element={<SearchResults />} />
               <Route path="/edit-subject/:id" element={<EditSubject />} />
               <Route path="/create-subject" element={<CreateSubject />} />
@@ -292,8 +287,14 @@ export default function FlashcardsPage() {
               {/* Add a catch-all route to redirect to subjects */}
               <Route path="*" element={<Navigate to="/flashcards/subjects" replace />} />
             </Routes>
-          )}
-        </main>
+            {showPaywall && (
+              <FlashcardPaywall
+                isOpen={showPaywall}
+                onClose={handleClosePaywall}
+              />
+            )}
+          </div>
+        </NavbarProvider>
       </div>
     </div>
   );
@@ -343,7 +344,7 @@ function ProtectedResource({ checkAccess, component: Component, ...rest }: any) 
   
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-12">
+      <div className="flex justify-center items-center py-12 mt-6">
         <LoadingSpinner size="lg" />
         <p className="ml-2">Checking access...</p>
       </div>

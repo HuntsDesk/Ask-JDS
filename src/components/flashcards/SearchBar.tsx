@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, Library, BookOpen, FileText } from 'lucide-react';
+import { Search, X, Layers, BookOpen, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 
@@ -203,10 +203,22 @@ export default function SearchBar() {
                     onClick={() => handleResultClick(result)}
                   >
                     <div className="flex items-center">
-                      {result.type === 'collection' && <Library className="h-4 w-4 text-[#F37022] mr-2" />}
-                      {result.type === 'subject' && <BookOpen className="h-4 w-4 text-[#F37022] mr-2" />}
-                      {result.type === 'card' && <FileText className="h-4 w-4 text-[#F37022] mr-2" />}
-                      <div>
+                      {result.type === 'collection' && (
+                        <div className="flex-shrink-0 w-4">
+                          <Layers className="h-4 w-4 text-[#F37022]" />
+                        </div>
+                      )}
+                      {result.type === 'subject' && (
+                        <div className="flex-shrink-0 w-4">
+                          <BookOpen className="h-4 w-4 text-[#F37022]" />
+                        </div>
+                      )}
+                      {result.type === 'card' && (
+                        <div className="flex-shrink-0 w-4">
+                          <FileText className="h-4 w-4 text-[#F37022]" />
+                        </div>
+                      )}
+                      <div className="ml-2">
                         <div className="font-medium text-gray-900">{result.title}</div>
                         {result.subtitle && (
                           <div className="text-xs text-gray-500">{result.subtitle}</div>
