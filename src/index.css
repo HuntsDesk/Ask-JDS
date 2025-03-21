@@ -817,6 +817,7 @@ button[aria-label="Open sidebar"]:hover {
 html.is-tablet .sidebar-container {
   position: fixed !important;
   height: 100vh !important;
+  max-height: 100vh !important;
   top: 0 !important;
   bottom: 0 !important;
   left: 0 !important;
@@ -832,6 +833,31 @@ html.is-tablet .sidebar-container.expanded {
 
 html.is-tablet .sidebar-container.collapsed {
   width: var(--sidebar-collapsed-width, 70px) !important;
+}
+
+/* Fix the top navigation alignment with sidebar expansion */
+html.is-tablet nav,
+html.is-tablet .top-nav,
+html.is-tablet header,
+html.is-tablet .search-container {
+  transition: margin-left 0.3s ease !important;
+  width: auto !important;
+}
+
+html.is-tablet.sidebar-expanded nav,
+html.is-tablet.sidebar-expanded .top-nav,
+html.is-tablet.sidebar-expanded header,
+html.is-tablet.sidebar-expanded .search-container {
+  margin-left: var(--sidebar-width, 280px) !important;
+  width: calc(100% - var(--sidebar-width, 280px)) !important;
+}
+
+html.is-tablet.sidebar-collapsed nav,
+html.is-tablet.sidebar-collapsed .top-nav,
+html.is-tablet.sidebar-collapsed header,
+html.is-tablet.sidebar-collapsed .search-container {
+  margin-left: var(--sidebar-collapsed-width, 70px) !important;
+  width: calc(100% - var(--sidebar-collapsed-width, 70px)) !important;
 }
 
 html.is-tablet .flex-1.overflow-auto.transition-all.duration-300.ease-in-out.md\:ml-\[280px\] {
