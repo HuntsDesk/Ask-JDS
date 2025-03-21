@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { useIsTablet, useIsMobile, useIsDesktop } from '@/hooks/useResponsive';
+import { useIsTablet, useIsMobile, useIsDesktop } from '@/hooks/useMediaQuery';
 
 interface ResponsiveWrapperProps {
   children: ReactNode;

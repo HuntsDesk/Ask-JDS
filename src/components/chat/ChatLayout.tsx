@@ -11,8 +11,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { SelectedThreadContext, SidebarContext } from '@/App';
-import useMediaQuery from '@/hooks/useMediaQuery';
-import { useIsTablet, useIsDesktop, useIsMobile } from '@/hooks/useResponsive';
+import useMediaQuery, { useIsTablet, useIsDesktop, useIsMobile } from '@/hooks/useMediaQuery';
 import { MEDIA_QUERIES } from '@/lib/breakpoints';
 import { X } from 'lucide-react';
 
