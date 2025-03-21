@@ -2,26 +2,18 @@ import { useState, useEffect, useRef, useContext, lazy, Suspense } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useThreads } from '@/hooks/use-threads';
 import { useMessages } from '@/hooks/use-messages';
-import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
-import ChatMessage from './ChatMessage';
-import { SelectedThreadContext, SidebarContext } from '@/App';
-import { AlertTriangle, SendHorizontal, PlusCircle, Loader2, ChevronLeft, RotateCw } from 'lucide-react';
 import { Sidebar } from './Sidebar';
-import useMediaQuery from '@/hooks/useMediaQuery';
-import { X } from 'lucide-react';
-import useLocalStorage from '@/hooks/useLocalStorage';
-import { cn } from '@/lib/utils';
 import { ChatInterface } from './ChatInterface';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { useToast } from '@/hooks/use-toast';
-import { useSearchParams } from 'react-router-dom';
-import VirtualMessageList from './VirtualMessageList';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-
+import { Loader2 } from 'lucide-react';
 // Lazy load the Paywall which is only needed in certain circumstances
 const Paywall = lazy(() => import('@/components/Paywall').then(module => ({ default: module.Paywall })));
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { useToast } from '@/hooks/use-toast';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { SelectedThreadContext, SidebarContext } from '@/App';
+import useMediaQuery, { useIsTablet, useIsDesktop, useIsMobile } from '@/hooks/useMediaQuery';
+import { MEDIA_QUERIES } from '@/lib/breakpoints';
+import { X } from 'lucide-react';
 
 // Export as default for lazy loading
 const ChatLayout = () => {
@@ -61,18 +53,15 @@ const ChatLayout = () => {
   const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
   const messagesTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
 
-  const isDesktop = useMediaQuery('(min-width: 768px)');
+  // Use our new responsive hooks
+  const isDesktop = useIsDesktop();
+  const isTablet = useIsTablet();
+  const isMobileDevice = useIsMobile();
 
-  const messageEnd = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
-  // State for the textarea content
-  const [inputMessage, setInputMessage] = useState('');
-  const [sendingMessage, setSendingMessage] = useState(false);
-  const [isTablet, setIsTablet] = useState(false);
-  
-  // State for sidebar control
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  // Calculate optimal sidebar behavior based on screen size
+  const shouldPinSidebar = isDesktop; // Pin sidebar on desktop
+  const shouldAutoCollapseSidebar = isMobileDevice; // Auto-collapse on mobile
+  const defaultSidebarExpanded = isDesktop || isTablet; // Default expanded on desktop and tablet
 
   // A helper function to log thread details
   const logThreadInfo = () => {
@@ -561,41 +550,49 @@ const ChatLayout = () => {
     );
   };
 
-  // Read pinned state from localStorage on component mount
+  // Set initial sidebar state based on screen size
   useEffect(() => {
-    try {
-      const savedPinState = localStorage.getItem('sidebar-is-pinned');
-      if (savedPinState) {
-        const parsedState = JSON.parse(savedPinState);
-        setIsPinnedSidebar(parsedState === true);
-        
-        // If sidebar is pinned, ensure it's expanded
-        if (parsedState === true && !isExpanded) {
-          setIsExpanded(true);
-        }
+    // For desktop and tablet, we want the sidebar expanded by default
+    // For mobile, we want it collapsed by default
+    setIsExpanded(defaultSidebarExpanded);
+    setIsPinnedSidebar(shouldPinSidebar);
+  }, [isDesktop, isTablet, defaultSidebarExpanded, shouldPinSidebar]);
+
+  // Update layout when screen size changes
+  useEffect(() => {
+    const handleResize = () => {
+      const desktop = window.matchMedia(MEDIA_QUERIES.IS_DESKTOP).matches;
+      const tablet = window.matchMedia(MEDIA_QUERIES.IS_TABLET).matches;
+      const mobile = window.matchMedia(MEDIA_QUERIES.IS_MOBILE).matches;
+      
+      // Update sidebar state based on new screen size
+      setIsPinnedSidebar(desktop);
+      
+      // If changing to mobile, collapse sidebar
+      if (mobile && isExpanded) {
+        setIsExpanded(false);
       }
-    } catch (error) {
-      console.error('Error reading pinned state from localStorage:', error);
-    }
-  }, []);
-
-  // Handle changes to pinned state
-  const handlePinChange = (newPinState: boolean) => {
-    console.log('ChatLayout: Pin state changed to', newPinState);
-    setIsPinnedSidebar(newPinState);
-  };
-
-  // Check for tablet viewport
-  useEffect(() => {
-    const checkViewport = () => {
-      const width = window.innerWidth;
-      setIsTablet(width >= 768 && width <= 1024);
+      
+      // If changing to desktop/tablet from mobile, expand sidebar
+      if ((desktop || tablet) && !isExpanded) {
+        setIsExpanded(true);
+      }
+      
+      // Update mobile state
+      setIsMobile(mobile);
     };
     
-    checkViewport();
-    window.addEventListener('resize', checkViewport);
-    return () => window.removeEventListener('resize', checkViewport);
-  }, []);
+    // Set up event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Initial check
+    handleResize();
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isExpanded]);
 
   if (originalThreadsLoading && !loadingTimeout && !isThreadDeletion) {
     console.log('ChatLayout: Showing loading spinner for threads');
@@ -645,16 +642,14 @@ const ChatLayout = () => {
           isExpanded || isDesktop ? 'translate-x-0' : '-translate-x-full'
         } ${
           isDesktop ? 'relative' : 'fixed'
-        } ${sidebarWidth} h-full max-h-screen sidebar-container transition-all duration-300 ease-in-out z-50 ${
-          isExpanded ? 'expanded' : 'collapsed'
-        }`}
+        } ${sidebarWidth} h-full transition-all duration-300 ease-in-out z-50`}
       >
         <Sidebar
           setActiveTab={handleSetActiveThread}
           isDesktopExpanded={isExpanded}
           onDesktopExpandedChange={setIsExpanded}
           isPinned={isPinnedSidebar}
-          onPinChange={handlePinChange}
+          onPinChange={setIsPinnedSidebar}
           onNewChat={handleNewChat}
           onSignOut={handleSignOut}
           onDeleteThread={handleDeleteThread}

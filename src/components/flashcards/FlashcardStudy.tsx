@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, ArrowRight, Check, X, RotateCcw, BookOpen, Lock } from 'lucide-react';
@@ -9,6 +9,8 @@ import useToast from '@/hooks/useFlashcardToast';
 import Toast from './Toast';
 import { useAuth } from '@/lib/auth';
 import { hasActiveSubscription } from '@/lib/subscription';
+import { useIsTablet, useIsMobile } from '@/hooks/useMediaQuery';
+import { useResponsiveClasses, ResponsiveWrapper } from '@/lib/responsive-utils';
 
 interface Flashcard {
   id: string;
@@ -42,6 +44,10 @@ export default function FlashcardStudy() {
   const { toast, showToast, hideToast } = useToast();
   const { user } = useAuth();
   
+  // Add responsive hooks
+  const isTablet = useIsTablet();
+  const isMobile = useIsMobile();
+  
   const [collection, setCollection] = useState<FlashcardCollection | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -57,30 +63,31 @@ export default function FlashcardStudy() {
     remaining: 0,
     mastered: 0
   });
-  const [showDefinition, setShowDefinition] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [difficultyRatingVisible, setDifficultyRatingVisible] = useState(false);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<number | null>(null);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
-  const [studyStats, setStudyStats] = useState<StudyStats>(initialStudyStats);
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
-  const [isTablet, setIsTablet] = useState(false);
+
+  // Get responsive class combinations for different elements
+  const statsGridClasses = useResponsiveClasses(
+    'grid-cols-2 gap-2',  // Mobile
+    'grid-cols-4 gap-2',  // Tablet
+    'grid-cols-4 gap-4'   // Desktop
+  );
   
-  // Reference to the card element for flip animation
-  const cardRef = useRef<HTMLDivElement>(null);
+  const cardPaddingClasses = useResponsiveClasses(
+    'p-4',               // Mobile
+    'p-5',               // Tablet
+    'p-8'                // Desktop
+  );
   
-  // Check if on tablet/iPad
-  useEffect(() => {
-    const checkDeviceType = () => {
-      const width = window.innerWidth;
-      setIsTablet(width >= 768 && width <= 1024);
-    };
-    
-    checkDeviceType();
-    window.addEventListener('resize', checkDeviceType);
-    return () => window.removeEventListener('resize', checkDeviceType);
-  }, []);
+  const cardHeightClasses = useResponsiveClasses(
+    'min-h-[250px]',     // Mobile
+    'min-h-[300px]',     // Tablet
+    'min-h-[300px]'      // Desktop
+  );
+  
+  const buttonSizeClasses = useResponsiveClasses(
+    'h-10 w-10',         // Mobile
+    'h-12 w-12',         // Tablet
+    'h-14 w-14'          // Desktop
+  );
 
   // Create a memoized shuffle function
   const shuffleCards = useCallback((cards) => {
@@ -390,22 +397,12 @@ export default function FlashcardStudy() {
     });
   }
 
-  // Function to flip the card
-  const flipCard = () => {
-    // For tablets, use simplified animations without transforms
-    if (isTablet) {
-      setShowDefinition(!showDefinition);
-    } else {
-      // For desktop/non-tablets, use the regular animation
-      if (cardRef.current) {
-        cardRef.current.classList.toggle('flipped');
-      }
-      setShowDefinition(!showDefinition);
-    }
-  };
-
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="p-4 flex items-center justify-center min-h-[60vh]">
+        <LoadingSpinner size="large" />
+      </div>
+    );
   }
 
   if (error) {
@@ -493,148 +490,156 @@ export default function FlashcardStudy() {
   const shouldBlurAnswer = showAnswer && isCurrentCardPremium && !hasCardAccess;
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {toast && (
-        <Toast 
-          message={toast.message} 
-          type={toast.type} 
-          onClose={hideToast} 
-        />
-      )}
+    <div className="max-w-6xl mx-auto py-6 px-4">
+      {toast.visible && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
       
-      <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{collection?.title}</h1>
-        <p className="text-gray-600 mt-2">{collection?.description}</p>
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-          <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
-            {collection?.subject.name}
-          </span>
-          <span className="text-sm text-gray-500">
-            Card {currentIndex + 1} of {flashcards.length}
-          </span>
-          {isPremiumContent && !hasSubscription && (
-            <span className="text-sm bg-orange-100 text-orange-800 px-2 py-1 rounded flex items-center">
-              <Lock className="h-3 w-3 mr-1" /> Premium Content
-            </span>
-          )}
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-4 mb-6">
-        <div className="bg-blue-50 p-2 md:p-3 rounded-lg text-center">
-          <p className="text-lg md:text-xl font-bold text-blue-700">{flashcards.length}</p>
-          <p className="text-xs text-blue-600">Total</p>
-        </div>
-        <div className="bg-green-50 p-2 md:p-3 rounded-lg text-center">
-          <p className="text-lg md:text-xl font-bold text-green-700">{stats.correct}</p>
-          <p className="text-xs text-green-600">Correct</p>
-        </div>
-        <div className="bg-red-50 p-2 md:p-3 rounded-lg text-center">
-          <p className="text-lg md:text-xl font-bold text-red-700">{stats.incorrect}</p>
-          <p className="text-xs text-red-600">Incorrect</p>
-        </div>
-        <div className="bg-orange-50 p-2 md:p-3 rounded-lg text-center">
-          <p className="text-lg md:text-xl font-bold text-[#F37022]">{stats.mastered}</p>
-          <p className="text-xs text-[#F37022]">Mastered</p>
-        </div>
-      </div>
-      
-      <div 
-        className={`bg-white rounded-xl shadow-md p-4 md:p-8 mb-6 min-h-[250px] md:min-h-[300px] flex items-center justify-center cursor-pointer transition-all duration-300 ${
-          showAnswer ? 'bg-blue-50' : ''
-        } ${shouldBlurAnswer ? 'relative' : ''}`}
-        onClick={flipCard}
-      >
-        <div className="text-center w-full px-2 md:px-4">
-          <h3 className="text-lg md:text-xl font-medium text-gray-900 mb-2">
-            {showAnswer ? 'Answer:' : 'Question:'}
-          </h3>
-          
-          {shouldBlurAnswer ? (
-            <div className="bg-orange-100 p-4 md:p-6 rounded-lg mt-4 md:mt-8">
-              <div className="flex flex-col items-center gap-3 md:gap-4">
-                <Lock className="h-8 md:h-12 w-8 md:w-12 text-orange-500" />
-                <h2 className="text-xl md:text-2xl font-semibold text-orange-800">Premium Flashcard</h2>
-                <p className="text-sm md:text-base text-orange-700 max-w-md mx-auto">
-                  The answer is only available to premium subscribers. 
-                  Upgrade your account to access our curated library of expert flashcards.
-                </p>
-                <button 
-                  className="mt-2 px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate('/settings/subscription');
-                  }}
-                >
-                  Upgrade to Premium
-                </button>
+      {studyComplete ? (
+        <div className="bg-white rounded-xl shadow-md p-6 text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Study Session Complete!</h2>
+          <div className="max-w-md mx-auto mb-6">
+            <p className="text-gray-600 mb-4">You've completed all the flashcards in this collection.</p>
+            
+            <div className={`grid ${statsGridClasses} mb-6`}>
+              <div className="bg-green-50 p-3 rounded-lg text-center">
+                <p className="text-sm text-gray-500">Correct</p>
+                <p className="text-xl font-bold text-green-700">{stats.correct}</p>
+              </div>
+              <div className="bg-red-50 p-3 rounded-lg text-center">
+                <p className="text-sm text-gray-500">Incorrect</p>
+                <p className="text-xl font-bold text-red-700">{stats.incorrect}</p>
+              </div>
+              <div className="bg-blue-50 p-3 rounded-lg text-center">
+                <p className="text-sm text-gray-500">Total</p>
+                <p className="text-xl font-bold text-blue-700">{flashcards.length}</p>
+              </div>
+              <div className="bg-orange-50 p-3 rounded-lg text-center">
+                <p className="text-sm text-gray-500">Mastered</p>
+                <p className="text-xl font-bold text-[#F37022]">{masteredCount}</p>
               </div>
             </div>
-          ) : (
-            <p className="text-xl md:text-2xl font-bold break-words">
-              {showAnswer ? currentCard?.answer : currentCard?.question}
-            </p>
-          )}
+          </div>
           
-          {!showAnswer && (
-            <p className="text-gray-500 mt-4 text-xs md:text-sm">Click to reveal answer</p>
-          )}
+          <div className="flex flex-col md:flex-row gap-4 justify-center">
+            <button
+              onClick={handleRestartStudy}
+              className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Restart Study Session
+            </button>
+            <button
+              onClick={() => navigate('/flashcards')}
+              className="flex items-center justify-center gap-2 bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Collections
+            </button>
+          </div>
         </div>
-      </div>
-      
-      <div className="flex justify-between items-center">
-        <button
-          onClick={handlePrevious}
-          disabled={currentIndex === 0}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md ${
-            currentIndex === 0
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-          }`}
-        >
-          <ArrowLeft className="h-5 w-5" />
-          Previous
-        </button>
-        
-        <div className="flex gap-3">
-          <button
-            onClick={handleMarkIncorrect}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md ${
-              showAnswer && !shouldBlurAnswer
-                ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-            }`}
-          >
-            <X className="h-5 w-5" />
-            {showAnswer && !shouldBlurAnswer ? 'Incorrect' : 'Show Answer'}
-          </button>
+      ) : (
+        <>
+          <div className="mb-6 flex justify-between items-center">
+            <button
+              onClick={() => navigate('/flashcards')}
+              className="flex items-center text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              <span>Back</span>
+            </button>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{collection?.title}</h1>
+            <div className="w-20"></div> {/* Spacer for alignment */}
+          </div>
           
-          <button
-            onClick={handleMarkCorrect}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md ${
-              showAnswer && !shouldBlurAnswer
-                ? 'bg-green-600 text-white hover:bg-green-700'
-                : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-            }`}
+          <ResponsiveWrapper
+            mobileStyles="grid grid-cols-2 gap-2 mb-4"
+            tabletStyles="grid grid-cols-4 gap-2 mb-6"
+            desktopStyles="grid grid-cols-4 gap-4 mb-6"
           >
-            <Check className="h-5 w-5" />
-            {showAnswer && !shouldBlurAnswer ? 'Correct' : 'Show Answer'}
-          </button>
-        </div>
-        
-        <button
-          onClick={handleNext}
-          disabled={currentIndex === flashcards.length - 1}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md ${
-            currentIndex === flashcards.length - 1
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-          }`}
-        >
-          Next
-          <ArrowRight className="h-5 w-5" />
-        </button>
-      </div>
+            <div className="bg-blue-50 p-2 md:p-3 rounded-lg text-center">
+              <p className="text-xs md:text-sm text-gray-500">Cards</p>
+              <p className="text-lg md:text-xl font-bold text-blue-700">{flashcards.length}</p>
+            </div>
+            <div className="bg-green-50 p-2 md:p-3 rounded-lg text-center">
+              <p className="text-xs md:text-sm text-gray-500">Correct</p>
+              <p className="text-lg md:text-xl font-bold text-green-700">{stats.correct}</p>
+            </div>
+            <div className="bg-red-50 p-2 md:p-3 rounded-lg text-center">
+              <p className="text-xs md:text-sm text-gray-500">Incorrect</p>
+              <p className="text-lg md:text-xl font-bold text-red-700">{stats.incorrect}</p>
+            </div>
+            <div className="bg-orange-50 p-2 md:p-3 rounded-lg text-center">
+              <p className="text-xs md:text-sm text-gray-500">Mastered</p>
+              <p className="text-lg md:text-xl font-bold text-[#F37022]">{stats.mastered}</p>
+            </div>
+          </ResponsiveWrapper>
+          
+          <div
+            className={`bg-white rounded-xl shadow-md ${cardPaddingClasses} mb-6 ${cardHeightClasses} flex items-center justify-center cursor-pointer transition-all duration-300 ${
+              showAnswer ? 'bg-gray-50' : ''
+            }`}
+            onClick={handleFlip}
+          >
+            <div className="text-center w-full px-2 md:px-4">
+              <h3 className="text-lg md:text-xl font-medium text-gray-900 mb-2">
+                {showAnswer ? "Answer" : "Question"}
+              </h3>
+              <p className="text-gray-700">{showAnswer ? currentCard.answer : currentCard.question}</p>
+              {!showAnswer && (
+                <div className="mt-4 text-sm text-gray-500">
+                  (Click to flip)
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="bg-orange-100 p-4 md:p-6 rounded-lg mt-4 md:mt-8">
+            <div className="flex flex-col md:flex-row justify-center items-center gap-6">
+              <button
+                onClick={handlePrevious}
+                disabled={currentIndex === 0}
+                className={`${buttonSizeClasses} flex items-center justify-center rounded-full bg-white text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 border border-gray-200`}
+              >
+                <ArrowLeft className={isMobile ? "h-5 w-5" : "h-6 w-6"} />
+              </button>
+              
+              <button
+                onClick={handleMarkIncorrect}
+                className={`${buttonSizeClasses} flex items-center justify-center rounded-full bg-white text-red-500 border border-red-200 hover:bg-red-50`}
+              >
+                <X className={isMobile ? "h-5 w-5" : "h-6 w-6"} />
+              </button>
+              
+              <button
+                onClick={handleFlip}
+                className={`${isTablet ? 'h-14 w-24' : isMobile ? 'h-12 w-20' : 'h-16 w-28'} flex items-center justify-center rounded-full bg-white text-blue-600 border border-blue-200 hover:bg-blue-50`}
+              >
+                <span>Flip</span>
+              </button>
+              
+              <button
+                onClick={handleMarkCorrect}
+                className={`${buttonSizeClasses} flex items-center justify-center rounded-full bg-white text-green-500 border border-green-200 hover:bg-green-50`}
+              >
+                <Check className={isMobile ? "h-5 w-5" : "h-6 w-6"} />
+              </button>
+              
+              <button
+                onClick={handleNext}
+                disabled={currentIndex === flashcards.length - 1}
+                className={`${buttonSizeClasses} flex items-center justify-center rounded-full bg-white text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 border border-gray-200`}
+              >
+                <ArrowRight className={isMobile ? "h-5 w-5" : "h-6 w-6"} />
+              </button>
+            </div>
+            
+            <div className="text-center mt-4">
+              <p className="text-gray-500 text-sm">
+                Card {currentIndex + 1} of {flashcards.length}
+              </p>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 } 

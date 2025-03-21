@@ -695,229 +695,68 @@ button[aria-label="Open sidebar"]:hover {
 
 /* Ensure hamburger menu is visible */
 
-/* iPad/Tablet specific fixes */
-@media (min-width: 768px) and (max-width: 1024px) {
-  /* Fix layout for tablets */
-  body, html, #root {
-    overflow-x: hidden !important;
-    position: relative !important;
-    max-width: 100vw !important;
-    overscroll-behavior-x: none !important;
+/* Add tablet-specific media queries */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Tablet-specific styles */
+  html {
+    font-size: 15px; /* Slightly smaller base font size for tablets */
   }
-  
-  /* Fix flashcard display issues */
-  .card, .flashcard-card {
-    max-width: 100% !important;
-    width: 100% !important;
-    transform: none !important; /* Disable transform animations that might cause flashing */
-    transition: opacity 0.2s ease !important; /* Simplify transitions */
-    will-change: opacity !important; /* Optimize what changes */
-    animation: none !important; /* Disable all animations */
-  }
-  
-  /* Fix content being hidden under the top navigation bar */
+
+  /* Adjust container paddings for tablets */
   .container, 
-  main,
-  .subject-container,
-  .flashcard-container,
-  .collections-container {
-    padding-top: 80px !important; /* Add padding for the fixed navbar */
-    margin-top: 0 !important;
+  .max-w-7xl,
+  .max-w-6xl,
+  .max-w-5xl,
+  .max-w-4xl {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  /* Optimize form elements for tablet touch */
+  input, 
+  textarea, 
+  select, 
+  button {
+    font-size: 1rem;
+  }
+
+  button {
+    min-height: 2.5rem; /* Better touch targets */
+  }
+
+  /* Optimize spacing for tablet */
+  .gap-8 {
+    gap: 1.5rem;
+  }
+}
+
+/* Specific tablet-only styles */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Reduce some margins/paddings for tablet without affecting desktop */
+  .md\:p-8 {
+    padding: 1.5rem !important;
   }
   
-  /* Ensure the navbar stays on top */
-  nav.top-nav {
-    z-index: 30 !important;
+  .md\:m-8 {
+    margin: 1.5rem !important;
   }
   
-  /* Fix title, item count, and sliders visibility */
-  .page-title,
-  .item-count,
-  .filter-controls,
-  .slider-container {
-    position: relative !important;
-    z-index: 10 !important;
+  /* Adjust font sizes for tablet */
+  .md\:text-3xl {
+    font-size: 1.75rem !important;
   }
   
-  /* Fix toast notifications that might be flashing */
-  .toast-container, .toast, 
-  div[role="status"],
-  div[role="alert"] {
-    animation: none !important; /* Disable all animations */
-    transform: none !important;
-    transition: opacity 0.2s ease !important;
-    will-change: opacity !important;
-    display: block !important;
-    position: fixed !important;
+  .md\:text-2xl {
+    font-size: 1.5rem !important;
   }
   
-  /* Fix toast animation specifically */
-  @keyframes simplified-fade {
-    from { opacity: 0; }
-    to { opacity: 1; }
+  /* Adjust grid columns for tablet */
+  .md\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
   
-  /* Apply simplified animation to elements that were using animations */
-  .animate-in,
-  .animate-out,
-  .fade-in,
-  .fade-out {
-    animation: simplified-fade 0.2s ease forwards !important;
-  }
-  
-  /* Optimize animations and transitions */
-  * {
-    animation-duration: 0.2s !important; /* Shorter animations */
-    transition-duration: 0.2s !important; /* Shorter transitions */
-  }
-  
-  /* Fix sidebar behavior */
-  .sidebar-container {
-    position: fixed !important;
-    transform: none !important;
-    will-change: opacity !important;
-    height: 100vh !important;
-    top: 0 !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    z-index: var(--sidebar-z-index, 50) !important;
-    overflow-y: auto !important;
-    overscroll-behavior-y: contain !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-  
-  /* Ensure the sidebar works correctly in both chat and flashcards areas */
+  /* Ensure chat sidebar has good width on tablet */
   .sidebar-container.expanded {
-    width: var(--sidebar-width, 280px) !important;
-  }
-  
-  .sidebar-container.collapsed {
-    width: var(--sidebar-collapsed-width, 70px) !important;
-  }
-  
-  /* Ensure proper scrolling containers */
-  .overflow-auto, .overflow-y-auto {
-    -webkit-overflow-scrolling: touch !important;
-    overscroll-behavior: contain !important;
-  }
-  
-  /* Force hardware acceleration to reduce flickering */
-  .is-tablet-device * {
-    -webkit-backface-visibility: hidden;
-    -webkit-perspective: 1000;
-    backface-visibility: hidden;
-    perspective: 1000;
-  }
-  
-  /* Fix flashcard container issues */
-  .is-tablet-device .flashcard-container,
-  .is-tablet-device .collections-container {
-    display: block !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-  }
-  
-  /* Fix flashcards not showing */
-  .flashcard-item,
-  .flashcard-collection,
-  .card-container {
-    opacity: 1 !important;
-    visibility: visible !important;
-    display: block !important;
-    transform: none !important;
-  }
-  
-  /* Fix spacing for content when sidebar is expanded */
-  .is-tablet-device .flex-1.overflow-auto.transition-all.duration-300.ease-in-out.md\:ml-\[280px\] {
-    margin-left: var(--sidebar-width, 280px) !important;
-  }
-  
-  .is-tablet-device .flex-1.overflow-auto.transition-all.duration-300.ease-in-out.md\:ml-\[70px\] {
-    margin-left: var(--sidebar-collapsed-width, 70px) !important;
-  }
-}
-
-/* Root element tablet detection */
-html.is-tablet .sidebar-container {
-  position: fixed !important;
-  height: 100vh !important;
-  max-height: 100vh !important;
-  top: 0 !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  z-index: var(--sidebar-z-index, 50) !important;
-  overflow-y: auto !important;
-  overscroll-behavior-y: contain !important;
-  transition: width 0.3s ease !important;
-}
-
-html.is-tablet .sidebar-container.expanded {
-  width: var(--sidebar-width, 280px) !important;
-}
-
-html.is-tablet .sidebar-container.collapsed {
-  width: var(--sidebar-collapsed-width, 70px) !important;
-}
-
-/* Fix the top navigation alignment with sidebar expansion */
-html.is-tablet nav,
-html.is-tablet .top-nav,
-html.is-tablet header,
-html.is-tablet .search-container {
-  transition: margin-left 0.3s ease !important;
-  width: auto !important;
-}
-
-html.is-tablet.sidebar-expanded nav,
-html.is-tablet.sidebar-expanded .top-nav,
-html.is-tablet.sidebar-expanded header,
-html.is-tablet.sidebar-expanded .search-container {
-  margin-left: var(--sidebar-width, 280px) !important;
-  width: calc(100% - var(--sidebar-width, 280px)) !important;
-}
-
-html.is-tablet.sidebar-collapsed nav,
-html.is-tablet.sidebar-collapsed .top-nav,
-html.is-tablet.sidebar-collapsed header,
-html.is-tablet.sidebar-collapsed .search-container {
-  margin-left: var(--sidebar-collapsed-width, 70px) !important;
-  width: calc(100% - var(--sidebar-collapsed-width, 70px)) !important;
-}
-
-html.is-tablet .flex-1.overflow-auto.transition-all.duration-300.ease-in-out.md\:ml-\[280px\] {
-  margin-left: var(--sidebar-width, 280px) !important;
-}
-
-html.is-tablet .flex-1.overflow-auto.transition-all.duration-300.ease-in-out.md\:ml-\[70px\] {
-  margin-left: var(--sidebar-collapsed-width, 70px) !important;
-}
-
-/* Additional styles for subjects container in tablet view */
-@media (min-width: 768px) and (max-width: 1024px) {
-  .tablet-subject-container {
-    padding-top: 100px !important;
-    margin-top: 0 !important;
-    position: relative;
-    z-index: 1;
-  }
-  
-  .tablet-subject-container .page-title,
-  .tablet-subject-container .filter-controls,
-  .tablet-subject-container .item-count {
-    position: relative;
-    z-index: 10;
-  }
-  
-  /* Ensure the tabs are visible and clickable */
-  .tablet-subject-container .TabsList,
-  .tablet-subject-container .TabsTrigger {
-    position: relative;
-    z-index: 20;
-  }
-  
-  /* Target the navbar specifically */
-  .top-nav {
-    z-index: 30 !important;
-    position: relative !important;
+    width: 280px !important;
   }
 }

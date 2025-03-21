@@ -40,7 +40,6 @@ export default function FlashcardsPage() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [isTablet, setIsTablet] = useState(false);
   
   // Use the threads hook to fetch actual threads
   const { threads, loading: threadsLoading, deleteThread, updateThread, createThread } = useThreads();
@@ -50,50 +49,15 @@ export default function FlashcardsPage() {
   // Get pinned state from localStorage or default to false
   const [isPinned, setIsPinned] = useState(false);
   
-  // Read pinned state from localStorage on component mount
+  // Check if device is mobile
   useEffect(() => {
-    try {
-      const savedPinState = localStorage.getItem('sidebar-is-pinned');
-      if (savedPinState) {
-        const parsedState = JSON.parse(savedPinState);
-        setIsPinned(parsedState === true);
-        
-        // If sidebar is pinned, ensure it's expanded
-        if (parsedState === true && !isExpanded) {
-          setIsExpanded(true);
-        }
-      }
-    } catch (error) {
-      console.error('Error reading pinned state from localStorage:', error);
-    }
-  }, []);
-  
-  // Handle changes to pinned state
-  const handlePinChange = (newPinState: boolean) => {
-    console.log('FlashcardsPage: Pin state changed to', newPinState);
-    setIsPinned(newPinState);
-  };
-  
-  // Check if device is mobile or tablet
-  useEffect(() => {
-    const checkDeviceType = () => {
-      const width = window.innerWidth;
-      // Check for mobile devices
-      setIsMobile(width < 768);
-      // Check specifically for tablets (iPad typically 768-1024px)
-      setIsTablet(width >= 768 && width <= 1024);
-      
-      // Add a specific class for tablets to help with CSS targeting
-      if (width >= 768 && width <= 1024) {
-        document.body.classList.add('is-tablet-device');
-      } else {
-        document.body.classList.remove('is-tablet-device');
-      }
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
     };
     
-    checkDeviceType();
-    window.addEventListener('resize', checkDeviceType);
-    return () => window.removeEventListener('resize', checkDeviceType);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
   
   // Handle sidebar expansion/collapse properly
@@ -290,7 +254,7 @@ export default function FlashcardsPage() {
         isDesktopExpanded={isExpanded}
         onDesktopExpandedChange={setIsExpanded}
         isPinned={isPinned}
-        onPinChange={handlePinChange}
+        onPinChange={setIsPinned}
         onNewChat={handleNewChat}
         onSignOut={handleSignOut}
         onDeleteThread={handleDeleteThread}
