@@ -6,7 +6,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Loader2, Info, Menu } from 'lucide-react';
 import { Message } from '@/types';
 import { ChatMessage } from './ChatMessage';
-import { useIsTablet, useIsMobile } from '@/hooks/useResponsive';
+import { useIsTablet, useIsMobile } from '@/hooks/useMediaQuery';
 
 interface ChatInterfaceProps {
   threadId: string | null;
