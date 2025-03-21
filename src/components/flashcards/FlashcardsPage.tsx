@@ -50,6 +50,30 @@ export default function FlashcardsPage() {
   // Get pinned state from localStorage or default to false
   const [isPinned, setIsPinned] = useState(false);
   
+  // Read pinned state from localStorage on component mount
+  useEffect(() => {
+    try {
+      const savedPinState = localStorage.getItem('sidebar-is-pinned');
+      if (savedPinState) {
+        const parsedState = JSON.parse(savedPinState);
+        setIsPinned(parsedState === true);
+        
+        // If sidebar is pinned, ensure it's expanded
+        if (parsedState === true && !isExpanded) {
+          setIsExpanded(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error reading pinned state from localStorage:', error);
+    }
+  }, []);
+  
+  // Handle changes to pinned state
+  const handlePinChange = (newPinState: boolean) => {
+    console.log('FlashcardsPage: Pin state changed to', newPinState);
+    setIsPinned(newPinState);
+  };
+  
   // Check if device is mobile or tablet
   useEffect(() => {
     const checkDeviceType = () => {
@@ -266,7 +290,7 @@ export default function FlashcardsPage() {
         isDesktopExpanded={isExpanded}
         onDesktopExpandedChange={setIsExpanded}
         isPinned={isPinned}
-        onPinChange={setIsPinned}
+        onPinChange={handlePinChange}
         onNewChat={handleNewChat}
         onSignOut={handleSignOut}
         onDeleteThread={handleDeleteThread}
