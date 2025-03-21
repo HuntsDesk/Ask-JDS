@@ -49,6 +49,17 @@ export default function FlashcardsPage() {
   // Get pinned state from localStorage or default to false
   const [isPinned, setIsPinned] = useState(false);
   
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
   // Handle sidebar expansion/collapse properly
   useEffect(() => {
     // Set CSS variables for sidebar width
@@ -228,6 +239,15 @@ export default function FlashcardsPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      {/* Mobile backdrop overlay - only visible when sidebar is expanded on mobile */}
+      {isExpanded && isMobile && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40"
+          onClick={() => setIsExpanded(false)}
+          aria-hidden="true"
+        />
+      )}
+      
       {/* Chat Sidebar */}
       <Sidebar
         setActiveTab={handleThreadSelect}

@@ -17,6 +17,7 @@ import { FlashcardPaywall } from '../../FlashcardPaywall';
 import { useCachedData, clearCache, invalidateCache } from '@/hooks/use-cached-data';
 import { useFlashcardRelationships } from '@/hooks/useFlashcardRelationships';
 import FlashcardItem from '../FlashcardItem';
+import { useNavbar } from '@/contexts/NavbarContext';
 
 interface Collection {
   id: string;
@@ -55,6 +56,7 @@ export default function AllFlashcards() {
   const [hasSubscription, setHasSubscription] = useState<boolean>(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const { updateTotalCardCount } = useNavbar();
 
   // Replace regular state with persisted state
   const [showMastered, setShowMastered] = usePersistedState<boolean>('flashcards-show-mastered', true);
@@ -579,6 +581,13 @@ export default function AllFlashcards() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // Update the card count in the navbar when filtered cards change
+  useEffect(() => {
+    if (!loading) {
+      updateTotalCardCount(filteredCards.length);
+    }
+  }, [filteredCards.length, updateTotalCardCount, loading]);
 
   const handleShowPaywall = () => {
     setShowPaywall(true);

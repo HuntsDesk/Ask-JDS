@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { PlusCircle, BookOpen, FileText, Layers, Menu, X, Search, Brain } from 'lucide-react';
 import SearchBar from './SearchBar';
 import useFlashcardAuth from '@/hooks/useFlashcardAuth';
 import { useNavbar } from '@/contexts/NavbarContext';
+import { SidebarContext } from '@/App';
 
 export default function Navbar() {
   const { user } = useFlashcardAuth();
@@ -11,6 +12,7 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const { itemCount, totalCollectionCount, totalCardCount } = useNavbar();
+  const { isExpanded, setIsExpanded } = useContext(SidebarContext);
 
   // Check if device is mobile
   useEffect(() => {
@@ -148,6 +150,15 @@ export default function Navbar() {
           <div className="flex items-center justify-between h-16">
             {/* Mobile header */}
             <div className="md:hidden flex items-center justify-between w-full">
+              {/* Hamburger menu button */}
+              <button
+                onClick={() => setIsExpanded(true)}
+                className="text-gray-600 flex items-center justify-center p-2 hover:text-[#F37022]"
+                aria-label="Open sidebar"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+              
               <div className="flex flex-col flex-grow">
                 <h1 className="text-lg font-semibold text-center">
                   {pageInfo.title}

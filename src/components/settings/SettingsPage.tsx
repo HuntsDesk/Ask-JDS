@@ -25,6 +25,7 @@ export function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isPinnedSidebar, setIsPinnedSidebar] = useState(false);
   
   // Use the threads hook to fetch actual threads
   const { threads, loading: threadsLoading, deleteThread, updateThread } = useThreads();
@@ -122,6 +123,8 @@ export function SettingsPage() {
         setActiveTab={handleThreadSelect}
         isDesktopExpanded={isExpanded}
         onDesktopExpandedChange={setIsExpanded}
+        isPinned={isPinnedSidebar}
+        onPinChange={setIsPinnedSidebar}
         onNewChat={handleNewChat}
         onSignOut={signOut}
         onDeleteThread={handleDeleteThread}
@@ -139,10 +142,30 @@ export function SettingsPage() {
             : (isExpanded ? 'var(--sidebar-width)' : 'var(--sidebar-collapsed-width)')
         }}
       >
-        <div className="container py-6 max-w-4xl mx-auto">
+        {/* Mobile Header with Hamburger Menu */}
+        {isMobile && (
+          <header className="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex items-center justify-between">
+            <button
+              onClick={() => {
+                console.log('Settings: Hamburger menu clicked!');
+                setIsExpanded(true);
+              }}
+              className="p-2 rounded-md bg-[#f37022] text-white hover:bg-[#e36012] flex items-center justify-center"
+              aria-label="Open sidebar"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+              </svg>
+            </button>
+            <h1 className="text-xl font-semibold text-gray-800 dark:text-white">Settings</h1>
+            <div className="w-9"></div> {/* Spacer for alignment */}
+          </header>
+        )}
+        
+        <div className={`container py-6 max-w-4xl mx-auto ${isMobile ? 'pt-16' : ''}`}>
           <div className="flex items-center justify-between mb-6">
-            {/* On mobile, add padding to the left of the title to avoid hamburger overlap */}
-            <h1 className={cn("text-3xl font-bold", isMobile && "pl-16")}>Settings</h1>
+            {/* Only show h1 title on desktop */}
+            {!isMobile && <h1 className="text-3xl font-bold">Settings</h1>}
           </div>
           
           <Tabs defaultValue="subscription" className="space-y-4">
