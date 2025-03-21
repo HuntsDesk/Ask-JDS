@@ -118,6 +118,17 @@ export function SettingsPage() {
 
   return (
     <div className="bg-background min-h-screen flex">
+      {/* Mobile backdrop - only show on mobile when sidebar is expanded */}
+      {isMobile && isExpanded && (
+        <div 
+          className="fixed inset-0 bg-black/70 z-40"
+          onClick={() => {
+            console.log('Settings: Backdrop clicked, closing sidebar');
+            setIsExpanded(false);
+          }}
+        />
+      )}
+      
       {/* Chat Sidebar */}
       <Sidebar
         setActiveTab={handleThreadSelect}
@@ -138,7 +149,7 @@ export function SettingsPage() {
         className="flex-1 transition-all duration-300 overflow-x-hidden w-full max-w-full"
         style={{ 
           marginLeft: isMobile 
-            ? (isExpanded ? 'var(--sidebar-width)' : '0')
+            ? '0' // Don't apply margin on mobile, let sidebar overlay
             : (isExpanded ? 'var(--sidebar-width)' : 'var(--sidebar-collapsed-width)')
         }}
       >
