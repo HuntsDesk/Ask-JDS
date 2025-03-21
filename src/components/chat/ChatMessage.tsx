@@ -1,15 +1,13 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Message } from '@/types';
-import { cn } from '@/lib/utils';
 
 interface ChatMessageProps {
   message: Message;
   isLastMessage?: boolean;
-  className?: string;
 }
 
-export function ChatMessage({ message, isLastMessage, className }: ChatMessageProps) {
+export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
   const isUserMessage = message.role === 'user';
   const isSystem = message.role === 'system';
   
@@ -27,13 +25,11 @@ export function ChatMessage({ message, isLastMessage, className }: ChatMessagePr
         }`}
       >
         <div 
-          className={cn(
-            `rounded-lg overflow-hidden`,
+          className={`rounded-lg p-3 overflow-hidden ${
             isUserMessage 
               ? 'bg-[#F37022] text-white rounded-br-none' 
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none',
-            className || 'p-3'
-          )}
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none'
+          }`}
         >
           <div className="prose dark:prose-invert max-w-none text-sm md:text-base break-words">
             <ReactMarkdown 

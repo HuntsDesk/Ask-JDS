@@ -11,8 +11,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { SelectedThreadContext, SidebarContext } from '@/App';
-import useMediaQuery, { useIsTablet, useIsDesktop, useIsMobile } from '@/hooks/useMediaQuery';
-import { MEDIA_QUERIES } from '@/lib/breakpoints';
+import useMediaQuery from '@/hooks/useMediaQuery';
 import { X } from 'lucide-react';
 
 // Export as default for lazy loading
@@ -53,15 +52,7 @@ const ChatLayout = () => {
   const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
   const messagesTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Use our new responsive hooks
-  const isDesktop = useIsDesktop();
-  const isTablet = useIsTablet();
-  const isMobileDevice = useIsMobile();
-
-  // Calculate optimal sidebar behavior based on screen size
-  const shouldPinSidebar = isDesktop; // Pin sidebar on desktop
-  const shouldAutoCollapseSidebar = isMobileDevice; // Auto-collapse on mobile
-  const defaultSidebarExpanded = isDesktop || isTablet; // Default expanded on desktop and tablet
+  const isDesktop = useMediaQuery('(min-width: 768px)');
 
   // A helper function to log thread details
   const logThreadInfo = () => {
@@ -549,50 +540,6 @@ const ChatLayout = () => {
       </Suspense>
     );
   };
-
-  // Set initial sidebar state based on screen size
-  useEffect(() => {
-    // For desktop and tablet, we want the sidebar expanded by default
-    // For mobile, we want it collapsed by default
-    setIsExpanded(defaultSidebarExpanded);
-    setIsPinnedSidebar(shouldPinSidebar);
-  }, [isDesktop, isTablet, defaultSidebarExpanded, shouldPinSidebar]);
-
-  // Update layout when screen size changes
-  useEffect(() => {
-    const handleResize = () => {
-      const desktop = window.matchMedia(MEDIA_QUERIES.IS_DESKTOP).matches;
-      const tablet = window.matchMedia(MEDIA_QUERIES.IS_TABLET).matches;
-      const mobile = window.matchMedia(MEDIA_QUERIES.IS_MOBILE).matches;
-      
-      // Update sidebar state based on new screen size
-      setIsPinnedSidebar(desktop);
-      
-      // If changing to mobile, collapse sidebar
-      if (mobile && isExpanded) {
-        setIsExpanded(false);
-      }
-      
-      // If changing to desktop/tablet from mobile, expand sidebar
-      if ((desktop || tablet) && !isExpanded) {
-        setIsExpanded(true);
-      }
-      
-      // Update mobile state
-      setIsMobile(mobile);
-    };
-    
-    // Set up event listener
-    window.addEventListener('resize', handleResize);
-    
-    // Initial check
-    handleResize();
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [isExpanded]);
 
   if (originalThreadsLoading && !loadingTimeout && !isThreadDeletion) {
     console.log('ChatLayout: Showing loading spinner for threads');

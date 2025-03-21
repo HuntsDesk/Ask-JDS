@@ -35,7 +35,6 @@ import { FREE_MESSAGE_LIMIT } from '@/lib/subscription';
 import { hasActiveSubscription } from '@/lib/subscription';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { OptimizedImage } from '@/components/ui/optimized-image';
-import { useIsTablet } from '@/hooks/useMediaQuery';
 
 // Define the benefits array
 const benefits = [

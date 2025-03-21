@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
  * @param query The media query to check
  * @returns boolean indicating if the media query matches
  */
-function useMediaQuery(query: string): boolean {
+export default function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(false);
 
   useEffect(() => {
@@ -30,33 +30,4 @@ function useMediaQuery(query: string): boolean {
   }, [query]);
 
   return matches;
-}
-
-/**
- * Helper hook to detect if the current device is a tablet
- * Tablets are considered to be between 768px and 1023px width
- * @returns boolean indicating if the current device is a tablet
- */
-function useIsTablet(): boolean {
-  return useMediaQuery('(min-width: 768px) and (max-width: 1023px)');
-}
-
-/**
- * Helper hook to detect if the current device is mobile (phone)
- * Mobile is considered to be less than 768px width
- * @returns boolean indicating if the current device is mobile
- */
-function useIsMobile(): boolean {
-  return useMediaQuery('(max-width: 767px)');
-}
-
-/**
- * Helper hook to detect if the current device is desktop
- * Desktop is considered to be 1024px or wider
- * @returns boolean indicating if the current device is desktop
- */
-function useIsDesktop(): boolean {
-  return useMediaQuery('(min-width: 1024px)');
-}
-
-export { useMediaQuery as default, useMediaQuery, useIsTablet, useIsMobile, useIsDesktop }; 
+} 
