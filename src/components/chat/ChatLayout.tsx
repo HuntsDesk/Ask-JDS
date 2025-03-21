@@ -645,14 +645,9 @@ const ChatLayout = () => {
           isExpanded || isDesktop ? 'translate-x-0' : '-translate-x-full'
         } ${
           isDesktop ? 'relative' : 'fixed'
-        } ${sidebarWidth} sidebar-container transition-all duration-300 ease-in-out z-50 ${
+        } ${sidebarWidth} h-full max-h-screen sidebar-container transition-all duration-300 ease-in-out z-50 ${
           isExpanded ? 'expanded' : 'collapsed'
-        } overflow-y-auto`}
-        style={{
-          height: '100%',
-          maxHeight: '100%', 
-          WebkitOverflowScrolling: 'touch'
-        }}
+        }`}
       >
         <Sidebar
           setActiveTab={handleSetActiveThread}
