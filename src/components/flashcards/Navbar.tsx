@@ -171,7 +171,7 @@ export default function Navbar() {
     <>
       <nav className={`
         bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 
-        fixed top-0 left-0 right-0 z-20 w-full
+        fixed top-0 left-0 right-0 z-40 w-full
         top-nav transition-all duration-300
         ${isScrolled ? 'shadow-md' : ''}
         ${isTablet ? 'tablet-navbar' : ''}

@@ -715,6 +715,30 @@ button[aria-label="Open sidebar"]:hover {
     animation: none !important; /* Disable all animations */
   }
   
+  /* Fix content being hidden under the top navigation bar */
+  .container, 
+  main,
+  .subject-container,
+  .flashcard-container,
+  .collections-container {
+    padding-top: 80px !important; /* Add padding for the fixed navbar */
+    margin-top: 0 !important;
+  }
+  
+  /* Ensure the navbar stays on top */
+  nav.top-nav {
+    z-index: 30 !important;
+  }
+  
+  /* Fix title, item count, and sliders visibility */
+  .page-title,
+  .item-count,
+  .filter-controls,
+  .slider-container {
+    position: relative !important;
+    z-index: 10 !important;
+  }
+  
   /* Fix toast notifications that might be flashing */
   .toast-container, .toast, 
   div[role="status"],
@@ -866,4 +890,34 @@ html.is-tablet .flex-1.overflow-auto.transition-all.duration-300.ease-in-out.md\
 
 html.is-tablet .flex-1.overflow-auto.transition-all.duration-300.ease-in-out.md\:ml-\[70px\] {
   margin-left: var(--sidebar-collapsed-width, 70px) !important;
+}
+
+/* Additional styles for subjects container in tablet view */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .tablet-subject-container {
+    padding-top: 100px !important;
+    margin-top: 0 !important;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .tablet-subject-container .page-title,
+  .tablet-subject-container .filter-controls,
+  .tablet-subject-container .item-count {
+    position: relative;
+    z-index: 10;
+  }
+  
+  /* Ensure the tabs are visible and clickable */
+  .tablet-subject-container .TabsList,
+  .tablet-subject-container .TabsTrigger {
+    position: relative;
+    z-index: 20;
+  }
+  
+  /* Target the navbar specifically */
+  .top-nav {
+    z-index: 30 !important;
+    position: relative !important;
+  }
 }
