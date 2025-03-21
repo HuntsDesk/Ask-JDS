@@ -29,6 +29,7 @@ const ChatLayout = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isThreadDeletion, setIsThreadDeletion] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [isPinnedSidebar, setIsPinnedSidebar] = useState(false);
   
   const navigate = useNavigate();
   const params = useParams<{ threadId?: string }>();
@@ -51,7 +52,6 @@ const ChatLayout = () => {
   const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
   const messagesTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const isDesktop = useMediaQuery('(min-width: 768px)');
 
   // A helper function to log thread details
@@ -541,13 +541,6 @@ const ChatLayout = () => {
     );
   };
 
-  // Close sidebar when switching to mobile view
-  useEffect(() => {
-    if (!isDesktop) {
-      setIsSidebarOpen(false);
-    }
-  }, [isDesktop]);
-
   if (originalThreadsLoading && !loadingTimeout && !isThreadDeletion) {
     console.log('ChatLayout: Showing loading spinner for threads');
     return (
@@ -569,7 +562,9 @@ const ChatLayout = () => {
   console.log('ChatLayout: Rendering main interface', { 
     threadsCount: originalThreads.length, 
     activeThread, 
-    messagesCount: threadMessages.length 
+    messagesCount: threadMessages.length,
+    isDesktop,
+    isExpanded
   });
 
   // For desktop: calculate the sidebar width based on expanded state
@@ -577,34 +572,31 @@ const ChatLayout = () => {
   
   return (
     <div className="flex h-full bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      {/* Mobile sidebar overlay */}
-      {isSidebarOpen && !isDesktop && (
+      {/* Mobile backdrop - only show on mobile when sidebar is expanded */}
+      {isExpanded && !isDesktop && (
         <div 
-          className="fixed inset-0 bg-black/30 z-20"
-          onClick={() => setIsSidebarOpen(false)}
-        >
-          <button 
-            className="absolute top-4 right-4 p-2 rounded-full bg-gray-800 text-white" 
-            onClick={() => setIsSidebarOpen(false)}
-            aria-label="Close sidebar"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+          className="fixed inset-0 bg-black/50 z-20"
+          onClick={() => {
+            console.log('[DEBUG] Backdrop clicked, closing sidebar');
+            setIsExpanded(false);
+          }}
+        />
       )}
-
+      
       {/* Sidebar with proper width handling */}
       <div 
         className={`${
-          isSidebarOpen || isDesktop ? 'translate-x-0' : '-translate-x-full'
+          isExpanded || isDesktop ? 'translate-x-0' : '-translate-x-full'
         } ${
           isDesktop ? 'relative' : 'fixed'
-        } ${sidebarWidth} h-full transition-all duration-300 ease-in-out z-30 md:z-10 shrink-0`}
+        } ${sidebarWidth} h-full transition-all duration-300 ease-in-out z-[9999]`}
       >
         <Sidebar
           setActiveTab={handleSetActiveThread}
           isDesktopExpanded={isExpanded}
           onDesktopExpandedChange={setIsExpanded}
+          isPinned={isPinnedSidebar}
+          onPinChange={setIsPinnedSidebar}
           onNewChat={handleNewChat}
           onSignOut={handleSignOut}
           onDeleteThread={handleDeleteThread}
@@ -619,7 +611,7 @@ const ChatLayout = () => {
       </div>
 
       {/* Main chat area with full width when sidebar is minimized */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden w-full">
+      <div className="flex-1 flex flex-col h-full overflow-hidden w-full" style={{ zIndex: 1 }}>
         <ChatInterface 
           threadId={activeThread}
           messages={threadMessages}
@@ -631,8 +623,12 @@ const ChatLayout = () => {
           messageLimit={messageLimit}
           preservedMessage={preservedMessage}
           showPaywall={showPaywall}
-          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
-          isSidebarOpen={isSidebarOpen}
+          onToggleSidebar={() => {
+            console.log('[DEBUG] Hamburger clicked, opening sidebar');
+            // Simply set expanded state to true
+            setIsExpanded(true);
+          }}
+          isSidebarOpen={false}
           isDesktop={isDesktop}
           isGenerating={isGenerating}
         />
