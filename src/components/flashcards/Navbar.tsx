@@ -13,16 +13,40 @@ export default function Navbar() {
   const [isMobile, setIsMobile] = useState(false);
   const { itemCount, totalCollectionCount, totalCardCount } = useNavbar();
   const { isExpanded, setIsExpanded } = useContext(SidebarContext);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
 
   // Check if device is mobile
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+    const checkDeviceType = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 768);
+      setIsTablet(width >= 768 && width <= 1024);
+      
+      // Check for dark mode preference
+      const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      setIsDarkMode(darkModeMediaQuery.matches);
     };
     
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    // Check for scroll position
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    
+    // Initial checks
+    checkDeviceType();
+    handleScroll();
+    
+    // Add event listeners
+    window.addEventListener('resize', checkDeviceType);
+    window.addEventListener('scroll', handleScroll);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', checkDeviceType);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   // Get the current page title and count
@@ -145,36 +169,38 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 fixed top-0 left-0 right-0 z-20 w-full">
+      <nav className={`
+        bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 
+        fixed top-0 left-0 right-0 z-20 w-full
+        top-nav transition-all duration-300
+        ${isScrolled ? 'shadow-md' : ''}
+        ${isTablet ? 'tablet-navbar' : ''}
+      `}>
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            {/* Mobile header */}
-            <div className="md:hidden flex items-center justify-between w-full">
-              {/* Hamburger menu button */}
-              <button
-                onClick={() => setIsExpanded(true)}
-                className="bg-[#F37022] text-white flex items-center justify-center p-2 rounded-md hover:bg-[#E36012]"
-                aria-label="Open sidebar"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
+            {/* Left side - Logo and hamburger menu */}
+            <div className="flex items-center">
+              {/* Hamburger menu for mobile */}
+              {isMobile && (
+                <button
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  className="text-gray-600 hover:text-[#F37022] mr-3 focus:outline-none"
+                  aria-label="Toggle mobile menu"
+                >
+                  {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                </button>
+              )}
               
-              <div className="flex flex-col flex-grow">
-                <h1 className="text-lg font-semibold text-center">
-                  {pageInfo.title}
-                </h1>
-                {pageInfo.countKey && (
-                  <p className="text-sm text-gray-500 text-center">
-                    {count} {pageInfo.title.toLowerCase()}
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={() => setIsMenuOpen(true)}
-                className="text-gray-600 flex items-center gap-1 ml-4"
-              >
-                <Search className="h-5 w-5" />
-              </button>
+              {/* Hamburger for tablet/desktop to toggle sidebar */}
+              {!isMobile && (
+                <button
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="text-gray-600 hover:text-[#F37022] mr-3 focus:outline-none"
+                  aria-label="Toggle sidebar"
+                >
+                  <Menu size={24} />
+                </button>
+              )}
             </div>
 
             {/* Desktop navigation */}

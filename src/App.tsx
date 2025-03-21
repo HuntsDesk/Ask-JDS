@@ -230,6 +230,29 @@ function App() {
     );
   }
 
+  // Context for sidebar state
+  const { isExpanded } = useContext(SidebarContext);
+
+  // Update HTML class based on sidebar state for tablet devices
+  useEffect(() => {
+    const htmlElement = document.documentElement;
+    
+    // Update classes based on sidebar expansion state
+    if (isExpanded) {
+      htmlElement.classList.add('sidebar-expanded');
+      htmlElement.classList.remove('sidebar-collapsed');
+    } else {
+      htmlElement.classList.add('sidebar-collapsed');
+      htmlElement.classList.remove('sidebar-expanded');
+    }
+    
+    return () => {
+      // Clean up when component unmounts
+      htmlElement.classList.remove('sidebar-expanded');
+      htmlElement.classList.remove('sidebar-collapsed');
+    };
+  }, [isExpanded]);
+
   // Add custom CSS variables for sidebar z-index and layout
   useEffect(() => {
     // Add CSS variables to document root
