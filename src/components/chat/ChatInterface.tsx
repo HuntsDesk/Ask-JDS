@@ -41,11 +41,13 @@ export function ChatInterface({
   isGenerating = false
 }: ChatInterfaceProps) {
   const messageEndRef = useRef<HTMLDivElement>(null);
+  const messageTopRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [message, setMessage] = useState(preservedMessage || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
   
   // Combine our local submission state with the external isGenerating prop
   const isShowingResponseIndicator = isSubmitting || isGenerating;
@@ -56,6 +58,30 @@ export function ChatInterface({
       messageEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
+
+  // Function to scroll to the top of the messages
+  const scrollToTop = () => {
+    if (messageTopRef.current) {
+      messageTopRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+  
+  // Track scrolling to show/hide scroll to top button
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    
+    const handleScroll = () => {
+      if (container.scrollTop > 300) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+    
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -143,6 +169,9 @@ export function ChatInterface({
           ref={messagesContainerRef}
           className="h-full w-full message-container overflow-y-auto px-6 sm:px-8 py-4 pb-6"
         >
+          {/* Spacer element to ensure messages start below the header */}
+          <div ref={messageTopRef} className="h-32 md:h-4"></div>
+          
           {loading && messages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="flex flex-col items-center max-w-md text-center p-4">
@@ -170,7 +199,7 @@ export function ChatInterface({
               </p>
             </div>
           ) : (
-            <div className="flex flex-col space-y-4 pb-2">
+            <div className="flex flex-col space-y-4 pb-2 mt-4">
               {messages.map((msg, index) => (
                 <ChatMessage 
                   key={msg.id || `temp-${index}`} 
@@ -190,8 +219,21 @@ export function ChatInterface({
                 </div>
               )}
               
-              <div ref={messageEndRef} className="h-4" />
+              <div ref={messageEndRef} className="h-16 md:h-16" />
             </div>
+          )}
+          
+          {/* Scroll to top button - only visible on mobile when scrolled */}
+          {!isDesktop && isScrolled && messages.length > 0 && (
+            <button
+              onClick={scrollToTop}
+              className="fixed top-[70px] right-3 z-10 bg-white dark:bg-gray-800 p-2 rounded-full shadow-md border border-gray-200 dark:border-gray-700"
+              aria-label="Scroll to top"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
           )}
         </div>
       </div>

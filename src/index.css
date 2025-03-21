@@ -479,10 +479,37 @@ body {
     backdrop-filter: blur(10px);
   }
   
-  /* Adjust message container to account for fixed input */
+  /* Adjust message container to account for fixed input and fixed header */
   .message-container {
-    padding-bottom: 180px; /* Increased padding to prevent messages from being hidden behind the input */
+    padding-bottom: 220px !important; /* Increased padding to ensure content is never hidden behind the input box */
     margin-bottom: 20px;
+    padding-top: 100px !important; /* Increased top padding to ensure content is never hidden behind the header */
+    margin-top: 0 !important;
+  }
+  
+  /* Fix for first message in chat being hidden under header */
+  .message-container > div:first-child {
+    padding-top: 10px;
+    min-height: 20px;
+    display: block;
+  }
+  
+  /* Fix for the first actual message to ensure it's not hidden */
+  .message-container .flex.flex-col.space-y-4 > div:first-child {
+    margin-top: 25px !important;
+    padding-top: 15px !important;
+  }
+  
+  /* Fix for the last message to ensure it's not hidden behind the input box */
+  .message-container .flex.flex-col.space-y-4 > div:last-child {
+    margin-bottom: 25px !important;
+    padding-bottom: 25px !important;
+  }
+  
+  /* Add extra padding to message end reference */
+  .h-4[ref="messageEndRef"] {
+    height: 30px !important;
+    display: block;
   }
   
   /* Ensure the chat container handles the fixed input properly */
@@ -537,6 +564,27 @@ body {
   .bg-white.dark\:bg-gray-800.rounded-lg.shadow-md {
     width: 100%;
     max-width: 100%;
+  }
+  
+  /* Fix for the first actual message to ensure it's not hidden */
+  .message-container .flex.flex-col.space-y-4 > div:first-child {
+    margin-top: 25px !important;
+    padding-top: 15px !important;
+  }
+  
+  /* Force the message area to have sufficient padding at top */
+  .flex-1.overflow-hidden.relative.pt-16 {
+    padding-top: 4rem !important;
+  }
+  
+  /* Ensure the scrollable area has enough top padding */
+  .message-container {
+    padding-top: 100px !important;
+  }
+  
+  /* Apply more top margin to the first message */
+  .flex.flex-col.space-y-4.pb-2.mt-4 {
+    margin-top: 1.5rem !important;
   }
 }
 
