@@ -19,7 +19,7 @@ interface ChatInterfaceProps {
   preservedMessage?: string;
   showPaywall: boolean;
   onToggleSidebar: () => void;
-  isSidebarOpen: boolean;
+  isSidebarOpen?: boolean;
   isDesktop: boolean;
   isGenerating?: boolean;
 }
@@ -119,23 +119,26 @@ export function ChatInterface({
     <div className="flex flex-col h-full relative bg-white dark:bg-gray-900">
       {/* Only show header on mobile */}
       {!isDesktop && (
-        <header className="border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex items-center justify-between">
+        <header className="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex items-center justify-between">
           <button
-            onClick={onToggleSidebar}
-            className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800"
-            aria-label="Toggle sidebar"
+            onClick={() => {
+              console.log('Hamburger menu clicked!');
+              onToggleSidebar();
+            }}
+            className="p-2 rounded-md bg-[#f37022] text-white hover:bg-[#e36012] flex items-center justify-center"
+            aria-label="Open sidebar"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
             </svg>
           </button>
-          <h1 className="text-xl font-semibold text-gray-800 dark:text-white">Chat</h1>
+          <h1 className="text-xl font-semibold text-gray-800 dark:text-white">Ask JDS</h1>
           <div className="w-9"></div> {/* Spacer for alignment */}
         </header>
       )}
       
       {/* Message container */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className={`flex-1 overflow-hidden relative ${!isDesktop ? 'pt-16' : ''}`}>
         <div 
           ref={messagesContainerRef}
           className="h-full w-full message-container overflow-y-auto px-6 sm:px-8 py-4 pb-6"
@@ -195,7 +198,7 @@ export function ChatInterface({
       
       {/* Input container - fixed at the bottom with solid background */}
       <div className="input-container px-4 py-3 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto mb-1">
           {sendError && (
             <div className="mb-2 p-2 text-sm rounded bg-red-50 text-red-600">
               {sendError}

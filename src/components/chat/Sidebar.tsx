@@ -36,6 +36,8 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   isDesktopExpanded: boolean;
   onDesktopExpandedChange: (expanded: boolean) => void;
+  isPinned?: boolean;
+  onPinChange?: (pinned: boolean) => void;
   onNewChat: () => void;
   onSignOut: () => void;
   onDeleteThread: (id: string) => void;
@@ -56,6 +58,8 @@ export function Sidebar({
   setActiveTab,
   isDesktopExpanded,
   onDesktopExpandedChange,
+  isPinned: isPinnedProp,
+  onPinChange,
   onNewChat,
   onSignOut,
   onDeleteThread,
@@ -73,8 +77,11 @@ export function Sidebar({
   const { isExpanded, setIsExpanded } = useContext(SidebarContext);
   const { theme } = useTheme();
 
-  // Replace regular state with persisted state
-  const [isPinned, setIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
+  // Replace regular state with persisted state - renamed to avoid collision with prop
+  const [localIsPinned, setIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
+  
+  // Use the prop value if provided, otherwise use local state
+  const effectiveIsPinned = isPinnedProp !== undefined ? isPinnedProp : localIsPinned;
 
   // Check current active section based on URL
   const isInChat = location.pathname.startsWith('/chat');
@@ -84,7 +91,7 @@ export function Sidebar({
   // Check if we're in a specific chat thread by examining the URL or currentSession
   const isInChatThread = isInChat && (currentSession !== null || location.pathname.length > 5);
 
-  // Sync local expanded state with global context
+  // Sync local expanded state with props
   useEffect(() => {
     if (isDesktopExpanded !== isExpanded) {
       setIsExpanded(isDesktopExpanded);
@@ -100,10 +107,10 @@ export function Sidebar({
 
   // Ensure expanded state when pinned
   useEffect(() => {
-    if (isPinned && !isDesktopExpanded) {
+    if (effectiveIsPinned && !isDesktopExpanded) {
       onDesktopExpandedChange(true);
     }
-  }, [isPinned, isDesktopExpanded, onDesktopExpandedChange]);
+  }, [effectiveIsPinned, isDesktopExpanded, onDesktopExpandedChange]);
 
   // Check for mobile on mount and window resize
   useEffect(() => {
@@ -114,26 +121,31 @@ export function Sidebar({
   }, []);
 
   const handleMouseEnter = useCallback(() => {
-    console.log('Mouse enter - isContextMenuOpen:', isContextMenuOpen, 'isPinned:', isPinned);
-    if (!isMobile && !isPinned) {
+    console.log('Mouse enter - isContextMenuOpen:', isContextMenuOpen, 'isPinned:', effectiveIsPinned);
+    if (!isMobile && !effectiveIsPinned) {
       console.log('Expanding sidebar on hover');
       onDesktopExpandedChange(true);
       setIsExpanded(true);
     }
-  }, [isMobile, isPinned, onDesktopExpandedChange, setIsExpanded]);
+  }, [isMobile, effectiveIsPinned, onDesktopExpandedChange, setIsExpanded]);
 
   const handleMouseLeave = useCallback(() => {
-    console.log('Mouse leave - isContextMenuOpen:', isContextMenuOpen, 'isPinned:', isPinned);
-    if (!isMobile && !isPinned) {
+    console.log('Mouse leave - isContextMenuOpen:', isContextMenuOpen, 'isPinned:', effectiveIsPinned);
+    if (!isMobile && !effectiveIsPinned) {
       console.log('Collapsing sidebar on leave');
       onDesktopExpandedChange(false);
       setIsExpanded(false);
     }
-  }, [isMobile, isPinned, onDesktopExpandedChange, setIsExpanded]);
+  }, [isMobile, effectiveIsPinned, onDesktopExpandedChange, setIsExpanded]);
 
   const togglePin = () => {
-    const newPinState = !isPinned;
+    const newPinState = !effectiveIsPinned;
     setIsPinned(newPinState);
+    
+    // Call the prop callback if provided
+    if (onPinChange) {
+      onPinChange(newPinState);
+    }
     
     // Always ensure expanded state matches pin state
     setIsExpanded(newPinState);
@@ -321,32 +333,13 @@ export function Sidebar({
 
   return (
     <>
-      {/* Mobile burger menu button */}
-      {isMobile && (
-        <button
-          onClick={toggleMobileSidebar}
-          className="fixed top-4 left-4 p-2 bg-background/80 backdrop-blur-sm border shadow-sm z-50 rounded-md md:hidden transition-all duration-300"
-          aria-label="Toggle sidebar menu"
-        >
-          {isDesktopExpanded ? <X size={20} /> : <Menu size={20} />}
-        </button>
-      )}
-
-      {/* Mobile overlay backdrop when sidebar is expanded */}
-      {isMobile && isExpanded && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-20" 
-          onClick={() => setIsExpanded(false)}
-        />
-      )}
-    
-      {/* Main Sidebar */}
+      {/* Main Sidebar - no redundant mobile burger button */}
       <div 
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex flex-col bg-background border-r transition-all duration-300 sidebar-transition sidebar-container",
           // Desktop state
           !isMobile && (isDesktopExpanded ? "w-[var(--sidebar-width)] expanded" : "w-[var(--sidebar-collapsed-width)] collapsed"),
-          // Mobile state
+          // Mobile state - directly use isDesktopExpanded from parent
           isMobile && !isDesktopExpanded ? "opacity-0 pointer-events-none w-0 -translate-x-full sidebar-hidden-mobile" : "",
           isMobile && isDesktopExpanded ? "w-[var(--sidebar-width)] shadow-xl expanded" : ""
         )}
@@ -354,7 +347,6 @@ export function Sidebar({
         onMouseLeave={handleMouseLeave}
         style={{ overflow: 'hidden' }}
       >
-        {/* Logo section */}
         <div className="sticky top-0 z-30 bg-background border-b">
           <div className={cn(
             "flex items-center justify-center py-4", // Increased padding
@@ -383,55 +375,53 @@ export function Sidebar({
           </div>
         </div>
 
-        <div className="sticky top-0 z-30 bg-background p-3 border-b flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => {
-                console.log('Sidebar: New Chat button clicked');
-                onNewChat();
-              }}
+        <div className="p-3 border-b flex items-center justify-between">
+          <button
+            onClick={() => {
+              console.log('Sidebar: New Chat button clicked');
+              onNewChat();
+            }}
+            className={cn(
+              "flex font-medium items-center gap-2 px-3 py-2 w-full",
+              "rounded-lg bg-[#f37022] text-white hover:bg-[#e36012] transition",
+              // Adjust padding and size based on sidebar width
+              isDesktopExpanded 
+                ? "justify-start" 
+                : "justify-center px-2 mx-auto"
+            )}
+          >
+            <PlusCircle className="h-4 w-4" />
+            <span 
               className={cn(
-                "flex font-medium items-center gap-2 px-3 py-2 w-full",
-                "rounded-lg bg-[#f37022] text-white hover:bg-[#e36012] transition",
-                // Adjust padding and size based on sidebar width
-                isDesktopExpanded 
-                  ? "justify-start" 
-                  : "justify-center px-2 mx-auto"
+                "transition-all duration-300",
+                isDesktopExpanded ? "opacity-100 w-auto" : "opacity-0 w-0 hidden"
               )}
             >
-              <PlusCircle className="h-4 w-4" />
-              <span 
-                className={cn(
-                  "transition-all duration-300",
-                  isDesktopExpanded ? "opacity-100 w-auto" : "opacity-0 w-0 hidden"
-                )}
-              >
-                New Chat
-              </span>
-            </button>
-            
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    onClick={togglePin} 
-                    size="icon" 
-                    variant="ghost" 
-                    className={cn(
-                      "ml-1",
-                      !isDesktopExpanded && "hidden",
-                      isPinned && "text-orange-500"
-                    )}
-                  >
-                    {isPinned ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="bg-gray-900 text-white">
-                  {isPinned ? "Unpin sidebar" : "Pin sidebar open"}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+              New Chat
+            </span>
+          </button>
+          
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  onClick={togglePin} 
+                  size="icon" 
+                  variant="ghost" 
+                  className={cn(
+                    "ml-1",
+                    !isDesktopExpanded && "hidden",
+                    effectiveIsPinned && "text-orange-500"
+                  )}
+                >
+                  {effectiveIsPinned ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent className="bg-gray-900 text-white">
+                {effectiveIsPinned ? "Unpin sidebar" : "Pin sidebar open"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         <ScrollArea className="flex-1 overflow-hidden custom-scrollbar">
