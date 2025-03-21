@@ -602,3 +602,47 @@ body {
     box-sizing: border-box;
   }
 }
+
+/* Flashcard pages and components */
+.container {
+  max-width: 100% !important;
+  width: 100% !important;
+  overflow-x: hidden !important;
+  padding-left: 0.75rem !important;
+  padding-right: 0.75rem !important;
+}
+
+/* Force all cards to fit within viewport */
+.card {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Improve flashcards navigation on mobile */
+nav.bg-white {
+  padding: 0.5rem 0;
+}
+
+/* Fix for mobile tab-based navigation bottom padding */
+.md\:hidden.fixed.bottom-0.left-0.right-0 {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Ensure mobile pages have proper padding at the bottom to avoid content hiding behind the bottom nav */
+.container.mx-auto.px-4 {
+  padding-bottom: 80px !important; /* Ensure there's room for the bottom nav */
+}
+
+/* Style all hamburger menu buttons consistently */
+button[aria-label="Open sidebar"] {
+  background-color: #F37022 !important;
+  color: white !important;
+  padding: 0.5rem !important;
+  border-radius: 0.375rem !important;
+}
+
+button[aria-label="Open sidebar"]:hover {
+  background-color: #E36012 !important;
+}
+
+/* Ensure hamburger menu is visible */

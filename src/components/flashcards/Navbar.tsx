@@ -145,7 +145,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 sticky top-0 z-20 w-full">
+      <nav className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 fixed top-0 left-0 right-0 z-20 w-full">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Mobile header */}
@@ -153,7 +153,7 @@ export default function Navbar() {
               {/* Hamburger menu button */}
               <button
                 onClick={() => setIsExpanded(true)}
-                className="text-gray-600 flex items-center justify-center p-2 hover:text-[#F37022]"
+                className="bg-[#F37022] text-white flex items-center justify-center p-2 rounded-md hover:bg-[#E36012]"
                 aria-label="Open sidebar"
               >
                 <Menu className="h-5 w-5" />
