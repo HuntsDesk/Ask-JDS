@@ -79,7 +79,7 @@ export function Sidebar({
   const { theme } = useTheme();
 
   // Replace regular state with persisted state - renamed to avoid collision with prop
-  const [localIsPinned, setIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
+  const [localIsPinned, setLocalIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
   
   // Use the prop value if provided, otherwise use local state
   const effectiveIsPinned = isPinnedProp !== undefined ? isPinnedProp : localIsPinned;
@@ -106,12 +106,25 @@ export function Sidebar({
     }
   }, [isExpanded, onDesktopExpandedChange, isDesktopExpanded]);
 
-  // Ensure expanded state when pinned
+  // Ensure expanded state when pinned, and sync pin state across instances
   useEffect(() => {
-    if (effectiveIsPinned && !isDesktopExpanded) {
+    // When the component mounts, apply the persisted pin state
+    if (localIsPinned) {
       onDesktopExpandedChange(true);
+      setIsExpanded(true);
+      // Call the prop callback if provided to sync parent components
+      if (onPinChange) {
+        onPinChange(localIsPinned);
+      }
     }
-  }, [effectiveIsPinned, isDesktopExpanded, onDesktopExpandedChange]);
+  }, []);
+
+  // Monitor prop changes to sync with local state
+  useEffect(() => {
+    if (isPinnedProp !== undefined && isPinnedProp !== localIsPinned) {
+      setLocalIsPinned(isPinnedProp);
+    }
+  }, [isPinnedProp, localIsPinned]);
 
   // Check for mobile and tablet on mount and window resize
   useEffect(() => {
@@ -138,7 +151,10 @@ export function Sidebar({
   
   const togglePin = () => {
     const newPinState = !effectiveIsPinned;
-    setIsPinned(newPinState);
+    console.log('Toggling pin state to:', newPinState);
+    
+    // Update local persisted state
+    setLocalIsPinned(newPinState);
     
     // Set the recently toggled flag
     recentlyToggledPinRef.current = true;
