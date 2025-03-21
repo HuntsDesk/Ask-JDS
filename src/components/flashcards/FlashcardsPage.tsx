@@ -46,46 +46,30 @@ export default function FlashcardsPage() {
   const { setSelectedThreadId } = useContext(SelectedThreadContext);
   const { isExpanded, setIsExpanded } = useContext(SidebarContext);
   
-  // Check for mobile on mount and window resize
-  useEffect(() => {
-    const checkMobile = () => {
-      const isMobileSize = window.innerWidth < 768;
-      const isTabletSize = window.innerWidth >= 768 && window.innerWidth < 1024;
-      
-      setIsMobile(isMobileSize);
-      
-      // For tablet sizes, ensure the sidebar response to expansion properly
-      if (isTabletSize) {
-        // Make sure the sidebar contextual state matches the global state
-        if (isExpanded !== isExpanded) {
-          setIsExpanded(isExpanded);
-        }
-      }
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, [isExpanded, setIsExpanded]);
+  // Get pinned state from localStorage or default to false
+  const [isPinned, setIsPinned] = useState(false);
   
-  // Sync sidebar expanded state between components
+  // Handle sidebar expansion/collapse properly
   useEffect(() => {
-    // This ensures changes to the isExpanded state are properly reflected in the UI
+    // Set CSS variables for sidebar width
+    document.documentElement.style.setProperty('--sidebar-width', '280px');
+    document.documentElement.style.setProperty('--sidebar-collapsed-width', '70px');
+    
+    // Get the sidebar element
     const sidebarElement = document.querySelector('.sidebar-container');
     if (sidebarElement) {
       if (isExpanded) {
+        // Expanded state
+        (sidebarElement as HTMLElement).style.width = '280px';
         sidebarElement.classList.add('expanded');
         sidebarElement.classList.remove('collapsed');
-        sidebarElement.style.width = 'var(--sidebar-width)';
       } else {
+        // Collapsed state
+        (sidebarElement as HTMLElement).style.width = '70px';
         sidebarElement.classList.add('collapsed');
         sidebarElement.classList.remove('expanded');
-        sidebarElement.style.width = 'var(--sidebar-collapsed-width)';
       }
     }
-    
-    // Force a reflow to ensure the sidebar width is applied
-    window.dispatchEvent(new Event('resize'));
   }, [isExpanded]);
 
   useEffect(() => {
@@ -249,6 +233,8 @@ export default function FlashcardsPage() {
         setActiveTab={handleThreadSelect}
         isDesktopExpanded={isExpanded}
         onDesktopExpandedChange={setIsExpanded}
+        isPinned={isPinned}
+        onPinChange={setIsPinned}
         onNewChat={handleNewChat}
         onSignOut={handleSignOut}
         onDeleteThread={handleDeleteThread}
@@ -259,8 +245,8 @@ export default function FlashcardsPage() {
       
       {/* Main content */}
       <div className={cn(
-        "flex-1 overflow-auto",
-        isExpanded ? 'md:ml-64' : 'md:ml-20'
+        "flex-1 overflow-auto transition-all duration-300 ease-in-out",
+        isExpanded ? 'md:ml-[280px]' : 'md:ml-[70px]'
       )}>
         <NavbarProvider>
           <Navbar />
