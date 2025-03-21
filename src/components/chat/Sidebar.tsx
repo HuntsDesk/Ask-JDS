@@ -31,7 +31,7 @@ import { useContext } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { useTheme } from '@/lib/theme-provider';
-import { useIsTablet, useIsDesktop, useIsMobile } from '@/hooks/useMediaQuery';
+import { useIsTablet, useIsDesktop, useIsMobile } from '@/hooks/useResponsive';
 import { BREAKPOINTS, MEDIA_QUERIES } from '@/lib/breakpoints';
 
 interface SidebarProps {

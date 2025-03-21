@@ -9,7 +9,7 @@ import useToast from '@/hooks/useFlashcardToast';
 import Toast from './Toast';
 import { useAuth } from '@/lib/auth';
 import { hasActiveSubscription } from '@/lib/subscription';
-import { useIsTablet, useIsMobile } from '@/hooks/useMediaQuery';
+import { useIsTablet, useIsMobile } from '@/hooks/useResponsive';
 import { useResponsiveClasses, ResponsiveWrapper } from '@/lib/responsive-utils';
 
 interface Flashcard {
