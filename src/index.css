@@ -694,3 +694,95 @@ button[aria-label="Open sidebar"]:hover {
 }
 
 /* Ensure hamburger menu is visible */
+
+/* iPad/Tablet specific fixes */
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Fix layout for tablets */
+  body, html, #root {
+    overflow-x: hidden !important;
+    position: relative !important;
+    max-width: 100vw !important;
+    overscroll-behavior-x: none !important;
+  }
+  
+  /* Fix flashcard display issues */
+  .card, .flashcard-card {
+    max-width: 100% !important;
+    width: 100% !important;
+    transform: none !important; /* Disable transform animations that might cause flashing */
+    transition: opacity 0.2s ease !important; /* Simplify transitions */
+    will-change: opacity !important; /* Optimize what changes */
+    animation: none !important; /* Disable all animations */
+  }
+  
+  /* Fix toast notifications that might be flashing */
+  .toast-container, .toast, 
+  div[role="status"],
+  div[role="alert"] {
+    animation: none !important; /* Disable all animations */
+    transform: none !important;
+    transition: opacity 0.2s ease !important;
+    will-change: opacity !important;
+    display: block !important;
+    position: fixed !important;
+  }
+  
+  /* Fix toast animation specifically */
+  @keyframes simplified-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  /* Apply simplified animation to elements that were using animations */
+  .animate-in,
+  .animate-out,
+  .fade-in,
+  .fade-out {
+    animation: simplified-fade 0.2s ease forwards !important;
+  }
+  
+  /* Optimize animations and transitions */
+  * {
+    animation-duration: 0.2s !important; /* Shorter animations */
+    transition-duration: 0.2s !important; /* Shorter transitions */
+  }
+  
+  /* Fix sidebar behavior */
+  .sidebar-container {
+    position: fixed !important;
+    transform: none !important;
+    will-change: opacity !important;
+  }
+  
+  /* Ensure proper scrolling containers */
+  .overflow-auto, .overflow-y-auto {
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+  }
+  
+  /* Force hardware acceleration to reduce flickering */
+  .is-tablet-device * {
+    -webkit-backface-visibility: hidden;
+    -webkit-perspective: 1000;
+    backface-visibility: hidden;
+    perspective: 1000;
+  }
+  
+  /* Fix flashcard container issues */
+  .is-tablet-device .flashcard-container,
+  .is-tablet-device .collections-container {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+  
+  /* Fix flashcards not showing */
+  .flashcard-item,
+  .flashcard-collection,
+  .card-container {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    transform: none !important;
+  }
+}

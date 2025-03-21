@@ -40,6 +40,7 @@ export default function FlashcardsPage() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
   
   // Use the threads hook to fetch actual threads
   const { threads, loading: threadsLoading, deleteThread, updateThread, createThread } = useThreads();
@@ -49,15 +50,26 @@ export default function FlashcardsPage() {
   // Get pinned state from localStorage or default to false
   const [isPinned, setIsPinned] = useState(false);
   
-  // Check if device is mobile
+  // Check if device is mobile or tablet
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+    const checkDeviceType = () => {
+      const width = window.innerWidth;
+      // Check for mobile devices
+      setIsMobile(width < 768);
+      // Check specifically for tablets (iPad typically 768-1024px)
+      setIsTablet(width >= 768 && width <= 1024);
+      
+      // Add a specific class for tablets to help with CSS targeting
+      if (width >= 768 && width <= 1024) {
+        document.body.classList.add('is-tablet-device');
+      } else {
+        document.body.classList.remove('is-tablet-device');
+      }
     };
     
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    checkDeviceType();
+    window.addEventListener('resize', checkDeviceType);
+    return () => window.removeEventListener('resize', checkDeviceType);
   }, []);
   
   // Handle sidebar expansion/collapse properly
