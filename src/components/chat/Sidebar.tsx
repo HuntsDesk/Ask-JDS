@@ -367,6 +367,21 @@ export function Sidebar({
             "flex items-center justify-center py-4", // Increased padding
             isDesktopExpanded ? "px-4" : "px-2"
           )}>
+            {/* Close button for mobile */}
+            {isMobile && isDesktopExpanded && (
+              <button 
+                onClick={() => {
+                  console.log('Sidebar: Mobile close button clicked');
+                  onDesktopExpandedChange(false);
+                  setIsExpanded(false);
+                }}
+                className="absolute right-2 p-2.5 rounded-md text-muted-foreground hover:bg-muted bg-background/80"
+                aria-label="Close sidebar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
+            
             {isDesktopExpanded ? (
               <>
                 <img 
