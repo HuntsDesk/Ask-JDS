@@ -78,6 +78,9 @@ export function Sidebar({
   const { isExpanded, setIsExpanded } = useContext(SidebarContext);
   const { theme } = useTheme();
 
+  // Use a constant for z-index
+  const sidebarZIndex = 50;
+
   // Replace regular state with persisted state - renamed to avoid collision with prop
   const [localIsPinned, setLocalIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
   
@@ -380,7 +383,7 @@ export function Sidebar({
       className={`sidebar-container ${
         isExpanded ? 'expanded' : 'collapsed'
       } h-full border-r border-border flex flex-col py-2 px-0 bg-card`}
-      style={{ zIndex }}
+      style={{ zIndex: sidebarZIndex }}
       onMouseEnter={!isMobile ? handleMouseEnter : undefined}
       onMouseLeave={!isMobile ? handleMouseLeave : undefined}
     >
