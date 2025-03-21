@@ -3,9 +3,10 @@ import { useParams } from 'react-router-dom';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { Loader2, Info } from 'lucide-react';
+import { Loader2, Info, Menu } from 'lucide-react';
 import { Message } from '@/types';
 import { ChatMessage } from './ChatMessage';
+import { useIsTablet, useIsMobile } from '@/hooks/useMediaQuery';
 
 interface ChatInterfaceProps {
   threadId: string | null;
@@ -22,6 +23,7 @@ interface ChatInterfaceProps {
   isSidebarOpen?: boolean;
   isDesktop: boolean;
   isGenerating?: boolean;
+  isTablet?: boolean;
 }
 
 export function ChatInterface({
@@ -38,7 +40,8 @@ export function ChatInterface({
   onToggleSidebar,
   isSidebarOpen,
   isDesktop,
-  isGenerating = false
+  isGenerating = false,
+  isTablet = false
 }: ChatInterfaceProps) {
   const messageEndRef = useRef<HTMLDivElement>(null);
   const messageTopRef = useRef<HTMLDivElement>(null);
@@ -49,8 +52,17 @@ export function ChatInterface({
   const [sendError, setSendError] = useState<string | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   
+  // Use the responsive hooks directly in the component
+  const isMobileDevice = useIsMobile();
+  const isTabletDevice = useIsTablet();
+  
   // Combine our local submission state with the external isGenerating prop
   const isShowingResponseIndicator = isSubmitting || isGenerating;
+  
+  // Calculate appropriate sizing based on device type
+  const textareaMaxHeight = isTabletDevice ? '150px' : (isMobileDevice ? '120px' : '200px');
+  const buttonSize = isTabletDevice ? 'sm' : (isMobileDevice ? 'sm' : 'default');
+  const messagePadding = isTabletDevice ? 'px-4 py-3' : (isMobileDevice ? 'px-3 py-2' : 'px-6 py-4');
   
   useEffect(() => {
     // Scroll to bottom when messages change
@@ -142,144 +154,130 @@ export function ChatInterface({
   };
 
   return (
-    <div className="flex flex-col h-full relative bg-white dark:bg-gray-900">
-      {/* Only show header on mobile */}
-      {!isDesktop && (
-        <header className="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex items-center justify-between">
-          <button
-            onClick={() => {
-              console.log('Hamburger menu clicked!');
-              onToggleSidebar();
-            }}
-            className="p-2 rounded-md bg-[#f37022] text-white hover:bg-[#e36012] flex items-center justify-center"
-            aria-label="Open sidebar"
+    <div className="flex flex-col h-screen w-full">
+      {/* Chat Header with Hamburger Menu for Mobile/Tablet */}
+      <div className="flex items-center justify-between p-3 border-b">
+        {(!isDesktop || isTabletDevice) && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleSidebar}
+            className="mr-2"
+            aria-label="Toggle sidebar"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-            </svg>
-          </button>
-          <h1 className="text-xl font-semibold text-gray-800 dark:text-white">Ask JDS</h1>
-          <div className="w-9"></div> {/* Spacer for alignment */}
-        </header>
-      )}
-      
-      {/* Message container */}
-      <div className={`flex-1 overflow-hidden relative ${!isDesktop ? 'pt-16' : ''}`}>
-        <div 
-          ref={messagesContainerRef}
-          className="h-full w-full message-container overflow-y-auto px-6 sm:px-8 py-4 pb-6"
-        >
-          {/* Spacer element to ensure messages start below the header */}
-          <div ref={messageTopRef} className="h-32 md:h-4"></div>
-          
-          {loading && messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="flex flex-col items-center max-w-md text-center p-4">
-                <LoadingSpinner size="lg" />
-                <p>{getLoadingMessage()}</p>
-                {loadingTimeout && (
-                  <div className="mt-4">
-                    <p className="mb-2 text-gray-600">
-                      This is taking longer than expected. You can try refreshing.
-                    </p>
-                    <Button onClick={onRefresh} variant="outline">
-                      Refresh
-                    </Button>
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
+        <h2 className="text-lg font-semibold flex-1 truncate">
+          {threadId ? 'Chat' : 'New Chat'}
+        </h2>
+        {messageCount > 0 && (
+          <div className="text-sm text-muted-foreground">
+            {messageCount}/{messageLimit} messages
+          </div>
+        )}
+      </div>
+
+      {/* Messages Area */}
+      <div 
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 space-y-4 md:space-y-6"
+      >
+        <div ref={messageTopRef} />
+        
+        {/* Show loading indicator or messages */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center h-full">
+            <LoadingSpinner size="lg" className="text-primary mb-4" />
+            <p className="text-muted-foreground text-center">{getLoadingMessage()}</p>
+            {loadingTimeout && (
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={onRefresh}
+              >
+                Retry
+              </Button>
+            )}
+          </div>
+        ) : (
+          <>
+            {messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center max-w-md mx-auto">
+                  <h3 className="text-xl font-medium mb-2">
+                    Start a conversation with JDS
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    Ask a legal question or describe a scenario you'd like help with.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {messages.map((msg, index) => (
+                  <ChatMessage 
+                    key={msg.id || `temp-${index}`} 
+                    message={msg} 
+                    className={messagePadding}
+                  />
+                ))}
+                
+                {/* Indicate when we're generating a response */}
+                {isShowingResponseIndicator && (
+                  <div className="flex items-center text-muted-foreground p-4 animate-pulse">
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <span>Generating response...</span>
                   </div>
                 )}
-              </div>
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center p-6">
-              <h2 className="text-2xl font-bold mb-2 text-gray-800 dark:text-white">Welcome to Ask JDS</h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-md">
-                Your trusted legal AI research assistant. Whether you're researching a legal question, 
-                navigating law school, or exploring complex legal topics, Ask JDS is here to provide 
-                clear, reliable, and knowledgeable guidance.
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col space-y-4 pb-2 mt-4">
-              {messages.map((msg, index) => (
-                <ChatMessage 
-                  key={msg.id || `temp-${index}`} 
-                  message={msg}
-                  isLastMessage={index === messages.length - 1}
-                />
-              ))}
-              
-              {isShowingResponseIndicator && (
-                <div className="flex justify-start">
-                  <div className="max-w-[80%] rounded-lg p-3 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 ml-8 rounded-bl-none">
-                    <div className="flex items-center">
-                      <LoadingSpinner size="sm" />
-                      <span className="ml-2">AI is responding...</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              <div ref={messageEndRef} className="h-16 md:h-16" />
-            </div>
-          )}
-          
-          {/* Scroll to top button - only visible on mobile when scrolled */}
-          {!isDesktop && isScrolled && messages.length > 0 && (
-            <button
-              onClick={scrollToTop}
-              className="fixed top-[70px] right-3 z-10 bg-white dark:bg-gray-800 p-2 rounded-full shadow-md border border-gray-200 dark:border-gray-700"
-              aria-label="Scroll to top"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-              </svg>
-            </button>
-          )}
-        </div>
+              </>
+            )}
+          </>
+        )}
+        
+        <div ref={messageEndRef} />
+        
+        {/* Scroll to top button */}
+        {isScrolled && (
+          <Button
+            className="fixed bottom-24 right-4 rounded-full shadow-lg z-10"
+            size="icon"
+            onClick={scrollToTop}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-up"><path d="m18 15-6-6-6 6"/></svg>
+          </Button>
+        )}
       </div>
-      
-      {/* Input container - fixed at the bottom with solid background */}
-      <div className="input-container px-4 py-3 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
-        <div className="max-w-4xl mx-auto mb-1">
-          {sendError && (
-            <div className="mb-2 p-2 text-sm rounded bg-red-50 text-red-600">
-              {sendError}
-            </div>
-          )}
-          
-          <form className="flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
-            <textarea
-              ref={textareaRef}
-              value={message}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              className="flex-1 resize-none rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 text-gray-900 dark:text-gray-100 min-h-[56px] max-h-[200px] focus:outline-none focus:ring-2 focus:ring-[#F37022]"
-              placeholder="Type your message..."
-              rows={1}
-              disabled={isSubmitting || isGenerating || loading || !threadId}
-            />
-            <button
-              type="submit"
-              className="px-4 py-3 bg-[#F37022] text-white rounded-lg hover:bg-[#E36012] min-h-[56px] flex items-center justify-center"
-              disabled={isSubmitting || isGenerating || loading || message.trim() === '' || !threadId}
-            >
-              {isSubmitting ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                'Send'
-              )}
-            </button>
-          </form>
-          
-          {isNearLimit && (
-            <div className="mt-2 p-2 rounded bg-amber-50 text-amber-700">
-              <p className="text-sm flex items-center">
-                <Info className="h-4 w-4 mr-2 flex-shrink-0" />
-                You have {remainingMessages} message{remainingMessages !== 1 ? 's' : ''} left before hitting your daily limit.
-              </p>
-            </div>
-          )}
+
+      {/* Input Area */}
+      <div className={`border-t p-3 md:p-4 ${(isMobileDevice || isTabletDevice) ? 'pb-6' : ''}`}>
+        <div className="flex items-end gap-2 relative">
+          <Textarea
+            ref={textareaRef}
+            value={message}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Type your message..."
+            className="resize-none min-h-[50px] pr-12"
+            style={{ maxHeight: textareaMaxHeight }}
+            disabled={isSubmitting || showPaywall}
+          />
+          <Button
+            size={buttonSize}
+            onClick={handleSubmit}
+            disabled={!message.trim() || isSubmitting || showPaywall}
+            className="absolute right-2 bottom-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-send"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+          </Button>
         </div>
+        
+        {sendError && (
+          <div className="text-red-500 mt-2 text-sm flex items-center gap-1">
+            <Info className="h-4 w-4" />
+            <span>{sendError}</span>
+          </div>
+        )}
       </div>
     </div>
   );

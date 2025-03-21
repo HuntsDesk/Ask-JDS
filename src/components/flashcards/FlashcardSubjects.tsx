@@ -136,7 +136,7 @@ export default function FlashcardSubjects() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto pb-20 md:pb-8 pt-4 md:pt-20 tablet-subject-container">
+    <div className="max-w-6xl mx-auto pb-20 md:pb-8">
       <DeleteConfirmation
         isOpen={!!subjectToDelete}
         onClose={() => setSubjectToDelete(null)}
@@ -155,16 +155,16 @@ export default function FlashcardSubjects() {
       )}
 
       {/* Desktop layout */}
-      <div className="hidden md:block mb-6 page-title z-10">
+      <div className="hidden md:block mb-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Subjects</h1>
-            <p className="text-gray-600 dark:text-gray-400 item-count">
+            <p className="text-gray-600 dark:text-gray-400">
               {filteredSubjects.length} {filteredSubjects.length === 1 ? 'subject' : 'subjects'}
             </p>
           </div>
           
-          <div className="w-[340px] filter-controls">
+          <div className="w-[340px]">
             <Tabs value={filter} onValueChange={handleFilterChange}>
               <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
                 <TabsTrigger 
@@ -192,7 +192,7 @@ export default function FlashcardSubjects() {
       </div>
 
       {/* Mobile layout - only filter tabs */}
-      <div className="md:hidden mb-6 filter-controls z-10">
+      <div className="md:hidden mb-6">
         <Tabs value={filter} onValueChange={handleFilterChange}>
           <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
             <TabsTrigger 

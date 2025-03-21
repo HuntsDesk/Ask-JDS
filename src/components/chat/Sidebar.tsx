@@ -31,6 +31,8 @@ import { useContext } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { useTheme } from '@/lib/theme-provider';
+import { useIsTablet, useIsDesktop, useIsMobile } from '@/hooks/useMediaQuery';
+import { BREAKPOINTS, MEDIA_QUERIES } from '@/lib/breakpoints';
 
 interface SidebarProps {
   setActiveTab: (tab: string) => void;
@@ -78,8 +80,13 @@ export function Sidebar({
   const { isExpanded, setIsExpanded } = useContext(SidebarContext);
   const { theme } = useTheme();
 
+  // Use responsive hooks to detect device type
+  const isMobileDevice = useIsMobile();
+  const isTabletDevice = useIsTablet(); 
+  const isDesktopDevice = useIsDesktop();
+
   // Replace regular state with persisted state - renamed to avoid collision with prop
-  const [localIsPinned, setLocalIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
+  const [localIsPinned, setIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
   
   // Use the prop value if provided, otherwise use local state
   const effectiveIsPinned = isPinnedProp !== undefined ? isPinnedProp : localIsPinned;
@@ -99,62 +106,42 @@ export function Sidebar({
     }
   }, [isDesktopExpanded, setIsExpanded]);
 
-  // Sync global expanded state with local props
-  useEffect(() => {
-    if (isExpanded !== isDesktopExpanded) {
-      onDesktopExpandedChange(isExpanded);
-    }
-  }, [isExpanded, onDesktopExpandedChange, isDesktopExpanded]);
-
-  // Ensure expanded state when pinned, and sync pin state across instances
-  useEffect(() => {
-    // When the component mounts, apply the persisted pin state
-    if (localIsPinned) {
-      onDesktopExpandedChange(true);
-      setIsExpanded(true);
-      // Call the prop callback if provided to sync parent components
-      if (onPinChange) {
-        onPinChange(localIsPinned);
-      }
-    }
-  }, []);
-
-  // Monitor prop changes to sync with local state
-  useEffect(() => {
-    if (isPinnedProp !== undefined && isPinnedProp !== localIsPinned) {
-      setLocalIsPinned(isPinnedProp);
-    }
-  }, [isPinnedProp, localIsPinned]);
-
-  // Check for mobile and tablet on mount and window resize
+  // Update device type detection with new breakpoints
   useEffect(() => {
     const checkDeviceType = () => {
-      const width = window.innerWidth;
-      setIsMobile(width < 768);
-      setIsTablet(width >= 768 && width <= 1024);
-      
-      // Add class to body for easier CSS targeting
-      if (width >= 768 && width <= 1024) {
-        document.body.classList.add('is-tablet-device');
-      } else {
-        document.body.classList.remove('is-tablet-device');
-      }
+      setIsMobile(window.innerWidth <= BREAKPOINTS.MOBILE_MAX);
+      setIsTablet(
+        window.innerWidth >= BREAKPOINTS.TABLET_MIN && 
+        window.innerWidth <= BREAKPOINTS.TABLET_MAX
+      );
     };
     
+    // Initial check
     checkDeviceType();
+    
+    // Set up event listener
     window.addEventListener('resize', checkDeviceType);
-    return () => window.removeEventListener('resize', checkDeviceType);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', checkDeviceType);
+    };
   }, []);
+
+  // Adjust sidebar width based on device type
+  const sidebarWidth = useMemo(() => {
+    if (!isExpanded) return 'w-0';
+    if (isMobileDevice) return 'w-full';
+    if (isTabletDevice) return 'w-72'; // Slightly narrower on tablets
+    return 'w-80'; // Default width for desktop
+  }, [isExpanded, isMobileDevice, isTabletDevice]);
 
   // Add a ref to track recently toggled pin state
   const recentlyToggledPinRef = useRef(false);
   
   const togglePin = () => {
     const newPinState = !effectiveIsPinned;
-    console.log('Toggling pin state to:', newPinState);
-    
-    // Update local persisted state
-    setLocalIsPinned(newPinState);
+    setIsPinned(newPinState);
     
     // Set the recently toggled flag
     recentlyToggledPinRef.current = true;
@@ -377,15 +364,22 @@ export function Sidebar({
 
   return (
     <>
-      {/* Main Sidebar - no redundant mobile burger button */}
+      {/* Mobile/Tablet overlay when sidebar is open */}
+      {isExpanded && (isMobile || isTablet) && !effectiveIsPinned && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30"
+          onClick={() => setIsExpanded(false)}
+        />
+      )}
+      
+      {/* Sidebar container with responsive width */}
       <div 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col bg-background border-r transition-all duration-300 sidebar-transition sidebar-container",
-          // Desktop state
-          !isMobile && (isDesktopExpanded ? "w-[var(--sidebar-width)] expanded" : "w-[var(--sidebar-collapsed-width)] collapsed"),
-          // Mobile state - directly use isDesktopExpanded from parent
-          isMobile && !isDesktopExpanded ? "opacity-0 pointer-events-none w-0 -translate-x-full sidebar-hidden-mobile" : "",
-          isMobile && isDesktopExpanded ? "w-[var(--sidebar-width)] shadow-xl expanded" : ""
+          "fixed left-0 top-0 z-40 h-screen border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 transition-all duration-300 overflow-hidden",
+          sidebarWidth,
+          isExpanded ? 'translate-x-0' : '-translate-x-full',
+          isTablet && effectiveIsPinned ? 'shadow-md' : '',
+          isMobile ? 'shadow-lg' : ''
         )}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -632,6 +626,20 @@ export function Sidebar({
           </Button>
         </div>
       </div>
+      
+      {/* Toggle button - adjust position for tablet */}
+      {!isExpanded && (
+        <button
+          onClick={() => setIsExpanded(true)}
+          className={cn(
+            "fixed z-30 p-2 bg-white dark:bg-slate-800 rounded-full shadow-md border border-slate-200 dark:border-slate-700",
+            isMobile ? "bottom-6 right-6" : "top-4 left-4",
+            isTablet ? "top-4 left-4" : ""
+          )}
+        >
+          <Menu className="h-6 w-6 text-slate-600 dark:text-slate-300" />
+        </button>
+      )}
     </>
   );
 }

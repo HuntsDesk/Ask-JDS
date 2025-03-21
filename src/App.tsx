@@ -230,61 +230,14 @@ function App() {
     );
   }
 
-  // Context for sidebar state
-  const { isExpanded } = useContext(SidebarContext);
-
-  // Update HTML class based on sidebar state for tablet devices
-  useEffect(() => {
-    const htmlElement = document.documentElement;
-    
-    // Update classes based on sidebar expansion state
-    if (isExpanded) {
-      htmlElement.classList.add('sidebar-expanded');
-      htmlElement.classList.remove('sidebar-collapsed');
-    } else {
-      htmlElement.classList.add('sidebar-collapsed');
-      htmlElement.classList.remove('sidebar-expanded');
-    }
-    
-    return () => {
-      // Clean up when component unmounts
-      htmlElement.classList.remove('sidebar-expanded');
-      htmlElement.classList.remove('sidebar-collapsed');
-    };
-  }, [isExpanded]);
-
   // Add custom CSS variables for sidebar z-index and layout
   useEffect(() => {
     // Add CSS variables to document root
     document.documentElement.style.setProperty('--sidebar-z-index', '100');
     
-    // Set additional CSS variables needed for proper sidebar behavior
-    document.documentElement.style.setProperty('--sidebar-width', '280px');
-    document.documentElement.style.setProperty('--sidebar-collapsed-width', '70px');
-    
-    // Set a data attribute on HTML element to help with CSS targeting
-    const mediaQuery = window.matchMedia('(min-width: 768px) and (max-width: 1024px)');
-    const setTabletClass = () => {
-      if (mediaQuery.matches) {
-        document.documentElement.classList.add('is-tablet');
-      } else {
-        document.documentElement.classList.remove('is-tablet');
-      }
-    };
-    
-    // Set initial value
-    setTabletClass();
-    
-    // Add event listener for changes
-    mediaQuery.addEventListener('change', setTabletClass);
-    
     return () => {
       // Clean up when component unmounts
       document.documentElement.style.removeProperty('--sidebar-z-index');
-      document.documentElement.style.removeProperty('--sidebar-width');
-      document.documentElement.style.removeProperty('--sidebar-collapsed-width');
-      mediaQuery.removeEventListener('change', setTabletClass);
-      document.documentElement.classList.remove('is-tablet');
     };
   }, []);
 
