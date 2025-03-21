@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useContext, lazy, Suspense } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useThreads } from '@/hooks/use-threads';
+import { useMessages } from '@/hooks/use-messages';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import ChatMessage from './ChatMessage';
