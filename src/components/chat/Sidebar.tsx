@@ -377,51 +377,22 @@ export function Sidebar({
 
   return (
     <>
-      {/* Main Sidebar - no redundant mobile burger button */}
-      <div 
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col bg-background border-r transition-all duration-300 sidebar-transition sidebar-container",
-          // Desktop state
-          !isMobile && (isDesktopExpanded ? "w-[var(--sidebar-width)] expanded" : "w-[var(--sidebar-collapsed-width)] collapsed"),
-          // Mobile state - directly use isDesktopExpanded from parent
-          isMobile && !isDesktopExpanded ? "opacity-0 pointer-events-none w-0 -translate-x-full sidebar-hidden-mobile" : "",
-          isMobile && isDesktopExpanded ? "w-[var(--sidebar-width)] shadow-xl expanded" : ""
-        )}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        style={{ overflow: 'hidden' }}
-      >
-        <div className="sticky top-0 z-30 bg-background border-b">
-          <div className={cn(
-            "flex items-center justify-center py-4", // Increased padding
-            isDesktopExpanded ? "px-4" : "px-2"
-          )}>
-            {/* Close button for mobile */}
-            {isMobile && isDesktopExpanded && (
-              <button 
-                onClick={() => {
-                  console.log('Sidebar: Mobile close button clicked');
-                  onDesktopExpandedChange(false);
-                  setIsExpanded(false);
-                }}
-                className="absolute right-2 p-2.5 rounded-md text-muted-foreground hover:bg-muted bg-background/80"
-                aria-label="Close sidebar"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            )}
-            
+      <div className="h-full flex flex-col overflow-hidden bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
+        {/* Logo and new chat button area */}
+        <div className="flex-shrink-0 p-2 pt-safe-top">
+          {/* Logo area */}
+          <div className="flex items-center justify-center pt-2 pb-2">
             {isDesktopExpanded ? (
               <>
                 <img 
                   src="/images/JDSimplified_Logo.png" 
                   alt="JD Simplified Logo" 
-                  className="h-10 transition-all dark:hidden" 
+                  className="h-8 transition-all dark:hidden" 
                 />
                 <img 
                   src="/images/JDSimplified_Logo_wht.png" 
                   alt="JD Simplified Logo" 
-                  className="h-10 transition-all hidden dark:block" 
+                  className="h-8 transition-all hidden dark:block" 
                 />
               </>
             ) : (
@@ -431,59 +402,70 @@ export function Sidebar({
                 className="h-8 transition-all dark:invert" 
               />
             )}
+            
+            {/* Close button for mobile */}
+            {isMobile && isDesktopExpanded && (
+              <button 
+                onClick={() => {
+                  onDesktopExpandedChange(false);
+                  setIsExpanded(false);
+                }}
+                className="absolute right-2 p-2 rounded-md text-muted-foreground hover:bg-muted"
+                aria-label="Close sidebar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
           </div>
+
+          {/* New chat button */}
+          <Button
+            variant="default"
+            className={cn(
+              "w-full mt-2 mb-2 bg-[#F37022] hover:bg-[#E36012] text-white", 
+              !isDesktopExpanded && "p-2 justify-center"
+            )}
+            onClick={onNewChat}
+          >
+            <PlusCircle className={cn("h-4 w-4", isDesktopExpanded && "mr-2")} />
+            {isDesktopExpanded && <span>New chat</span>}
+          </Button>
         </div>
 
-        <div className="p-3 border-b flex items-center justify-between">
-          <button
-            onClick={() => {
-              console.log('Sidebar: New Chat button clicked');
-              onNewChat();
-            }}
-            className={cn(
-              "flex font-medium items-center gap-2 px-3 py-2 w-full",
-              "rounded-lg bg-[#f37022] text-white hover:bg-[#e36012] transition",
-              // Adjust padding and size based on sidebar width
-              isDesktopExpanded 
-                ? "justify-start" 
-                : "justify-center px-2 mx-auto"
-            )}
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span 
-              className={cn(
-                "transition-all duration-300",
-                isDesktopExpanded ? "opacity-100 w-auto" : "opacity-0 w-0 hidden"
-              )}
-            >
-              New Chat
-            </span>
-          </button>
-          
+        {/* Pin button and navigation */}
+        <div className="flex-shrink-0 border-t border-b border-gray-200 dark:border-gray-800 py-2 px-2">
+          {/* Pin button */}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button 
-                  onClick={togglePin} 
-                  size="icon" 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className={cn(
-                    "ml-1",
-                    !isDesktopExpanded && "hidden",
-                    effectiveIsPinned && "text-orange-500"
+                    "w-full flex justify-center items-center h-9",
+                    effectiveIsPinned && "bg-accent text-accent-foreground"
                   )}
+                  onClick={togglePin}
                 >
-                  {effectiveIsPinned ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
+                  {effectiveIsPinned ? (
+                    <PinOff className="h-4 w-4" />
+                  ) : (
+                    <Pin className="h-4 w-4" />
+                  )}
+                  {isDesktopExpanded && (
+                    <span className="ml-2">{effectiveIsPinned ? "Unpin sidebar" : "Pin sidebar"}</span>
+                  )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="bg-gray-900 text-white">
-                {effectiveIsPinned ? "Unpin sidebar" : "Pin sidebar open"}
+              <TooltipContent side="right">
+                {effectiveIsPinned ? "Unpin sidebar" : "Pin sidebar"}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
 
-        <ScrollArea className="flex-1 overflow-hidden custom-scrollbar">
+        {/* Threads list area - make it scrollable */}
+        <ScrollArea className="flex-grow overflow-auto">
           <div className="space-y-4 p-2">
             {sortedSessionEntries.map(([date, dateSessions]) => (
               <div key={date} className="space-y-1">
@@ -560,7 +542,8 @@ export function Sidebar({
           </div>
         </ScrollArea>
 
-        <div className="sticky bottom-0 z-30 bg-background p-3 border-t space-y-2">
+        {/* Footer navigation */}
+        <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 p-2 pb-safe-bottom">
           <Link to="/flashcards/subjects" onClick={handleNavLinkClick}>
             <Button
               variant={isInFlashcards ? "default" : "ghost"}

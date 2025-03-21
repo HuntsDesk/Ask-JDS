@@ -172,7 +172,7 @@ export default function Navbar() {
       <nav className={`
         bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 
         fixed top-0 left-0 right-0 z-20 w-full
-        top-nav transition-all duration-300
+        top-nav flashcards-navbar transition-all duration-300
         ${isScrolled ? 'shadow-md' : ''}
         ${isTablet ? 'tablet-navbar' : ''}
       `}>
@@ -191,8 +191,8 @@ export default function Navbar() {
                 </button>
               )}
               
-              {/* Hamburger for tablet/desktop to toggle sidebar */}
-              {!isMobile && (
+              {/* Hamburger for tablet/desktop to toggle sidebar - HIDE ON TABLET */}
+              {!isMobile && !isTablet && (
                 <button
                   onClick={() => setIsExpanded(!isExpanded)}
                   className="text-gray-600 hover:text-[#F37022] mr-3 focus:outline-none"
