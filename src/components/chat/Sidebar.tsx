@@ -68,6 +68,7 @@ export function Sidebar({
   currentSession,
 }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
   const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
   const [editingThread, setEditingThread] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -112,12 +113,24 @@ export function Sidebar({
     }
   }, [effectiveIsPinned, isDesktopExpanded, onDesktopExpandedChange]);
 
-  // Check for mobile on mount and window resize
+  // Check for mobile and tablet on mount and window resize
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    const checkDeviceType = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 768);
+      setIsTablet(width >= 768 && width <= 1024);
+      
+      // Add class to body for easier CSS targeting
+      if (width >= 768 && width <= 1024) {
+        document.body.classList.add('is-tablet-device');
+      } else {
+        document.body.classList.remove('is-tablet-device');
+      }
+    };
+    
+    checkDeviceType();
+    window.addEventListener('resize', checkDeviceType);
+    return () => window.removeEventListener('resize', checkDeviceType);
   }, []);
 
   // Add a ref to track recently toggled pin state

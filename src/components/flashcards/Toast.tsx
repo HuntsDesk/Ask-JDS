@@ -1,92 +1,81 @@
 import React, { useEffect, useState } from 'react';
-import { X, CheckCircle, AlertTriangle, Info, AlertCircle } from 'lucide-react';
-import { ToastType } from '@/hooks/useFlashcardToast';
+import { X } from 'lucide-react';
 
 interface ToastProps {
   message: string;
-  type: ToastType;
+  type: 'success' | 'error' | 'info';
+  isVisible: boolean;
   onClose: () => void;
+  autoClose?: boolean;
+  duration?: number;
 }
 
-export default function Toast({ message, type, onClose }: ToastProps) {
-  const [isVisible, setIsVisible] = useState(false);
+export default function Toast({
+  message,
+  type,
+  isVisible,
+  onClose,
+  autoClose = true,
+  duration = 5000
+}: ToastProps) {
+  const [isTablet, setIsTablet] = useState(false);
 
+  // Check if we're on a tablet device
   useEffect(() => {
-    // Trigger entrance animation
-    const timer = setTimeout(() => {
-      setIsVisible(true);
-    }, 10);
-
-    return () => clearTimeout(timer);
+    const checkDeviceType = () => {
+      const width = window.innerWidth;
+      setIsTablet(width >= 768 && width <= 1024);
+    };
+    
+    checkDeviceType();
+    window.addEventListener('resize', checkDeviceType);
+    return () => window.removeEventListener('resize', checkDeviceType);
   }, []);
+  
+  useEffect(() => {
+    if (isVisible && autoClose) {
+      const timer = setTimeout(onClose, duration);
+      return () => {
+        clearTimeout(timer);
+      };
+    }
+    return undefined;
+  }, [isVisible, onClose, autoClose, duration]);
 
-  const handleClose = () => {
-    setIsVisible(false);
-    setTimeout(onClose, 300); // Wait for exit animation
-  };
+  if (!isVisible) return null;
 
-  const getIcon = () => {
+  // Define styles based on toast type
+  const getToastStyles = () => {
     switch (type) {
       case 'success':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return 'bg-green-500 text-white';
       case 'error':
-        return <AlertCircle className="h-5 w-5 text-red-500" />;
-      case 'warning':
-        return <AlertTriangle className="h-5 w-5 text-amber-500" />;
+        return 'bg-red-500 text-white';
       case 'info':
       default:
-        return <Info className="h-5 w-5 text-blue-500" />;
+        return 'bg-blue-500 text-white';
     }
   };
 
-  const getBackgroundColor = () => {
-    switch (type) {
-      case 'success':
-        return 'bg-green-50 border-green-200';
-      case 'error':
-        return 'bg-red-50 border-red-200';
-      case 'warning':
-        return 'bg-amber-50 border-amber-200';
-      case 'info':
-      default:
-        return 'bg-blue-50 border-blue-200';
-    }
-  };
-
-  const getTextColor = () => {
-    switch (type) {
-      case 'success':
-        return 'text-green-800';
-      case 'error':
-        return 'text-red-800';
-      case 'warning':
-        return 'text-amber-800';
-      case 'info':
-      default:
-        return 'text-blue-800';
-    }
-  };
+  // Use simpler animation for tablets to prevent flashing
+  const animationClass = isTablet 
+    ? 'fixed opacity-100' // No animation for tablets
+    : 'fixed animate-slideInUp';
 
   return (
     <div 
-      className={`fixed top-4 right-4 z-50 transition-all duration-300 ease-in-out ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
-      }`}
+      className={`${animationClass} bottom-5 right-5 left-5 md:left-auto md:w-96 rounded-lg shadow-lg z-50 ${getToastStyles()} transition-opacity duration-200`}
+      style={{ opacity: isVisible ? 1 : 0 }}
+      role="alert"
     >
-      <div 
-        className={`flex items-center p-4 rounded-lg shadow-md border ${getBackgroundColor()} ${getTextColor()} max-w-md`}
-      >
-        <div className="flex-shrink-0 mr-3">
-          {getIcon()}
-        </div>
-        <div className="flex-1 mr-2">
-          {message}
-        </div>
+      <div className="flex items-center justify-between p-4">
+        <p className="font-medium">{message}</p>
         <button 
-          onClick={handleClose}
-          className="flex-shrink-0 ml-2 text-gray-400 hover:text-gray-600 focus:outline-none"
+          onClick={onClose} 
+          className="p-1 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors"
+          aria-label="Close"
         >
-          <X className="h-5 w-5" />
+          <X size={18} />
         </button>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, ArrowRight, Check, X, RotateCcw, BookOpen, Lock } from 'lucide-react';
@@ -57,6 +57,30 @@ export default function FlashcardStudy() {
     remaining: 0,
     mastered: 0
   });
+  const [showDefinition, setShowDefinition] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [difficultyRatingVisible, setDifficultyRatingVisible] = useState(false);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<number | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  const [studyStats, setStudyStats] = useState<StudyStats>(initialStudyStats);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [isTablet, setIsTablet] = useState(false);
+  
+  // Reference to the card element for flip animation
+  const cardRef = useRef<HTMLDivElement>(null);
+  
+  // Check if on tablet/iPad
+  useEffect(() => {
+    const checkDeviceType = () => {
+      const width = window.innerWidth;
+      setIsTablet(width >= 768 && width <= 1024);
+    };
+    
+    checkDeviceType();
+    window.addEventListener('resize', checkDeviceType);
+    return () => window.removeEventListener('resize', checkDeviceType);
+  }, []);
 
   // Create a memoized shuffle function
   const shuffleCards = useCallback((cards) => {
@@ -366,6 +390,20 @@ export default function FlashcardStudy() {
     });
   }
 
+  // Function to flip the card
+  const flipCard = () => {
+    // For tablets, use simplified animations without transforms
+    if (isTablet) {
+      setShowDefinition(!showDefinition);
+    } else {
+      // For desktop/non-tablets, use the regular animation
+      if (cardRef.current) {
+        cardRef.current.classList.toggle('flipped');
+      }
+      setShowDefinition(!showDefinition);
+    }
+  };
+
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -505,7 +543,7 @@ export default function FlashcardStudy() {
         className={`bg-white rounded-xl shadow-md p-4 md:p-8 mb-6 min-h-[250px] md:min-h-[300px] flex items-center justify-center cursor-pointer transition-all duration-300 ${
           showAnswer ? 'bg-blue-50' : ''
         } ${shouldBlurAnswer ? 'relative' : ''}`}
-        onClick={handleFlip}
+        onClick={flipCard}
       >
         <div className="text-center w-full px-2 md:px-4">
           <h3 className="text-lg md:text-xl font-medium text-gray-900 mb-2">
