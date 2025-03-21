@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday, isThisWeek, isThisMonth } from 'date-fns';
@@ -120,27 +120,20 @@ export function Sidebar({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const handleMouseEnter = useCallback(() => {
-    console.log('Mouse enter - isContextMenuOpen:', isContextMenuOpen, 'isPinned:', effectiveIsPinned);
-    if (!isMobile && !effectiveIsPinned) {
-      console.log('Expanding sidebar on hover');
-      onDesktopExpandedChange(true);
-      setIsExpanded(true);
-    }
-  }, [isMobile, effectiveIsPinned, onDesktopExpandedChange, setIsExpanded]);
-
-  const handleMouseLeave = useCallback(() => {
-    console.log('Mouse leave - isContextMenuOpen:', isContextMenuOpen, 'isPinned:', effectiveIsPinned);
-    if (!isMobile && !effectiveIsPinned) {
-      console.log('Collapsing sidebar on leave');
-      onDesktopExpandedChange(false);
-      setIsExpanded(false);
-    }
-  }, [isMobile, effectiveIsPinned, onDesktopExpandedChange, setIsExpanded]);
-
+  // Add a ref to track recently toggled pin state
+  const recentlyToggledPinRef = useRef(false);
+  
   const togglePin = () => {
     const newPinState = !effectiveIsPinned;
     setIsPinned(newPinState);
+    
+    // Set the recently toggled flag
+    recentlyToggledPinRef.current = true;
+    
+    // Clear the flag after a short delay to prevent mouse events from immediately triggering
+    setTimeout(() => {
+      recentlyToggledPinRef.current = false;
+    }, 300);
     
     // Call the prop callback if provided
     if (onPinChange) {
@@ -158,6 +151,28 @@ export function Sidebar({
       setIsExpanded(isDesktopExpanded);
     }
   }, [isDesktopExpanded, isMobile]);
+
+  const handleMouseEnter = useCallback(() => {
+    // Don't trigger if pin was recently toggled
+    if (recentlyToggledPinRef.current) return;
+    
+    if (!isMobile && !effectiveIsPinned) {
+      console.log('Expanding sidebar on hover');
+      onDesktopExpandedChange(true);
+      setIsExpanded(true);
+    }
+  }, [isMobile, effectiveIsPinned, onDesktopExpandedChange, setIsExpanded]);
+
+  const handleMouseLeave = useCallback(() => {
+    // Don't trigger if pin was recently toggled
+    if (recentlyToggledPinRef.current) return;
+    
+    if (!isMobile && !effectiveIsPinned) {
+      console.log('Collapsing sidebar on leave');
+      onDesktopExpandedChange(false);
+      setIsExpanded(false);
+    }
+  }, [isMobile, effectiveIsPinned, onDesktopExpandedChange, setIsExpanded]);
 
   const handleStartEdit = (threadId: string, currentTitle: string) => {
     setEditingThread(threadId);

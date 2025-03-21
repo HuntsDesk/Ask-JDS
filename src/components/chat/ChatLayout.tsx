@@ -589,7 +589,7 @@ const ChatLayout = () => {
           isExpanded || isDesktop ? 'translate-x-0' : '-translate-x-full'
         } ${
           isDesktop ? 'relative' : 'fixed'
-        } ${sidebarWidth} h-full transition-all duration-300 ease-in-out z-[9999]`}
+        } ${sidebarWidth} h-full transition-all duration-300 ease-in-out z-50`}
       >
         <Sidebar
           setActiveTab={handleSetActiveThread}
