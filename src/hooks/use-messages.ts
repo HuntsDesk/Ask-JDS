@@ -486,8 +486,8 @@ Respond with ONLY the title, no quotes or additional text.`;
         isFirstMessageRef.current = false;
       }
 
-      // Generate and update thread title after 2 user messages
-      if (userMessageCountRef.current === 2 && onThreadTitleGenerated) {
+      // Generate and update thread title after 1 user message
+      if (userMessageCountRef.current === 1 && onThreadTitleGenerated) {
         try {
           // Get all user messages for context
           const userMessages = messages
@@ -497,7 +497,7 @@ Respond with ONLY the title, no quotes or additional text.`;
           // Generate title based on all user messages
           const generatedTitle = await generateThreadTitle(userMessages);
           await onThreadTitleGenerated(generatedTitle);
-          console.log(`Generated thread title after 2 messages: ${generatedTitle}`);
+          console.log(`Generated thread title after 1 message: ${generatedTitle}`);
         } catch (error) {
           console.error('Error updating thread title:', error);
         }
