@@ -174,12 +174,11 @@ const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
             )}
             <button
               onClick={() => onToggleMastered(flashcard)}
-              className={`text-gray-600 dark:text-gray-400 ${flashcard.is_mastered 
-                ? 'text-green-600 dark:text-green-400' 
-                : 'hover:text-[#F37022] dark:hover:text-[#F37022]'}`}
+              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022]"
               title={flashcard.is_mastered ? "Mark as not mastered" : "Mark as mastered"}
             >
-              <Check className="h-5 w-5" />
+              <Check className="mr-2 h-4 w-4" />
+              {flashcard.is_mastered ? "Mastered" : "Mark Mastered"}
             </button>
             
             {/* Premium indicator for subscribed users */}

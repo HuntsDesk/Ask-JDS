@@ -97,21 +97,21 @@ export function VirtualMessageList({ messages }: VirtualMessageListProps) {
   
   // Function to scroll to bottom
   const scrollToBottom = useCallback(() => {
-    if (listRef.current && (listRef.current as any)._outerRef) {
-      const scrollHeight = (listRef.current as any)._outerRef.scrollHeight;
-      (listRef.current as any).scrollTo(scrollHeight);
+    if (listRef.current && messages.length > 0) {
+      const totalHeight = messages.reduce((acc, _, index) => acc + (sizeMap[index] || 100), 0);
+      (listRef.current as any).scrollTo(totalHeight);
       setAutoScrollToBottom(true);
     }
-  }, []);
+  }, [messages.length, sizeMap]);
   
   // Initial scroll to bottom when component mounts or when dimensions are first available
   useEffect(() => {
     if (width && height && messages.length > 0 && !initialScrollComplete) {
-      // Delay to ensure measurements are ready
+      // Delay to ensure all messages are measured
       const timer = setTimeout(() => {
         scrollToBottom();
         setInitialScrollComplete(true);
-      }, 200);
+      }, 100);
       
       return () => clearTimeout(timer);
     }
@@ -121,10 +121,8 @@ export function VirtualMessageList({ messages }: VirtualMessageListProps) {
   useEffect(() => {
     // Check if we have more messages than last time
     if (messages.length > lastMsgLengthRef.current) {
-      // Always scroll to bottom on new messages or if auto-scroll is enabled
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
+      // Delay to ensure new message is measured
+      setTimeout(scrollToBottom, 50);
     }
     
     // Update ref with new message length
@@ -222,14 +220,14 @@ export function VirtualMessageList({ messages }: VirtualMessageListProps) {
           itemSize={getItemSize}
           overscanCount={10}
           onScroll={handleScroll}
-          initialScrollOffset={height * 100} // Start with a large scroll offset to ensure we're at the bottom
+          initialScrollOffset={0} // Remove the large initial scroll offset
           itemData={{
             messages,
             setSize,
             containerWidth: width
           }}
           className="virtual-list-scrollbar"
-          style={{ overflowX: 'hidden' }} // Add this to ensure no horizontal scrollbar
+          style={{ overflowX: 'hidden' }}
         >
           {MessageItem}
         </List>

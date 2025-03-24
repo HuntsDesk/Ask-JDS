@@ -569,7 +569,7 @@ export default function UnifiedStudyMode() {
             <ChevronLeft className="h-4 w-4" />
             <span className="ml-1">Back to Flashcards</span>
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             {filteredCards.length} {filteredCards.length === 1 ? 'card' : 'cards'} • 
             {currentIndex + 1} of {filteredCards.length}

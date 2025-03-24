@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FileText, Check, EyeOff, Eye, Trash2, Filter, BookOpen, FileEdit, Lock } from 'lucide-react';
+import { FileText, Check, EyeOff, Eye, Trash2, Filter, BookOpen, FileEdit, Lock, FilterX } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import useAuth from '@/hooks/useFlashcardAuth';
 import useToast from '@/hooks/useFlashcardToast';
@@ -18,6 +18,7 @@ import { useCachedData, clearCache, invalidateCache } from '@/hooks/use-cached-d
 import { useFlashcardRelationships } from '@/hooks/useFlashcardRelationships';
 import FlashcardItem from '../FlashcardItem';
 import { useNavbar } from '@/contexts/NavbarContext';
+import { Tooltip, TooltipProvider } from '@/components/ui/tooltip';
 
 interface Collection {
   id: string;
@@ -611,226 +612,231 @@ export default function AllFlashcards() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
-      {/* Toast notification */}
-      {toast && (
-        <Toast 
-          message={toast.message} 
-          type={toast.type} 
-          onClose={hideToast} 
+    <TooltipProvider>
+      <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
+        {/* Toast notification */}
+        {toast && (
+          <Toast 
+            message={toast.message} 
+            type={toast.type} 
+            onClose={hideToast} 
+          />
+        )}
+        
+        {/* Delete Confirmation Modal */}
+        {cardToDelete && (
+        <DeleteConfirmation
+          isOpen={!!cardToDelete}
+          onClose={() => setCardToDelete(null)}
+          onConfirm={deleteCard}
+          title="Delete Flashcard"
+          message="Are you sure you want to delete this flashcard? This action cannot be undone."
+          itemName={cardToDelete?.question}
         />
-      )}
-      
-      {/* Delete Confirmation Modal */}
-      {cardToDelete && (
-      <DeleteConfirmation
-        isOpen={!!cardToDelete}
-        onClose={() => setCardToDelete(null)}
-        onConfirm={deleteCard}
-        title="Delete Flashcard"
-        message="Are you sure you want to delete this flashcard? This action cannot be undone."
-        itemName={cardToDelete?.question}
-      />
-      )}
-      
-      {/* Paywall Modal */}
-      {showPaywall && (
-        <FlashcardPaywall onCancel={handleClosePaywall} />
-      )}
-      
-      {/* Desktop header with title and count - hidden on mobile */}
-      <div className="hidden md:flex items-center justify-between mb-6">
-        <div className="flex items-center gap-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              {filteredCards.length} {filteredCards.length === 1 ? 'card' : 'cards'}
-            </p>
-          </div>
-          
-          {/* Filter controls - desktop */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022]"
-            >
-              <Filter className="mr-2 h-4 w-4" />
-              {showFilters ? 'Hide Filters' : 'Show Filters'}
-            </button>
-
-            <button
-              onClick={handleToggleMastered}
-              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022]"
-              aria-label={showMastered ? "Hide mastered cards" : "Show all cards"}
-            >
-              {showMastered ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
-              {showMastered ? "Hide Mastered" : "Show All"}
-            </button>
-          </div>
-        </div>
-
-        <div className="w-[340px]">
-            <Tabs value={filter} onValueChange={handleFilterChange}>
-              <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
-                <TabsTrigger 
-                  value="all"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  All
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="official"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  Premium
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="my"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-                >
-                  My Cards
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-        </div>
-      </div>
-
-      {/* Mobile layout - only filter tabs */}
-      <div className="md:hidden mb-6">
-        <Tabs value={filter} onValueChange={handleFilterChange}>
-          <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
-            <TabsTrigger 
-              value="all"
-              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-            >
-              All
-            </TabsTrigger>
-            <TabsTrigger 
-              value="official"
-              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-            >
-              Premium
-            </TabsTrigger>
-            <TabsTrigger 
-              value="my"
-              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
-            >
-              My Cards
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-
-      {/* Mobile filter controls */}
-      <div className="md:hidden flex items-center justify-between mb-4">
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022]"
-        >
-          <Filter className="mr-2 h-4 w-4" />
-          {showFilters ? 'Hide Filters' : 'Show Filters'}
-        </button>
-
-        <button
-          onClick={handleToggleMastered}
-          className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022]"
-          aria-label={showMastered ? "Hide mastered cards" : "Show all cards"}
-        >
-          {showMastered ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
-          {showMastered ? "Hide Mastered" : "Show All"}
-        </button>
-      </div>
-
-      {/* Filters */}
-      {showFilters && (
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6 dark:border dark:border-gray-700">
-          <div className="grid md:grid-cols-2 gap-4">
+        )}
+        
+        {/* Paywall Modal */}
+        {showPaywall && (
+          <FlashcardPaywall onCancel={handleClosePaywall} />
+        )}
+        
+        {/* Desktop header with title and count - hidden on mobile */}
+        <div className="hidden md:flex items-center justify-between mb-6">
+          <div className="flex items-center gap-6">
             <div>
-              <label htmlFor="subject-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Filter by Subject
-              </label>
-              <select
-                id="subject-filter"
-                value={filterSubject}
-                onChange={(e) => {
-                  setFilterSubject(e.target.value);
-                  setFilterCollection('all'); // Reset collection filter when subject changes
-                }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
-              >
-                <option value="all">All Subjects</option>
-                {subjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>
-                    {subject.name}
-                  </option>
-                ))}
-              </select>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                {filteredCards.length} {filteredCards.length === 1 ? 'card' : 'cards'}
+              </p>
             </div>
             
-            <div>
-              <label htmlFor="collection-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Filter by Collection
-              </label>
-              <select
-                id="collection-filter"
-                value={filterCollection}
-                onChange={(e) => setFilterCollection(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
-              >
-                <option value="all">All Collections</option>
-                {filteredCollections.map((collection) => (
-                  <option key={collection.id} value={collection.id}>
-                    {collection.title}
-                  </option>
-                ))}
-              </select>
+            {/* Filter controls - desktop */}
+            <div className="flex items-center gap-3">
+              <Tooltip text={showFilters ? "Hide filters" : "Show filters"} position="top">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022]"
+                >
+                  {showFilters ? <FilterX className="mr-2 h-4 w-4" /> : <Filter className="mr-2 h-4 w-4" />}
+                  {showFilters ? 'Hide Filters' : 'Show Filters'}
+                </button>
+              </Tooltip>
+              <Tooltip text={showMastered ? "Hide mastered cards" : "Show all cards"} position="top">
+                <button
+                  onClick={handleToggleMastered}
+                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022]"
+                  aria-label={showMastered ? "Hide mastered cards" : "Show all cards"}
+                >
+                  {showMastered ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
+                  {showMastered ? "Hide Mastered" : "Show All"}
+                </button>
+              </Tooltip>
             </div>
           </div>
-        </div>
-      )}
-      
-      {/* Filters and cards display */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {!loading && filteredCards.length === 0 ? (
-          <div className="col-span-1 md:col-span-2 lg:col-span-3">
-            {filter === 'my' ? (
-              <EmptyState 
-                icon={<FileText size={48} />}
-                title="No Flashcards Found" 
-                description="You haven't created any flashcards yet or they're being filtered out. Try creating your first flashcard or checking your filter settings."
-                actionText="Create a Flashcard"
-                actionLink="/flashcards/create-flashcard-select"
-              />
-            ) : (
-              <EmptyState 
-                icon={<FileText size={48} />}
-                title="No Flashcards Found" 
-                description="No flashcards match your current filters. Try adjusting your filter settings."
-                actionText={filter === 'official' && !hasActiveSubscription ? 
-                  "Get Premium for Official Flashcards" : "Create a Flashcard"}
-                actionLink={filter === 'official' && !hasActiveSubscription ? 
-                  undefined : "/flashcards/create-flashcard-select"}
-                onActionClick={filter === 'official' && !hasActiveSubscription ? 
-                  handleShowPaywall : undefined}
-              />
-            )}
+
+          <div className="w-[340px]">
+              <Tabs value={filter} onValueChange={handleFilterChange}>
+                <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
+                  <TabsTrigger 
+                    value="all"
+                    className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                  >
+                    All
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="official"
+                    className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                  >
+                    Premium
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="my"
+                    className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                  >
+                    My Cards
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
           </div>
-        ) : (
-          filteredCards.map((card) => (
-            <FlashcardItem
-              key={card.id}
-                    flashcard={card}
-                    onToggleMastered={toggleMastered}
-              onEdit={handleEditCard}
-              onDelete={setCardToDelete}
-                    onView={handleViewCard}
-              isPremium={isCardPremium(card)}
-                    hasSubscription={hasSubscription}
-                    onShowPaywall={handleShowPaywall}
-            />
-          ))
+        </div>
+
+        {/* Mobile layout - only filter tabs */}
+        <div className="md:hidden mb-6">
+          <Tabs value={filter} onValueChange={handleFilterChange}>
+            <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
+              <TabsTrigger 
+                value="all"
+                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+              >
+                All
+              </TabsTrigger>
+              <TabsTrigger 
+                value="official"
+                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+              >
+                Premium
+              </TabsTrigger>
+              <TabsTrigger 
+                value="my"
+                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+              >
+                My Cards
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Mobile filter controls */}
+        <div className="md:hidden flex items-center justify-between mb-4">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022]"
+          >
+            {showFilters ? <FilterX className="mr-2 h-4 w-4" /> : <Filter className="mr-2 h-4 w-4" />}
+            {showFilters ? 'Hide Filters' : 'Show Filters'}
+          </button>
+
+          <button
+            onClick={handleToggleMastered}
+            className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022]"
+            aria-label={showMastered ? "Hide mastered cards" : "Show all cards"}
+          >
+            {showMastered ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
+            {showMastered ? "Hide Mastered" : "Show All"}
+          </button>
+        </div>
+
+        {/* Filters */}
+        {showFilters && (
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6 dark:border dark:border-gray-700">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="subject-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Filter by Subject
+                </label>
+                <select
+                  id="subject-filter"
+                  value={filterSubject}
+                  onChange={(e) => {
+                    setFilterSubject(e.target.value);
+                    setFilterCollection('all'); // Reset collection filter when subject changes
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                >
+                  <option value="all">All Subjects</option>
+                  {subjects.map((subject) => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label htmlFor="collection-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Filter by Collection
+                </label>
+                <select
+                  id="collection-filter"
+                  value={filterCollection}
+                  onChange={(e) => setFilterCollection(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                >
+                  <option value="all">All Collections</option>
+                  {filteredCollections.map((collection) => (
+                    <option key={collection.id} value={collection.id}>
+                      {collection.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
         )}
+        
+        {/* Filters and cards display */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {!loading && filteredCards.length === 0 ? (
+            <div className="col-span-1 md:col-span-2 lg:col-span-3">
+              {filter === 'my' ? (
+                <EmptyState 
+                  icon={<FileText size={48} />}
+                  title="No Flashcards Found" 
+                  description="You haven't created any flashcards yet or they're being filtered out. Try creating your first flashcard or checking your filter settings."
+                  actionText="Create a Flashcard"
+                  actionLink="/flashcards/create-flashcard-select"
+                />
+              ) : (
+                <EmptyState 
+                  icon={<FileText size={48} />}
+                  title="No Flashcards Found" 
+                  description="No flashcards match your current filters. Try adjusting your filter settings."
+                  actionText={filter === 'official' && !hasActiveSubscription ? 
+                    "Get Premium for Official Flashcards" : "Create a Flashcard"}
+                  actionLink={filter === 'official' && !hasActiveSubscription ? 
+                    undefined : "/flashcards/create-flashcard-select"}
+                  onActionClick={filter === 'official' && !hasActiveSubscription ? 
+                    handleShowPaywall : undefined}
+                />
+              )}
+            </div>
+          ) : (
+            filteredCards.map((card) => (
+              <FlashcardItem
+                key={card.id}
+                      flashcard={card}
+                      onToggleMastered={toggleMastered}
+                onEdit={handleEditCard}
+                onDelete={setCardToDelete}
+                      onView={handleViewCard}
+                isPremium={isCardPremium(card)}
+                      hasSubscription={hasSubscription}
+                      onShowPaywall={handleShowPaywall}
+              />
+            ))
+          )}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 } 
