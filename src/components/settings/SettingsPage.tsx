@@ -41,6 +41,36 @@ export function SettingsPage() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Handle sidebar expansion/collapse properly
+  useEffect(() => {
+    // Set CSS variables for sidebar width
+    document.documentElement.style.setProperty('--sidebar-width', '280px');
+    document.documentElement.style.setProperty('--sidebar-collapsed-width', '70px');
+    
+    // Get the sidebar element
+    const sidebarElement = document.querySelector('.sidebar-container');
+    if (sidebarElement) {
+      if (isExpanded) {
+        // Expanded state
+        (sidebarElement as HTMLElement).style.width = '280px';
+        sidebarElement.classList.add('expanded');
+        sidebarElement.classList.remove('collapsed');
+      } else {
+        // Collapsed state
+        (sidebarElement as HTMLElement).style.width = '70px';
+        sidebarElement.classList.add('collapsed');
+        sidebarElement.classList.remove('expanded');
+      }
+    }
+  }, [isExpanded]);
+
+  // Auto-expand the sidebar on desktop when entering settings page
+  useEffect(() => {
+    if (!isMobile) {
+      setIsExpanded(true);
+    }
+  }, [isMobile, setIsExpanded]);
+
   // Sidebar functions
   const handleNewChat = () => {
     navigate('/chat');

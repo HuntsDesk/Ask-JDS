@@ -1,4 +1,6 @@
 import { supabase } from '../supabase';
+import { AIResponse } from '@/types';
+import { handleSessionExpiration } from '../auth';
 
 type AIResponse = {
   choices?: Array<{ message: { content: string } }>;
@@ -15,7 +17,9 @@ export async function callAIRelay(
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       console.error('🚫 No active session found');
-      throw new Error('No active session');
+      // Handle session expiration
+      handleSessionExpiration();
+      throw new Error('Your session has expired. Please sign in again.');
     }
 
     // Ensure messages is always an array
@@ -55,6 +59,50 @@ export async function callAIRelay(
       // Clear the timeout since we got a response
       clearTimeout(timeoutId);
 
+      // Check for auth errors first
+      if (response.status === 401 || response.status === 403) {
+        console.error('❌ Authentication error:', response.status);
+        
+        // Get specific error details if available
+        let errorDetails = "Your session has expired.";
+        try {
+          const errorData = await response.json();
+          if (errorData?.error?.message) {
+            errorDetails = errorData.error.message;
+          } else if (errorData?.message) {
+            errorDetails = errorData.message;
+          }
+          console.log('Auth error details:', errorDetails);
+        } catch (e) {
+          // Unable to parse error details, use default message
+        }
+        
+        // Add recovery instructions to the error message
+        const errorMessage = `Session expired: ${errorDetails} Please sign in again to continue your conversation.`;
+        
+        // Get any potential message from the request body if available
+        let preservedMessage = undefined;
+        try {
+          if (requestBody?.messages?.length > 0) {
+            // Try to find the most recent user message
+            const userMessages = requestBody.messages.filter(m => m.role === 'user');
+            if (userMessages.length > 0) {
+              // Get the last user message
+              preservedMessage = userMessages[userMessages.length - 1].content;
+            }
+          }
+        } catch (e) {
+          console.error('Error extracting message to preserve:', e);
+        }
+        
+        // Handle session expiration with a slight delay to allow error to be visible
+        setTimeout(() => {
+          handleSessionExpiration(preservedMessage);
+        }, 1000);
+        
+        throw new Error(errorMessage);
+      }
+
       let data;
       try {
         // Clone the response before parsing to be able to get the text if parsing fails
@@ -87,6 +135,16 @@ export async function callAIRelay(
           statusText: response.statusText,
           data
         });
+        
+        // More specific error handling for common cases
+        if (data.error?.message?.includes('auth') || 
+            data.error?.message?.includes('token') || 
+            data.error?.message?.includes('session')) {
+          // Handle session expiration
+          handleSessionExpiration();
+          throw new Error('Your session has expired. Please sign in again.');
+        }
+        
         throw new Error(`AI Relay failed: ${data.error?.message || data.error || response.statusText}`);
       }
 
@@ -108,6 +166,18 @@ export async function callAIRelay(
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined
       });
+      
+      // Check for auth-related errors
+      if (error instanceof Error) {
+        if (error.message.includes('Unauthorized') || 
+            error.message.includes('Authentication failed') || 
+            error.message.includes('token') || 
+            error.message.includes('expired')) {
+          // Handle session expiration
+          handleSessionExpiration();
+        }
+      }
+      
       throw error;
     }
   } catch (error) {

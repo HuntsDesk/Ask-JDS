@@ -19,6 +19,7 @@ import {
   ensureMessageCountRecord,
   specialUpdateMessageCount
 } from '@/lib/subscription';
+import { validateSessionToken, handleSessionExpiration } from '@/lib/auth';
 
 export function useMessages(threadId: string | null, onFirstMessage?: (message: string) => void, onThreadTitleGenerated?: (title: string) => Promise<void>) {
   const { settings } = useSettings();
@@ -342,10 +343,43 @@ Respond with ONLY the title, no quotes or additional text.`;
 
   const sendMessage = useCallback(async (content: string) => {
     if (!threadId || !aiProvider.current) return null;
-    if (!content.trim()) return null;
-
+    
     // First, immediately dismiss any existing toasts before any checks
     dismiss();
+    
+    // Validate session token before attempting to send message
+    try {
+      const isValid = await validateSessionToken();
+      if (!isValid) {
+        console.error('🚫 Session token invalid during message sending');
+        
+        // Show a brief toast to explain what's happening
+        toast({
+          title: 'Session expired',
+          description: 'Your session has expired. Please sign in again.',
+          variant: 'default',
+        });
+        
+        // Wait a short moment for the toast to be visible
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Handle the session expiration (redirects to login), passing the message to preserve
+        handleSessionExpiration(content);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error validating session token before sending message:', error);
+      // Continue with the send attempt, as the API call will handle auth errors
+    }
+    
+    // Check if user has reached message limit
+    const hasReachedLimit = await checkMessageLimit(content);
+    if (hasReachedLimit) {
+      console.log('User has reached message limit');
+      return null;
+    }
+    
+    if (!content.trim()) return null;
 
     // Set the global flag to prevent new toasts
     setPaywallActive(true);

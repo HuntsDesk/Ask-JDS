@@ -116,13 +116,22 @@ export function ChatInterface({
     setSendError(null);
     setIsSubmitting(true);
     
+    // Store message content in a variable
+    const messageContent = message.trim();
+    
+    // Clear the input field immediately
+    setMessage('');
+    
     try {
       // Send message
-      await onSend(message.trim());
-      setMessage('');
+      await onSend(messageContent);
+      // No need to clear message here as it's already cleared
     } catch (error) {
       console.error('Error sending message:', error);
       setSendError("An error occurred. Please try again.");
+      
+      // If sending fails, restore the message for the user to try again
+      setMessage(messageContent);
     } finally {
       // Complete our local submission state - isGenerating will still be true if AI is generating
       setIsSubmitting(false);
