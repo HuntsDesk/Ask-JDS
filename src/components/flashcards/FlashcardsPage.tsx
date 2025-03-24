@@ -62,15 +62,21 @@ export default function FlashcardsPage() {
   
   // Handle sidebar expansion/collapse properly
   useEffect(() => {
+    // Set CSS variables for sidebar width
+    document.documentElement.style.setProperty('--sidebar-width', '280px');
+    document.documentElement.style.setProperty('--sidebar-collapsed-width', '70px');
+    
     // Get the sidebar element
     const sidebarElement = document.querySelector('.sidebar-container');
     if (sidebarElement) {
       if (isExpanded) {
         // Expanded state
+        (sidebarElement as HTMLElement).style.width = '280px';
         sidebarElement.classList.add('expanded');
         sidebarElement.classList.remove('collapsed');
       } else {
         // Collapsed state
+        (sidebarElement as HTMLElement).style.width = '70px';
         sidebarElement.classList.add('collapsed');
         sidebarElement.classList.remove('expanded');
       }
@@ -260,11 +266,11 @@ export default function FlashcardsPage() {
       {/* Main content */}
       <div className={cn(
         "flex-1 overflow-auto transition-all duration-300 ease-in-out",
-        isExpanded ? 'md:ml-[var(--sidebar-width)]' : 'md:ml-[var(--sidebar-collapsed-width)]'
+        isExpanded ? 'md:ml-[280px]' : 'md:ml-[70px]'
       )}>
         <NavbarProvider>
           <Navbar />
-          <div className="container mx-auto px-4 pt-6 md:pt-6 mt-16 md:mt-0 flashcards-container">
+          <div className="container mx-auto px-4 pt-6 md:pt-6 mt-16 md:mt-0">
             <Routes>
               <Route path="/" element={<Navigate to="/flashcards/subjects" replace />} />
               <Route path="/subjects" element={<ManageSubjects />} />
