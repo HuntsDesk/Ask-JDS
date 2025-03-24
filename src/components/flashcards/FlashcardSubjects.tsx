@@ -136,7 +136,7 @@ export default function FlashcardSubjects() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto pb-20 md:pb-8">
+    <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
       <DeleteConfirmation
         isOpen={!!subjectToDelete}
         onClose={() => setSubjectToDelete(null)}

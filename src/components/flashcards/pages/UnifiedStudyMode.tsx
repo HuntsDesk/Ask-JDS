@@ -470,7 +470,7 @@ export default function UnifiedStudyMode() {
 
   if (cards.length === 0) {
     return (
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
         <div className="mb-8">
           <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
             <ChevronLeft className="h-4 w-4" />
@@ -511,7 +511,7 @@ export default function UnifiedStudyMode() {
 
   if (filteredCards.length === 0) {
     return (
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
         <div className="mb-8">
           <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
             <ChevronLeft className="h-4 w-4" />
@@ -549,7 +549,7 @@ export default function UnifiedStudyMode() {
   const isPremiumBlurred = currentCard && currentCard.is_official && !hasSubscription && !isUserCard;
 
   return (
-    <div className="max-w-6xl mx-auto px-4">
+    <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
       {/* Toast notification */}
       {toast && (
         <Toast 

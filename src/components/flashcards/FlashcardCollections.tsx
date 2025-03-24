@@ -715,7 +715,7 @@ export default function FlashcardCollections() {
   const selectedSubject = subjects.find(s => s.id === selectedSubjectId);
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-6">
+    <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
       <DeleteConfirmation
         isOpen={!!collectionToDelete}
         onClose={() => setCollectionToDelete(null)}
