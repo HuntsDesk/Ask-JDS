@@ -25,7 +25,7 @@ export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
         }`}
       >
         <div 
-          className={`rounded-lg p-3 overflow-hidden message-item ${
+          className={`rounded-lg p-3 overflow-hidden ${
             isUserMessage 
               ? 'bg-[#F37022] text-white rounded-br-none' 
               : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none'

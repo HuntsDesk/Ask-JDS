@@ -151,7 +151,7 @@ export function HomePage() {
   
   return (
     <div 
-      className="min-h-screen bg-gradient-to-b from-gray-50 to-white force-light-mode home-container"
+      className="min-h-screen bg-gradient-to-b from-gray-50 to-white force-light-mode"
       style={{ 
         minHeight: '100vh',
         WebkitOverflowScrolling: 'touch'
@@ -230,7 +230,7 @@ export function HomePage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 bg-gradient-to-b from-gray-50 to-white animated-gradient overflow-x-hidden hero-section">
+      <section className="pt-32 pb-20 bg-gradient-to-b from-gray-50 to-white animated-gradient overflow-x-hidden">
         <div className="max-w-4xl mx-auto px-4 box-border">
           {/* Hero Logo Section - Larger, vertically stacked */}
           <div className="flex flex-col items-center justify-center mb-8">
@@ -253,7 +253,7 @@ export function HomePage() {
 
           {/* Hero Content */}
           <div className="text-center mt-16">
-            <h1 className="text-5xl font-bold text-black mb-8 hero-title">
+            <h1 className="text-5xl font-bold text-black mb-8">
               The <i className="text-[#F37022]">Law Study Buddy</i> that won't judge you for procrastinating.
             </h1>
 
@@ -294,7 +294,7 @@ export function HomePage() {
       }}>
         <div className="max-w-6xl mx-auto px-4 box-border">
           <h2 className="text-4xl font-bold text-center mb-16 text-black">How It Works</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 flashcard-grid">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-white p-8 rounded-xl shadow-sm">
               <MessageSquare className="w-12 h-12 text-[#00178E] mb-4" />
               <h3 className="text-xl font-semibold mb-4 text-[#F37022]">Ask a Question</h3>

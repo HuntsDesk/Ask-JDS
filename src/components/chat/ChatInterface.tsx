@@ -164,9 +164,7 @@ export function ChatInterface({
       )}
       
       {/* Message container */}
-      <div 
-        className={`flex-1 overflow-hidden relative chat-content ${!isDesktop ? 'pt-16' : ''}`}
-      >
+      <div className={`flex-1 overflow-hidden relative ${!isDesktop ? 'pt-16' : ''}`}>
         <div 
           ref={messagesContainerRef}
           className="h-full w-full message-container overflow-y-auto px-6 sm:px-8 py-4 pb-6"
