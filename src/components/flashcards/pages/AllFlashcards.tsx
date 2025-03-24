@@ -611,7 +611,7 @@ export default function AllFlashcards() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
       {/* Toast notification */}
       {toast && (
         <Toast 

@@ -145,7 +145,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 fixed top-0 left-0 right-0 z-20 w-full">
+      <nav className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 fixed top-0 z-20 w-full md:w-[calc(100%-var(--sidebar-collapsed-width))] md:left-[var(--sidebar-collapsed-width)] transition-all duration-300 ease-in-out" style={isExpanded ? {width: 'calc(100% - var(--sidebar-width))', left: 'var(--sidebar-width)'} : {}}>
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Mobile header */}

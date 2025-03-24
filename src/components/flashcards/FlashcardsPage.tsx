@@ -270,7 +270,7 @@ export default function FlashcardsPage() {
       )}>
         <NavbarProvider>
           <Navbar />
-          <div className="container mx-auto px-4 pt-6 md:pt-6 mt-16 md:mt-0">
+          <div className="container mx-auto px-4 pt-6 md:pt-20 mt-16 md:mt-0">
             <Routes>
               <Route path="/" element={<Navigate to="/flashcards/subjects" replace />} />
               <Route path="/subjects" element={<ManageSubjects />} />
