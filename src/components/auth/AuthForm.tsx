@@ -38,6 +38,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CSSTransition } from 'react-transition-group';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AuthFormProps {
   initialTab?: 'signin' | 'signup';
@@ -51,6 +52,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [sessionExpired, setSessionExpired] = useState(false);
   
   // Create refs for CSSTransition to avoid findDOMNode deprecation warnings
   const signInNodeRef = useRef(null);
@@ -60,6 +62,34 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
+
+  // Check if redirected due to session expiration
+  useEffect(() => {
+    // Check if we have a session expiration message in sessionStorage
+    const redirectReason = sessionStorage.getItem('auth_redirect_reason');
+    if (redirectReason === 'session_expired') {
+      console.log('User was redirected due to session expiration');
+      setSessionExpired(true);
+      
+      // Check if there's a preserved message to show in the notification
+      const preservedMsg = sessionStorage.getItem('preserved_message');
+      let notificationText = 'Your session has expired. Please sign in again to continue.';
+      
+      if (preservedMsg) {
+        notificationText += ' Your draft message has been saved.';
+      }
+      
+      // Set the session expired message with details about preserved content
+      toast({
+        title: 'Session Expired',
+        description: notificationText,
+        variant: 'default',
+      });
+      
+      // Clear the redirect reason so it doesn't show on refresh
+      sessionStorage.removeItem('auth_redirect_reason');
+    }
+  }, [toast]);
 
   // Check if user is already authenticated
   useEffect(() => {
@@ -244,6 +274,16 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
               </CardHeader>
               
               <CardContent>
+                {/* Show session expiration alert if needed */}
+                {sessionExpired && (
+                  <Alert className="mb-6 bg-amber-50 text-amber-800 border-amber-200">
+                    <AlertCircle className="h-4 w-4 text-amber-800" />
+                    <AlertDescription>
+                      Your session has expired. Please sign in again to continue.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
                 <Tabs 
                   defaultValue={activeTab} 
                   value={activeTab} 

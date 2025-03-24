@@ -246,6 +246,121 @@ async function refreshUserData(user: User): Promise<void> {
   await ensureUserRecord(user.id, user.email);
 }
 
+/**
+ * Function to check if the current session token is still valid
+ */
+export async function validateSessionToken(): Promise<boolean> {
+  console.log('Validating session token');
+  try {
+    // Quick check: if we have a session timestamp in localStorage, check it first
+    if (typeof window !== 'undefined') {
+      try {
+        const sessionTimestamp = localStorage.getItem('last_active_timestamp');
+        if (sessionTimestamp) {
+          const lastActive = parseInt(sessionTimestamp, 10);
+          const now = Date.now();
+          // If last activity was more than 3 hours ago, consider session potentially expired
+          // This is a conservative check that avoids unnecessary API calls
+          if (now - lastActive > 3 * 60 * 60 * 1000) { // 3 hours
+            console.log('Session potentially expired: inactive for 3+ hours');
+            // Continue to full validation instead of returning immediately
+            // This way the server check will still happen but we've logged the inactivity
+          } else {
+            // Update the timestamp since the user is active
+            localStorage.setItem('last_active_timestamp', now.toString());
+          }
+        } else {
+          // No timestamp found, set one now
+          localStorage.setItem('last_active_timestamp', Date.now().toString());
+        }
+      } catch (e) {
+        // Ignore localStorage errors, proceed with normal validation
+        console.warn('Error checking session timestamp in localStorage:', e);
+      }
+    }
+
+    // Get the current session
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (error) {
+      console.error('Error validating session token:', error);
+      return false;
+    }
+    
+    if (!session) {
+      console.log('No active session found during validation');
+      return false;
+    }
+    
+    // Check if the token is expired
+    if (session.expires_at) {
+      const expiresAt = new Date(session.expires_at * 1000);
+      const now = new Date();
+      
+      if (expiresAt <= now) {
+        console.log('Session token has expired');
+        return false;
+      }
+    }
+    
+    // Update the last active timestamp since we have a valid session
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('last_active_timestamp', Date.now().toString());
+    }
+    
+    // Make a lightweight API call to verify the token is accepted by the server
+    try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !userData.user) {
+        console.error('Token validation failed:', userError);
+        return false;
+      }
+      
+      console.log('Session token is valid');
+      return true;
+    } catch (apiError) {
+      console.error('API error during token validation:', apiError);
+      return false;
+    }
+  } catch (e) {
+    console.error('Unexpected error during token validation:', e);
+    return false;
+  }
+}
+
+/**
+ * Handle session expiration by clearing the local auth state and redirecting
+ */
+export function handleSessionExpiration(preservedMessage?: string) {
+  console.log('Handling session expiration');
+  
+  // Clear the local auth state
+  authInstance.user = null;
+  authInstance.status = 'unauthenticated';
+  setGlobalAuthInstance(authInstance);
+  
+  // Clear any persisted auth data
+  supabase.auth.signOut().catch(error => {
+    console.error('Error signing out after session expiration:', error);
+  });
+  
+  // Show a user-friendly message
+  if (typeof window !== 'undefined') {
+    // Store a message to display after redirect
+    sessionStorage.setItem('auth_redirect_reason', 'session_expired');
+    
+    // If there's a message to preserve, store it in sessionStorage
+    if (preservedMessage) {
+      console.log('Preserving draft message for after login');
+      sessionStorage.setItem('preserved_message', preservedMessage);
+    }
+    
+    // Redirect to the login page
+    window.location.href = '/login';
+  }
+}
+
 function AuthProviderComponent({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [user, setUser] = useState<User | null>(authInstance.user);
@@ -296,6 +411,41 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
       clearInterval(authCheckInterval);
     };
   }, []);
+  
+  // Add visibilitychange event listener to check token when user returns to tab
+  useEffect(() => {
+    const checkSessionOnVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && user) {
+        console.log('Tab became visible, checking session validity');
+        validateSessionToken().then(isValid => {
+          if (!isValid) {
+            console.log('Session invalid after visibility change, handling expiration');
+            handleSessionExpiration();
+          }
+        });
+      }
+    };
+    
+    // Set up periodic validation (every 30 mins)
+    const periodicValidationInterval = setInterval(() => {
+      if (user) {
+        console.log('Performing periodic session validation');
+        validateSessionToken().then(isValid => {
+          if (!isValid) {
+            console.log('Session invalid during periodic check, handling expiration');
+            handleSessionExpiration();
+          }
+        });
+      }
+    }, 30 * 60 * 1000); // 30 minutes
+    
+    document.addEventListener('visibilitychange', checkSessionOnVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', checkSessionOnVisibilityChange);
+      clearInterval(periodicValidationInterval);
+    };
+  }, [user]);
   
   // Create the auth context value
   const authContextValue: AuthContextType = {
