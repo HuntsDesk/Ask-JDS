@@ -317,7 +317,7 @@ export default function FlashcardManage() {
             variant="outline" 
             asChild
           >
-            <Link to={`/flashcards/study/${collectionId}`}>
+            <Link to={`/flashcards/study?collection=${collectionId}`}>
               Study Collection
             </Link>
           </Button>

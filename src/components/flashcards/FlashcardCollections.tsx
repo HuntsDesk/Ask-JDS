@@ -887,7 +887,6 @@ export default function FlashcardCollections() {
                     isOfficial={collection.is_official || false}
                     count={collection.card_count || 0}
                     masteredCount={collection.mastered_count || 0}
-                    link={`/flashcards/study/${collection.id}`}
                     onDelete={!collection.is_official || (user && user.user_metadata?.admin) ? () => setCollectionToDelete(collection) : undefined}
                     collectionId={collection.id}
                     subjectId={collection.subject ? collection.subject.id : ''}
