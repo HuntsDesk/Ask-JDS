@@ -56,7 +56,7 @@ export default function Card({
                 <BookOpen className="h-4 w-4 flex-shrink-0 text-[#F37022]" />
                 <span className="text-xs md:text-sm text-gray-600 dark:text-gray-400 truncate">
                   <Link 
-                    to={`/flashcards/study/${subjectId}?type=subject`}
+                    to={`/flashcards/study?subject=${subjectId}`}
                     className="font-medium text-[#F37022] hover:text-[#E36012] hover:underline"
                   >
                     {tag}
@@ -127,10 +127,10 @@ export default function Card({
           </div>
           
           <Link
-            to={link}
+            to={`/flashcards/study?collection=${collectionId}`}
             className="bg-[#F37022]/10 text-[#F37022] px-3 py-1 md:px-4 md:py-2 text-sm rounded-md hover:bg-[#F37022]/20 dark:bg-[#F37022]/20 dark:hover:bg-[#F37022]/30"
           >
-            Study Now
+            Study
           </Link>
         </div>
       </div>

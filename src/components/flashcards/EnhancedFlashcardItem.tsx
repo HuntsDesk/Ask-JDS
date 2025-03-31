@@ -190,7 +190,7 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
                         </span>
                       ) : (
                         <Link 
-                          to={`/flashcards/study/${collection.id}`}
+                          to={`/flashcards/study?collection=${collection.id}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             if (onStudyCollection) {

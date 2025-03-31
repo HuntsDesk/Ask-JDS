@@ -43,7 +43,7 @@ export default function Navbar() {
         title: 'Flashcards',
         countKey: 'flashcardCount'
       };
-    } else if (path.includes('/flashcards/unified-study')) {
+    } else if (path.includes('/flashcards/study')) {
       return {
         title: 'Study',
         countKey: null
@@ -95,7 +95,7 @@ export default function Navbar() {
       };
     } else if (path.includes('/flashcards/study/') || path.startsWith('/flashcards/study')) {
       return {
-        text: 'Create Flashcard',
+        text: 'New Flashcard',
         link: '/flashcards/create-flashcard'
       };
     } else {
@@ -180,6 +180,11 @@ export default function Navbar() {
             {/* Desktop navigation */}
             <div className="hidden md:flex items-center space-x-6">
               <NavLink 
+                to="/flashcards/study" 
+                icon={<Brain className="h-5 w-5" />} 
+                text="Study" 
+              />
+              <NavLink 
                 to="/flashcards/subjects" 
                 icon={<BookOpen className="h-5 w-5" />} 
                 text="Subjects" 
@@ -193,11 +198,6 @@ export default function Navbar() {
                 to="/flashcards/flashcards" 
                 icon={<FileText className="h-5 w-5" />} 
                 text="Flashcards" 
-              />
-              <NavLink 
-                to="/flashcards/unified-study" 
-                icon={<Brain className="h-5 w-5" />} 
-                text="Study" 
               />
             </div>
 
@@ -227,6 +227,11 @@ export default function Navbar() {
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50">
         <div className="grid grid-cols-4 gap-1 px-2 py-2">
           <MobileNavLink 
+            to="/flashcards/study" 
+            icon={<Brain className="h-5 w-5" />} 
+            text="Study" 
+          />
+          <MobileNavLink 
             to="/flashcards/subjects" 
             icon={<BookOpen className="h-5 w-5" />} 
             text="Subjects" 
@@ -240,11 +245,6 @@ export default function Navbar() {
             to="/flashcards/flashcards" 
             icon={<FileText className="h-5 w-5" />} 
             text="Flashcards" 
-          />
-          <MobileNavLink 
-            to="/flashcards/unified-study" 
-            icon={<Brain className="h-5 w-5" />} 
-            text="Study" 
           />
         </div>
       </div>

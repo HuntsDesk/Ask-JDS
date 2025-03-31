@@ -305,7 +305,7 @@ export default function AllFlashcards() {
     const collectionId = card.collection_id || card.collection?.id;
     
     if (collectionId) {
-      navigate(`/flashcards/study/${collectionId}`);
+      navigate(`/flashcards/study?collection=${collectionId}`);
     } else {
       // If we still can't find a collection ID, show error
       console.error('No collection found for card:', card);

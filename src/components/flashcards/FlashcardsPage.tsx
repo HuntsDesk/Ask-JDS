@@ -11,11 +11,11 @@ import { useThreads } from '@/hooks/use-threads';
 import { SelectedThreadContext, SidebarContext } from '@/App';
 import { FlashcardPaywall } from '@/components/FlashcardPaywall';
 import { NavbarProvider } from '@/contexts/NavbarContext';
+import { StudyProvider } from '@/contexts/StudyContext';
 
 // Import pages
 import Home from './pages/Home';
 import FlashcardCollections from './FlashcardCollections';
-import StudyMode from './pages/StudyMode';
 import CreateSet from './pages/CreateSet';
 import AllFlashcards from './pages/AllFlashcards';
 import SearchResults from './pages/SearchResults';
@@ -25,7 +25,6 @@ import AddCard from './pages/AddCard';
 import EditCard from './pages/EditCard';
 import ManageCards from './pages/ManageCards';
 import ManageSubjects from './FlashcardSubjects';
-import SubjectStudy from './pages/SubjectStudy';
 import EditSubject from './pages/EditSubject';
 import CreateSubject from './pages/CreateSubject';
 import CreateFlashcardSelect from './pages/CreateFlashcardSelect';
@@ -270,20 +269,24 @@ export default function FlashcardsPage() {
       )}>
         <NavbarProvider>
           <Navbar />
-          <div className="container mx-auto px-4 pt-6 md:pt-20 mt-16 md:mt-0">
+          <div className="container mx-auto px-4 pt-10 md:pt-28 mt-16 md:mt-0">
             <Routes>
               <Route path="/" element={<Navigate to="/flashcards/subjects" replace />} />
               <Route path="/subjects" element={<ManageSubjects />} />
-              <Route path="/subjects/:id" element={<SubjectStudy />} />
+              <Route path="/subjects/:id" element={
+                <UnifiedStudyMode subjectId />
+              } />
               <Route path="/collections" element={<FlashcardCollections />} />
               <Route path="/flashcards" element={<AllFlashcards />} />
               <Route path="/study/:id" element={
-                <ProtectedResource 
-                  checkAccess={checkAccessToCollection}
-                  component={StudyMode} 
-                />
+                <UnifiedStudyMode collectionId />
               } />
-              <Route path="/unified-study" element={<UnifiedStudyMode />} />
+              <Route path="/study" element={
+                <UnifiedStudyMode />
+              } />
+              <Route path="/study/:mode/:id" element={
+                <UnifiedStudyMode />
+              } />
               <Route path="/create-collection" element={<CreateSet />} />
               <Route path="/create" element={<Navigate to="/flashcards/create-collection" replace />} />
               <Route path="/edit/:id" element={<EditCollection />} />

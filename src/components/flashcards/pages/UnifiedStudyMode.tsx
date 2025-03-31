@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   ArrowLeft, ArrowRight, Rotate3D as Rotate, BookOpen, Shuffle, 
   Check, Edit, EyeOff, Eye, FileEdit, FolderCog, ChevronLeft, 
@@ -25,9 +25,18 @@ interface FilterState {
   showMastered: boolean;
 }
 
-export default function UnifiedStudyMode() {
+interface UnifiedStudyModeProps {
+  mode?: 'subject' | 'collection' | 'unified';
+  id?: string;
+  subjectId?: boolean;
+  collectionId?: boolean;
+}
+
+export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId, collectionId }: UnifiedStudyModeProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
+  const { mode: routeMode, id: routeId } = useParams();
   const { toast, showToast, hideToast } = useToast();
   
   // Data states
@@ -55,6 +64,85 @@ export default function UnifiedStudyMode() {
     showCommonPitfalls: false,
     showMastered: false
   });
+
+  // Determine current study mode and ID
+  useEffect(() => {
+    // Parse the search params
+    const searchParams = new URLSearchParams(location.search);
+    const subjectParam = searchParams.get('subject');
+    const collectionParam = searchParams.get('collection');
+    
+    // Determine the mode
+    let studyMode: 'unified' | 'subject' | 'collection' = 'unified';
+    let studyId: string | null = null;
+    
+    // Check for query parameters first
+    if (subjectParam) {
+      studyMode = 'subject';
+      studyId = subjectParam;
+      console.log(`UnifiedStudyMode: Found subject in query params: ${subjectParam}`);
+    } else if (collectionParam) {
+      studyMode = 'collection';
+      studyId = collectionParam;
+      console.log(`UnifiedStudyMode: Found collection in query params: ${collectionParam}`);
+    }
+    // Check for prop modes
+    else if (propMode) {
+      studyMode = propMode;
+      studyId = propId || null;
+      console.log(`UnifiedStudyMode: Using prop mode: ${propMode}, ID: ${propId || 'none'}`);
+    } 
+    // Check for special props
+    else if (subjectId && routeId) {
+      studyMode = 'subject';
+      studyId = routeId;
+      console.log(`UnifiedStudyMode: Using subject route param: ${routeId}`);
+    }
+    else if (collectionId && routeId) {
+      studyMode = 'collection';
+      studyId = routeId;
+      console.log(`UnifiedStudyMode: Using collection route param: ${routeId}`);
+    }
+    // Check route params if path is like /study/:mode/:id
+    else if (routeMode && routeId) {
+      if (['subject', 'collection'].includes(routeMode)) {
+        studyMode = routeMode as 'subject' | 'collection';
+        studyId = routeId;
+        console.log(`UnifiedStudyMode: Using route mode/ID: ${routeMode}/${routeId}`);
+      }
+    }
+    // Direct route param for collection study (legacy mode)
+    else if (routeId && !routeMode && location.pathname.includes('/study/')) {
+      studyMode = 'collection';
+      studyId = routeId;
+      console.log(`UnifiedStudyMode: Using legacy collection route: ${routeId}`);
+    }
+    
+    console.log(`UnifiedStudyMode: Determined study mode: ${studyMode}, ID: ${studyId || 'none'}`);
+    
+    // Set initial filters based on mode
+    let initialFilters: FilterState = {
+      subjects: [],
+      examTypes: [],
+      collections: [],
+      difficultyLevels: [],
+      showCommonPitfalls: false,
+      showMastered: true // Default to showing all cards
+    };
+    
+    if (studyMode === 'subject' && studyId) {
+      console.log(`UnifiedStudyMode: Setting initial filter for subject: ${studyId}`);
+      initialFilters.subjects = [studyId];
+    } else if (studyMode === 'collection' && studyId) {
+      console.log(`UnifiedStudyMode: Setting initial filter for collection: ${studyId}`);
+      initialFilters.collections = [studyId];
+    }
+    
+    // Completely replace the filters rather than merging
+    setFilters(initialFilters);
+    console.log(`UnifiedStudyMode: Initial filters set:`, initialFilters);
+    
+  }, [propMode, propId, subjectId, collectionId, routeMode, routeId, location.pathname, location.search]);
 
   // Load initial data
   useEffect(() => {
@@ -228,55 +316,87 @@ export default function UnifiedStudyMode() {
 
   // Define the applyFilters function
   const applyFilters = (cardsToFilter: Flashcard[]) => {
-    console.log("UnifiedStudyMode: Applying initial filters");
+    console.log("UnifiedStudyMode: Applying filters", filters);
+    console.log(`UnifiedStudyMode: Starting with ${cardsToFilter.length} cards to filter`);
     
     let filtered = [...cardsToFilter];
     
     // Filter by subjects
     if (filters.subjects.length > 0) {
-      filtered = filtered.filter(card => 
-        card.subjects && card.subjects.some(subject => 
-          filters.subjects.includes(subject.id)
-        )
-      );
+      console.log(`UnifiedStudyMode: Filtering by subjects:`, filters.subjects);
+      filtered = filtered.filter(card => {
+        // A card matches if any of its collections' subjects match any of the filter subjects
+        if (!card.collections || card.collections.length === 0) {
+          return false;
+        }
+        
+        // Check each collection of the card
+        return card.collections.some(collection => {
+          // Collection must have subjects property and at least one subject
+          if (!collection.subjects || collection.subjects.length === 0) {
+            return false;
+          }
+          
+          // Check if any subject in the collection matches any subject in the filter
+          return collection.subjects.some(subject => 
+            filters.subjects.includes(subject.id)
+          );
+        });
+      });
+      console.log(`UnifiedStudyMode: After subject filtering: ${filtered.length} cards`);
     }
     
     // Filter by exam types
     if (filters.examTypes.length > 0) {
+      console.log(`UnifiedStudyMode: Filtering by exam types:`, filters.examTypes);
       filtered = filtered.filter(card => 
         card.exam_types && card.exam_types.some(examType => 
           filters.examTypes.includes(examType.id)
         )
       );
+      console.log(`UnifiedStudyMode: After exam type filtering: ${filtered.length} cards`);
     }
     
     // Filter by collections
     if (filters.collections.length > 0) {
+      console.log(`UnifiedStudyMode: Filtering by collections:`, filters.collections);
       filtered = filtered.filter(card => 
         card.collections && card.collections.some(collection => 
           filters.collections.includes(collection.id)
         )
       );
+      console.log(`UnifiedStudyMode: After collection filtering: ${filtered.length} cards`);
     }
     
     // Filter by difficulty levels
     if (filters.difficultyLevels.length > 0) {
+      console.log(`UnifiedStudyMode: Filtering by difficulty levels:`, filters.difficultyLevels);
       filtered = filtered.filter(card => 
         filters.difficultyLevels.includes(card.difficulty_level || 'medium')
       );
+      console.log(`UnifiedStudyMode: After difficulty filtering: ${filtered.length} cards`);
     }
     
     // Filter by common pitfalls
     if (filters.showCommonPitfalls) {
+      console.log(`UnifiedStudyMode: Filtering to show only common pitfalls`);
       filtered = filtered.filter(card => card.is_common_pitfall);
+      console.log(`UnifiedStudyMode: After common pitfalls filtering: ${filtered.length} cards`);
     }
     
     // Filter by mastered status
     if (!filters.showMastered) {
+      console.log(`UnifiedStudyMode: Filtering to hide mastered cards`);
       filtered = filtered.filter(card => !card.is_mastered);
+      console.log(`UnifiedStudyMode: After mastery filtering: ${filtered.length} cards`);
     }
     
     console.log(`UnifiedStudyMode: Filtered ${cardsToFilter.length} cards down to ${filtered.length} cards`);
+    
+    if (filtered.length === 0) {
+      console.log("UnifiedStudyMode: No cards match current filters:", filters);
+    }
+    
     setFilteredCards(filtered);
     setCurrentIndex(0);
     setShowAnswer(false);
@@ -438,15 +558,37 @@ export default function UnifiedStudyMode() {
     navigate('/flashcards/collections');
   };
 
+  // Add a reset filters function
   const resetFilters = () => {
-    setFilters({
+    // Get the current search params
+    const searchParams = new URLSearchParams(location.search);
+    const subjectParam = searchParams.get('subject');
+    const collectionParam = searchParams.get('collection');
+    
+    // Create a new filter object with only the essential filters
+    let newFilters: FilterState = {
       subjects: [],
       examTypes: [],
       collections: [],
       difficultyLevels: [],
       showCommonPitfalls: false,
-      showMastered: false
-    });
+      showMastered: true // Enable showing mastered cards by default
+    };
+    
+    // Maintain the subject or collection filter from the URL
+    if (subjectParam) {
+      newFilters.subjects = [subjectParam];
+    } else if (collectionParam) {
+      newFilters.collections = [collectionParam];
+    } else if (routeMode === 'subject' && routeId) {
+      newFilters.subjects = [routeId];
+    } else if (routeMode === 'collection' && routeId) {
+      newFilters.collections = [routeId];
+    }
+    
+    // Apply the new filters
+    setFilters(newFilters);
+    console.log("UnifiedStudyMode: Filters reset to:", newFilters);
   };
 
   // Render function
@@ -727,60 +869,6 @@ export default function UnifiedStudyMode() {
             PREMIUM CONTENT - SUBSCRIPTION REQUIRED
           </div>
         )}
-        
-        {/* Card metadata tags */}
-        <div className="px-8 pt-4 flex flex-wrap gap-2">
-          {/* Subject tags */}
-          {currentCard?.subjects?.map(subject => (
-            <span key={subject.id} className="inline-flex items-center bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded">
-              <BookOpen className="h-3 w-3 mr-1" />
-              {subject.name}
-            </span>
-          ))}
-          
-          {/* Collection tags */}
-          {currentCard?.collections?.map(collection => (
-            <span key={collection.id} className="inline-flex items-center bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 text-xs px-2 py-1 rounded">
-              <Layers className="h-3 w-3 mr-1" />
-              {collection.title}
-            </span>
-          ))}
-          
-          {/* Exam type tags */}
-          {currentCard?.exam_types?.map(examType => (
-            <span key={examType.id} className="inline-flex items-center bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs px-2 py-1 rounded">
-              <FileText className="h-3 w-3 mr-1" />
-              {examType.name}
-            </span>
-          ))}
-          
-          {/* Difficulty tag */}
-          {currentCard?.difficulty_level && (
-            <span className={`inline-flex items-center text-xs px-2 py-1 rounded ${
-              currentCard.difficulty_level === 'easy' 
-                ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' 
-                : currentCard.difficulty_level === 'medium'
-                  ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
-                  : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
-            }`}>
-              {currentCard.difficulty_level.charAt(0).toUpperCase() + currentCard.difficulty_level.slice(1)} Difficulty
-            </span>
-          )}
-          
-          {/* Common pitfall tag */}
-          {currentCard?.is_common_pitfall && (
-            <span className="inline-flex items-center bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 text-xs px-2 py-1 rounded">
-              Common Pitfall
-            </span>
-          )}
-          
-          {/* Official content tag */}
-          {currentCard?.is_official && (
-            <span className="inline-flex items-center bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 text-xs px-2 py-1 rounded">
-              Official Content
-            </span>
-          )}
-        </div>
         
         <div className="p-8 flex flex-col">
           <div

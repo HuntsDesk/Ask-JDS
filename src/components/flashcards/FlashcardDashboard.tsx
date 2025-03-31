@@ -231,7 +231,7 @@ export default function FlashcardDashboard() {
                 description={set.description}
                 tag={set.subject.name}
                 count={set.card_count}
-                link={`/flashcards/study/${set.id}`}
+                link={`/flashcards/study?collection=${set.id}`}
               />
             ))}
           </div>
@@ -264,7 +264,7 @@ export default function FlashcardDashboard() {
                 description={set.description}
                 tag={set.subject.name}
                 count={set.card_count}
-                link={`/flashcards/study/${set.id}`}
+                link={`/flashcards/study?collection=${set.id}`}
               />
             ))}
           </div>
