@@ -1,13 +1,14 @@
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import Stripe from 'https://esm.sh/stripe@12.6.0?target=deno';
+import { createClient } from "npm:@supabase/supabase-js@2.7.1";
+import Stripe from "npm:stripe@12.6.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+console.info('Customer portal session server started');
+
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -54,7 +55,7 @@ serve(async (req) => {
     // Create a customer portal session
     const session = await stripe.billingPortal.sessions.create({
       customer: subscription.stripe_customer_id,
-      return_url: `${Deno.env.get('PUBLIC_APP_URL')}/chat`,
+      return_url: `${req.headers.get('origin') || Deno.env.get('PUBLIC_APP_URL')}/chat`,
     });
 
     // Return the portal URL

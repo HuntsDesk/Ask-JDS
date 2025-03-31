@@ -3,7 +3,7 @@ import { withTimeout, fetchWithRetry } from './auth-utils';
 
 // Constants
 export const FREE_MESSAGE_LIMIT = 10;
-export const SUBSCRIPTION_PRICE_ID = 'price_1QzlzrBAYVpTe3LycwwkNhWV'; // Actual Stripe price ID
+export const SUBSCRIPTION_PRICE_ID = 'price_1R8lN7BdYlmFidIZPfXpSHxN'; // Actual Stripe price ID
 
 // Subscription types
 export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'trialing' | 'inactive';
