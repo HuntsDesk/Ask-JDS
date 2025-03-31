@@ -1,6 +1,5 @@
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import Stripe from 'https://esm.sh/stripe@12.6.0?target=deno';
+import { createClient } from "npm:@supabase/supabase-js@2.7.1";
+import Stripe from "npm:stripe@12.6.0";
 
 // CORS headers for public access
 export const corsHeaders = {
@@ -17,9 +16,12 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
 });
 
+// Get webhook signing secret
+const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+
 console.log('Stripe webhook function loaded');
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight request
   if (req.method === 'OPTIONS') {
     console.log('Received OPTIONS request');
@@ -29,27 +31,62 @@ serve(async (req) => {
   try {
     console.log(`Received ${req.method} request`);
     
-    // Get the request body as text
+    // Get the request body as text and Stripe signature header
     const body = await req.text();
-    console.log(`Request body preview: ${body.substring(0, 100)}...`);
+    const signature = req.headers.get('stripe-signature');
     
-    // Parse the event data
-    let event;
-    try {
-      event = JSON.parse(body);
-      console.log(`Event type: ${event.type}`);
-    } catch (err) {
-      console.error(`Error parsing JSON: ${err.message}`);
+    if (!signature) {
+      console.error('Missing Stripe signature header');
       return new Response(
-        JSON.stringify({ error: 'Invalid JSON payload' }),
+        JSON.stringify({ error: 'No Stripe signature found in request' }),
         {
-          status: 200, // Return 200 even for errors to avoid Stripe retries
+          status: 400,
           headers: {
             ...corsHeaders,
             'Content-Type': 'application/json',
           },
         }
       );
+    }
+    
+    // Verify the signature if webhook secret is available
+    let event;
+    if (webhookSecret) {
+      try {
+        event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+        console.log(`Event signature verified: ${event.type}`);
+      } catch (err) {
+        console.error(`Webhook signature verification failed:`, err);
+        return new Response(
+          JSON.stringify({ error: `Webhook signature verification failed: ${err.message}` }),
+          {
+            status: 400,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+      }
+    } else {
+      // Fallback to parsing JSON directly if no webhook secret
+      console.warn('No webhook secret configured - skipping signature verification');
+      try {
+        event = JSON.parse(body);
+        console.log(`Event type (unverified): ${event.type}`);
+      } catch (err) {
+        console.error(`Error parsing JSON: ${err.message}`);
+        return new Response(
+          JSON.stringify({ error: 'Invalid JSON payload' }),
+          {
+            status: 400,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+      }
     }
 
     // Initialize Supabase client
