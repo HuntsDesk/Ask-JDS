@@ -12,6 +12,7 @@ interface FlashcardItemProps {
   showIcons?: boolean;
   hasSubscription?: boolean;
   onShowPaywall?: () => void;
+  isMastering?: boolean;
 }
 
 const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
@@ -23,7 +24,8 @@ const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
   isPremium = false,
   showIcons = true,
   hasSubscription = false,
-  onShowPaywall
+  onShowPaywall,
+  isMastering = false
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   
@@ -150,10 +152,10 @@ const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
       </div>
       
       {/* Footer with icons and Study Now button - moved to bottom */}
-      <div className="px-6 pb-6 mt-auto">
-        <div className="flex justify-between items-center">
+      <div className="px-4 sm:px-6 pb-4 sm:pb-6 mt-auto">
+        <div className="flex flex-wrap sm:flex-nowrap justify-between items-center gap-y-3">
           {/* Left side icons */}
-          <div className="flex gap-2">
+          <div className="flex gap-4">
             {!shouldHideEditDelete && (
               <>
                 <button
@@ -174,16 +176,29 @@ const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
             )}
             <button
               onClick={() => onToggleMastered(flashcard)}
-              className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022]"
+              className={`flex items-center justify-center p-2 text-sm font-medium ${
+                flashcard.is_mastered 
+                  ? 'text-green-600 bg-green-50 focus:ring-green-500' 
+                  : 'text-gray-600 bg-white focus:ring-gray-400'
+              } border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 w-10 h-10 ${
+                isMastering ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
               title={flashcard.is_mastered ? "Mark as not mastered" : "Mark as mastered"}
+              disabled={isMastering}
             >
-              <Check className="mr-2 h-4 w-4" />
-              {flashcard.is_mastered ? "Mastered" : "Mark Mastered"}
+              {isMastering ? (
+                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <Check className="h-5 w-5" />
+              )}
             </button>
             
             {/* Premium indicator for subscribed users */}
             {isPremium && hasSubscription && (
-              <div className="relative group">
+              <div className="relative group ml-2">
                 <span className="text-[#F37022] font-semibold text-xs bg-[#F37022]/10 px-2 py-1 rounded-full flex items-center">
                   <Award className="h-3 w-3 mr-1" />
                   P
@@ -204,9 +219,9 @@ const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
                 onView(flashcard);
               }
             }}
-            className="bg-[#F37022]/10 text-[#F37022] px-4 py-2 rounded-md hover:bg-[#F37022]/20 dark:bg-[#F37022]/20 dark:hover:bg-[#F37022]/30"
+            className="bg-[#F37022]/10 text-[#F37022] px-4 py-2 rounded-md hover:bg-[#F37022]/20 dark:bg-[#F37022]/20 dark:hover:bg-[#F37022]/30 sm:ml-4 whitespace-nowrap"
           >
-            Study Now
+            Study
           </button>
         </div>
       </div>
@@ -218,7 +233,8 @@ const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
     prevProps.flashcard.id === nextProps.flashcard.id &&
     prevProps.isPremium === nextProps.isPremium &&
     prevProps.hasSubscription === nextProps.hasSubscription &&
-    prevProps.flashcard.is_mastered === nextProps.flashcard.is_mastered
+    prevProps.flashcard.is_mastered === nextProps.flashcard.is_mastered &&
+    prevProps.isMastering === nextProps.isMastering
   );
 });
 

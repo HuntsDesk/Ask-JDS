@@ -215,15 +215,15 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
       
       {/* Actions footer */}
       <div className="p-3 md:p-4 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 mt-auto">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-1 md:gap-2">
+        <div className="flex flex-wrap sm:flex-nowrap justify-between items-center gap-y-2">
+          <div className="flex items-center gap-3 md:gap-4">
             <Tooltip text={flashcard.is_mastered ? "Unmark as mastered" : "Mark as mastered"} position="top">
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleMastered && onToggleMastered(flashcard);
                 }}
-                className={`${flashcard.is_mastered ? 'text-green-500 hover:text-green-700' : 'text-gray-400 hover:text-green-500'}`}
+                className={`${flashcard.is_mastered ? 'text-green-500 hover:text-green-700' : 'text-gray-400 hover:text-green-500'} p-1`}
               >
                 <Check className="h-4 md:h-5 w-4 md:w-5" />
               </button>
@@ -236,7 +236,7 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
                     e.stopPropagation();
                     onEdit(flashcard);
                   }}
-                  className="text-gray-400 hover:text-blue-500"
+                  className="text-gray-400 hover:text-blue-500 p-1"
                 >
                   <FileEdit className="h-4 md:h-5 w-4 md:w-5" />
                 </button>
@@ -250,7 +250,7 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
                     e.stopPropagation();
                     onDelete(flashcard);
                   }}
-                  className="text-gray-400 hover:text-red-500"
+                  className="text-gray-400 hover:text-red-500 p-1"
                 >
                   <Trash2 className="h-4 md:h-5 w-4 md:w-5" />
                 </button>
@@ -258,7 +258,7 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
             )}
           </div>
           
-          <div className="text-xs text-gray-500 dark:text-gray-400">
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0 sm:mt-0">
             {isDefinitelyPremium ? (
               <Tooltip text="Premium Content" position="top">
                 <div className="flex-shrink-0 text-[#F37022]">
