@@ -20,6 +20,22 @@ import FlashcardItem from '../FlashcardItem';
 import { useNavbar } from '@/contexts/NavbarContext';
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip';
 
+// Debug flag - set to false to disable most console logs
+// Set to localStorage.getItem('enableFlashcardDebug') === 'true' to control via localStorage
+const DEBUG_LOGGING = process.env.NODE_ENV === 'development' && 
+                     (localStorage.getItem('enableFlashcardDebug') === 'true');
+
+// Function to log only when debug is enabled
+const debugLog = (message: string, data?: any) => {
+  if (DEBUG_LOGGING) {
+    if (data) {
+      console.log(message, data);
+    } else {
+      console.log(message);
+    }
+  }
+};
+
 interface Collection {
   id: string;
   title: string;
@@ -58,6 +74,7 @@ export default function AllFlashcards() {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const { updateTotalCardCount } = useNavbar();
+  const [masteringCardId, setMasteringCardId] = useState<string | null>(null);
 
   // Replace regular state with persisted state
   const [showMastered, setShowMastered] = usePersistedState<boolean>('flashcards-show-mastered', true);
@@ -256,6 +273,7 @@ export default function AllFlashcards() {
       try {
         const hasAccess = await hasActiveSubscription(user.id);
         setHasSubscription(hasAccess);
+        debugLog("Subscription status updated:", hasAccess);
       } catch (error) {
         console.error("Error checking subscription:", error);
         setHasSubscription(false);
@@ -283,18 +301,28 @@ export default function AllFlashcards() {
 
   // Add a handler for the Study Now button
   const handleViewCard = (card: Flashcard) => {
-    // Navigate to the study page for this card's collection
-    if (card.collection_id) {
-      navigate(`/flashcards/study/${card.collection_id}`);
+    // Check all possible places where collection ID might be stored
+    const collectionId = card.collection_id || card.collection?.id;
+    
+    if (collectionId) {
+      navigate(`/flashcards/study/${collectionId}`);
     } else {
-      // Fallback in case there's no collection
+      // If we still can't find a collection ID, show error
+      console.error('No collection found for card:', card);
       showToast('Cannot study this card - no collection found', 'error');
     }
   };
 
   const toggleMastered = async (card: Flashcard) => {
     try {
+      // Prevent multiple clicks on the same card
+      if (masteringCardId === card.id) return;
+      
+      // Set loading state for this specific card
+      setMasteringCardId(card.id);
+      
       const newMasteredState = !card.is_mastered;
+      let updateSuccessful = false;
       
       // Update in database
       if (user) {
@@ -322,10 +350,10 @@ export default function AllFlashcards() {
         } else {
           // Insert a new record
           const { error: insertError } = await supabase
-        .from('flashcard_progress')
+            .from('flashcard_progress')
             .insert({
-          flashcard_id: card.id,
-          user_id: user.id,
+              flashcard_id: card.id,
+              user_id: user.id,
               is_mastered: newMasteredState
             });
           
@@ -333,23 +361,35 @@ export default function AllFlashcards() {
         }
         
         if (error) throw error;
+        updateSuccessful = true;
       }
       
-      // Update local state
-      setAllCards(allCards.map(c => 
-        c.id === card.id ? { ...c, is_mastered: newMasteredState } : c
-      ));
-      
-      // Invalidate mastery cache
-      invalidateCache([`flashcard-mastery-${user?.id || 'anonymous'}`]);
-      
-      showToast(
-        card.is_mastered ? 'Card unmarked as mastered' : 'Card marked as mastered', 
-        'success'
-      );
+      // Only update local state if server update was successful
+      if (updateSuccessful) {
+        // Use functional update to avoid race conditions with multiple card updates
+        setAllCards(prevCards => 
+          prevCards.map(c => 
+            c.id === card.id ? { ...c, is_mastered: newMasteredState } : c
+          )
+        );
+        
+        // Invalidate mastery cache
+        invalidateCache([`flashcard-mastery-${user?.id || 'anonymous'}`]);
+        
+        showToast(
+          card.is_mastered ? 'Card unmarked as mastered' : 'Card marked as mastered', 
+          'success'
+        );
+      }
     } catch (err: any) {
       console.error('Error toggling mastered state:', err);
-      showToast(`Error: ${err.message}`, 'error');
+      showToast(`Error updating card status. Please try again.`, 'error');
+      
+      // Refresh cards to ensure UI is in sync
+      refetchFlashcards();
+      refetchMastery();
+    } finally {
+      setMasteringCardId(null);
     }
   };
 
@@ -384,7 +424,7 @@ export default function AllFlashcards() {
   };
 
   const handleFilterChange = (newFilterValue: string) => {
-    console.log('Filter changed to:', newFilterValue);
+    debugLog('Filter changed to:', newFilterValue);
     const newFilter = newFilterValue as 'all' | 'official' | 'my';
     
     // Update the filter state
@@ -400,17 +440,6 @@ export default function AllFlashcards() {
 
   // Check if a card is premium content
   const isCardPremium = useCallback((card: Flashcard) => {
-    // Debug the card's ownership properties
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Card ${card.id} premium check:`, {
-        question: card.question.substring(0, 20) + '...',
-        userOwned: user && card.collection?.user_id === user.id,
-        userCreated: user && (card.created_by === user.id || String(card.created_by) === String(user.id)),
-        isOfficial: card.collection?.is_official,
-        filter: filter
-      });
-    }
-
     // User's own cards are NEVER premium, regardless of other settings
     if (user && card.collection?.user_id === user.id) {
       return false;
@@ -424,7 +453,7 @@ export default function AllFlashcards() {
     // Cards shown in the "My" filter tab should never be premium
     if (filter === 'my') {
         return false;
-      }
+    }
       
     // Only official collections can have premium cards
     return card.collection?.is_official === true && !forcePremiumTest && !hasSubscription;
@@ -432,16 +461,14 @@ export default function AllFlashcards() {
 
   // Create a memoized filteredCards array that updates when dependencies change
   const filteredCards = useMemo(() => {
-    // Debug log the full cards array to see what we're working with
-    if (!loading && process.env.NODE_ENV === 'development') {
-      console.log('Filtering cards with:', {
-        totalCards: allCards.length,
-        filter,
-        subject: filterSubject,
-        collection: filterCollection,
-        showMastered
-      });
-    }
+    // Only log at a high level rather than per-card
+    debugLog('Filtering cards:', {
+      totalCards: allCards.length,
+      filter,
+      subject: filterSubject,
+      collection: filterCollection,
+      showMastered
+    });
 
     // First apply basic filters that apply to all tabs
     const basicFiltered = allCards.filter(card => {
@@ -465,17 +492,17 @@ export default function AllFlashcards() {
     
     // Now apply the tab-specific filtering with clear separation
     if (filter === 'official') {
-      // Debug log official cards
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Official tab filtering:', {
-          before: basicFiltered.length,
-          isPremiuResults: basicFiltered.filter(card => isCardPremium(card)).length,
-          isOfficialResults: basicFiltered.filter(card => card.collection?.is_official === true).length
-        });
-      }
+      // Debug log official cards - log counts only, not individual cards
+      debugLog('Official tab filtering:', {
+        before: basicFiltered.length,
+        isPremiuResults: basicFiltered.filter(card => isCardPremium(card)).length,
+        isOfficialResults: basicFiltered.filter(card => card.collection?.is_official === true).length,
+        hasSubscription: hasSubscription,
+        forceSubscriptionLS: process.env.NODE_ENV === 'development' ? localStorage.getItem('forceSubscription') : null
+      });
       
-      // Premium tab: ONLY show official cards that are premium
-      // Explicitly exclude any user-created or user-owned cards
+      // Premium tab: Show all official cards if user has a subscription
+      // or only premium official cards if user doesn't have a subscription
       return basicFiltered.filter(card => {
         const isPremium = isCardPremium(card); 
         const isOfficial = card.collection?.is_official === true;
@@ -485,23 +512,25 @@ export default function AllFlashcards() {
           String(card.created_by) === String(user.id)
         );
         
-        // Only include cards that are both premium and official
-        // AND explicitly exclude any user-created content
+        // If user has a subscription, show all official cards
+        if (hasSubscription) {
+          return isOfficial && !isUserOwned && !isUserCreated;
+        }
+        
+        // Otherwise, only show premium official cards
         return isPremium && isOfficial && !isUserOwned && !isUserCreated;
       });
     }
     
     if (filter === 'my' && user) {
-      // Debug log my cards
-      if (process.env.NODE_ENV === 'development') {
-        console.log('My tab filtering:', {
-          before: basicFiltered.length,
-          userOwnedResults: basicFiltered.filter(card => user && card.collection?.user_id === user.id).length,
-          userCreatedResults: basicFiltered.filter(card => 
-            user && (card.created_by === user.id || String(card.created_by) === String(user.id))
-          ).length
-        });
-      }
+      // Debug log only general info about my cards
+      debugLog('My tab filtering:', {
+        before: basicFiltered.length,
+        userOwnedResults: basicFiltered.filter(card => user && card.collection?.user_id === user.id).length,
+        userCreatedResults: basicFiltered.filter(card => 
+          user && (card.created_by === user.id || String(card.created_by) === String(user.id))
+        ).length
+      });
       
       // My tab: ONLY show user-created or user-owned cards
       // Explicitly exclude any official/premium cards that the user doesn't own
@@ -532,8 +561,8 @@ export default function AllFlashcards() {
   
   // Use a single effect for all logging to reduce render cycles
   useEffect(() => {
-    // Skip during loading to avoid excessive logs
-    if (loading || process.env.NODE_ENV !== 'development') return;
+    // Skip during loading or if debug is disabled
+    if (loading || !DEBUG_LOGGING) return;
     
     // Save current filtered length
     const currentFilteredLength = filteredCards.length;
@@ -545,7 +574,7 @@ export default function AllFlashcards() {
       prevFilterStateRef.current.allCardsLength !== allCards.length ||
       prevFilterStateRef.current.filteredCardsLength !== currentFilteredLength
     ) {
-      console.log('Filter state changed:', { 
+      debugLog('Filter state changed:', { 
         filter,
         totalCards: allCards.length,
         filteredCards: currentFilteredLength
@@ -554,7 +583,7 @@ export default function AllFlashcards() {
     
     // Log show mastered changes
     if (prevFilterStateRef.current.showMastered !== showMastered) {
-      console.log(`Filter applied: showMastered=${showMastered}, found ${currentFilteredLength} matching cards`);
+      debugLog(`Filter applied: showMastered=${showMastered}, found ${currentFilteredLength} matching cards`);
     }
     
     // Update the previous state reference
@@ -824,14 +853,15 @@ export default function AllFlashcards() {
             filteredCards.map((card) => (
               <FlashcardItem
                 key={card.id}
-                      flashcard={card}
-                      onToggleMastered={toggleMastered}
+                flashcard={card}
+                onToggleMastered={toggleMastered}
                 onEdit={handleEditCard}
                 onDelete={setCardToDelete}
-                      onView={handleViewCard}
+                onView={handleViewCard}
                 isPremium={isCardPremium(card)}
-                      hasSubscription={hasSubscription}
-                      onShowPaywall={handleShowPaywall}
+                hasSubscription={hasSubscription}
+                onShowPaywall={handleShowPaywall}
+                isMastering={masteringCardId === card.id}
               />
             ))
           )}

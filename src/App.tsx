@@ -41,10 +41,12 @@ export const SelectedThreadContext = createContext<{
 export const SidebarContext = createContext<{
   isExpanded: boolean;
   setIsExpanded: (expanded: boolean) => void;
+  isMobile: boolean;
   sidebarZIndex: number;
 }>({
   isExpanded: false,
   setIsExpanded: () => {},
+  isMobile: false,
   sidebarZIndex: 40, // Default z-index value
 });
 
@@ -67,12 +69,31 @@ function SelectedThreadProvider({ children }: { children: React.ReactNode }) {
 // Provider component for sidebar state
 function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
   const sidebarZIndex = 40; // Fixed z-index for the sidebar
+  
+  // Add mobile detection at the context level
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+    };
+    
+    // Initial check
+    checkMobile();
+    
+    // Listen for window resize
+    window.addEventListener('resize', checkMobile);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   
   return (
     <SidebarContext.Provider value={{ 
       isExpanded, 
       setIsExpanded,
+      isMobile,
       sidebarZIndex
     }}>
       {children}

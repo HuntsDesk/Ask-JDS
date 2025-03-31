@@ -67,14 +67,13 @@ export function Sidebar({
   sessions,
   currentSession,
 }: SidebarProps) {
-  const [isMobile, setIsMobile] = useState(false);
   const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
   const [editingThread, setEditingThread] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
   const { selectedThreadId, setSelectedThreadId } = useContext(SelectedThreadContext);
-  const { isExpanded, setIsExpanded } = useContext(SidebarContext);
+  const { isExpanded, setIsExpanded, isMobile } = useContext(SidebarContext);
   const { theme } = useTheme();
 
   // Replace regular state with persisted state - renamed to avoid collision with prop
@@ -112,14 +111,6 @@ export function Sidebar({
     }
   }, [effectiveIsPinned, isDesktopExpanded, onDesktopExpandedChange]);
 
-  // Check for mobile on mount and window resize
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
   // Add a ref to track recently toggled pin state
   const recentlyToggledPinRef = useRef(false);
   
@@ -144,13 +135,6 @@ export function Sidebar({
     setIsExpanded(newPinState);
     onDesktopExpandedChange(newPinState);
   };
-
-  // Sync expanded states
-  useEffect(() => {
-    if (!isMobile) {
-      setIsExpanded(isDesktopExpanded);
-    }
-  }, [isDesktopExpanded, isMobile]);
 
   const handleMouseEnter = useCallback(() => {
     // Don't trigger if pin was recently toggled
@@ -327,13 +311,30 @@ export function Sidebar({
   };
 
   // Create a new function to handle navigation link clicks
-  const handleNavLinkClick = () => {
+  const handleNavLinkClick = useCallback(() => {
     // If on mobile, collapse the sidebar after navigation
     if (isMobile) {
-      onDesktopExpandedChange(false);
-      setIsExpanded(false);
+      console.log('Sidebar: handleNavLinkClick called on mobile, collapsing sidebar');
+      console.log('  - isDesktopExpanded before:', isDesktopExpanded);
+      console.log('  - isExpanded before:', isExpanded);
+      
+      // Create a promise that resolves when state is updated
+      return new Promise<void>((resolve) => {
+        // Update both states
+        setIsExpanded(false);
+        onDesktopExpandedChange(false);
+        
+        // Force this to run on the next tick, ensuring state updates are processed
+        setTimeout(() => {
+          console.log('  - Sidebar state updated to collapsed, navigation can proceed');
+          resolve();
+        }, 0);
+      });
+    } else {
+      console.log('Sidebar: handleNavLinkClick called, but not on mobile');
+      return Promise.resolve(); // No state updates needed, resolve immediately
     }
-  };
+  }, [isMobile, isDesktopExpanded, isExpanded, onDesktopExpandedChange, setIsExpanded]);
 
   // Toggle sidebar on mobile
   const toggleMobileSidebar = useCallback(() => {
@@ -351,12 +352,13 @@ export function Sidebar({
       {/* Main Sidebar - no redundant mobile burger button */}
       <div 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col bg-background border-r transition-all duration-300 sidebar-transition sidebar-container",
+          "fixed inset-y-0 left-0 flex flex-col bg-background border-r transition-all duration-300 sidebar-transition sidebar-container",
           // Desktop state
+          !isMobile && "z-50",
           !isMobile && (isDesktopExpanded ? "w-[var(--sidebar-width)] expanded" : "w-[var(--sidebar-collapsed-width)] collapsed"),
           // Mobile state - directly use isDesktopExpanded from parent
           isMobile && !isDesktopExpanded ? "opacity-0 pointer-events-none w-0 -translate-x-full sidebar-hidden-mobile" : "",
-          isMobile && isDesktopExpanded ? "w-[var(--sidebar-width)] shadow-xl expanded" : ""
+          isMobile && isDesktopExpanded ? "w-[var(--sidebar-width)] shadow-xl expanded z-[60]" : ""
         )}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -564,13 +566,30 @@ export function Sidebar({
               )}>Chat</span>
             </Button>
           </Link>
-          <Link to="/settings" onClick={handleNavLinkClick}>
+          <Link 
+            to="/settings" 
+            onClick={async (e) => {
+              e.preventDefault(); // Prevent default navigation
+              console.log('Settings link clicked, handling navigation manually');
+              
+              // First update sidebar state and wait for it to complete
+              await handleNavLinkClick();
+              
+              // Then navigate programmatically
+              console.log('Now navigating to settings page');
+              navigate('/settings');
+            }}
+            className={cn(
+              "block w-full", // Add block display to ensure the link takes full width
+              isSettingsPage ? "text-white" : "text-foreground"
+            )}
+          >
             <Button
-              variant={isInSettings ? "default" : "ghost"}
+              variant={isSettingsPage ? "default" : "ghost"}
               className={cn(
                 "w-full flex items-center gap-2 transition-all",
                 isDesktopExpanded ? "justify-start px-4" : "justify-center px-0",
-                isInSettings && "bg-[#F37022] hover:bg-[#E36012]"
+                isSettingsPage && "bg-[#F37022] hover:bg-[#E36012]"
               )}
             >
               <Settings className="h-4 w-4 shrink-0" />

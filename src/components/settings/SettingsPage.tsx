@@ -23,23 +23,14 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isPinnedSidebar, setIsPinnedSidebar] = useState(false);
   
   // Use the threads hook to fetch actual threads
   const { threads, loading: threadsLoading, deleteThread, updateThread } = useThreads();
   const { setSelectedThreadId } = useContext(SelectedThreadContext);
-  const { isExpanded, setIsExpanded } = useContext(SidebarContext);
+  const { isExpanded, setIsExpanded, isMobile } = useContext(SidebarContext);
   const { theme, setTheme } = useTheme();
-
-  // Check for mobile on mount and window resize
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   // Handle sidebar expansion/collapse properly
   useEffect(() => {
@@ -64,12 +55,23 @@ export function SettingsPage() {
     }
   }, [isExpanded]);
 
-  // Auto-expand the sidebar on desktop when entering settings page
+  // IMPORTANT: Do NOT auto-expand sidebar on Settings page for mobile
+  // This was likely causing the mobile sidebar to stay open when clicking Settings
   useEffect(() => {
+    console.log('SettingsPage mounted, isMobile:', isMobile, 'isExpanded:', isExpanded);
+    
+    // Only auto-expand on desktop devices, NEVER on mobile
     if (!isMobile) {
-      setIsExpanded(true);
+      console.log('SettingsPage: Auto-expanding sidebar on desktop');
+      // Use a setTimeout to ensure this happens AFTER any navigation-triggered state changes
+      setTimeout(() => {
+        setIsExpanded(true);
+      }, 50);
+    } else {
+      console.log('SettingsPage: Preserving sidebar state on mobile:', isExpanded ? 'expanded' : 'collapsed');
+      // DO NOT modify the sidebar state on mobile - this ensures handleNavLinkClick works properly
     }
-  }, [isMobile, setIsExpanded]);
+  }, [isMobile, setIsExpanded, isExpanded]);
 
   // Sidebar functions
   const handleNewChat = () => {
@@ -153,8 +155,14 @@ export function SettingsPage() {
         <div 
           className="fixed inset-0 bg-black/70 z-40"
           onClick={() => {
-            console.log('Settings: Backdrop clicked, closing sidebar');
+            console.log('Settings: Backdrop clicked, closing sidebar from expanded state:', isExpanded);
+            // Ensure we're properly updating both state and context
             setIsExpanded(false);
+            
+            // Log the state change for debugging
+            setTimeout(() => {
+              console.log('Settings: Sidebar state after backdrop click: collapsed');
+            }, 10);
           }}
         />
       )}
@@ -188,11 +196,19 @@ export function SettingsPage() {
           <header className="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex items-center justify-between">
             <button
               onClick={() => {
-                console.log('Settings: Hamburger menu clicked!');
-                setIsExpanded(true);
+                const newExpandedState = !isExpanded;
+                console.log('Settings: Hamburger menu clicked! Toggling sidebar from', isExpanded, 'to', newExpandedState);
+                
+                // Update the state
+                setIsExpanded(newExpandedState);
+                
+                // Log the state change for debugging
+                setTimeout(() => {
+                  console.log('Settings: Sidebar state after toggle:', newExpandedState ? 'expanded' : 'collapsed');
+                }, 10);
               }}
               className="p-2 rounded-md bg-[#f37022] text-white hover:bg-[#e36012] flex items-center justify-center"
-              aria-label="Open sidebar"
+              aria-label="Toggle sidebar"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
