@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Plus, Search, BookOpen, Trash2, Filter, Library, Book, Layers } from 'lucide-react';
+import { Plus, Search, BookOpen, Trash2, Filter, Library, Book, Layers, FilterX } from 'lucide-react';
 import Card from './Card';
 import EmptyState from './EmptyState';
 import LoadingSpinner from './LoadingSpinner';
@@ -12,6 +12,7 @@ import Toast from './Toast';
 import useFlashcardAuth from '@/hooks/useFlashcardAuth';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavbar } from '@/contexts/NavbarContext';
+import Tooltip from '@/components/flashcards/Tooltip';
 
 interface FlashcardCollection {
   id: string;
@@ -99,6 +100,9 @@ export default function FlashcardCollections() {
       console.log('No node to observe');
     }
   }, [loadingMore, hasMore]);
+
+  // Add showFilters state at the top of the component with the other state variables
+  const [showFilters, setShowFilters] = useState<boolean>(false);
 
   useEffect(() => {
     // Reset pagination when filter changes
@@ -743,46 +747,38 @@ export default function FlashcardCollections() {
             </p>
           </div>
           
-          {/* Subject filter dropdown - desktop only */}
-          <div className="relative w-64">
-            <select
-              value={selectedSubjectId}
-              onChange={(e) => handleSubjectFilter(e.target.value)}
-              className="block w-full px-3 py-2 text-gray-700 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022] appearance-none"
-            >
-              <option value="">All Subjects</option>
-              {subjects.map((subject) => (
-                <option key={subject.id} value={subject.id}>
-                  {subject.name}
-                </option>
-              ))}
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-              </svg>
-            </div>
+          {/* Filter controls - desktop */}
+          <div className="flex items-center gap-3">
+            <Tooltip text={showFilters ? "Hide filters" : "Show filters"} position="top">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022] dark:focus:ring-offset-gray-800"
+              >
+                {showFilters ? <FilterX className="mr-2 h-4 w-4" /> : <Filter className="mr-2 h-4 w-4" />}
+                {showFilters ? 'Hide Filters' : 'Show Filters'}
+              </button>
+            </Tooltip>
           </div>
         </div>
         
         <div className="w-[340px]">
           <Tabs value={filter} onValueChange={handleFilterChange}>
-            <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
+            <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
               <TabsTrigger 
                 value="all"
-                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
               >
                 All
               </TabsTrigger>
               <TabsTrigger 
                 value="official"
-                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
               >
                 Premium
               </TabsTrigger>
               <TabsTrigger 
                 value="my"
-                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
               >
                 My Collections
               </TabsTrigger>
@@ -794,22 +790,22 @@ export default function FlashcardCollections() {
       {/* Mobile tabs - only shown on mobile */}
       <div className="md:hidden w-full mb-6">
         <Tabs value={filter} onValueChange={handleFilterChange}>
-          <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
+          <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
             <TabsTrigger 
               value="all"
-              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
             >
               All
             </TabsTrigger>
             <TabsTrigger 
               value="official"
-              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
             >
               Premium
             </TabsTrigger>
             <TabsTrigger 
               value="my"
-              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
             >
               My Collections
             </TabsTrigger>
@@ -817,42 +813,56 @@ export default function FlashcardCollections() {
         </Tabs>
       </div>
 
-      {/* Mobile subject filter */}
+      {/* Mobile filter control */}
       <div className="md:hidden mb-6">
-        <div className="relative">
-          <select
-            value={selectedSubjectId}
-            onChange={(e) => handleSubjectFilter(e.target.value)}
-            className="block w-full px-3 py-2 text-gray-700 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022] appearance-none"
-          >
-            <option value="">All Subjects</option>
-            {subjects.map((subject) => (
-              <option key={subject.id} value={subject.id}>
-                {subject.name}
-              </option>
-            ))}
-          </select>
-          <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="flex w-full items-center justify-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022] dark:focus:ring-offset-gray-800"
+        >
+          {showFilters ? <FilterX className="mr-2 h-4 w-4" /> : <Filter className="mr-2 h-4 w-4" />}
+          {showFilters ? 'Hide Filters' : 'Show Filters'}
+        </button>
+      </div>
+
+      {/* Filters panel */}
+      {showFilters && (
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6 dark:border dark:border-gray-700">
+          <div className="grid md:grid-cols-1 gap-4">
+            <div>
+              <label htmlFor="subject-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Filter by Subject
+              </label>
+              <select
+                id="subject-filter"
+                value={selectedSubjectId}
+                onChange={(e) => handleSubjectFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022] dark:focus:border-[#F37022]"
+              >
+                <option value="">All Subjects</option>
+                {subjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </option>
+                ))}
+              </select>
+              {selectedSubject && (
+                <div className="mt-2 flex items-center">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                    Filtering by: {selectedSubject.name}
+                  </span>
+                  <button
+                    onClick={() => handleSubjectFilter('')}
+                    className="ml-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                    aria-label="Clear filter"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-        {selectedSubject && (
-          <div className="mt-2 flex items-center">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              Filtering by: {selectedSubject.name}
-            </span>
-            <button
-              onClick={() => handleSubjectFilter('')}
-              className="ml-2 text-sm text-gray-500 hover:text-gray-700"
-              aria-label="Clear filter"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Collections grid */}
       <div>

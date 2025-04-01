@@ -35,7 +35,7 @@ export function StudyCard({ card, showAnswer, isMastered, onToggleMastered }: St
         }}
       >
         {isMastered ? (
-          <BookmarkSolidIcon className="h-5 w-5 text-purple-500" />
+          <BookmarkSolidIcon className="h-5 w-5 text-purple-500 dark:text-purple-400" />
         ) : (
           <BookmarkIcon className="h-5 w-5" />
         )}

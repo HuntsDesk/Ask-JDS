@@ -162,28 +162,30 @@ export default function SearchBar() {
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <Search className="h-5 w-5 text-gray-400" />
         </div>
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setShowResults(true);
-          }}
-          onFocus={() => setShowResults(true)}
-          placeholder="Search collections, subjects, cards..."
-          className="w-full p-3 pl-10 pr-16 border border-gray-300 rounded-lg shadow-sm text-gray-500 focus:outline-none focus:ring-[#F37022] focus:border-[#F37022] sm:text-sm"
-        />
-        {query && (
-          <button
-            className="absolute inset-y-0 right-0 pr-3 flex items-center"
-            onClick={() => {
-              setQuery('');
-              setResults([]);
+        <div className="flex items-center w-full border border-gray-300 rounded-lg shadow-sm focus-within:ring-1 focus-within:ring-[#F37022] focus-within:border-[#F37022]">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setShowResults(true);
             }}
-          >
-            <X className="h-5 w-5 text-gray-400 hover:text-gray-500" />
-          </button>
-        )}
+            onFocus={() => setShowResults(true)}
+            placeholder="Search collections, subjects, cards..."
+            className="flex-grow p-3 pl-10 border-none shadow-none text-gray-500 focus:outline-none focus:ring-0 sm:text-sm bg-transparent"
+          />
+          {query && (
+            <button
+              className="flex items-center justify-center h-full px-3 text-gray-400 hover:text-gray-500 bg-transparent"
+              onClick={() => {
+                setQuery('');
+                setResults([]);
+              }}
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {showResults && query.length >= 2 && (

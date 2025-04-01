@@ -684,7 +684,7 @@ export default function AllFlashcards() {
               <Tooltip text={showFilters ? "Hide filters" : "Show filters"} position="top">
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022]"
+                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022] dark:focus:ring-offset-gray-800"
                 >
                   {showFilters ? <FilterX className="mr-2 h-4 w-4" /> : <Filter className="mr-2 h-4 w-4" />}
                   {showFilters ? 'Hide Filters' : 'Show Filters'}
@@ -693,7 +693,7 @@ export default function AllFlashcards() {
               <Tooltip text={showMastered ? "Hide mastered cards" : "Show all cards"} position="top">
                 <button
                   onClick={handleToggleMastered}
-                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022]"
+                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022] dark:focus:ring-offset-gray-800"
                   aria-label={showMastered ? "Hide mastered cards" : "Show all cards"}
                 >
                   {showMastered ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
@@ -705,22 +705,22 @@ export default function AllFlashcards() {
 
           <div className="w-[340px]">
               <Tabs value={filter} onValueChange={handleFilterChange}>
-                <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
+                <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
                   <TabsTrigger 
                     value="all"
-                    className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                    className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
                   >
                     All
                   </TabsTrigger>
                   <TabsTrigger 
                     value="official"
-                    className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                    className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
                   >
                     Premium
                   </TabsTrigger>
                   <TabsTrigger 
                     value="my"
-                    className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                    className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
                   >
                     My Cards
                   </TabsTrigger>
@@ -732,22 +732,22 @@ export default function AllFlashcards() {
         {/* Mobile layout - only filter tabs */}
         <div className="md:hidden mb-6">
           <Tabs value={filter} onValueChange={handleFilterChange}>
-            <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
+            <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
               <TabsTrigger 
                 value="all"
-                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
               >
                 All
               </TabsTrigger>
               <TabsTrigger 
                 value="official"
-                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
               >
                 Premium
               </TabsTrigger>
               <TabsTrigger 
                 value="my"
-                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
               >
                 My Cards
               </TabsTrigger>
@@ -759,7 +759,7 @@ export default function AllFlashcards() {
         <div className="md:hidden flex items-center justify-between mb-4">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022]"
+            className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022] dark:focus:ring-offset-gray-800"
           >
             {showFilters ? <FilterX className="mr-2 h-4 w-4" /> : <Filter className="mr-2 h-4 w-4" />}
             {showFilters ? 'Hide Filters' : 'Show Filters'}
@@ -767,7 +767,7 @@ export default function AllFlashcards() {
 
           <button
             onClick={handleToggleMastered}
-            className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022]"
+            className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022] dark:focus:ring-offset-gray-800"
             aria-label={showMastered ? "Hide mastered cards" : "Show all cards"}
           >
             {showMastered ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
@@ -790,7 +790,7 @@ export default function AllFlashcards() {
                     setFilterSubject(e.target.value);
                     setFilterCollection('all'); // Reset collection filter when subject changes
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022] dark:focus:border-[#F37022]"
                 >
                   <option value="all">All Subjects</option>
                   {subjects.map((subject) => (
@@ -809,7 +809,7 @@ export default function AllFlashcards() {
                   id="collection-filter"
                   value={filterCollection}
                   onChange={(e) => setFilterCollection(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022] dark:focus:border-[#F37022]"
                 >
                   <option value="all">All Collections</option>
                   {filteredCollections.map((collection) => (

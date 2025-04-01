@@ -178,9 +178,9 @@ const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
               onClick={() => onToggleMastered(flashcard)}
               className={`flex items-center justify-center p-2 text-sm font-medium ${
                 flashcard.is_mastered 
-                  ? 'text-green-600 bg-green-50 focus:ring-green-500' 
-                  : 'text-gray-600 bg-white focus:ring-gray-400'
-              } border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 w-10 h-10 ${
+                  ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 focus:ring-green-500' 
+                  : 'text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-700 focus:ring-gray-400'
+              } border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 w-10 h-10 ${
                 isMastering ? 'opacity-50 cursor-not-allowed' : ''
               }`}
               title={flashcard.is_mastered ? "Mark as not mastered" : "Mark as mastered"}
