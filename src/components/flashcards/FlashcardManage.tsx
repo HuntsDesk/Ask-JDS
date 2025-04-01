@@ -550,7 +550,7 @@ interface FlashcardItemProps {
 
 function FlashcardItem({ card, onEdit, onDelete, onToggleMastered }: FlashcardItemProps) {
   return (
-    <Card className={card.is_mastered ? "border-l-4 border-green-500" : ""}>
+    <Card className={card.is_mastered ? "border-l-4 border-green-500 dark:border-green-400" : ""}>
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <CardTitle className="text-base">Question</CardTitle>
@@ -560,6 +560,7 @@ function FlashcardItem({ card, onEdit, onDelete, onToggleMastered }: FlashcardIt
               size="icon"
               onClick={onToggleMastered}
               title={card.is_mastered ? "Mark as not mastered" : "Mark as mastered"}
+              className={card.is_mastered ? "text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-500" : ""}
             >
               {card.is_mastered ? (
                 <X className="h-4 w-4" />

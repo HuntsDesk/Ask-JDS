@@ -94,6 +94,15 @@ export default function FlashcardSubjects() {
     if (!subjectToDelete) return;
     
     try {
+      // First delete entries in the collection_subjects junction table
+      const { error: junctionError } = await supabase
+        .from('collection_subjects')
+        .delete()
+        .eq('subject_id', subjectToDelete.id);
+      
+      if (junctionError) throw junctionError;
+      
+      // Then delete the subject itself
       const { error } = await supabase
         .from('subjects')
         .delete()
@@ -141,7 +150,7 @@ export default function FlashcardSubjects() {
         onClose={() => setSubjectToDelete(null)}
         onConfirm={handleDeleteSubject}
         title="Delete Subject"
-        message="Are you sure you want to delete this subject? All collections in this subject will also be deleted."
+        message="Are you sure you want to delete this subject? This action cannot be undone."
         itemName={subjectToDelete?.name}
       />
 
@@ -165,22 +174,22 @@ export default function FlashcardSubjects() {
           
           <div className="w-[340px]">
             <Tabs value={filter} onValueChange={handleFilterChange}>
-              <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
+              <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
                 <TabsTrigger 
                   value="all"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
                 >
                   All
                 </TabsTrigger>
                 <TabsTrigger 
                   value="official"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
                 >
                   Premium
                 </TabsTrigger>
                 <TabsTrigger 
                   value="my"
-                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+                  className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
                 >
                   My Subjects
                 </TabsTrigger>
@@ -193,22 +202,22 @@ export default function FlashcardSubjects() {
       {/* Mobile layout - only filter tabs */}
       <div className="md:hidden mb-6">
         <Tabs value={filter} onValueChange={handleFilterChange}>
-          <TabsList className="grid w-full grid-cols-3" style={{ backgroundColor: '#f8f8f8' }}>
+          <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
             <TabsTrigger 
               value="all"
-              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
             >
               All
             </TabsTrigger>
             <TabsTrigger 
               value="official"
-              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
             >
               Premium
             </TabsTrigger>
             <TabsTrigger 
               value="my"
-              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white"
+              className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
             >
               My Subjects
             </TabsTrigger>

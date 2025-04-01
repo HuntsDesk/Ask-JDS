@@ -93,7 +93,7 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
   
   return (
     <div 
-      className={`relative bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col h-full ${flashcard.is_mastered ? "border-l-4 border-green-500" : ""} ${onView ? "cursor-pointer" : ""}`}
+      className={`relative bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col h-full ${flashcard.is_mastered ? "border-l-4 border-l-green-500 dark:border-l-green-400" : ""} ${onView ? "cursor-pointer" : ""}`}
       onClick={() => {
         if (!onView) return;
         if (shouldHideAnswer && onShowPaywall) {
@@ -223,7 +223,7 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
                   e.stopPropagation();
                   onToggleMastered && onToggleMastered(flashcard);
                 }}
-                className={`${flashcard.is_mastered ? 'text-green-500 hover:text-green-700' : 'text-gray-400 hover:text-green-500'} p-1`}
+                className={`${flashcard.is_mastered ? 'text-green-500 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300' : 'text-gray-400 dark:text-gray-300 hover:text-green-500 dark:hover:text-green-400'} p-1`}
               >
                 <Check className="h-4 md:h-5 w-4 md:w-5" />
               </button>
@@ -236,7 +236,7 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
                     e.stopPropagation();
                     onEdit(flashcard);
                   }}
-                  className="text-gray-400 hover:text-blue-500 p-1"
+                  className="text-gray-400 dark:text-gray-300 hover:text-blue-500 dark:hover:text-blue-400 p-1"
                 >
                   <FileEdit className="h-4 md:h-5 w-4 md:w-5" />
                 </button>
@@ -250,7 +250,7 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
                     e.stopPropagation();
                     onDelete(flashcard);
                   }}
-                  className="text-gray-400 hover:text-red-500 p-1"
+                  className="text-gray-400 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 p-1"
                 >
                   <Trash2 className="h-4 md:h-5 w-4 md:w-5" />
                 </button>
