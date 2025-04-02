@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { Plus, Search, BookOpen, Trash2, Filter, Library, Book, Layers, FilterX } from 'lucide-react';
+import { Plus, Search, BookOpen, Trash2, Filter, Library, Book, Layers, FilterX, X } from 'lucide-react';
 import Card from './Card';
 import EmptyState from './EmptyState';
 import LoadingSpinner from './LoadingSpinner';
@@ -48,6 +48,7 @@ export default function FlashcardCollections() {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
   const [filter, setFilter] = useState<'all' | 'official' | 'my'>('all');
 
   // Pagination state for infinite scrolling
@@ -108,7 +109,6 @@ export default function FlashcardCollections() {
     // Reset pagination when filter changes
     setPage(1);
     setHasMore(true);
-    setCollections([]);
     
     // Get filter from URL if present
     const filterParam = searchParams.get('filter');
@@ -119,27 +119,32 @@ export default function FlashcardCollections() {
       setFilter(currentFilter);
     }
     
-    // Get subject from URL if present
-    const subjectParam = searchParams.get('subject');
-    if (subjectParam) {
-      setSelectedSubjectId(subjectParam);
+    // Get subjects from URL if present
+    const subjectParams = searchParams.getAll('subject');
+    if (subjectParams.length > 0) {
+      setSelectedSubjectIds(subjectParams);
+    } else {
+      setSelectedSubjectIds([]);
     }
     
-    // First update the counts for the current filter
-    updateCountsForCurrentFilter(currentFilter).then(() => {
-      // Then load collections with the explicitly passed filter
-      loadCollections(currentFilter).catch(err => {
-        console.error("Error loading collections:", err);
-        setError("Failed to load collections. Please try again.");
-      });
-    });
+    // Load collections with the current filters
+    loadCollections(currentFilter);
     
-    // Load subjects in parallel
-    loadSubjects().catch(err => {
-      console.error("Error loading subjects:", err);
-    });
+    // Load subjects in parallel if not already loaded
+    if (subjects.length === 0) {
+      loadSubjects().catch(err => {
+        console.error("Error loading subjects:", err);
+      });
+    }
   }, [searchParams]);
-  
+
+  // Add a new effect to handle filter changes
+  useEffect(() => {
+    if (selectedSubjectIds.length > 0 || filter !== 'all') {
+      loadCollections();
+    }
+  }, [selectedSubjectIds, filter]);
+
   // Load more collections when page changes
   useEffect(() => {
     if (page > 1) {
@@ -149,15 +154,19 @@ export default function FlashcardCollections() {
 
   async function loadCollections(currentFilter?: 'all' | 'official' | 'my') {
     try {
-      setLoading(true);
+      // Only show loading spinner on initial load, not filter changes
+      const isInitialLoad = collections.length === 0;
+      if (isInitialLoad) {
+        setLoading(true);
+      }
       
       // Use the provided filter or fall back to the state filter
       const filterToUse = currentFilter || filter;
       console.log(`Loading collections with filter: ${filterToUse}`);
       
       // Get subject filter from URL or state
-      const subjectId = searchParams.get('subject') || selectedSubjectId;
-      console.log(`Subject filter: ${subjectId || 'none'}`);
+      const subjectIds = selectedSubjectIds;
+      console.log(`Subject filters: ${subjectIds.join(', ') || 'none'}`);
       
       // Build base query for collections count
       let countQuery = supabase.from('collections').select('id', { count: 'exact' });
@@ -169,28 +178,28 @@ export default function FlashcardCollections() {
         countQuery = countQuery.eq('user_id', user.id);
       }
       
-      // If there's a subject filter, get all collection IDs for this subject first
+      // If there are subject filters, get all collection IDs for these subjects first
       let collectionIds: string[] = [];
-      if (subjectId) {
-        console.log(`Getting collection IDs for subject: ${subjectId}`);
+      if (subjectIds.length > 0) {
+        console.log(`Getting collection IDs for subjects: ${subjectIds.join(', ')}`);
         const { data: collectionSubjects, error: junctionError } = await supabase
           .from('collection_subjects')
           .select('collection_id')
-          .eq('subject_id', subjectId);
+          .in('subject_id', subjectIds);
           
         if (junctionError) {
-          console.error("Error fetching collections for subject:", junctionError);
+          console.error("Error fetching collections for subjects:", junctionError);
           throw junctionError;
         }
         
         if (collectionSubjects && collectionSubjects.length > 0) {
-          collectionIds = collectionSubjects.map(cs => cs.collection_id);
-          console.log(`Found ${collectionIds.length} collections for subject ${subjectId}`);
+          collectionIds = [...new Set(collectionSubjects.map(cs => cs.collection_id))];
+          console.log(`Found ${collectionIds.length} collections for subjects ${subjectIds.join(', ')}`);
           
           // Apply collection IDs to count query
           countQuery = countQuery.in('id', collectionIds);
         } else {
-          console.log(`No collections found for subject ${subjectId}`);
+          console.log(`No collections found for subjects ${subjectIds.join(', ')}`);
           setCollections([]);
           setHasMore(false);
           setLoading(false);
@@ -236,7 +245,7 @@ export default function FlashcardCollections() {
       }
       
       // Apply subject filter if we have collection IDs
-      if (subjectId && collectionIds.length > 0) {
+      if (subjectIds.length > 0) {
         query = query.in('id', collectionIds);
       }
       
@@ -345,7 +354,7 @@ export default function FlashcardCollections() {
       const currentFilter = filter;
       
       // Get subject filter from URL or state
-      const subjectId = searchParams.get('subject') || selectedSubjectId;
+      const subjectIds = selectedSubjectIds;
       
       // First, get collections with pagination
       let query = supabase
@@ -369,15 +378,15 @@ export default function FlashcardCollections() {
       }
       
       // Apply subject filter if present
-      if (subjectId) {
-        // Get collection IDs for this subject from the junction table
+      if (subjectIds.length > 0) {
+        // Get collection IDs for these subjects from the junction table
         const { data: collectionSubjects, error: junctionError } = await supabase
           .from('collection_subjects')
           .select('collection_id')
-          .eq('subject_id', subjectId);
+          .in('subject_id', subjectIds);
           
         if (junctionError) {
-          console.error("Error fetching more collections for subject:", junctionError);
+          console.error("Error fetching more collections for subjects:", junctionError);
           throw junctionError;
         }
         
@@ -388,8 +397,8 @@ export default function FlashcardCollections() {
           query = query.in('id', collectionIds);
           console.log(`Applied subject filter for ${collectionIds.length} collections`);
         } else {
-          // No more collections for this subject
-          console.log(`No more collections for subject ${subjectId}`);
+          // No more collections for these subjects
+          console.log(`No more collections for subjects ${subjectIds.join(', ')}`);
           setHasMore(false);
           setLoadingMore(false);
           return;
@@ -544,39 +553,36 @@ export default function FlashcardCollections() {
     }
   }
 
-  function handleSubjectFilter(subjectId: string) {
-    // Reset pagination when filter changes
-    setPage(1);
-    setHasMore(true);
-    
-    // Clear error first
-    setError(null);
-    setLoading(true);
-    
-    console.log(`Subject filter changed to: ${subjectId || 'All Subjects'}`);
-    
-    // Update the state
-    setSelectedSubjectId(subjectId);
-    
-    // Update the URL parameter
-    const params = new URLSearchParams(searchParams.toString());
-    if (subjectId) {
-      params.set('subject', subjectId);
-    } else {
-      params.delete('subject');
-    }
-    setSearchParams(params);
-    
-    // Load collections with the new filter
-    loadCollections()
-      .then(() => {
-        console.log("Collections loaded successfully with subject filter");
-      })
-      .catch(err => {
-        console.error("Error loading collections with subject filter:", err);
-        setError("Failed to filter by subject. Please try again.");
+  function handleSubjectFilter(e: React.ChangeEvent<HTMLSelectElement>) {
+    const value = e.target.value;
+    if (value && !selectedSubjectIds.includes(value)) {
+      setSelectedSubjectIds(prev => {
+        const newSubjects = [...prev, value];
+        // Update URL parameters
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('subject'); // Remove all existing subject parameters
+        newSubjects.forEach(id => {
+          params.append('subject', id);
+        });
+        setSearchParams(params);
+        return newSubjects;
       });
+    }
   }
+
+  const removeSubject = (id: string) => {
+    setSelectedSubjectIds(prev => {
+      const newSubjects = prev.filter(subId => subId !== id);
+      // Update URL parameters
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('subject'); // Remove all existing subject parameters
+      newSubjects.forEach(subId => {
+        params.append('subject', subId);
+      });
+      setSearchParams(params);
+      return newSubjects;
+    });
+  };
 
   function handleSearch(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -599,12 +605,6 @@ export default function FlashcardCollections() {
       const params = new URLSearchParams(searchParams.toString());
       params.set('filter', newFilter);
       setSearchParams(params);
-      
-      // Clear collections while loading to avoid showing stale data
-      setCollections([]);
-      
-      // Force reload with new filter
-      setLoading(true);
       
       // Get counts first before loading collections
       updateCountsForCurrentFilter(newFilter).then(() => {
@@ -637,18 +637,18 @@ export default function FlashcardCollections() {
       const { count: filteredCount } = await filteredQuery;
       
       // Check if there's a subject filter applied
-      const subjectId = searchParams.get('subject');
-      if (subjectId) {
-        // Get collections for this subject
+      const subjectIds = selectedSubjectIds;
+      if (subjectIds.length > 0) {
+        // Get collections for these subjects
         const { data: collectionSubjects } = await supabase
           .from('collection_subjects')
           .select('collection_id')
-          .eq('subject_id', subjectId);
+          .in('subject_id', subjectIds);
           
         if (collectionSubjects && collectionSubjects.length > 0) {
           const collectionIds = collectionSubjects.map(cs => cs.collection_id);
           
-          // Get filtered collections that also belong to this subject
+          // Get filtered collections that also belong to these subjects
           let subjectFilteredQuery = supabase
             .from('collections')
             .select('id', { count: 'exact' })
@@ -670,7 +670,7 @@ export default function FlashcardCollections() {
           
           return { totalCount, filteredCount: subjectFilteredCount || 0 };
         } else {
-          // No collections for this subject
+          // No collections for these subjects
           setTotalCollectionCount(0);
           updateCount(0);
           return { totalCount, filteredCount: 0 };
@@ -829,34 +829,41 @@ export default function FlashcardCollections() {
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6 dark:border dark:border-gray-700">
           <div className="grid md:grid-cols-1 gap-4">
             <div>
-              <label htmlFor="subject-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Filter by Subject
-              </label>
+              <div className="flex justify-between items-center mb-1">
+                <label htmlFor="subject-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Filter by Subject
+                </label>
+              </div>
               <select
                 id="subject-filter"
-                value={selectedSubjectId}
-                onChange={(e) => handleSubjectFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022] dark:focus:border-[#F37022]"
+                value=""
+                onChange={handleSubjectFilter}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022] dark:bg-gray-700 dark:text-gray-200"
               >
-                <option value="">All Subjects</option>
-                {subjects.map((subject) => (
+                <option value="">Select subjects...</option>
+                {subjects.map(subject => (
                   <option key={subject.id} value={subject.id}>
                     {subject.name}
                   </option>
                 ))}
               </select>
-              {selectedSubject && (
-                <div className="mt-2 flex items-center">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
-                    Filtering by: {selectedSubject.name}
-                  </span>
-                  <button
-                    onClick={() => handleSubjectFilter('')}
-                    className="ml-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                    aria-label="Clear filter"
-                  >
-                    ✕
-                  </button>
+              {selectedSubjectIds.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {selectedSubjectIds.map(id => {
+                    const subject = subjects.find(s => s.id === id);
+                    return subject && (
+                      <div key={id} className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-md flex items-center">
+                        <span className="text-sm dark:text-gray-200">{subject.name}</span>
+                        <button 
+                          type="button" 
+                          onClick={() => removeSubject(id)}
+                          className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

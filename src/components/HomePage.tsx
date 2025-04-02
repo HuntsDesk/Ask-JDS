@@ -307,7 +307,7 @@ export function HomePage() {
             </div>
             <div className="bg-white p-8 rounded-xl shadow-sm">
               <Rocket className="w-12 h-12 text-[#00178E] mb-4" />
-              <h3 className="text-xl font-semibold mb-4 text-[#F37022]">Pass Your Exam</h3>
+              <h3 className="text-xl font-semibold mb-4 text-[#F37022]"><Master the Topic></h3>
               <p className="text-gray-600">We can't guarantee an A, but we can make sure you at least sound like you know what you're talking about.</p>
             </div>
           </div>
