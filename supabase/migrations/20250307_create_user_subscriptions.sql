@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS public.user_subscriptions (
 -- Add RLS policies
 ALTER TABLE public.user_subscriptions ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policy if it exists
+DROP POLICY IF EXISTS "Users can view their own subscriptions" ON public.user_subscriptions;
+
 -- Users can view their own subscriptions
 CREATE POLICY "Users can view their own subscriptions"
 ON public.user_subscriptions
@@ -48,4 +51,5 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create index for faster queries
-CREATE INDEX IF NOT EXISTS user_subscriptions_user_id_idx ON public.user_subscriptions(user_id); 
+DROP INDEX IF EXISTS user_subscriptions_user_id_idx;
+CREATE INDEX user_subscriptions_user_id_idx ON public.user_subscriptions(user_id); 

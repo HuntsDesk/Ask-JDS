@@ -47,10 +47,21 @@ const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
   // Determine if answer should be hidden (premium content + no subscription)
   const shouldHideAnswer = isPremium && !hasSubscription;
   
-  // Determine if edit/delete buttons should be hidden (premium content)
-  // Always hide edit/delete for premium content, regardless of subscription status
-  // Force this logic to be true for premium content - HARD CODED FOR NOW
-  const shouldHideEditDelete = isPremium === true ? true : false;
+  // Determine if edit/delete buttons should be hidden
+  const shouldHideEditDelete = flashcard.collection?.is_official === true || flashcard.is_official === true;
+  
+  // Debug logging for edit/delete visibility
+  if (process.env.NODE_ENV === 'development') {
+    console.log('FlashcardItem Debug:', {
+      id: flashcard.id,
+      question: flashcard.question,
+      is_official: flashcard.is_official,
+      collection_is_official: flashcard.collection?.is_official,
+      shouldHideEditDelete,
+      onEdit: !!onEdit,
+      onDelete: !!onDelete
+    });
+  }
   
   // Generate subject and collection data to display if available
   // Need to handle both the relationships data structure and the collection.subject format
@@ -158,20 +169,24 @@ const FlashcardItem: React.FC<FlashcardItemProps> = React.memo(({
           <div className="flex gap-4">
             {!shouldHideEditDelete && (
               <>
-                <button
-                  onClick={() => onEdit(flashcard)}
-                  className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
-                  title="Edit card"
-                >
-                  <FileEdit className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => onDelete(flashcard)}
-                  className="text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
-                  title="Delete card"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
+                {onEdit && (
+                  <button
+                    onClick={() => onEdit(flashcard)}
+                    className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
+                    title="Edit card"
+                  >
+                    <FileEdit className="h-5 w-5" />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    onClick={() => onDelete(flashcard)}
+                    className="text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                    title="Delete card"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                )}
               </>
             )}
             <button

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FileText, Check, EyeOff, Eye, Trash2, Filter, BookOpen, FileEdit, Lock, FilterX } from 'lucide-react';
+import { FileText, Check, EyeOff, Eye, Trash2, Filter, BookOpen, FileEdit, Lock, FilterX, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import useAuth from '@/hooks/useFlashcardAuth';
 import useToast from '@/hooks/useFlashcardToast';
@@ -78,8 +78,8 @@ export default function AllFlashcards() {
 
   // Replace regular state with persisted state
   const [showMastered, setShowMastered] = usePersistedState<boolean>('flashcards-show-mastered', true);
-  const [filterSubject, setFilterSubject] = usePersistedState<string>('flashcards-filter-subject', 'all');
-  const [filterCollection, setFilterCollection] = usePersistedState<string>('flashcards-filter-collection', 'all');
+  const [selectedSubjectIds, setSelectedSubjectIds] = usePersistedState<string[]>('flashcards-filter-subjects', []);
+  const [selectedCollectionIds, setSelectedCollectionIds] = usePersistedState<string[]>('flashcards-filter-collections', []);
   const [showFilters, setShowFilters] = usePersistedState<boolean>('flashcards-show-filters', false);
 
   // Use the relationship hook to efficiently load and cache all relationships
@@ -235,7 +235,10 @@ export default function AllFlashcards() {
   useEffect(() => {
     // Skip if any data is still loading
     if (flashcardsLoading || relationshipsLoading || masteryLoading) {
-      setLoading(true);
+      // Only show loading on initial load
+      if (!initialLoadComplete) {
+        setLoading(true);
+      }
       return;
     }
     
@@ -250,27 +253,69 @@ export default function AllFlashcards() {
       // Use our memoized function to process cards
       const processedCards = processCards(flashcardsData);
       setAllCards(processedCards);
-    } catch (err) {
-      console.error('Error processing flashcards:', err);
-      setError('Error processing flashcards data');
+      setInitialLoadComplete(true);
+
+      // Load URL parameters if this is the initial load
+      if (!initialLoadComplete) {
+        const filterParam = searchParams.get('filter');
+        if (filterParam && ['all', 'official', 'my'].includes(filterParam)) {
+          setFilter(filterParam as 'all' | 'official' | 'my');
+        }
+        
+        const subjectParams = searchParams.getAll('subject');
+        if (subjectParams.length > 0) {
+          setSelectedSubjectIds(subjectParams);
+        }
+        
+        const collectionParams = searchParams.getAll('collection');
+        if (collectionParams.length > 0) {
+          setSelectedCollectionIds(collectionParams);
+        }
+      }
+    } catch (err: any) {
+      console.error('Error processing cards:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [flashcardsData, relationshipsLoading, masteryLoading, flashcardsLoading, processCards]);
+  }, [flashcardsData, flashcardsLoading, relationshipsLoading, masteryLoading, processCards, searchParams]);
 
-  // Effect for handling filter changes
+  // Remove the separate URL parameter loading effect since we've moved it into the data loading effect
   useEffect(() => {
-    const filterParam = searchParams.get('filter');
-    if (filterParam && ['all', 'official', 'my'].includes(filterParam)) {
-      setFilter(filterParam as 'all' | 'official' | 'my');
+    const params = new URLSearchParams(searchParams.toString());
+    
+    // Update filter parameter
+    if (filter !== 'all') {
+      params.set('filter', filter);
+    } else {
+      params.delete('filter');
     }
     
-    checkSubscription();
-  }, [searchParams]);
+    // Update subject parameters
+    params.delete('subject');
+    selectedSubjectIds.forEach(id => {
+      params.append('subject', id);
+    });
+    
+    // Update collection parameters
+    params.delete('collection');
+    selectedCollectionIds.forEach(id => {
+      params.append('collection', id);
+    });
+    
+    setSearchParams(params);
+  }, [filter, selectedSubjectIds, selectedCollectionIds]);
 
   const checkSubscription = async () => {
     if (user) {
       try {
+        // Check for forceSubscription in development
+        if (process.env.NODE_ENV === 'development' && 
+            localStorage.getItem('forceSubscription') === 'true') {
+          setHasSubscription(true);
+          return;
+        }
+        
         const hasAccess = await hasActiveSubscription(user.id);
         setHasSubscription(hasAccess);
         debugLog("Subscription status updated:", hasAccess);
@@ -285,7 +330,7 @@ export default function AllFlashcards() {
 
   // Memoize the filtered collections list
   const filteredCollections = useMemo(() => {
-    if (filterSubject === 'all') {
+    if (selectedCollectionIds.length === 0) {
       return collections;
     }
     
@@ -293,7 +338,7 @@ export default function AllFlashcards() {
     // Since this is a client-side filter only, we'll skip the filtering
     // and handle subject filtering elsewhere in the component
     return collections;
-  }, [collections, filterSubject]);
+  }, [collections, selectedCollectionIds]);
 
   const handleEditCard = (card: Flashcard) => {
     navigate(`/flashcards/edit-card/${card.id}`);
@@ -440,6 +485,10 @@ export default function AllFlashcards() {
 
   // Check if a card is premium content
   const isCardPremium = useCallback((card: Flashcard) => {
+    // Force subscription if localStorage flag is set
+    const forceSubscription = process.env.NODE_ENV === 'development' && 
+                             localStorage.getItem('forceSubscription') === 'true';
+    
     // User's own cards are NEVER premium, regardless of other settings
     if (user && card.collection?.user_id === user.id) {
       return false;
@@ -452,59 +501,166 @@ export default function AllFlashcards() {
     
     // Cards shown in the "My" filter tab should never be premium
     if (filter === 'my') {
-        return false;
+      return false;
     }
       
     // Only official collections can have premium cards
-    return card.collection?.is_official === true && !forcePremiumTest && !hasSubscription;
-  }, [filter, user, hasSubscription, forcePremiumTest]);
+    // If forceSubscription is true, treat as if user has subscription
+    return card.collection?.is_official === true && !forceSubscription && !hasSubscription;
+  }, [filter, user, hasSubscription]);
 
-  // Create a memoized filteredCards array that updates when dependencies change
+  // Add new function to check if card is editable
+  const isCardEditable = useCallback((card: Flashcard) => {
+    // Official cards are never editable unless user is admin
+    if (card.collection?.is_official) {
+      return user?.user_metadata?.admin === true;
+    }
+    
+    // User's own cards are always editable
+    if (user && (
+      card.collection?.user_id === user.id ||
+      card.created_by === user.id ||
+      String(card.created_by) === String(user.id)
+    )) {
+      return true;
+    }
+    
+    return false;
+  }, [user]);
+
+  // Add new function to check if card is deletable
+  const isCardDeletable = useCallback((card: Flashcard) => {
+    // Same rules as editable
+    return isCardEditable(card);
+  }, [isCardEditable]);
+
+  // Add new subject filter handlers
+  const handleSubjectFilter = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (value && !selectedSubjectIds.includes(value)) {
+      setSelectedSubjectIds(prev => {
+        const newSubjects = [...prev, value];
+        // Update URL parameters
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('subject'); // Remove all existing subject parameters
+        newSubjects.forEach(id => {
+          params.append('subject', id);
+        });
+        setSearchParams(params);
+        return newSubjects;
+      });
+    }
+  };
+
+  const removeSubject = (id: string) => {
+    setSelectedSubjectIds(prev => {
+      const newSubjects = prev.filter(subId => subId !== id);
+      // Update URL parameters
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('subject'); // Remove all existing subject parameters
+      newSubjects.forEach(subId => {
+        params.append('subject', subId);
+      });
+      setSearchParams(params);
+      return newSubjects;
+    });
+  };
+
+  // Add collection filter handlers
+  const handleCollectionFilter = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (value && !selectedCollectionIds.includes(value)) {
+      setSelectedCollectionIds(prev => {
+        const newCollections = [...prev, value];
+        // Update URL parameters
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('collection'); // Remove all existing collection parameters
+        newCollections.forEach(id => {
+          params.append('collection', id);
+        });
+        setSearchParams(params);
+        return newCollections;
+      });
+    }
+  };
+
+  const removeCollection = (id: string) => {
+    setSelectedCollectionIds(prev => {
+      const newCollections = prev.filter(collId => collId !== id);
+      // Update URL parameters
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('collection'); // Remove all existing collection parameters
+      newCollections.forEach(collId => {
+        params.append('collection', collId);
+      });
+      setSearchParams(params);
+      return newCollections;
+    });
+  };
+
+  // Add effect to check subscription when user changes
+  useEffect(() => {
+    checkSubscription();
+  }, [user]);
+
+  // Update the filtering logic to handle multiple collections
   const filteredCards = useMemo(() => {
     // Only log at a high level rather than per-card
     debugLog('Filtering cards:', {
       totalCards: allCards.length,
       filter,
-      subject: filterSubject,
-      collection: filterCollection,
+      subjects: selectedSubjectIds,
+      collections: selectedCollectionIds,
       showMastered
     });
 
     // First apply basic filters that apply to all tabs
-    const basicFiltered = allCards.filter(card => {
+    let filtered = allCards.filter(card => {
       // Filter by mastered status
       if (!showMastered && card.is_mastered) {
         return false;
       }
       
-      // Filter by subject
-      if (filterSubject !== 'all' && card.collection?.subject?.id !== filterSubject) {
-        return false;
+      // If no filters are selected, show all cards
+      if (selectedSubjectIds.length === 0 && selectedCollectionIds.length === 0) {
+        return true;
+      }
+
+      // Check for subject matches
+      const hasMatchingSubject = selectedSubjectIds.length === 0 || (
+        // Check direct subject on the card's collection
+        (card.collection?.subject?.id && selectedSubjectIds.includes(card.collection.subject.id))
+      );
+
+      // Check for collection matches
+      const hasMatchingCollection = selectedCollectionIds.length === 0 || (
+        // Check both possible locations for collection ID
+        (card.collection_id && selectedCollectionIds.includes(card.collection_id)) ||
+        (card.collection?.id && selectedCollectionIds.includes(card.collection.id))
+      );
+
+      // If both filters are active, card must match at least one
+      if (selectedSubjectIds.length > 0 && selectedCollectionIds.length > 0) {
+        return hasMatchingSubject || hasMatchingCollection;
       }
       
-      // Filter by collection
-      if (filterCollection !== 'all' && card.collection_id !== filterCollection) {
-        return false;
+      // If only subject filter is active, must match subject
+      if (selectedSubjectIds.length > 0) {
+        return hasMatchingSubject;
+      }
+      
+      // If only collection filter is active, must match collection
+      if (selectedCollectionIds.length > 0) {
+        return hasMatchingCollection;
       }
       
       return true;
     });
     
-    // Now apply the tab-specific filtering with clear separation
+    // Now apply the tab-specific filtering
     if (filter === 'official') {
-      // Debug log official cards - log counts only, not individual cards
-      debugLog('Official tab filtering:', {
-        before: basicFiltered.length,
-        isPremiuResults: basicFiltered.filter(card => isCardPremium(card)).length,
-        isOfficialResults: basicFiltered.filter(card => card.collection?.is_official === true).length,
-        hasSubscription: hasSubscription,
-        forceSubscriptionLS: process.env.NODE_ENV === 'development' ? localStorage.getItem('forceSubscription') : null
-      });
-      
-      // Premium tab: Show all official cards if user has a subscription
-      // or only premium official cards if user doesn't have a subscription
-      return basicFiltered.filter(card => {
-        const isPremium = isCardPremium(card); 
+      filtered = filtered.filter(card => {
+        const isPremium = isCardPremium(card);
         const isOfficial = card.collection?.is_official === true;
         const isUserOwned = user && card.collection?.user_id === user.id;
         const isUserCreated = user && (
@@ -520,36 +676,20 @@ export default function AllFlashcards() {
         // Otherwise, only show premium official cards
         return isPremium && isOfficial && !isUserOwned && !isUserCreated;
       });
-    }
-    
-    if (filter === 'my' && user) {
-      // Debug log only general info about my cards
-      debugLog('My tab filtering:', {
-        before: basicFiltered.length,
-        userOwnedResults: basicFiltered.filter(card => user && card.collection?.user_id === user.id).length,
-        userCreatedResults: basicFiltered.filter(card => 
-          user && (card.created_by === user.id || String(card.created_by) === String(user.id))
-        ).length
-      });
-      
-      // My tab: ONLY show user-created or user-owned cards
-      // Explicitly exclude any official/premium cards that the user doesn't own
-      return basicFiltered.filter(card => {
+    } else if (filter === 'my' && user) {
+      filtered = filtered.filter(card => {
         const isUserOwned = user && card.collection?.user_id === user.id;
         const isUserCreated = user && (
           card.created_by === user.id || 
           String(card.created_by) === String(user.id)
         );
         
-        // Only include cards that are user-owned or user-created
         return isUserOwned || isUserCreated;
       });
     }
     
-    // For 'all' tab, show all cards that passed the basic filters
-    return basicFiltered;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allCards, filter, filterSubject, filterCollection, showMastered, isCardPremium, user]);
+    return filtered;
+  }, [allCards, filter, selectedSubjectIds, selectedCollectionIds, showMastered, isCardPremium, user, hasSubscription]);
 
   // Replace debug effects with a ref-based logger to prevent re-renders
   const prevFilterStateRef = useRef({ 
@@ -780,44 +920,83 @@ export default function AllFlashcards() {
           <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6 dark:border dark:border-gray-700">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="subject-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Filter by Subject
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label htmlFor="subject-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Filter by Subject
+                  </label>
+                </div>
                 <select
                   id="subject-filter"
-                  value={filterSubject}
-                  onChange={(e) => {
-                    setFilterSubject(e.target.value);
-                    setFilterCollection('all'); // Reset collection filter when subject changes
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022] dark:focus:border-[#F37022]"
+                  value=""
+                  onChange={handleSubjectFilter}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022] dark:bg-gray-700 dark:text-gray-200"
                 >
-                  <option value="all">All Subjects</option>
-                  {subjects.map((subject) => (
+                  <option value="">Select subjects...</option>
+                  {subjects.map(subject => (
                     <option key={subject.id} value={subject.id}>
                       {subject.name}
                     </option>
                   ))}
                 </select>
+                {selectedSubjectIds.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {selectedSubjectIds.map(id => {
+                      const subject = subjects.find(s => s.id === id);
+                      return subject && (
+                        <div key={id} className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-md flex items-center">
+                          <span className="text-sm dark:text-gray-200">{subject.name}</span>
+                          <button 
+                            type="button" 
+                            onClick={() => removeSubject(id)}
+                            className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               
               <div>
-                <label htmlFor="collection-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Filter by Collection
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label htmlFor="collection-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Filter by Collection
+                  </label>
+                </div>
                 <select
                   id="collection-filter"
-                  value={filterCollection}
-                  onChange={(e) => setFilterCollection(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022] dark:focus:border-[#F37022]"
+                  value=""
+                  onChange={handleCollectionFilter}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022] dark:bg-gray-700 dark:text-gray-200"
                 >
-                  <option value="all">All Collections</option>
-                  {filteredCollections.map((collection) => (
+                  <option value="">Select collections...</option>
+                  {collections.map(collection => (
                     <option key={collection.id} value={collection.id}>
                       {collection.title}
                     </option>
                   ))}
                 </select>
+                {selectedCollectionIds.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {selectedCollectionIds.map(id => {
+                      const collection = collections.find(c => c.id === id);
+                      return collection && (
+                        <div key={id} className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-md flex items-center">
+                          <span className="text-sm dark:text-gray-200">{collection.title}</span>
+                          <button 
+                            type="button" 
+                            onClick={() => removeCollection(id)}
+                            className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -855,8 +1034,8 @@ export default function AllFlashcards() {
                 key={card.id}
                 flashcard={card}
                 onToggleMastered={toggleMastered}
-                onEdit={handleEditCard}
-                onDelete={setCardToDelete}
+                onEdit={isCardEditable(card) ? handleEditCard : undefined}
+                onDelete={isCardDeletable(card) ? setCardToDelete : undefined}
                 onView={handleViewCard}
                 isPremium={isCardPremium(card)}
                 hasSubscription={hasSubscription}
