@@ -1,3 +1,116 @@
+# Overview
+
+This document outlines the database schema for Ask JDS, a legal flashcard and learning system. The Supabase database uses PostgreSQL with many-to-many relationships to organize content by subjects, collections, and exam types.
+
+## Official Subjects & Collections
+
+1. Constitutional Law
+   - Federalism & Separation of Powers (Judicial Review, Congressional Powers, Executive Powers)
+   - Individual Rights: Due Process (Substantive & Procedural)
+   - Individual Rights: Equal Protection
+   - First Amendment: Speech, Press, and Association
+   - First Amendment: Religion (Establishment Clause & Free Exercise Clause)
+   - State Action & Government Regulation (Commerce Clause, Taxing & Spending Power)
+
+2. Civil Procedure
+   - Subject Matter Jurisdiction (Federal Question, Diversity, Supplemental)
+   - Personal Jurisdiction & Venue
+   - Pleadings & Motions (Rule 12, Joinder, Class Actions)
+   - Discovery (Scope, Methods, Sanctions)
+   - Pre-Trial & Trial (Summary Judgment, Jury Trials, Judgments)
+   - Appeals & Preclusion (Final Judgment Rule, Res Judicata, Collateral Estoppel)
+   - Erie Doctrine
+
+3. Contracts
+   - Formation (Offer, Acceptance, Consideration)
+   - Defenses to Formation (Statute of Frauds, Mistake, Duress, etc.)
+   - Contract Terms & Interpretation (Parol Evidence Rule, Conditions)
+   - Performance & Breach (Substantial Performance, Anticipatory Repudiation, Impossibility/Frustration)
+   - Remedies (Expectation Damages, Reliance, Restitution, Specific Performance)
+   - UCC Article 2: Sales of Goods (Merchant Rules, Warranties, Perfect Tender)
+   - Third Party Rights
+
+4. Torts
+   - Intentional Torts (Assault, Battery, False Imprisonment, IIED, Trespass)
+   - Defenses to Intentional Torts (Consent, Self-Defense, Necessity)
+   - Negligence: Duty & Breach (Standard of Care, Negligence Per Se)
+   - Negligence: Causation (Actual & Proximate Cause)
+   - Negligence: Damages & Defenses (Contributory/Comparative Negligence, Assumption of Risk)
+   - Strict Liability (Abnormally Dangerous Activities, Animals)
+   - Products Liability (Manufacturing Defects, Design Defects, Failure to Warn)
+   - Defamation & Privacy Torts
+   - Nuisance
+
+5. Criminal Law
+   - Elements of a Crime (Actus Reus, Mens Rea, Causation, Concurrence)
+   - Homicide (Murder, Manslaughter)
+   - Property Crimes (Larceny, Embezzlement, Robbery, Burglary)
+   - Other Crimes Against Persons (Rape, Kidnapping)
+   - Inchoate Offenses (Attempt, Solicitation, Conspiracy)
+   - Defenses (Insanity, Self-Defense, Duress, Mistake)
+   - Parties to Crime
+
+6. Criminal Procedure
+   - Fourth Amendment (Searches & Seizures, Warrant Requirement, Exceptions)
+   - Fifth Amendment (Self-Incrimination, Due Process, Double Jeopardy)
+   - Sixth Amendment (Right to Counsel, Speedy Trial, Confrontation)
+   - Exclusionary Rule & Fruit of the Poisonous Tree
+   - Arrest, Interrogation, & Confessions (Miranda)
+
+7. Evidence
+   - Relevance & Admissibility (Logical & Legal Relevance, Rule 403)
+   - Hearsay: Definition & Exemptions (Non-Hearsay Uses)
+   - Hearsay: Exceptions (Declarant Unavailable, Present Sense Impression, Excited Utterance, etc.)
+   - Witnesses (Competency, Impeachment, Opinion Testimony)
+   - Character Evidence (Propensity, Specific Acts, Reputation)
+   - Privileges (Attorney-Client, Spousal, Doctor-Patient)
+   - Writings
+
+8. Real Property
+   - Present Estates & Future Interests (Fee Simple, Life Estate, Reversions, Remainders)
+   - Concurrent Ownership (Joint Tenancy, Tenancy in Common, Tenancy by the Entirety)
+   - Landlord-Tenant Law (Lease Types, Rights & Duties, Eviction)
+   - Easements, Covenants, & Servitudes
+   - Land Transactions (Contracts, Deeds, Recording Statutes)
+   - Mortgages & Foreclosure
+   - Adverse Possession
+
+9. Business Associations (MEE Subject)
+   - Agency (Creation, Authority, Liability)
+   - Partnerships (Formation, Liability, Dissolution)
+   - Corporations: Formation & Structure
+   - Corporations: Shareholder Rights & Actions
+   - Corporations: Directors & Officers (Duties, Liability)
+   - Limited Liability Companies (LLCs)
+
+10. Wills, Trusts, & Estates (MEE Subject)
+   - Wills: Validity & Execution
+   - Wills: Revocation & Interpretation
+   - Intestate Succession
+   - Trusts: Creation & Types (Express, Resulting, Constructive)
+   - Trusts: Trustee Duties & Powers
+   - Future Interests & Powers of Appointment
+
+11. Family Law (MEE Subject)
+   - Marriage & Divorce (Requirements, Grounds, Property Division, Spousal Support)
+   - Child Custody & Support
+   - Adoption & Parentage
+   - Premarital Agreements
+
+12. Professional Responsibility (MPRE Subject)
+   - Client-Lawyer Relationship (Formation, Scope, Termination)
+   - Confidentiality & Privilege
+   - Conflicts of Interest (Current Clients, Former Clients, Imputed Conflicts)
+   - Fees & Client Funds
+   - Candor to the Tribunal & Fairness to Opposing Counsel
+   - Advertising & Solicitation
+
+13. Choice of Law / Conflict of Laws
+   - Vested Rights
+   - Most Significant Relationship
+   - Governmental Interest
+   - Areas of Law (e.g., Torts, Contracts, Property)
+
 # Database Information
 
 ## Schema Inspection Tools
@@ -85,28 +198,51 @@ where constraint_key like 'your_table.%';
    - Stores subject areas (e.g., Constitutional Law, Contracts, Torts)
    - Key fields: 
      - `id` (uuid, PK)
-     - `name` (text, required, unique)
+     - `name` (text, unique, required)
      - `description` (text)
-     - `is_official` (boolean)
      - `created_at` (timestamp with time zone)
 
-3. **`collections`**
-   - Stores thematic groupings of flashcards
-   - Key fields: 
+3. **`courses`**
+   - Stores course information for JD Simplified learning platform
+   - Key fields:
      - `id` (uuid, PK)
      - `title` (text, required)
+     - `overview` (text)
+     - `tile_description` (text)
+     - `days_of_access` (integer)
+     - `is_featured` (boolean)
+     - `status` (text) - Must be one of: 'Draft', 'Published', or 'Coming Soon'
+     - `created_at` (timestamp with time zone)
+     - `updated_at` (timestamp with time zone)
+
+4. **`course_enrollments`**
+   - Tracks user enrollment in courses
+   - Key fields:
+     - `id` (uuid, PK)
+     - `user_id` (uuid, FK to auth.users)
+     - `course_id` (uuid, FK to courses)
+     - `enrolled_at` (timestamp with time zone)
+     - `expires_at` (timestamp with time zone)
+
+5. **`modules`**
+   - Stores course module information
+   - Key fields:
+     - `id` (uuid, PK)
+     - `course_id` (uuid, FK to courses)
+     - `title` (text, required)
      - `description` (text)
-     - `is_official` (boolean)
-     - `user_id` (uuid, FK to profiles)
+     - `position` (integer)
      - `created_at` (timestamp with time zone)
 
-4. **`exam_types`**
-   - Different exams flashcards might be applicable to
-   - Key fields: 
+6. **`lessons`**
+   - Stores individual lesson content within modules
+   - Key fields:
      - `id` (uuid, PK)
-     - `name` (text, required, unique)
-     - `description` (text)
-     - `is_official` (boolean)
+     - `module_id` (uuid, FK to modules)
+     - `title` (text, required)
+     - `content` (text)
+     - `position` (integer)
+     - `duration` (integer) - estimated duration in minutes
      - `created_at` (timestamp with time zone)
 
 ### User Management & Progress
@@ -191,29 +327,36 @@ where constraint_key like 'your_table.%';
 ### Junction Tables
 
 1. **`flashcard_subjects`**
-   - Links flashcards to subjects (many-to-many)
-   - Fields: `flashcard_id`, `subject_id`, `created_at`
-   - Primary key: Composite of both IDs
+   - Many-to-many relationship between flashcards and subjects
+   - Fields:
+     - `id` (uuid, PK)
+     - `flashcard_id` (uuid, FK to flashcards, required)
+     - `subject_id` (uuid, FK to subjects, required)
+     - Unique constraint on (flashcard_id, subject_id)
 
-2. **`flashcard_collections_junction`**
-   - Links flashcards to collections (many-to-many)
-   - Fields: `flashcard_id`, `collection_id`, `created_at`
-   - Primary key: Composite of both IDs
+2. **`flashcard_exam_types`**
+   - Many-to-many relationship between flashcards and exam types
+   - Fields:
+     - `id` (uuid, PK)
+     - `flashcard_id` (uuid, FK to flashcards, required)
+     - `exam_type_id` (uuid, FK to exam_types, required)
+     - Unique constraint on (flashcard_id, exam_type_id)
 
-3. **`collection_subjects`**
-   - Links collections to subjects (many-to-many)
-   - Fields: `collection_id`, `subject_id`, `created_at`
-   - Primary key: Composite of both IDs
+3. **`flashcard_collections_junction`**
+   - Many-to-many relationship between flashcards and collections
+   - Fields:
+     - `id` (uuid, PK)
+     - `flashcard_id` (uuid, FK to flashcards, required)
+     - `collection_id` (uuid, FK to collections, required)
+     - Unique constraint on (flashcard_id, collection_id)
 
-4. **`flashcard_exam_types`**
-   - Links flashcards to exam types (many-to-many)
-   - Fields: `flashcard_id`, `exam_type_id`, `created_at`
-   - Primary key: Composite of both IDs
-
-5. **`course_subjects`**
-   - Links courses to subjects (many-to-many)
-   - Fields: `course_id`, `subject_id`, `created_at`
-   - Primary key: Composite of both IDs
+4. **`course_subjects`**
+   - Many-to-many relationship between courses and subjects
+   - Fields:
+     - `course_id` (uuid, FK to courses, required)
+     - `subject_id` (uuid, FK to subjects, required)
+     - Unique constraint on (course_id, subject_id)
+     - Composite primary key (course_id, subject_id)
 
 ### Progress Tracking
 

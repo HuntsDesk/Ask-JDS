@@ -16,7 +16,8 @@ import {
   Pin,
   PinOff,
   Menu,
-  X
+  X,
+  Library
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -31,6 +32,7 @@ import { useContext } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { useTheme } from '@/lib/theme-provider';
+import { useDomain } from '@/lib/domain-context';
 
 interface SidebarProps {
   setActiveTab: (tab: string) => void;
@@ -75,6 +77,7 @@ export function Sidebar({
   const { selectedThreadId, setSelectedThreadId } = useContext(SelectedThreadContext);
   const { isExpanded, setIsExpanded, isMobile } = useContext(SidebarContext);
   const { theme } = useTheme();
+  const { isJDSimplified } = useDomain();
 
   // Replace regular state with persisted state - renamed to avoid collision with prop
   const [localIsPinned, setIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
@@ -310,31 +313,23 @@ export function Sidebar({
     }
   };
 
-  // Create a new function to handle navigation link clicks
-  const handleNavLinkClick = useCallback(() => {
+  // Modify the handleNavLinkClick function to ensure proper navigation
+  const handleNavLinkClick = useCallback((path: string) => {
+    console.log('Sidebar: Navigation link clicked, path:', path);
+    
+    // Navigate to the specified path
+    navigate(path);
+    
     // If on mobile, collapse the sidebar after navigation
     if (isMobile) {
       console.log('Sidebar: handleNavLinkClick called on mobile, collapsing sidebar');
-      console.log('  - isDesktopExpanded before:', isDesktopExpanded);
-      console.log('  - isExpanded before:', isExpanded);
-      
-      // Create a promise that resolves when state is updated
-      return new Promise<void>((resolve) => {
-        // Update both states
-        setIsExpanded(false);
-        onDesktopExpandedChange(false);
-        
-        // Force this to run on the next tick, ensuring state updates are processed
-        setTimeout(() => {
-          console.log('  - Sidebar state updated to collapsed, navigation can proceed');
-          resolve();
-        }, 0);
-      });
-    } else {
-      console.log('Sidebar: handleNavLinkClick called, but not on mobile');
-      return Promise.resolve(); // No state updates needed, resolve immediately
+      setIsExpanded(false);
+      onDesktopExpandedChange(false);
     }
-  }, [isMobile, isDesktopExpanded, isExpanded, onDesktopExpandedChange, setIsExpanded]);
+    
+    // Prevent default link behavior
+    return false;
+  }, [isMobile, onDesktopExpandedChange, setIsExpanded, navigate]);
 
   // Toggle sidebar on mobile
   const toggleMobileSidebar = useCallback(() => {
@@ -346,6 +341,34 @@ export function Sidebar({
 
   // Check if we're on the settings page
   const isSettingsPage = location.pathname.startsWith('/settings');
+
+  // Update the navigation items array
+  const navigationItems = [
+    {
+      name: 'Chat',
+      href: '/chat',
+      icon: MessageSquare,
+      current: location.pathname === '/chat' || location.pathname.startsWith('/chat/'),
+    },
+    {
+      name: 'Flashcards',
+      href: '/flashcards',
+      icon: Library,
+      current: location.pathname.startsWith('/flashcards'),
+    },
+    {
+      name: 'Courses',
+      href: '/courses',
+      icon: BookOpen,
+      current: location.pathname === '/courses' || location.pathname.startsWith('/course/'),
+    },
+    {
+      name: 'Settings',
+      href: '/settings',
+      icon: Settings,
+      current: location.pathname === '/settings',
+    },
+  ];
 
   return (
     <>
@@ -534,71 +557,24 @@ export function Sidebar({
         </ScrollArea>
 
         <div className="sticky bottom-0 z-30 bg-background p-3 border-t space-y-2">
-          <Link to="/flashcards/subjects" onClick={handleNavLinkClick}>
+          {navigationItems.map((item) => (
             <Button
-              variant={isInFlashcards ? "default" : "ghost"}
+              key={item.name}
+              variant={item.current ? "default" : "ghost"}
               className={cn(
                 "w-full flex items-center gap-2 transition-all",
                 isDesktopExpanded ? "justify-start px-4" : "justify-center px-0",
-                isInFlashcards && "bg-[#F37022] hover:bg-[#E36012]"
+                item.current && "bg-[#F37022] hover:bg-[#E36012]"
               )}
+              onClick={() => handleNavLinkClick(item.href)}
             >
-              <BookOpen className="h-4 w-4 shrink-0" />
+              <item.icon className="h-4 w-4 shrink-0" />
               <span className={cn(
                 "transition-opacity duration-300",
                 isDesktopExpanded ? "opacity-100" : "opacity-0 absolute overflow-hidden w-0"
-              )}>Flashcards</span>
+              )}>{item.name}</span>
             </Button>
-          </Link>
-          <Link to="/chat" onClick={handleNavLinkClick}>
-            <Button
-              variant={(isInChat || isInChatThread) ? "default" : "ghost"}
-              className={cn(
-                "w-full flex items-center gap-2 transition-all",
-                isDesktopExpanded ? "justify-start px-4" : "justify-center px-0",
-                (isInChat || isInChatThread) && "bg-[#F37022] hover:bg-[#E36012]"
-              )}
-            >
-              <MessageSquare className="h-4 w-4 shrink-0" />
-              <span className={cn(
-                "transition-opacity duration-300",
-                isDesktopExpanded ? "opacity-100" : "opacity-0 absolute overflow-hidden w-0"
-              )}>Chat</span>
-            </Button>
-          </Link>
-          <Link 
-            to="/settings" 
-            onClick={async (e) => {
-              e.preventDefault(); // Prevent default navigation
-              console.log('Settings link clicked, handling navigation manually');
-              
-              // First update sidebar state and wait for it to complete
-              await handleNavLinkClick();
-              
-              // Then navigate programmatically
-              console.log('Now navigating to settings page');
-              navigate('/settings');
-            }}
-            className={cn(
-              "block w-full", // Add block display to ensure the link takes full width
-              isSettingsPage ? "text-white" : "text-foreground"
-            )}
-          >
-            <Button
-              variant={isSettingsPage ? "default" : "ghost"}
-              className={cn(
-                "w-full flex items-center gap-2 transition-all",
-                isDesktopExpanded ? "justify-start px-4" : "justify-center px-0",
-                isSettingsPage && "bg-[#F37022] hover:bg-[#E36012]"
-              )}
-            >
-              <Settings className="h-4 w-4 shrink-0" />
-              <span className={cn(
-                "transition-opacity duration-300",
-                isDesktopExpanded ? "opacity-100" : "opacity-0 absolute overflow-hidden w-0"
-              )}>Settings</span>
-            </Button>
-          </Link>
+          ))}
           <Button
             onClick={() => {
               onSignOut();

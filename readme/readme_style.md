@@ -168,6 +168,30 @@ Use the chart color palette in sequence:
 
 ## Animations
 
+### Gradient Animations
+Used for creating dynamic background effects:
+
+```css
+@keyframes gradientAnimation {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animated-gradient {
+  background: linear-gradient(-45deg, rgba(243, 112, 34, 0.4), rgba(0, 23, 142, 0.4), rgba(243, 112, 34, 0.4), rgba(0, 23, 142, 0.4));
+  background-size: 400% 400%;
+  animation: gradientAnimation 20s ease infinite;
+  will-change: background-position;
+}
+```
+
 ### Float Animations
 Used for creating subtle movement in UI elements:
 
@@ -411,3 +435,67 @@ borderRadius: {
 - Use the cn() utility for combining classes
 - Follow BEM-like naming for custom classes
 - Keep components modular and reusable 
+
+## Component Design
+
+### Cards
+
+#### Standard Card
+```jsx
+<div className="bg-white rounded-lg shadow-sm p-6">
+  <h3 className="text-xl font-bold mb-4">Card Title</h3>
+  <p className="text-gray-600">Card content goes here.</p>
+</div>
+```
+
+#### Course Card
+```jsx
+<div className="premium-card h-full flex flex-col bg-white p-6 rounded-lg shadow-sm transition-all duration-300 relative">
+  {/* Icon and Title */}
+  <div className="flex flex-col items-center justify-center">
+    <div className="w-24 h-24 mb-0.5 flex items-center justify-center">
+      <img 
+        src="/images/JD Simplified Favicon.svg" 
+        alt="JD Simplified Logo" 
+        className="w-full h-full object-contain transition-transform duration-300"
+      />
+    </div>
+    <h3 className="text-[1.35rem] font-bold text-center mb-1 text-jdblue">
+      Course Title
+    </h3>
+  </div>
+  
+  {/* Course Info */}
+  <div className="flex items-center mt-1 mb-1.5 text-sm text-gray-500">
+    <BookOpen className="h-4 w-4 mr-1" />
+    <span>15 lessons</span>
+  </div>
+  
+  {/* Description */}
+  <p className="text-gray-600 text-left line-clamp-3 flex-grow text-sm leading-relaxed">
+    Course description text that gives an overview of what the course covers.
+  </p>
+  
+  {/* Optional Featured Badge */}
+  {featured && (
+    <div className="absolute top-3 right-3">
+      <span className="bg-gradient-to-r from-amber-500 to-jdorange text-white px-3 py-1 rounded-full text-xs font-medium shadow-sm">
+        Featured
+      </span>
+    </div>
+  )}
+  
+  {/* Action Buttons */}
+  <div className="mt-6 grid grid-cols-2 gap-3">
+    <a href="#" className="px-4 py-2 text-center border border-jdblue text-jdblue rounded-lg font-medium hover:bg-jdblue hover:text-white transition-all duration-300">
+      Details
+    </a>
+    <button className="px-4 py-2 bg-gradient-to-r from-jdorange to-jdorange-dark text-white rounded-lg font-medium flex items-center justify-center hover:opacity-90 transition-all duration-300 shadow-sm">
+      <ShoppingCart className="h-4 w-4 mr-2" />
+      Add
+    </button>
+  </div>
+</div>
+```
+
+#### Feature Card 

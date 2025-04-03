@@ -1,24 +1,33 @@
-import React, { useEffect, useState, createContext, useContext, Suspense, lazy } from 'react';
+import React, { useEffect, useState, Suspense, lazy, createContext, useContext } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { Toaster } from '@/components/ui/toaster';
+import { DomainProvider, useDomain } from '@/lib/domain-context';
+import SimplifiedMode from '@/lib/SimplifiedMode';
+
 // Lazy load large components
 const ChatLayout = lazy(() => import('@/components/chat/ChatLayout').then(module => ({ default: module.ChatLayout })));
 const HomePage = lazy(() => import('@/components/HomePage').then(module => ({ default: module.HomePage })));
+const JDSHomePage = lazy(() => import('@/components/jds/HomePage').then(module => ({ default: module.HomePage })));
 const AuthPage = lazy(() => import('@/components/auth/AuthPage').then(module => ({ default: module.AuthPage })));
-const SettingsPage = lazy(() => import('@/components/settings/SettingsPage').then(module => ({ default: module.SettingsPage })));
 const FlashcardsPage = lazy(() => import('@/components/flashcards/FlashcardsPage'));
+const CoursesPage = lazy(() => import('@/components/courses/CoursesPage'));
+const CourseDetail = lazy(() => import('@/components/courses/CourseDetail'));
+const CourseContent = lazy(() => import('@/components/courses/CourseContent'));
 const SubscriptionSuccess = lazy(() => import('@/components/SubscriptionSuccess').then(module => ({ default: module.SubscriptionSuccess })));
+
+// Import Dashboard directly to avoid lazy loading issues
+import JDSDashboard from '../jdsimplified/src/pages/Dashboard';
+
+// Import directly for debugging purposes
+// import JDSDashboardDirect from '../jdsimplified/src/pages/Dashboard';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { 
-  BrowserRouter as Router, 
   Routes, 
   Route, 
   Navigate,
-  createRoutesFromElements,
-  createBrowserRouter,
-  RouterProvider
+  BrowserRouter
 } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
@@ -28,86 +37,49 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/query-client';
 import { ThemeProvider } from '@/lib/theme-provider';
 
-// Create a context for the selected thread
-export const SelectedThreadContext = createContext<{
-  selectedThreadId: string | null;
-  setSelectedThreadId: (id: string | null) => void;
-}>({
-  selectedThreadId: null,
-  setSelectedThreadId: () => {},
-});
+// Import the AuthenticatedLayout component
+import AuthenticatedLayout from '../jdsimplified/src/components/AuthenticatedLayout';
+import { DashboardLayout } from './components/layout/DashboardLayout';
+import { CourseLayout } from './components/layout/CourseLayout';
 
-// Create a context for the sidebar
-export const SidebarContext = createContext<{
+// Import settings page directly to prevent lazy loading issues with sidebar
+import { SettingsPage } from '@/components/settings/SettingsPage';
+
+// Create sidebar context
+export type SidebarContextType = {
   isExpanded: boolean;
-  setIsExpanded: (expanded: boolean) => void;
+  setIsExpanded: (value: boolean) => void;
   isMobile: boolean;
-  sidebarZIndex: number;
-}>({
-  isExpanded: false,
+};
+
+export const SidebarContext = createContext<SidebarContextType>({
+  isExpanded: true,
   setIsExpanded: () => {},
-  isMobile: false,
-  sidebarZIndex: 40, // Default z-index value
+  isMobile: false
 });
 
-// Provider component for the selected thread
-function SelectedThreadProvider({ children }: { children: React.ReactNode }) {
-  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+// Create thread context
+export type SelectedThreadContextType = {
+  selectedThreadId: string | null;
+  setSelectedThreadId: (threadId: string | null) => void;
+};
+
+export const SelectedThreadContext = createContext<SelectedThreadContextType>({
+  selectedThreadId: null,
+  setSelectedThreadId: () => {}
+});
+
+// Create router with domain-aware routes
+function AppRoutes() {
+  const { isJDSimplified } = useDomain();
   
-  // Log changes to the selected thread for debugging
-  useEffect(() => {
-    console.log('Global thread selection changed to:', selectedThreadId);
-  }, [selectedThreadId]);
+  console.log('Rendering routes with isJDSimplified:', isJDSimplified);
   
   return (
-    <SelectedThreadContext.Provider value={{ selectedThreadId, setSelectedThreadId }}>
-      {children}
-    </SelectedThreadContext.Provider>
-  );
-}
-
-// Provider component for sidebar state
-function SidebarProvider({ children }: { children: React.ReactNode }) {
-  const [isExpanded, setIsExpanded] = useState<boolean>(false);
-  const [isMobile, setIsMobile] = useState<boolean>(false);
-  const sidebarZIndex = 40; // Fixed z-index for the sidebar
-  
-  // Add mobile detection at the context level
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-    };
-    
-    // Initial check
-    checkMobile();
-    
-    // Listen for window resize
-    window.addEventListener('resize', checkMobile);
-    
-    // Cleanup
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-  
-  return (
-    <SidebarContext.Provider value={{ 
-      isExpanded, 
-      setIsExpanded,
-      isMobile,
-      sidebarZIndex
-    }}>
-      {children}
-    </SidebarContext.Provider>
-  );
-}
-
-// Create router with future flags
-const router = createBrowserRouter(
-  createRoutesFromElements(
-    <>
+    <Routes>
       <Route path="/" element={
         <Suspense fallback={<PageLoader message="Loading home page..." />}>
-          <HomePage />
+          {isJDSimplified ? <JDSHomePage /> : <HomePage />}
         </Suspense>
       } />
       <Route path="/auth" element={
@@ -116,22 +88,10 @@ const router = createBrowserRouter(
         </Suspense>
       } />
       <Route 
-        path="/chat/:id" 
+        path="/chat/:threadId?" 
         element={
           <ProtectedRoute>
-            <Suspense fallback={<PageLoader message="Loading chat..." />}>
-              <ChatLayout key="chat-with-id" />
-            </Suspense>
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/chat" 
-        element={
-          <ProtectedRoute>
-            <Suspense fallback={<PageLoader message="Loading chat..." />}>
-              <ChatLayout key="chat-without-id" />
-            </Suspense>
+            <ChatLayout />
           </ProtectedRoute>
         } 
       />
@@ -139,9 +99,7 @@ const router = createBrowserRouter(
         path="/settings" 
         element={
           <ProtectedRoute>
-            <Suspense fallback={<PageLoader message="Loading settings..." />}>
-              <SettingsPage />
-            </Suspense>
+            <SettingsPage />
           </ProtectedRoute>
         } 
       />
@@ -156,6 +114,38 @@ const router = createBrowserRouter(
         } 
       />
       <Route 
+        path="/courses" 
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <JDSDashboard />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/courses/:id" 
+        element={
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader message="Loading course details..." />}>
+              <DashboardLayout>
+                <CourseDetail />
+              </DashboardLayout>
+            </Suspense>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/course/:courseId/*" 
+        element={
+          <ProtectedRoute>
+            <Suspense fallback={<PageLoader message="Loading course content..." />}>
+              <CourseContent />
+            </Suspense>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
         path="/subscription/success" 
         element={
           <ProtectedRoute>
@@ -165,16 +155,49 @@ const router = createBrowserRouter(
           </ProtectedRoute>
         } 
       />
-    </>
-  ),
-  {
-    // Add future flags to fix warnings
-    future: {
-      v7_startTransition: true,
-      v7_normalizeFormMethod: true
-    }
-  }
-);
+      
+      {/* JDS Course Routes */}
+      <Route 
+        path="/course/:courseId" 
+        element={
+          <ProtectedRoute>
+            <SimplifiedMode>
+              <CourseLayout>
+                <JDSDashboard />
+              </CourseLayout>
+            </SimplifiedMode>
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/course/:courseId/module/:moduleId" 
+        element={
+          <ProtectedRoute>
+            <SimplifiedMode>
+              <CourseLayout>
+                <JDSDashboard />
+              </CourseLayout>
+            </SimplifiedMode>
+          </ProtectedRoute>
+        } 
+      />
+      
+      <Route 
+        path="/course/:courseId/module/:moduleId/lesson/:lessonId" 
+        element={
+          <ProtectedRoute>
+            <SimplifiedMode>
+              <CourseLayout>
+                <JDSDashboard />
+              </CourseLayout>
+            </SimplifiedMode>
+          </ProtectedRoute>
+        } 
+      />
+    </Routes>
+  );
+}
 
 // Page loader component for suspense fallbacks
 function PageLoader({ message = "Loading..." }: { message?: string }) {
@@ -188,111 +211,63 @@ function PageLoader({ message = "Loading..." }: { message?: string }) {
 
 // Wrapper function for the entire app
 function App() {
-  const [loading, setLoading] = useState(true);
-  const auth = useAuth();
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   
-  // Check if we're waiting for auth to initialize
+  // Check for mobile screen size
   useEffect(() => {
-    console.log('App mounted, checking auth status:', auth.loading, auth.authInitialized);
-    
-    // Wait for auth to initialize or set a safety timeout
-    const safetyTimeoutId = setTimeout(() => {
-      if (loading) {
-        console.warn('Auth initialization safety timeout triggered after 8 seconds');
-        
-        // Directly check local storage for session as a fallback
-        const hasSessionInStorage = localStorage.getItem('supabase.auth.token') !== null;
-        console.log('Session in local storage:', hasSessionInStorage ? 'Yes' : 'No');
-        
-        setLoading(false);
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      // Auto-collapse sidebar on mobile
+      if (window.innerWidth < 768) {
+        setIsExpanded(false);
       }
-    }, 8000);
-    
-    // When auth is initialized, we can proceed
-    if (!auth.loading && auth.authInitialized) {
-      console.log('Auth initialized:', auth.user ? 'User present' : 'No user');
-      setLoading(false);
-    }
-    
-    return () => {
-      clearTimeout(safetyTimeoutId);
     };
-  }, [auth.loading, auth.authInitialized, loading]);
-  
-  // Render a loading spinner while waiting for auth
-  if (loading && auth.loading) {
-    return (
-      <div className="flex flex-col justify-center items-center h-screen w-screen bg-white">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
-        <p className="mt-4 text-gray-600">Loading application...</p>
-      </div>
-    );
-  }
-  
-  // Check if online
-  const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
-  
-  // Show offline warning if needed
-  if (!isOnline) {
-    return (
-      <div className="flex flex-col justify-center items-center h-screen w-screen bg-red-50 p-8">
-        <AlertTriangle className="h-16 w-16 text-red-500 mb-4" />
-        <h2 className="text-2xl font-bold text-red-700 mb-2">You're offline</h2>
-        <p className="text-center text-red-600 mb-4">
-          Please check your internet connection and try again.
-        </p>
-        <button
-          onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
-
-  // Add custom CSS variables for sidebar z-index and layout
-  useEffect(() => {
-    // Add CSS variables to document root
-    document.documentElement.style.setProperty('--sidebar-z-index', '100');
     
-    return () => {
-      // Clean up when component unmounts
-      document.documentElement.style.removeProperty('--sidebar-z-index');
-    };
+    // Initial check
+    checkMobile();
+    
+    // Add listener for window resize
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
-
+  
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system" storageKey="ui-theme">
-        <AuthProvider>
-          <ErrorBoundary
-            fallback={
-              <div className="fixed inset-0 flex items-center justify-center bg-background">
-                <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full text-center">
-                  <h2 className="text-xl font-bold mb-4">Application Error</h2>
-                  <p className="mb-4">
-                    The application encountered an unexpected error. Please try refreshing the page.
-                  </p>
-                  <Button 
-                    onClick={() => window.location.reload()}
-                    className="w-full"
-                  >
-                    Reload Application
-                  </Button>
-                </div>
-              </div>
-            }
-          >
-            <SelectedThreadProvider>
-              <SidebarProvider>
-                <RouterProvider router={router} />
-                <Toaster />
-                <OfflineIndicator />
-              </SidebarProvider>
-            </SelectedThreadProvider>
-          </ErrorBoundary>
-        </AuthProvider>
+        <DomainProvider>
+          <AuthProvider>
+            <SidebarContext.Provider value={{ isExpanded, setIsExpanded, isMobile }}>
+              <SelectedThreadContext.Provider value={{ selectedThreadId, setSelectedThreadId }}>
+                <ErrorBoundary
+                  fallback={
+                    <div className="fixed inset-0 flex items-center justify-center bg-background">
+                      <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full text-center">
+                        <h2 className="text-xl font-bold mb-4">Application Error</h2>
+                        <p className="mb-4">
+                          The application encountered an unexpected error. Please try refreshing the page.
+                        </p>
+                        <Button 
+                          onClick={() => window.location.reload()}
+                          className="w-full bg-orange-600 hover:bg-orange-500"
+                        >
+                          Reload Application
+                        </Button>
+                      </div>
+                    </div>
+                  }
+                >
+                  <BrowserRouter>
+                    <AppRoutes />
+                    <Toaster />
+                    <OfflineIndicator />
+                  </BrowserRouter>
+                </ErrorBoundary>
+              </SelectedThreadContext.Provider>
+            </SidebarContext.Provider>
+          </AuthProvider>
+        </DomainProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

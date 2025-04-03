@@ -12,6 +12,7 @@ import { SelectedThreadContext, SidebarContext } from '@/App';
 import { FlashcardPaywall } from '@/components/FlashcardPaywall';
 import { NavbarProvider } from '@/contexts/NavbarContext';
 import { StudyProvider } from '@/contexts/StudyContext';
+import { usePersistedState } from '@/hooks/use-persisted-state';
 
 // Import pages
 import Home from './pages/Home';
@@ -45,8 +46,8 @@ export default function FlashcardsPage() {
   const { setSelectedThreadId } = useContext(SelectedThreadContext);
   const { isExpanded, setIsExpanded } = useContext(SidebarContext);
   
-  // Get pinned state from localStorage or default to false
-  const [isPinned, setIsPinned] = useState(false);
+  // Use persisted state for pinning to maintain consistency across pages
+  const [isPinned, setIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
   
   // Check if device is mobile
   useEffect(() => {
