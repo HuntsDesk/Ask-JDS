@@ -8,8 +8,6 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useToast } from '@/hooks/use-toast';
-import { Sidebar } from '@/components/chat/Sidebar';
-import { cn } from '@/lib/utils';
 import { useThreads } from '@/hooks/use-threads';
 import { SelectedThreadContext, SidebarContext } from '@/App';
 import { UserProfileForm } from './UserProfileForm';
@@ -17,6 +15,7 @@ import { UserProfileInfo } from './UserProfileInfo';
 import { useTheme } from '@/lib/theme-provider';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { SidebarLayout } from '@/components/layout/SidebarLayout';
 
 export function SettingsPage() {
   const { user, loading, signOut } = useAuth();
@@ -24,54 +23,12 @@ export function SettingsPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [isPinnedSidebar, setIsPinnedSidebar] = useState(false);
   
   // Use the threads hook to fetch actual threads
   const { threads, loading: threadsLoading, deleteThread, updateThread } = useThreads();
   const { setSelectedThreadId } = useContext(SelectedThreadContext);
-  const { isExpanded, setIsExpanded, isMobile } = useContext(SidebarContext);
+  const { isMobile } = useContext(SidebarContext);
   const { theme, setTheme } = useTheme();
-
-  // Handle sidebar expansion/collapse properly
-  useEffect(() => {
-    // Set CSS variables for sidebar width
-    document.documentElement.style.setProperty('--sidebar-width', '280px');
-    document.documentElement.style.setProperty('--sidebar-collapsed-width', '70px');
-    
-    // Get the sidebar element
-    const sidebarElement = document.querySelector('.sidebar-container');
-    if (sidebarElement) {
-      if (isExpanded) {
-        // Expanded state
-        (sidebarElement as HTMLElement).style.width = '280px';
-        sidebarElement.classList.add('expanded');
-        sidebarElement.classList.remove('collapsed');
-      } else {
-        // Collapsed state
-        (sidebarElement as HTMLElement).style.width = '70px';
-        sidebarElement.classList.add('collapsed');
-        sidebarElement.classList.remove('expanded');
-      }
-    }
-  }, [isExpanded]);
-
-  // IMPORTANT: Do NOT auto-expand sidebar on Settings page for mobile
-  // This was likely causing the mobile sidebar to stay open when clicking Settings
-  useEffect(() => {
-    console.log('SettingsPage mounted, isMobile:', isMobile, 'isExpanded:', isExpanded);
-    
-    // Only auto-expand on desktop devices, NEVER on mobile
-    if (!isMobile) {
-      console.log('SettingsPage: Auto-expanding sidebar on desktop');
-      // Use a setTimeout to ensure this happens AFTER any navigation-triggered state changes
-      setTimeout(() => {
-        setIsExpanded(true);
-      }, 50);
-    } else {
-      console.log('SettingsPage: Preserving sidebar state on mobile:', isExpanded ? 'expanded' : 'collapsed');
-      // DO NOT modify the sidebar state on mobile - this ensures handleNavLinkClick works properly
-    }
-  }, [isMobile, setIsExpanded, isExpanded]);
 
   // Sidebar functions
   const handleNewChat = () => {
@@ -148,77 +105,20 @@ export function SettingsPage() {
     return null;
   }
 
+  // Configure sidebar props
+  const sidebarProps = {
+    onNewChat: handleNewChat,
+    onSignOut: signOut,
+    onDeleteThread: handleDeleteThread,
+    onRenameThread: handleRenameThread,
+    sessions: threads,
+    currentSession: null,
+    setActiveTab: handleThreadSelect,
+  };
+
   return (
-    <div className="bg-background min-h-screen flex">
-      {/* Mobile backdrop - only show on mobile when sidebar is expanded */}
-      {isMobile && isExpanded && (
-        <div 
-          className="fixed inset-0 bg-black/70 z-40"
-          onClick={() => {
-            console.log('Settings: Backdrop clicked, closing sidebar from expanded state:', isExpanded);
-            // Ensure we're properly updating both state and context
-            setIsExpanded(false);
-            
-            // Log the state change for debugging
-            setTimeout(() => {
-              console.log('Settings: Sidebar state after backdrop click: collapsed');
-            }, 10);
-          }}
-        />
-      )}
-      
-      {/* Chat Sidebar */}
-      <Sidebar
-        setActiveTab={handleThreadSelect}
-        isDesktopExpanded={isExpanded}
-        onDesktopExpandedChange={setIsExpanded}
-        isPinned={isPinnedSidebar}
-        onPinChange={setIsPinnedSidebar}
-        onNewChat={handleNewChat}
-        onSignOut={signOut}
-        onDeleteThread={handleDeleteThread}
-        onRenameThread={handleRenameThread}
-        sessions={threads} // Use actual threads instead of empty array
-        currentSession={null}
-      />
-      
-      {/* Main Content */}
-      <div 
-        className="flex-1 transition-all duration-300 overflow-x-hidden w-full max-w-full"
-        style={{ 
-          marginLeft: isMobile 
-            ? '0' // Don't apply margin on mobile, let sidebar overlay
-            : (isExpanded ? 'var(--sidebar-width)' : 'var(--sidebar-collapsed-width)')
-        }}
-      >
-        {/* Mobile Header with Hamburger Menu */}
-        {isMobile && (
-          <header className="fixed top-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex items-center justify-between">
-            <button
-              onClick={() => {
-                const newExpandedState = !isExpanded;
-                console.log('Settings: Hamburger menu clicked! Toggling sidebar from', isExpanded, 'to', newExpandedState);
-                
-                // Update the state
-                setIsExpanded(newExpandedState);
-                
-                // Log the state change for debugging
-                setTimeout(() => {
-                  console.log('Settings: Sidebar state after toggle:', newExpandedState ? 'expanded' : 'collapsed');
-                }, 10);
-              }}
-              className="p-2 rounded-md bg-[#f37022] text-white hover:bg-[#e36012] flex items-center justify-center"
-              aria-label="Toggle sidebar"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-              </svg>
-            </button>
-            <h1 className="text-xl font-semibold text-gray-800 dark:text-white">Settings</h1>
-            <div className="w-9"></div> {/* Spacer for alignment */}
-          </header>
-        )}
-        
+    <SidebarLayout sidebarProps={sidebarProps}>
+      <div className="bg-background min-h-screen">
         <div className={`container py-6 max-w-4xl mx-auto ${isMobile ? 'pt-16' : ''}`}>
           <div className="flex items-center justify-between mb-6">
             {/* Only show h1 title on desktop */}
@@ -324,6 +224,6 @@ export function SettingsPage() {
           </Tabs>
         </div>
       </div>
-    </div>
+    </SidebarLayout>
   );
 } 

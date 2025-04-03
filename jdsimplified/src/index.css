@@ -1,0 +1,151 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 71.4% 4.1%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 71.4% 4.1%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71.4% 4.1%;
+    --primary: 262.1 83.3% 57.8%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220.9 39.3% 11%;
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
+    --accent: 220 14.3% 95.9%;
+    --accent-foreground: 220.9 39.3% 11%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 262.1 83.3% 57.8%;
+    --radius: 0.75rem;
+    --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  h1, h2, h3, h4 {
+    @apply font-heading font-bold tracking-tight;
+  }
+
+  h1 {
+    @apply text-3xl sm:text-4xl;
+  }
+
+  h2 {
+    @apply text-2xl sm:text-3xl;
+  }
+
+  h3 {
+    @apply text-xl sm:text-2xl;
+  }
+
+  h4 {
+    @apply text-lg sm:text-xl;
+  }
+
+  p {
+    @apply text-base leading-relaxed;
+  }
+
+  small, .text-small {
+    @apply text-sm;
+  }
+
+  .text-tiny {
+    @apply text-xs;
+  }
+
+  label {
+    @apply text-sm font-medium leading-none;
+  }
+
+  .error-message {
+    @apply text-sm font-medium text-destructive;
+  }
+
+  .description {
+    @apply text-sm text-muted-foreground;
+  }
+
+  .dialog-title {
+    @apply text-lg font-semibold;
+  }
+
+  .section-title {
+    @apply text-2xl font-bold;
+  }
+
+  .feature-heading {
+    @apply text-xl font-semibold;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/90 backdrop-blur-lg border border-white/20 shadow-lg;
+  }
+  
+  .premium-card {
+    @apply rounded-xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  }
+  
+  .nav-link {
+    @apply relative px-3 py-2 text-foreground transition-colors hover:text-jdorange after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-0 after:bg-jdorange after:transition-all hover:after:w-full;
+  }
+  
+  .btn-primary {
+    @apply bg-jdorange text-white font-medium px-6 py-3 rounded-lg transition-all hover:bg-jdorange-dark active:scale-95 shadow-md hover:shadow-lg;
+  }
+  
+  .btn-secondary {
+    @apply bg-jdblue text-white font-medium px-6 py-3 rounded-lg transition-all hover:bg-jdblue-light active:scale-95 shadow-md hover:shadow-lg;
+  }
+  
+  .btn-outline {
+    @apply border-2 border-jdorange text-jdorange font-medium px-6 py-3 rounded-lg transition-all hover:bg-jdorange hover:text-white active:scale-95;
+  }
+  
+  .heading-xl {
+    @apply text-4xl md:text-5xl lg:text-6xl font-bold leading-tight;
+  }
+  
+  .section-padding {
+    @apply py-16 md:py-24 px-6 md:px-12 lg:px-24;
+  }
+  
+  .section-title {
+    @apply text-3xl md:text-4xl font-bold mb-6 md:mb-10;
+  }
+  
+  .stagger-animate-slide > * {
+    opacity: 0;
+    animation: slideUp 0.5s ease-out forwards;
+  }
+  
+  .stagger-animate-slide > *:nth-child(1) { animation-delay: 0.1s; }
+  .stagger-animate-slide > *:nth-child(2) { animation-delay: 0.2s; }
+  .stagger-animate-slide > *:nth-child(3) { animation-delay: 0.3s; }
+  .stagger-animate-slide > *:nth-child(4) { animation-delay: 0.4s; }
+  .stagger-animate-slide > *:nth-child(5) { animation-delay: 0.5s; }
+  .stagger-animate-slide > *:nth-child(6) { animation-delay: 0.6s; }
+}
+
+/* ... keep existing code (for the remaining CSS styles) */

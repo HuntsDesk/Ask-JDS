@@ -230,7 +230,7 @@ export function HomePage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 bg-gradient-to-b from-gray-50 to-white animated-gradient overflow-x-hidden">
+      <section className="pt-32 pb-20 overflow-x-hidden animated-gradient">
         <div className="max-w-4xl mx-auto px-4 box-border">
           {/* Hero Logo Section - Larger, vertically stacked */}
           <div className="flex flex-col items-center justify-center mb-8">
@@ -297,17 +297,17 @@ export function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-white p-8 rounded-xl shadow-sm">
               <MessageSquare className="w-12 h-12 text-[#00178E] mb-4" />
-              <h3 className="text-xl font-semibold mb-4 text-[#F37022]">Ask a Question</h3>
+              <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Ask a Question</h3>
               <p className="text-gray-600">Type in your legal query. Bar prep, case law, general despair—it's all fair game.</p>
             </div>
             <div className="bg-white p-8 rounded-xl shadow-sm">
               <Brain className="w-12 h-12 text-[#00178E] mb-4" />
-              <h3 className="text-xl font-semibold mb-4 text-[#F37022]">Get an Answer</h3>
+              <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Get an Answer</h3>
               <p className="text-gray-600">Powered by legal outlines, case summaries, and the AI equivalent of an over-caffeinated law nerd.</p>
             </div>
             <div className="bg-white p-8 rounded-xl shadow-sm">
               <Rocket className="w-12 h-12 text-[#00178E] mb-4" />
-              <h3 className="text-xl font-semibold mb-4 text-[#F37022]"><Master the Topic></h3>
+              <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Master the Topic</h3>
               <p className="text-gray-600">We can't guarantee an A, but we can make sure you at least sound like you know what you're talking about.</p>
             </div>
           </div>
@@ -368,16 +368,19 @@ export function HomePage() {
             {questions.map((question, index) => (
               <div 
                 key={index} 
-                className={`${question.bgColor} p-6 rounded-xl transition-all duration-300 hover:shadow-lg group`}
+                className="group relative bg-white rounded-xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden"
               >
-                <div className="flex items-start space-x-4">
-                  <div className={`${question.color} bg-white p-2 rounded-md`}>
-                    <question.icon className="w-5 h-5" />
+                {/* Gradient Background */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${question.bgColor} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
+                
+                <div className="relative flex items-start space-x-6">
+                  <div className={`${question.color} p-3 rounded-lg`}>
+                    <question.icon className="w-10 h-10" />
                   </div>
                   <div>
-                    <span className={`text-2xl font-semibold ${question.color} mb-2 block`}>
+                    <h3 className={`text-2xl font-semibold ${question.color} mb-2`}>
                       {question.category}
-                    </span>
+                    </h3>
                     <p className="text-lg text-gray-600 group-hover:text-gray-700 transition-colors">
                       {question.text}
                     </p>
@@ -420,7 +423,7 @@ export function HomePage() {
               features: [
                 "Unlimited Ask JDS Messages",
                 "Create Unlimited Flashcards",
-                "Expert Curated Flashcards",
+                "400+ Expert Curated Flashcards",
                 "Flashcard Study Mode",
                 "Access From Any Device",
                 "A Simplified Study Experience",
