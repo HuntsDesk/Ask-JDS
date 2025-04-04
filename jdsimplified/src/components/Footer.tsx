@@ -1,4 +1,3 @@
-
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Youtube, Twitter, Linkedin, Instagram } from 'lucide-react';
 
@@ -13,9 +12,9 @@ const Footer = () => {
           <div className="col-span-1 md:col-span-1">
             <Link to="/" className="flex items-center mb-4">
               <img 
-                src="/lovable-uploads/logo.svg" 
+                src="/images/JDSimplified_Logo_wht.png" 
                 alt="JD Simplified Logo" 
-                className="h-12 w-auto brightness-0 invert"
+                className="h-12 w-auto"
               />
             </Link>
             <p className="text-gray-300 mb-4">

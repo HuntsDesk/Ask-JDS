@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle } from 'lucide-react';
@@ -53,7 +52,7 @@ const AppFeaturesSection = () => {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-jdorange/30 to-transparent rounded-lg -rotate-3 scale-105"></div>
                 <img 
-                  src="/lovable-uploads/fbe1846c-25c8-4e0f-8bdf-14c1629f3a89.png" 
+                  src="/images/JDSimplified_Logo.png" 
                   alt="AI Chat Assistant"
                   className="w-full h-auto rounded-lg shadow-lg relative"
                 />
@@ -71,7 +70,7 @@ const AppFeaturesSection = () => {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-orange-400/30 to-transparent rounded-lg rotate-3 scale-105"></div>
                 <img 
-                  src="/lovable-uploads/80c812f5-18b8-41c7-b7d9-653508530fe4.jpg" 
+                  src="/images/JD_Simplified_About_Me.jpg" 
                   alt="Flashcards"
                   className="w-full h-auto rounded-lg shadow-lg relative"
                 />
@@ -141,7 +140,7 @@ const AppFeaturesSection = () => {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-jdorange/30 to-transparent rounded-lg -rotate-3 scale-105"></div>
                 <img 
-                  src="/lovable-uploads/c4c7f4cb-d3f4-4705-88c3-e1f4b1492d29.png" 
+                  src="/images/JD_Simplified_Hero.png" 
                   alt="Law Courses"
                   className="w-full h-auto rounded-lg shadow-lg relative"
                 />

@@ -1,3 +1,25 @@
+The following files need to...
+
+Verifying all their dependencies are properly replicated in the main app
+Updating all import paths that reference them
+Testing thoroughly that the application still works
+
+jdsimplified/src/components/home/HeroSection.tsx
+jdsimplified/src/components/home/FeaturesSection.tsx
+jdsimplified/src/components/home/NonServicesSection.tsx
+jdsimplified/src/components/home/FeaturedCoursesSection.tsx
+jdsimplified/src/components/home/TestimonialsSection.tsx
+jdsimplified/src/components/home/AboutSection.tsx
+jdsimplified/src/components/home/FaqSection.tsx
+jdsimplified/src/components/home/ContactSection.tsx
+jdsimplified/src/components/home/CtaSection.tsx
+jdsimplified/src/components/Navbar.tsx
+jdsimplified/src/pages/Dashboard.tsx
+jdsimplified/src/components/AuthenticatedLayout.tsx
+jdsimplified/src/index.css
+
+----
+
 Create a React 18+ TypeScript monorepo-style boilerplate that supports multi-domain deployment from a single codebase. The architecture must enable per-domain builds, routing, and feature toggling.
 
 ⸻

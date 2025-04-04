@@ -71,6 +71,11 @@ module.exports = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      textShadow: {
+        sm: '0 1px 2px rgba(0, 0, 0, 0.3)',
+        DEFAULT: '0 2px 4px rgba(0, 0, 0, 0.3)',
+        lg: '0 8px 16px rgba(0, 0, 0, 0.3)',
+      },
       keyframes: {
         "accordion-down": {
           from: { height: 0 },
@@ -95,6 +100,22 @@ module.exports = {
           '50%': { transform: 'translateY(3px)' },
           '100%': { transform: 'translateY(-3px)' },
         },
+        fadeIn: {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        slideUp: {
+          from: { transform: "translateY(20px)", opacity: "0" },
+          to: { transform: "translateY(0)", opacity: "1" },
+        },
+        slideRight: {
+          from: { transform: "translateX(-20px)", opacity: "0" },
+          to: { transform: "translateX(0)", opacity: "1" },
+        },
+        pulse: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.5" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -102,8 +123,31 @@ module.exports = {
         'float': 'float 3s ease-in-out infinite',
         'float-delayed': 'float-delayed 4s ease-in-out infinite',
         'float-slow': 'float-slow 5s ease-in-out infinite',
+        fadeIn: "fadeIn 0.5s ease-out forwards",
+        slideUp: "slideUp 0.5s ease-out forwards",
+        slideRight: "slideRight 0.5s ease-out forwards",
+        pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    function({ addUtilities }) {
+      const newUtilities = {
+        '.text-shadow-sm': {
+          textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+        },
+        '.text-shadow': {
+          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+        },
+        '.text-shadow-lg': {
+          textShadow: '0 8px 16px rgba(0, 0, 0, 0.3)'
+        },
+        '.text-shadow-none': {
+          textShadow: 'none'
+        },
+      }
+      addUtilities(newUtilities)
+    }
+  ],
 }
