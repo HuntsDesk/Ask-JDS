@@ -6,18 +6,19 @@ import { ChatInterface } from './ChatInterface';
 import { useToast } from '@/hooks/use-toast';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { SelectedThreadContext, SidebarContext } from '@/App';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { useTheme } from '@/lib/theme-provider';
 
 export function ChatContainer() {
   // Move all the chat-specific logic from ChatLayout to here
   const { user, signOut } = useAuth();
   const { selectedThreadId, setSelectedThreadId } = useContext(SelectedThreadContext);
   const { isExpanded, setIsExpanded, isMobile } = useContext(SidebarContext);
+  const { theme } = useTheme(); // Add theme context
   const [activeThread, setActiveThread] = useState<string | null>(null);
   const [activeThreadTitle, setActiveThreadTitle] = useState<string>('');
   const [threads, setThreads] = useState<Thread[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);  // Start with loading state to avoid flashing content
+  const [contentReady, setContentReady] = useState(false); // New state to track when content is fully ready
   const [sending, setSending] = useState(false);
   const [threadsLoading, setThreadsLoading] = useState(true);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
@@ -31,6 +32,23 @@ export function ChatContainer() {
   
   const threadId = params.threadId || null;
   const initialTitle = threadId ? searchParams.get('title') || 'New Chat' : 'New Chat';
+
+  // Ensure dark mode class is applied to root based on theme
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else if (theme === 'light') {
+      root.classList.remove('dark');
+    } else if (theme === 'system') {
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (systemPrefersDark) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    }
+  }, [theme]);
 
   const {
     threads: originalThreads,
@@ -46,6 +64,14 @@ export function ChatContainer() {
   const messagesTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
 
   const isDesktop = !isMobile;
+
+  // Create a callback for updating thread titles
+  const handleThreadTitleGenerated = async (title: string) => {
+    if (activeThread) {
+      console.log(`Updating thread title to "${title}" after 2 messages`);
+      await updateThread(activeThread, { title });
+    }
+  };
 
   // A helper function to log thread details
   const logThreadInfo = () => {
@@ -63,6 +89,49 @@ export function ChatContainer() {
     logThreadInfo();
   }, [threadId, activeThread, originalThreads, originalThreadsLoading, selectedThreadId]);
 
+  // MESSAGES HANDLING LOGIC - Must be defined before it's used in the loading state effect!
+  const messagesResult = useMessages(
+    activeThread, 
+    undefined, 
+    handleThreadTitleGenerated
+  );
+  const threadMessages = messagesResult?.messages || [];
+  const messagesLoading = messagesResult?.loading || false;
+  const isGenerating = messagesResult?.isGenerating || false;
+  const showPaywall = messagesResult?.showPaywall || false;
+  const handleClosePaywall = messagesResult?.handleClosePaywall;
+  const messageCount = messagesResult?.messageCount || 0;
+  const messageLimit = messagesResult?.messageLimit || 0;
+  const preservedMessage = messagesResult?.preservedMessage;
+  
+  // Track when content is fully ready to display
+  useEffect(() => {
+    // First, check if we're still in any loading state
+    const isStillLoading = 
+      originalThreadsLoading || 
+      (activeThread && messagesLoading) ||
+      isGenerating;
+      
+    // Next, check if we have an active thread selected
+    const hasActiveThread = !!activeThread;
+    
+    // Finally, check if we have messages or if this is a new thread (which might legitimately have no messages)
+    const hasValidContent = threadMessages.length > 0 || (hasActiveThread && !messagesLoading);
+    
+    // Only set content as ready when everything is loaded and we have valid content to show
+    if (!isStillLoading && hasActiveThread && hasValidContent) {
+      console.log('ChatContainer: Content is fully ready to display');
+      
+      // Set content ready immediately without delay
+      setContentReady(true);
+      setLoading(false);
+    } else {
+      // If we're not fully ready, make sure loading is true and contentReady is false
+      setLoading(true);
+      setContentReady(false);
+    }
+  }, [originalThreadsLoading, activeThread, messagesLoading, isGenerating, threadMessages.length]);
+  
   // Initialize the thread from URL or global state when component mounts
   useEffect(() => {
     // Make sure we have threads loaded
@@ -153,35 +222,15 @@ export function ChatContainer() {
   const handleSetActiveThread = (threadId: string) => {
     console.log('ChatContainer: handleSetActiveThread called with thread ID:', threadId);
     if (threadId && originalThreads.some(t => t.id === threadId)) {
+      // When changing threads, reset the loading states
+      setContentReady(false);
+      setLoading(true);
       setActiveThread(threadId);
       setSelectedThreadId(threadId);
     } else {
       console.log('ChatContainer: Attempted to set invalid thread ID:', threadId);
     }
   };
-
-  // Create a callback for updating thread titles
-  const handleThreadTitleGenerated = async (title: string) => {
-    if (activeThread) {
-      console.log(`Updating thread title to "${title}" after 2 messages`);
-      await updateThread(activeThread, { title });
-    }
-  };
-
-  // MESSAGES HANDLING LOGIC
-  const messagesResult = useMessages(
-    activeThread, 
-    undefined, 
-    handleThreadTitleGenerated
-  );
-  const threadMessages = messagesResult?.messages || [];
-  const messagesLoading = messagesResult?.loading || false;
-  const isGenerating = messagesResult?.isGenerating || false;
-  const showPaywall = messagesResult?.showPaywall || false;
-  const handleClosePaywall = messagesResult?.handleClosePaywall;
-  const messageCount = messagesResult?.messageCount || 0;
-  const messageLimit = messagesResult?.messageLimit || 0;
-  const preservedMessage = messagesResult?.preservedMessage;
 
   // Create a new thread
   const handleNewChat = async () => {
@@ -190,6 +239,10 @@ export function ChatContainer() {
       
       // Clear any stale creation flags
       sessionStorage.removeItem('attemptingThreadCreation');
+      
+      // Reset loading states for new thread creation
+      setContentReady(false);
+      setLoading(true);
       
       toast({
         title: "Creating new conversation",
@@ -247,6 +300,10 @@ export function ChatContainer() {
       
       // If we deleted the active thread, navigate to another thread
       if (isActiveThread) {
+        // Reset loading states when navigating away from deleted thread
+        setContentReady(false);
+        setLoading(true);
+        
         if (originalThreads.length > 1) {
           // Find the next thread to navigate to
           // Use the thread before if available, otherwise use the thread after
@@ -297,8 +354,8 @@ export function ChatContainer() {
   return (
     <ChatInterface 
       threadId={activeThread}
-      messages={threadMessages}
-      loading={messagesLoading}
+      messages={contentReady ? threadMessages : []}  // Only show messages when fully ready
+      loading={loading}
       loadingTimeout={messagesTimeoutIdRef.current !== null && messagesLoading}
       onSend={messagesResult?.sendMessage}
       onRefresh={handleRefresh}

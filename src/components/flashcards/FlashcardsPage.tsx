@@ -239,77 +239,89 @@ export default function FlashcardsPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Mobile backdrop overlay - only visible when sidebar is expanded on mobile */}
+      {/* Mobile backdrop - only show when sidebar is expanded on mobile */}
       {isExpanded && isMobile && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40"
           onClick={() => setIsExpanded(false)}
-          aria-hidden="true"
         />
       )}
       
       {/* Chat Sidebar */}
-      <Sidebar
-        setActiveTab={handleThreadSelect}
-        isDesktopExpanded={isExpanded}
-        onDesktopExpandedChange={setIsExpanded}
-        isPinned={isPinned}
-        onPinChange={setIsPinned}
-        onNewChat={handleNewChat}
-        onSignOut={handleSignOut}
-        onDeleteThread={handleDeleteThread}
-        onRenameThread={handleRenameThread}
-        sessions={threads}
-        currentSession={null}
-      />
+      <div 
+        className={cn(
+          "sidebar-container h-screen bg-white dark:bg-gray-800 z-50 border-r dark:border-gray-700 transition-all duration-300",
+          isExpanded ? "w-[280px]" : "w-[70px]",
+          isMobile && !isExpanded && "hidden"
+        )}
+      >
+        <Sidebar 
+          setActiveTab={handleThreadSelect}
+          isDesktopExpanded={isExpanded}
+          onDesktopExpandedChange={setIsExpanded}
+          isPinned={isPinned}
+          onPinChange={setIsPinned}
+          onNewChat={handleNewChat}
+          onSignOut={handleSignOut}
+          onDeleteThread={handleDeleteThread}
+          onRenameThread={handleRenameThread}
+          sessions={threads || []}
+          currentSession={null}
+        />
+      </div>
       
-      {/* Main content */}
+      {/* Main Content */}
       <div className={cn(
-        "flex-1 overflow-auto transition-all duration-300 ease-in-out",
-        isExpanded ? 'md:ml-[280px]' : 'md:ml-[70px]'
+        "flex-1 overflow-auto w-full h-screen transition-all duration-300 bg-white dark:bg-gray-900",
+        isExpanded ? "md:pl-0" : "md:pl-0"
       )}>
         <NavbarProvider>
-          <Navbar />
-          <div className="container mx-auto px-4 pt-10 md:pt-28 mt-16 md:mt-0">
-            <Routes>
-              <Route path="/" element={<Navigate to="/flashcards/subjects" replace />} />
-              <Route path="/subjects" element={<ManageSubjects />} />
-              <Route path="/subjects/:id" element={
-                <UnifiedStudyMode subjectId />
-              } />
-              <Route path="/collections" element={<FlashcardCollections />} />
-              <Route path="/flashcards" element={<AllFlashcards />} />
-              <Route path="/study/:id" element={
-                <UnifiedStudyMode collectionId />
-              } />
-              <Route path="/study" element={
-                <UnifiedStudyMode />
-              } />
-              <Route path="/study/:mode/:id" element={
-                <UnifiedStudyMode />
-              } />
-              <Route path="/create-collection" element={<CreateSet />} />
-              <Route path="/create" element={<Navigate to="/flashcards/create-collection" replace />} />
-              <Route path="/edit/:id" element={<EditCollection />} />
-              <Route path="/cards/:id" element={<ManageCards />} />
-              <Route path="/add-card/:id" element={<AddCard />} />
-              <Route path="/edit-card/:cardId" element={<EditCard />} />
-              <Route path="/all-flashcards" element={<AllFlashcards />} />
-              <Route path="/search" element={<SearchResults />} />
-              <Route path="/edit-subject/:id" element={<EditSubject />} />
-              <Route path="/create-subject" element={<CreateSubject />} />
-              <Route path="/create-flashcard-select" element={<CreateFlashcardSelect />} />
-              <Route path="/create-flashcard" element={<CreateFlashcard />} />
-              {/* Add a catch-all route to redirect to subjects */}
-              <Route path="*" element={<Navigate to="/flashcards/subjects" replace />} />
-            </Routes>
-            {showPaywall && (
-              <FlashcardPaywall
-                isOpen={showPaywall}
-                onClose={handleClosePaywall}
-              />
-            )}
-          </div>
+          <StudyProvider>
+            <Navbar />
+            <div className="container mx-auto px-4 pt-10 md:pt-28 mt-16 md:mt-0">
+              {showPaywall ? (
+                <FlashcardPaywall 
+                  onCancel={handleClosePaywall}
+                />
+              ) : (
+                <Routes>
+                  <Route path="/" element={<Navigate to="/flashcards/subjects" replace />} />
+                  <Route 
+                    path="subjects" 
+                    element={<ManageSubjects />}
+                  />
+                  <Route path="/subjects/:id" element={
+                    <UnifiedStudyMode subjectId />
+                  } />
+                  <Route path="/collections" element={<FlashcardCollections />} />
+                  <Route path="/flashcards" element={<AllFlashcards />} />
+                  <Route path="/study/:id" element={
+                    <UnifiedStudyMode collectionId />
+                  } />
+                  <Route path="/study" element={
+                    <UnifiedStudyMode />
+                  } />
+                  <Route path="/study/:mode/:id" element={
+                    <UnifiedStudyMode />
+                  } />
+                  <Route path="/create-collection" element={<CreateSet />} />
+                  <Route path="/create" element={<Navigate to="/flashcards/create-collection" replace />} />
+                  <Route path="/edit/:id" element={<EditCollection />} />
+                  <Route path="/cards/:id" element={<ManageCards />} />
+                  <Route path="/add-card/:id" element={<AddCard />} />
+                  <Route path="/edit-card/:cardId" element={<EditCard />} />
+                  <Route path="/all-flashcards" element={<AllFlashcards />} />
+                  <Route path="/search" element={<SearchResults />} />
+                  <Route path="/edit-subject/:id" element={<EditSubject />} />
+                  <Route path="/create-subject" element={<CreateSubject />} />
+                  <Route path="/create-flashcard-select" element={<CreateFlashcardSelect />} />
+                  <Route path="/create-flashcard" element={<CreateFlashcard />} />
+                  {/* Add a catch-all route to redirect to subjects */}
+                  <Route path="*" element={<Navigate to="/flashcards/subjects" replace />} />
+                </Routes>
+              )}
+            </div>
+          </StudyProvider>
         </NavbarProvider>
       </div>
     </div>

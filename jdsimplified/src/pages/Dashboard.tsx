@@ -150,21 +150,21 @@ const Dashboard = () => {
   }
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white dark:bg-gray-900">
       {/* Header section */}
       <div className="flex justify-between items-end mb-2">
         <div>
-          <h1 className="text-3xl font-bold">Your Learning Dashboard</h1>
-          <p className="text-gray-600">Track your progress and continue your learning journey</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Your Learning Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400">Track your progress and continue your learning journey</p>
         </div>
       </div>
       
       {/* Search Bar */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
         <Input 
           placeholder="Search courses..." 
-          className="pl-10 focus-visible:ring-jdorange focus-visible:border-jdorange"
+          className="pl-10 focus-visible:ring-jdorange focus-visible:border-jdorange dark:bg-gray-800 dark:border-gray-700"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -172,12 +172,12 @@ const Dashboard = () => {
       
       {/* My Courses */}
       <div>
-        <h2 className="text-xl font-bold mb-4">My Courses</h2>
+        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">My Courses</h2>
         
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-48 bg-gray-200 rounded-lg"></div>
+              <div key={i} className="h-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
             ))}
           </div>
         ) : purchasedCourses.length > 0 ? (
@@ -199,31 +199,31 @@ const Dashboard = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-gray-50 rounded-lg mb-6">
+          <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-lg mb-6">
             <div className="w-24 h-24 mb-0.5 flex items-center justify-center mx-auto">
               <img 
                 src="/images/JD Simplified Favicon.svg" 
                 alt="JD Simplified Logo" 
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain dark:brightness-0 dark:invert"
               />
             </div>
             <h3 className="text-[1.35rem] font-bold text-jdorange mb-1">No Courses Yet</h3>
-            <p className="text-gray-600 text-sm leading-relaxed">Get started by exploring our available courses.</p>
+            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">Get started by exploring our available courses.</p>
           </div>
         )}
       </div>
       
       {/* Available Courses for Purchase */}
       <div id="available-courses">
-        <h2 className="text-xl font-bold mb-4">Available Courses</h2>
+        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Available Courses</h2>
         
         {isLoading ? (
           <div className="flex justify-center items-center py-12">
             <LoadingSpinner size="lg" />
           </div>
         ) : availableCourses.length === 0 ? (
-          <div className="text-center py-8 bg-gray-50 rounded-lg">
-            <p className="text-gray-500">No courses available at the moment.</p>
+          <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <p className="text-gray-500 dark:text-gray-400">No courses available at the moment.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

@@ -35,7 +35,7 @@ const CourseCard = ({
   return (
     <div 
       className={cn(
-        "premium-card h-full flex flex-col bg-white p-6 rounded-lg shadow-sm transition-all duration-300 relative",
+        "premium-card h-full flex flex-col bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm transition-all duration-300 relative",
         featured && "border border-jdorange/30",
         isHovered && "shadow-lg transform translate-y-[-2px]"
       )}
@@ -50,7 +50,7 @@ const CourseCard = ({
             src="/images/JD Simplified Favicon.svg" 
             alt="JD Simplified Logo" 
             className={cn(
-              "w-full h-full object-contain transition-transform duration-300",
+              "w-full h-full object-contain transition-transform duration-300 dark:brightness-0 dark:invert",
               isHovered && "transform scale-105"
             )}
           />
@@ -60,7 +60,7 @@ const CourseCard = ({
         <h3 
           className={cn(
             "text-[1.35rem] font-bold text-center mb-1",
-            "text-jdblue"
+            "text-jdblue dark:text-blue-300"
           )}
         >
           {title}
@@ -68,13 +68,13 @@ const CourseCard = ({
       </div>
       
       {/* Course Info */}
-      <div className="flex items-center mt-1 mb-1.5 text-sm text-gray-500">
+      <div className="flex items-center mt-1 mb-1.5 text-sm text-gray-500 dark:text-gray-400">
         <BookOpen className="h-4 w-4 mr-1" />
         <span>{lessons} lessons</span>
       </div>
       
       {/* Description */}
-      <p className="text-gray-600 text-left line-clamp-3 flex-grow text-sm leading-relaxed">{description}</p>
+      <p className="text-gray-600 dark:text-gray-300 text-left line-clamp-3 flex-grow text-sm leading-relaxed">{description}</p>
       
       {/* Bottom actions */}
       <div className="mt-6">
@@ -89,7 +89,7 @@ const CourseCard = ({
         <div className="grid grid-cols-2 gap-3">
           <Link 
             to={`/courses/${id}`} 
-            className="px-4 py-2 text-center border border-jdblue text-jdblue rounded-lg font-medium hover:bg-jdblue hover:text-white transition-all duration-300"
+            className="px-4 py-2 text-center border border-jdblue text-jdblue dark:border-blue-400 dark:text-blue-400 rounded-lg font-medium hover:bg-jdblue hover:text-white dark:hover:bg-blue-700 transition-all duration-300"
           >
             Details
           </Link>

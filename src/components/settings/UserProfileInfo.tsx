@@ -107,35 +107,35 @@ export function UserProfileInfo() {
     <div className="space-y-4">
       <div className="grid gap-4 py-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="flex items-center space-x-2 bg-muted/50 p-3 rounded-md">
+          <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 p-3 rounded-md">
             <MessageSquare className="h-5 w-5 text-blue-500" />
             <div>
-              <div className="text-sm font-medium">Messages Sent</div>
-              <div className="text-2xl font-bold">{messagesSent !== null ? messagesSent : 'N/A'}</div>
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Messages Sent</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">{messagesSent !== null ? messagesSent : 'N/A'}</div>
             </div>
           </div>
           
-          <div className="flex items-center space-x-2 bg-muted/50 p-3 rounded-md">
+          <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 p-3 rounded-md">
             <MessageSquare className="h-5 w-5 text-green-500" />
             <div>
-              <div className="text-sm font-medium">Messages Received</div>
-              <div className="text-2xl font-bold">{messagesReceived !== null ? messagesReceived : 'N/A'}</div>
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Messages Received</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">{messagesReceived !== null ? messagesReceived : 'N/A'}</div>
             </div>
           </div>
           
-          <div className="flex items-center space-x-2 bg-muted/50 p-3 rounded-md">
+          <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 p-3 rounded-md">
             <Star className="h-5 w-5 text-amber-500" />
             <div>
-              <div className="text-sm font-medium">Premium Flashcards</div>
-              <div className="text-2xl font-bold">{premiumFlashcards !== null ? premiumFlashcards : 'N/A'}</div>
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Premium Flashcards</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">{premiumFlashcards !== null ? premiumFlashcards : 'N/A'}</div>
             </div>
           </div>
           
-          <div className="flex items-center space-x-2 bg-muted/50 p-3 rounded-md">
+          <div className="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 p-3 rounded-md">
             <BookOpen className="h-5 w-5 text-purple-500" />
             <div>
-              <div className="text-sm font-medium">Created Flashcards</div>
-              <div className="text-2xl font-bold">{createdFlashcards !== null ? createdFlashcards : 'N/A'}</div>
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Created Flashcards</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">{createdFlashcards !== null ? createdFlashcards : 'N/A'}</div>
             </div>
           </div>
         </div>

@@ -16,11 +16,11 @@ const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
   const isCourseDetail = location.pathname.match(/\/courses\/[^\/]+$/);
   
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-white dark:bg-gray-900">
       <Navbar />
       <main className="flex flex-1">
         {/* Sidebar - we can add a sidebar component here later */}
-        <div className="w-64 bg-jdblue text-white p-6 hidden lg:block">
+        <div className="w-64 bg-jdblue dark:bg-gray-800 text-white p-6 hidden lg:block">
           <h2 className="text-xl font-bold mb-6">Navigation</h2>
           <nav className="space-y-2">
             <button 
@@ -45,13 +45,13 @@ const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
         </div>
         
         {/* Main content */}
-        <div className="flex-1 bg-gray-50">
+        <div className="flex-1 bg-white dark:bg-gray-900">
           {/* On course detail pages, don't add padding as the content has its own */}
           {isCourseDetail ? (
             <div className="w-full">{children}</div>
           ) : (
             <div className="max-w-6xl mx-auto p-6">
-              {title && <h1 className="text-2xl font-bold mb-6">{title}</h1>}
+              {title && <h1 className="text-2xl font-bold mb-6 dark:text-white">{title}</h1>}
               {children}
             </div>
           )}
