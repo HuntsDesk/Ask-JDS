@@ -4,10 +4,12 @@ import { Toaster } from '@/components/ui/toaster';
 import { DomainProvider, useDomain } from '@/lib/domain-context';
 import SimplifiedMode from '@/lib/SimplifiedMode';
 
+// Direct imports for homepage components
+import { HomePage } from '@/components/HomePage';
+import { HomePage as JDSHomePage } from '@/components/jds/HomePage';
+
 // Lazy load large components
 const ChatLayout = lazy(() => import('@/components/chat/ChatLayout').then(module => ({ default: module.ChatLayout })));
-const HomePage = lazy(() => import('@/components/HomePage').then(module => ({ default: module.HomePage })));
-const JDSHomePage = lazy(() => import('@/components/jds/HomePage').then(module => ({ default: module.HomePage })));
 const AuthPage = lazy(() => import('@/components/auth/AuthPage').then(module => ({ default: module.AuthPage })));
 const FlashcardsPage = lazy(() => import('@/components/flashcards/FlashcardsPage'));
 const CoursesPage = lazy(() => import('@/components/courses/CoursesPage'));
@@ -78,9 +80,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={
-        <Suspense fallback={<PageLoader message="Loading home page..." />}>
-          {isJDSimplified ? <JDSHomePage /> : <HomePage />}
-        </Suspense>
+        // Render homepage directly without Suspense
+        isJDSimplified ? <JDSHomePage /> : <HomePage />
       } />
       <Route path="/auth" element={
         <Suspense fallback={<PageLoader message="Loading authentication..." />}>

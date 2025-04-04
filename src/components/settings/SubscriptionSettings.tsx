@@ -413,12 +413,12 @@ export function SubscriptionSettings() {
   // Render loading state
   if (isLoading) {
     return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Subscription</CardTitle>
-          <CardDescription>Loading your subscription information...</CardDescription>
+      <Card className="w-full dark:bg-gray-800 border dark:border-gray-700">
+        <CardHeader className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+          <CardTitle className="text-gray-900 dark:text-white">Subscription</CardTitle>
+          <CardDescription className="text-gray-500 dark:text-gray-300">Loading your subscription information...</CardDescription>
         </CardHeader>
-        <CardContent className="flex justify-center py-6">
+        <CardContent className="flex justify-center py-6 dark:bg-gray-800">
           <LoadingSpinner className="h-8 w-8" />
         </CardContent>
       </Card>
@@ -426,51 +426,178 @@ export function SubscriptionSettings() {
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>Subscription</CardTitle>
-        <CardDescription>
+    <Card className="w-full dark:bg-gray-800 border dark:border-gray-700">
+      <CardHeader className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+        <CardTitle className="text-gray-900 dark:text-white">Subscription</CardTitle>
+        <CardDescription className="text-gray-500 dark:text-gray-300">
           {isFreeTier() 
             ? 'You are currently on the free tier' 
             : 'You have an active Ask JDS Premium subscription'}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <h3 className="text-lg font-medium">Current Plan</h3>
-          <p className="text-sm text-muted-foreground">
-            {isFreeTier() ? 'Free Tier' : 'Premium Plan'}
-          </p>
-          {!isFreeTier() && (
-            <div className="mt-2 text-sm rounded-md bg-muted p-3">
-              <p>Your subscription renews on <strong>{formatSubscriptionEndDate()}</strong></p>
-              {subscription.cancelAtPeriodEnd && (
-                <p className="mt-1 text-yellow-500">
-                  Your subscription is set to cancel at the end of the current billing period.
+      <CardContent className="space-y-4 dark:bg-gray-800">
+        <div className="space-y-4">
+          {/* Current Plan */}
+          <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg border dark:border-gray-700">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Current Plan</h3>
+                <p className="mt-1 text-gray-600 dark:text-gray-300">
+                  {isFreeTier() ? 'Free Tier' : 'Premium Plan'}
                 </p>
+              </div>
+              {!isFreeTier() && (
+                <Badge variant="outline" className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800">
+                  Active
+                </Badge>
               )}
             </div>
-          )}
-        </div>
-        
-        <div>
-          <h3 className="text-lg font-medium">Message Usage</h3>
-          <div className="flex items-center gap-2">
-            <p className="text-sm text-muted-foreground">
+            
+            {!isFreeTier() && (
+              <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                Your subscription will renew on {formatSubscriptionEndDate()}.
+              </div>
+            )}
+          </div>
+
+          {/* Message Usage */}
+          <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg border dark:border-gray-700">
+            <h3 className="text-lg font-medium mb-1 text-gray-900 dark:text-white">Message Usage</h3>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-gray-600 dark:text-gray-300">{messageCount} messages this month</p>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={refreshMessageCount}
+                disabled={isActionLoading}
+                className="h-8 px-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                <span className="text-xs">Refresh</span>
+              </Button>
+            </div>
+            
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-1">
+              <div 
+                className="bg-[#F37022] h-2.5 rounded-full" 
+                style={{ 
+                  width: `${Math.min(100, (messageCount / (isFreeTier() ? FREE_TIER_LIMIT : Infinity)) * 100)}%` 
+                }}
+              ></div>
+            </div>
+            
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               {isFreeTier() 
-                ? `${messageCount}/${FREE_MESSAGE_LIMIT} messages this month`
-                : `${messageCount} messages this month`}
+                ? `${messageCount}/${FREE_TIER_LIMIT} monthly limit` 
+                : `Unlimited messages with Premium`}
             </p>
           </div>
           
-          {isFreeTier() && messageCount >= FREE_MESSAGE_LIMIT && (
-            <div className="mt-2 text-sm rounded-md bg-destructive/15 p-3 text-destructive">
-              <p>You have reached your free message limit for this month. Upgrade to Premium for unlimited messages.</p>
-            </div>
-          )}
+          {/* Subscription Actions */}
+          <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg border dark:border-gray-700">
+            <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-white">
+              {isFreeTier() ? 'Upgrade Your Plan' : 'Manage Subscription'}
+            </h3>
+            
+            {isFreeTier() ? (
+              <div>
+                <p className="mb-4 text-gray-600 dark:text-gray-300">
+                  Upgrade to Premium for unlimited messages and priority support.
+                </p>
+                <Button 
+                  onClick={handleSubscribe} 
+                  disabled={isActionLoading}
+                  className="w-full bg-[#F37022] hover:bg-[#E36012] text-white"
+                >
+                  {isActionLoading ? (
+                    <LoadingSpinner className="w-4 h-4 mr-2" />
+                  ) : (
+                    <CreditCard className="w-4 h-4 mr-2" />
+                  )}
+                  Upgrade to Premium ({SUBSCRIPTION_PRICE}/month)
+                </Button>
+              </div>
+            ) : (
+              <div>
+                <p className="mb-4 text-gray-600 dark:text-gray-300">
+                  Manage your subscription, payment methods, and billing details.
+                </p>
+                <Button 
+                  onClick={handleManageSubscription} 
+                  variant="outline" 
+                  disabled={isActionLoading}
+                  className="w-full border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  {isActionLoading ? <LoadingSpinner className="w-4 h-4 mr-2" /> : null}
+                  Manage Subscription
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
+        
+        {/* Developer tools section - only show in development */}
+        {process.env.NODE_ENV === 'development' && (
+          <>
+            <Separator className="my-4 dark:bg-gray-700" />
+            <div className="w-full">
+              <h3 className="text-lg font-medium flex items-center gap-2 text-gray-900 dark:text-white">
+                Developer Tools
+                <Badge variant="outline" className="dark:border-gray-600 dark:text-gray-300">Dev Only</Badge>
+              </h3>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={refreshMessageCount} 
+                  disabled={isActionLoading}
+                  className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Refresh Count
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={incrementCount} 
+                  disabled={isActionLoading}
+                  className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800"
+                >
+                  Increment Count
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={resetMessageCount} 
+                  disabled={isActionLoading}
+                  className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800"
+                >
+                  Reset Count
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={runDatabaseTest} 
+                  disabled={isActionLoading}
+                  className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-800"
+                >
+                  <Info className="h-3 w-3 mr-1" />
+                  Test DB Access
+                </Button>
+              </div>
+              {diagnosticResult && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">Diagnostic Results:</h4>
+                  <pre className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded-md text-xs overflow-auto max-h-40 text-gray-800 dark:text-gray-300">
+                    {diagnosticResult}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </CardContent>
-      <CardFooter className="flex flex-col items-start gap-4">
+      <CardFooter className="flex flex-col items-start gap-4 dark:bg-gray-800 border-t dark:border-gray-700 pt-4">
         {isFreeTier() ? (
           <Button 
             className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white"
@@ -492,7 +619,7 @@ export function SubscriptionSettings() {
         ) : (
           <Button 
             variant="outline" 
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
             onClick={handleManageSubscription}
             disabled={isActionLoading}
           >
@@ -508,54 +635,6 @@ export function SubscriptionSettings() {
               </>
             )}
           </Button>
-        )}
-        
-        {/* Developer tools section - only show in development */}
-        {process.env.NODE_ENV === 'development' && (
-          <>
-            <Separator className="my-4" />
-            <div className="w-full">
-              <h3 className="text-lg font-medium flex items-center gap-2">
-                Developer Tools
-                <Badge variant="outline">Dev Only</Badge>
-              </h3>
-              <div className="flex flex-wrap gap-2 mt-2">
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={refreshMessageCount} 
-                  disabled={isActionLoading}
-                >
-                  <RefreshCw className="h-3 w-3 mr-1" />
-                  Refresh Count
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={incrementCount} 
-                  disabled={isActionLoading}
-                >
-                  Increment Count
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={resetMessageCount} 
-                  disabled={isActionLoading}
-                >
-                  Reset Count
-                </Button>
-              </div>
-              {diagnosticResult && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium">Diagnostic Results:</h4>
-                  <pre className="mt-2 p-2 bg-muted rounded-md text-xs overflow-auto max-h-40">
-                    {diagnosticResult}
-                  </pre>
-                </div>
-              )}
-            </div>
-          </>
         )}
       </CardFooter>
     </Card>

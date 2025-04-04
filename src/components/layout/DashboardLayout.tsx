@@ -59,8 +59,8 @@ export const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
 
   return (
     <SidebarLayout sidebarProps={sidebarProps}>
-      <div className="p-6 bg-gray-50 h-full">
-        {title && <h1 className="text-2xl font-bold mb-6">{title}</h1>}
+      <div className="p-6 bg-white dark:bg-gray-900 h-full w-full">
+        {title && <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">{title}</h1>}
         {children}
       </div>
     </SidebarLayout>

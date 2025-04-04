@@ -1,10 +1,11 @@
-import { ReactNode, useContext } from 'react';
+import { ReactNode, useContext, useEffect } from 'react';
 import { SidebarLayout } from '../layout/SidebarLayout';
 import { ChatContainer } from './ChatContainer';
 import { useThreads } from '@/hooks/use-threads';
 import { useAuth } from '@/lib/auth';
 import { SelectedThreadContext } from '@/App';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '@/lib/theme-provider';
 
 // Simplified ChatLayout now just composes other components
 const ChatLayout = ({ 
@@ -17,6 +18,7 @@ const ChatLayout = ({
   const { user, signOut } = useAuth();
   const { selectedThreadId, setSelectedThreadId } = useContext(SelectedThreadContext);
   const navigate = useNavigate();
+  const { theme } = useTheme();
 
   const {
     threads: originalThreads,
@@ -24,7 +26,24 @@ const ChatLayout = ({
     updateThread,
     deleteThread
   } = useThreads();
-
+  
+  // Ensure dark mode class is applied at layout level
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else if (theme === 'light') {
+      root.classList.remove('dark');
+    } else if (theme === 'system') {
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (systemPrefersDark) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    }
+  }, [theme]);
+  
   // Define handlers for sidebar actions
   const handleNewChat = async () => {
     try {

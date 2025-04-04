@@ -92,9 +92,9 @@ export function SettingsPage() {
   // If still loading, show spinner
   if (isLoading || loading) {
     return (
-      <div className="flex flex-col justify-center items-center h-screen">
+      <div className="flex flex-col justify-center items-center h-screen bg-white dark:bg-gray-900">
         <LoadingSpinner className="h-12 w-12 mb-4" />
-        <p className="text-muted-foreground">Loading settings...</p>
+        <p className="text-muted-foreground dark:text-gray-400">Loading settings...</p>
       </div>
     );
   }
@@ -118,102 +118,129 @@ export function SettingsPage() {
 
   return (
     <SidebarLayout sidebarProps={sidebarProps}>
-      <div className="bg-background min-h-screen">
+      <div className="bg-white dark:bg-gray-900 min-h-screen w-full overflow-hidden">
         <div className={`container py-6 max-w-4xl mx-auto ${isMobile ? 'pt-16' : ''}`}>
           <div className="flex items-center justify-between mb-6">
             {/* Only show h1 title on desktop */}
-            {!isMobile && <h1 className="text-3xl font-bold">Settings</h1>}
+            {!isMobile && <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>}
           </div>
           
           <Tabs defaultValue="subscription" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="subscription">Subscription</TabsTrigger>
-              <TabsTrigger value="account">Account</TabsTrigger>
-              <TabsTrigger value="appearance">Appearance</TabsTrigger>
+            <TabsList className="bg-gray-100 dark:bg-gray-800">
+              <TabsTrigger 
+                value="subscription" 
+                className="data-[state=active]:bg-white data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white dark:text-gray-300"
+              >
+                Subscription
+              </TabsTrigger>
+              <TabsTrigger 
+                value="account" 
+                className="data-[state=active]:bg-white data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white dark:text-gray-300"
+              >
+                Account
+              </TabsTrigger>
+              <TabsTrigger 
+                value="appearance" 
+                className="data-[state=active]:bg-white data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white dark:text-gray-300"
+              >
+                Appearance
+              </TabsTrigger>
             </TabsList>
             
             <TabsContent value="subscription" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Subscription Settings</CardTitle>
-                  <CardDescription>
+              <Card className="bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
+                <CardHeader className="border-b dark:border-gray-700">
+                  <CardTitle className="text-gray-900 dark:text-white">Subscription Settings</CardTitle>
+                  <CardDescription className="text-gray-500 dark:text-gray-300">
                     Manage your subscription and message usage
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-6">
                   <SubscriptionSettings />
                 </CardContent>
               </Card>
             </TabsContent>
             
             <TabsContent value="account" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Profile Information</CardTitle>
-                  <CardDescription>
+              <Card className="bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
+                <CardHeader className="border-b dark:border-gray-700">
+                  <CardTitle className="text-gray-900 dark:text-white">Profile Information</CardTitle>
+                  <CardDescription className="text-gray-500 dark:text-gray-300">
                     Update your personal information
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-6">
                   <UserProfileForm />
                 </CardContent>
               </Card>
               
-              <Card>
-                <CardHeader>
-                  <CardTitle>Account Statistics</CardTitle>
-                  <CardDescription>
+              <Card className="bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
+                <CardHeader className="border-b dark:border-gray-700">
+                  <CardTitle className="text-gray-900 dark:text-white">Account Statistics</CardTitle>
+                  <CardDescription className="text-gray-500 dark:text-gray-300">
                     View your usage statistics
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-6">
                   <UserProfileInfo />
                 </CardContent>
               </Card>
             </TabsContent>
 
             <TabsContent value="appearance" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Theme Settings</CardTitle>
-                  <CardDescription>
+              <Card className="bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
+                <CardHeader className="border-b dark:border-gray-700">
+                  <CardTitle className="text-gray-900 dark:text-white">Theme Settings</CardTitle>
+                  <CardDescription className="text-gray-500 dark:text-gray-300">
                     Customize the application appearance
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-6">
                   <div className="space-y-4">
                     <div>
-                      <h3 className="text-lg font-medium mb-3">Color Theme</h3>
+                      <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-white">Color Theme</h3>
                       <RadioGroup 
                         value={theme} 
                         onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'system')}
                         className="flex flex-col space-y-3"
                       >
                         <div className="flex items-center space-x-3">
-                          <RadioGroupItem value="light" id="light" />
-                          <Label htmlFor="light" className="flex items-center space-x-2 cursor-pointer">
-                            <Sun className="h-5 w-5" />
+                          <RadioGroupItem 
+                            value="light" 
+                            id="light" 
+                            className="border-gray-300 dark:border-gray-600 text-jdblue dark:text-white dark:focus:ring-offset-gray-900"
+                          />
+                          <Label htmlFor="light" className="flex items-center space-x-2 cursor-pointer text-gray-700 dark:text-gray-300">
+                            <Sun className="h-5 w-5 text-amber-500" />
                             <span>Light</span>
                           </Label>
                         </div>
                         <div className="flex items-center space-x-3">
-                          <RadioGroupItem value="dark" id="dark" />
-                          <Label htmlFor="dark" className="flex items-center space-x-2 cursor-pointer">
-                            <Moon className="h-5 w-5" />
+                          <RadioGroupItem 
+                            value="dark" 
+                            id="dark" 
+                            className="border-gray-300 dark:border-gray-600 text-jdblue dark:text-white dark:focus:ring-offset-gray-900"
+                          />
+                          <Label htmlFor="dark" className="flex items-center space-x-2 cursor-pointer text-gray-700 dark:text-gray-300">
+                            <Moon className="h-5 w-5 text-indigo-500" />
                             <span>Dark</span>
                           </Label>
                         </div>
                         <div className="flex items-center space-x-3">
-                          <RadioGroupItem value="system" id="system" />
-                          <Label htmlFor="system" className="flex items-center space-x-2 cursor-pointer">
-                            <Monitor className="h-5 w-5" />
+                          <RadioGroupItem 
+                            value="system" 
+                            id="system" 
+                            className="border-gray-300 dark:border-gray-600 text-jdblue dark:text-white dark:focus:ring-offset-gray-900"
+                          />
+                          <Label htmlFor="system" className="flex items-center space-x-2 cursor-pointer text-gray-700 dark:text-gray-300">
+                            <Monitor className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                             <span>System</span>
                           </Label>
                         </div>
                       </RadioGroup>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
                         System theme will automatically switch between light and dark themes based on your system preferences.
                       </p>
                     </div>

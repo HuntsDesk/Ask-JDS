@@ -29,7 +29,7 @@ import { Input } from '@/components/ui/input';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { SelectedThreadContext, SidebarContext } from '@/App';
 import { useContext } from 'react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, TooltipPortal } from '@/components/ui/tooltip';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { useTheme } from '@/lib/theme-provider';
 import { useDomain } from '@/lib/domain-context';
@@ -387,7 +387,7 @@ export function Sidebar({
         onMouseLeave={handleMouseLeave}
         style={{ overflow: 'hidden' }}
       >
-        <div className="sticky top-0 z-30 bg-background border-b">
+        <div className="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
           <div className={cn(
             "flex items-center justify-center py-4", // Increased padding
             isDesktopExpanded ? "px-4" : "px-2"
@@ -400,7 +400,7 @@ export function Sidebar({
                   onDesktopExpandedChange(false);
                   setIsExpanded(false);
                 }}
-                className="absolute right-2 p-2.5 rounded-md text-muted-foreground hover:bg-muted bg-background/80"
+                className="absolute right-2 p-2.5 rounded-md text-muted-foreground hover:bg-muted dark:hover:bg-gray-700 bg-background/80 dark:bg-gray-800/80"
                 aria-label="Close sidebar"
               >
                 <X className="h-5 w-5" />
@@ -430,7 +430,7 @@ export function Sidebar({
           </div>
         </div>
 
-        <div className="p-3 border-b flex items-center justify-between">
+        <div className="p-3 border-b dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800">
           <button
             onClick={() => {
               console.log('Sidebar: New Chat button clicked');
@@ -466,25 +466,29 @@ export function Sidebar({
                   className={cn(
                     "ml-1",
                     !isDesktopExpanded && "hidden",
-                    effectiveIsPinned && "text-orange-500"
+                    "dark:hover:bg-gray-700",
+                    effectiveIsPinned && "text-[#F37022]",
+                    !effectiveIsPinned && "dark:text-gray-300 dark:hover:text-gray-400"
                   )}
                 >
                   {effectiveIsPinned ? <Pin className="h-4 w-4" /> : <PinOff className="h-4 w-4" />}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="bg-gray-900 text-white">
-                {effectiveIsPinned ? "Unpin sidebar" : "Pin sidebar open"}
-              </TooltipContent>
+              <TooltipPortal>
+                <TooltipContent side="right" className="bg-gray-900 text-white border-0 dark:border-gray-700" style={{ zIndex: 99999 }}>
+                  {effectiveIsPinned ? "Unpin sidebar" : "Pin sidebar open"}
+                </TooltipContent>
+              </TooltipPortal>
             </Tooltip>
           </TooltipProvider>
         </div>
 
-        <ScrollArea className="flex-1 overflow-hidden custom-scrollbar">
+        <ScrollArea className="flex-1 overflow-hidden custom-scrollbar bg-white dark:bg-gray-800">
           <div className="space-y-4 p-2">
             {sortedSessionEntries.map(([date, dateSessions]) => (
               <div key={date} className="space-y-1">
                 {isDesktopExpanded && (
-                  <h3 className="text-sm font-medium text-muted-foreground px-3 mb-1">
+                  <h3 className="text-sm font-medium text-muted-foreground dark:text-gray-400 px-3 mb-1">
                     {date}
                   </h3>
                 )}
@@ -506,6 +510,7 @@ export function Sidebar({
                               }
                             }}
                             autoFocus
+                            className="dark:bg-gray-700 dark:border-gray-600"
                           />
                         </div>
                       ) : (
@@ -515,34 +520,34 @@ export function Sidebar({
                             "w-full flex items-center gap-3 rounded-lg nav-item",
                             isDesktopExpanded ? "px-3 py-2" : "p-2 justify-center",
                             (selectedThreadId === session.id) ? 
-                              "bg-orange-100 text-orange-700" : 
-                              "hover:bg-muted/50"
+                              "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300" : 
+                              "hover:bg-muted/50 dark:hover:bg-gray-700/50 dark:text-gray-200"
                           )}
                         >
                           <MessageSquare 
                             className={cn(
                               "w-4 h-4 shrink-0",
-                              (selectedThreadId === session.id) && "text-[#F37022]"
+                              (selectedThreadId === session.id) && "text-[#F37022] dark:text-orange-300"
                             )} 
                           />
                           <span className={cn(
                             "truncate text-sm flex-1 text-left transition-all duration-300",
                             isDesktopExpanded ? "opacity-100 w-auto" : "opacity-0 w-0 absolute overflow-hidden",
-                            (selectedThreadId === session.id) && "font-medium text-[#F37022]"
+                            (selectedThreadId === session.id) && "font-medium text-[#F37022] dark:text-orange-300"
                           )}>{session.title}</span>
                           {isDesktopExpanded && (selectedThreadId === session.id) && (
-                            <ChevronRight className="w-4 h-4 shrink-0 text-[#F37022]" />
+                            <ChevronRight className="w-4 h-4 shrink-0 text-[#F37022] dark:text-orange-300" />
                           )}
                         </button>
                       )}
                     </ContextMenuTrigger>
-                    <ContextMenuContent>
-                      <ContextMenuItem onClick={() => handleStartEdit(session.id, session.title)}>
+                    <ContextMenuContent className="dark:bg-gray-800 dark:border-gray-700">
+                      <ContextMenuItem className="dark:hover:bg-gray-700 dark:text-gray-200" onClick={() => handleStartEdit(session.id, session.title)}>
                         <Pencil className="w-4 h-4 mr-2" />
                         Rename
                       </ContextMenuItem>
                       <ContextMenuItem 
-                        className="text-destructive"
+                        className="text-destructive dark:text-red-400 dark:hover:bg-gray-700"
                         onClick={() => handleDelete(session.id)}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
@@ -556,7 +561,7 @@ export function Sidebar({
           </div>
         </ScrollArea>
 
-        <div className="sticky bottom-0 z-30 bg-background p-3 border-t space-y-2">
+        <div className="sticky bottom-0 z-30 bg-white dark:bg-gray-800 p-3 border-t dark:border-gray-700 space-y-2">
           {navigationItems.map((item) => (
             <Button
               key={item.name}
@@ -564,7 +569,8 @@ export function Sidebar({
               className={cn(
                 "w-full flex items-center gap-2 transition-all",
                 isDesktopExpanded ? "justify-start px-4" : "justify-center px-0",
-                item.current && "bg-[#F37022] hover:bg-[#E36012]"
+                item.current && "bg-[#F37022] hover:bg-[#E36012]",
+                !item.current && "dark:text-gray-200 dark:hover:bg-gray-700"
               )}
               onClick={() => handleNavLinkClick(item.href)}
             >
@@ -587,7 +593,8 @@ export function Sidebar({
             variant="ghost"
             className={cn(
               "w-full flex items-center gap-2 transition-all",
-              isDesktopExpanded ? "justify-start px-4" : "justify-center px-0"
+              isDesktopExpanded ? "justify-start px-4" : "justify-center px-0",
+              "text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white dark:hover:bg-gray-700"
             )}
           >
             <LogOut className="h-4 w-4 shrink-0" />

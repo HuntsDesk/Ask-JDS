@@ -145,10 +145,6 @@ export function HomePage() {
     }
   };
   
-  if (loading) {
-    return <LoadingSpinner fullScreen />;
-  }
-  
   return (
     <div 
       className="min-h-screen bg-gradient-to-b from-gray-50 to-white force-light-mode"

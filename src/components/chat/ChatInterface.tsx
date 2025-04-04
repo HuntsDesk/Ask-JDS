@@ -181,11 +181,11 @@ export function ChatInterface({
           {/* Spacer element to ensure messages start below the header */}
           <div ref={messageTopRef} className="h-32 md:h-4"></div>
           
-          {loading && messages.length === 0 ? (
+          {loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="flex flex-col items-center max-w-md text-center p-4">
                 <LoadingSpinner size="lg" />
-                <p>{getLoadingMessage()}</p>
+                <p>Loading messages...</p>
                 {loadingTimeout && (
                   <div className="mt-4">
                     <p className="mb-2 text-gray-600">

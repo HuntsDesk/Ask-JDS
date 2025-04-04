@@ -157,30 +157,32 @@ export function UserProfileForm() {
     <form onSubmit={handleSave} className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="firstName">First Name</Label>
+          <Label htmlFor="firstName" className="text-gray-700 dark:text-gray-300">First Name</Label>
           <Input
             id="firstName"
             name="firstName"
             value={profileData.firstName}
             onChange={handleChange}
             placeholder="First Name"
+            className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-orange-500 dark:focus:ring-orange-400"
           />
         </div>
         
         <div className="space-y-2">
-          <Label htmlFor="lastName">Last Name</Label>
+          <Label htmlFor="lastName" className="text-gray-700 dark:text-gray-300">Last Name</Label>
           <Input
             id="lastName"
             name="lastName"
             value={profileData.lastName}
             onChange={handleChange}
             placeholder="Last Name"
+            className="border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-orange-500 dark:focus:ring-orange-400"
           />
         </div>
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email" className="text-gray-700 dark:text-gray-300">Email</Label>
         <Input
           id="email"
           name="email"
@@ -188,7 +190,7 @@ export function UserProfileForm() {
           value={profileData.email}
           readOnly={true}
           disabled={true}
-          className="opacity-75 cursor-not-allowed"
+          className="opacity-75 cursor-not-allowed border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400"
           placeholder="Email"
         />
       </div>

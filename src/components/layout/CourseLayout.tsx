@@ -60,8 +60,8 @@ export const CourseLayout = ({ children, title }: CourseLayoutProps) => {
 
   return (
     <SidebarLayout sidebarProps={sidebarProps}>
-      <div className="p-6">
-        {title && <h1 className="text-2xl font-bold mb-6">{title}</h1>}
+      <div className="p-6 bg-white dark:bg-gray-900 min-h-screen w-full">
+        {title && <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">{title}</h1>}
         {children}
       </div>
     </SidebarLayout>

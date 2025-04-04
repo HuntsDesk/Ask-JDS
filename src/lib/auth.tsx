@@ -644,11 +644,12 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
   };
   
   if (!isInitialized && loading) {
-    // Still initializing, show a loading state
+    // Always render children without showing a loading spinner
+    // This avoids showing a black spinner during authentication
     return (
-      <div className="flex justify-center items-center h-screen w-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
-      </div>
+      <AuthContext.Provider value={authContextValue}>
+        {children}
+      </AuthContext.Provider>
     );
   }
   

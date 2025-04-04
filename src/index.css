@@ -151,6 +151,16 @@ body {
   perspective: 1000px;
 }
 
+.animate-flip-in {
+  animation: flip-in 0.4s ease-out;
+  perspective: 1000px;
+}
+
+.animate-flip-out {
+  animation: flip-out 0.4s ease-out;
+  perspective: 1000px;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -741,3 +751,37 @@ button[aria-label="Open sidebar"]:hover {
 }
 
 /* Ensure hamburger menu is visible */
+
+/* Fix white line between sidebar and main content */
+.sidebar-container {
+  margin-right: -1px !important;
+  box-shadow: none !important;
+  border-right: none !important;
+}
+
+.sidebar-container + div {
+  margin-left: -1px !important;
+  border-left: none !important;
+}
+
+/* Fix tooltips getting cut off by sidebar */
+div[role="tooltip"],
+.TooltipContent,
+[data-radix-popper-content-wrapper] {
+  z-index: 99999 !important;
+  position: fixed !important;
+  pointer-events: none;
+}
+
+/* Root level tooltip portal to ensure it's rendered at top level */
+.radix-tooltip-portal {
+  z-index: 99999 !important;
+  position: fixed !important;
+}
+
+/* Ensure the tooltip container is above everything */
+.TooltipProvider, 
+[data-radix-popper-content-wrapper] {
+  z-index: 99999 !important;
+  position: fixed !important;
+}
