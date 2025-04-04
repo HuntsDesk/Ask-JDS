@@ -68,7 +68,7 @@ const Login = () => {
         <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg">
           <div>
             <img 
-              src="/lovable-uploads/logo.svg" 
+              src="/images/JD Simplified Logo - Horizontal.svg" 
               alt="JD Simplified Logo" 
               className="h-12 mx-auto"
             />

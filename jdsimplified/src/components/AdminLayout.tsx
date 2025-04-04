@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
@@ -65,9 +64,9 @@ const AdminLayout = () => {
           <div className="p-6 border-b border-jdblue-light">
             <Link to="/admin" className="flex items-center space-x-2">
               <img 
-                src="/lovable-uploads/logo.svg" 
+                src="/images/JDSimplified_Logo_wht.png" 
                 alt="JD Simplified Logo" 
-                className="h-8 w-auto filter brightness-0 invert" 
+                className="h-8 w-auto" 
               />
               <span className="text-xl font-bold">Admin Panel</span>
             </Link>
