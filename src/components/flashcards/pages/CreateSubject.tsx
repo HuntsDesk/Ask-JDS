@@ -94,7 +94,7 @@ export default function CreateSubject() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
-              placeholder="e.g. Biology, Mathematics, History"
+              placeholder="Environmental Law, Criminal Law, etc"
               required
             />
           </div>

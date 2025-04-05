@@ -232,7 +232,7 @@ export function VirtualMessageList({ messages }: VirtualMessageListProps) {
           {MessageItem}
         </List>
       ) : (
-        <div>Loading messages...</div>
+        <div className="text-gray-700 dark:text-gray-300">Loading messages...</div>
       )}
     </div>
   );

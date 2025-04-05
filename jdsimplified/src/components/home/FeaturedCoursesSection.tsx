@@ -75,7 +75,9 @@ const FeaturedCoursesSection = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {featuredCourses.map((course) => (
-            <CourseCard key={course.id} {...course} />
+            <div className="force-light-mode" key={course.id}>
+              <CourseCard {...course} />
+            </div>
           ))}
         </div>
       </div>

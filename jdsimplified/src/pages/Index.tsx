@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import PageLayout from '@/components/PageLayout';
@@ -22,18 +21,20 @@ const Index = () => {
   }, [location.pathname]);
   
   return (
-    <PageLayout>
-      <HeroSection />
-      <FeaturesSection />
-      <NonServicesSection />
-      <AppFeaturesSection />
-      <FeaturedCoursesSection />
-      <TestimonialsSection />
-      <AboutSection />
-      <FaqSection />
-      <ContactSection />
-      <CtaSection />
-    </PageLayout>
+    <div className="light bg-white text-black">
+      <PageLayout>
+        <HeroSection />
+        <FeaturesSection />
+        <NonServicesSection />
+        <AppFeaturesSection />
+        <FeaturedCoursesSection />
+        <TestimonialsSection />
+        <AboutSection />
+        <FaqSection />
+        <ContactSection />
+        <CtaSection />
+      </PageLayout>
+    </div>
   );
 };
 

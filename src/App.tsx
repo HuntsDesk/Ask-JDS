@@ -3,10 +3,15 @@ import { AuthProvider, useAuth } from '@/lib/auth';
 import { Toaster } from '@/components/ui/toaster';
 import { DomainProvider, useDomain } from '@/lib/domain-context';
 import SimplifiedMode from '@/lib/SimplifiedMode';
+import { NavbarProvider } from '@/contexts/NavbarContext';
 
 // Direct imports for homepage components
 import { HomePage } from '@/components/HomePage';
 import { HomePage as JDSHomePage } from '@/components/jds/HomePage';
+
+// Import our new Navbar components
+import { JDSNavbar } from '@/components/jds/JDSNavbar';
+import { AskJDSNavbar } from '@/components/askjds/AskJDSNavbar';
 
 // Lazy load large components
 const ChatLayout = lazy(() => import('@/components/chat/ChatLayout').then(module => ({ default: module.ChatLayout })));
@@ -71,6 +76,11 @@ export const SelectedThreadContext = createContext<SelectedThreadContextType>({
   setSelectedThreadId: () => {}
 });
 
+// Add a simple redirect component that doesn't trigger authentication initialization
+const SimpleRedirect = ({ to }: { to: string }) => {
+  return <Navigate to={to} replace />;
+};
+
 // Create router with domain-aware routes
 function AppRoutes() {
   const { isJDSimplified } = useDomain();
@@ -79,14 +89,15 @@ function AppRoutes() {
   
   return (
     <Routes>
-      <Route path="/" element={
-        // Render homepage directly without Suspense
-        isJDSimplified ? <JDSHomePage /> : <HomePage />
-      } />
+      <Route path="/" element={isJDSimplified ? <JDSHomePage /> : <HomePage />} />
+      
+      {/* Add back the login redirect without triggering auth initialization */}
+      <Route path="/login" element={<SimpleRedirect to="/auth" />} />
+      
       <Route path="/auth" element={
-        <Suspense fallback={<PageLoader message="Loading authentication..." />}>
+        <AuthProvider>
           <AuthPage />
-        </Suspense>
+        </AuthProvider>
       } />
       <Route 
         path="/chat/:threadId?" 
@@ -109,7 +120,9 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Suspense fallback={<PageLoader message="Loading flashcards..." />}>
-              <FlashcardsPage />
+              <NavbarProvider>
+                <FlashcardsPage />
+              </NavbarProvider>
             </Suspense>
           </ProtectedRoute>
         } 
@@ -203,9 +216,9 @@ function AppRoutes() {
 // Page loader component for suspense fallbacks
 function PageLoader({ message = "Loading..." }: { message?: string }) {
   return (
-    <div className="flex flex-col justify-center items-center h-screen">
+    <div className="flex flex-col justify-center items-center h-screen bg-white dark:bg-gray-900">
       <LoadingSpinner className="h-12 w-12 mb-4" />
-      <p className="text-muted-foreground">{message}</p>
+      <p className="text-muted-foreground dark:text-gray-400">{message}</p>
     </div>
   );
 }

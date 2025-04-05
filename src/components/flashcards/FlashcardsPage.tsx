@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useContext, useRef } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import { Sidebar } from '@/components/chat/Sidebar'; 
 import { supabase } from '@/lib/supabase';
@@ -13,6 +13,7 @@ import { FlashcardPaywall } from '@/components/FlashcardPaywall';
 import { NavbarProvider } from '@/contexts/NavbarContext';
 import { StudyProvider } from '@/contexts/StudyContext';
 import { usePersistedState } from '@/hooks/use-persisted-state';
+import { useNavbar } from '@/contexts/NavbarContext';
 
 // Import pages
 import Home from './pages/Home';
@@ -31,87 +32,28 @@ import CreateSubject from './pages/CreateSubject';
 import CreateFlashcardSelect from './pages/CreateFlashcardSelect';
 import CreateFlashcard from './pages/CreateFlashcard';
 import UnifiedStudyMode from './pages/UnifiedStudyMode';
+import FlashcardStudy from './FlashcardStudy';
 
 export default function FlashcardsPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [hasSubscription, setHasSubscription] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const currentPath = location.pathname;
+  const { setSelectedThreadId } = useContext(SelectedThreadContext);
+  const [loading, setLoading] = useState(false); // Start with not loading
+  const [initialLoad, setInitialLoad] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
-  const [currentPath, setCurrentPath] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const [hasSubscription, setHasSubscription] = useState<boolean | null>(null);
+  const { isMobile, isExpanded, setIsExpanded } = useContext(SidebarContext);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const { setNavbarTitle, updateCount, setShowBackButton, hideBackButton } = useNavbar();
   
   // Use the threads hook to fetch actual threads
   const { threads, loading: threadsLoading, deleteThread, updateThread, createThread } = useThreads();
-  const { setSelectedThreadId } = useContext(SelectedThreadContext);
-  const { isExpanded, setIsExpanded } = useContext(SidebarContext);
   
   // Use persisted state for pinning to maintain consistency across pages
   const [isPinned, setIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
   
-  // Check if device is mobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-  
-  // Handle sidebar expansion/collapse properly
-  useEffect(() => {
-    // Set CSS variables for sidebar width
-    document.documentElement.style.setProperty('--sidebar-width', '280px');
-    document.documentElement.style.setProperty('--sidebar-collapsed-width', '70px');
-    
-    // Get the sidebar element
-    const sidebarElement = document.querySelector('.sidebar-container');
-    if (sidebarElement) {
-      if (isExpanded) {
-        // Expanded state
-        (sidebarElement as HTMLElement).style.width = '280px';
-        sidebarElement.classList.add('expanded');
-        sidebarElement.classList.remove('collapsed');
-      } else {
-        // Collapsed state
-        (sidebarElement as HTMLElement).style.width = '70px';
-        sidebarElement.classList.add('collapsed');
-        sidebarElement.classList.remove('expanded');
-      }
-    }
-  }, [isExpanded]);
-
-  useEffect(() => {
-    const checkSubscription = async () => {
-      if (user) {
-        try {
-          setLoading(true);
-          console.log("Checking subscription status...")
-          const hasAccess = await hasActiveSubscription(user.id);
-          console.log("Subscription status:", hasAccess);
-          setHasSubscription(hasAccess);
-          // Don't show paywall by default - only show it when accessing premium content
-          setShowPaywall(false);
-        } catch (error) {
-          console.error("Error checking subscription:", error);
-          setHasSubscription(true);
-          setShowPaywall(false);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        console.log("No user logged in, setting hasSubscription to false");
-        setHasSubscription(false);
-        setShowPaywall(false);
-        setLoading(false);
-      }
-    };
-    
-    checkSubscription();
-  }, [user]);
-
   // Function to check if a collection is a user collection or premium one
   const checkAccessToCollection = async (collectionId: string) => {
     try {
@@ -121,46 +63,74 @@ export default function FlashcardsPage() {
       // Premium content will be controlled at the flashcard level
       console.log("Bypassing collection-level premium check as requested");
       return true;
-      
-      // Set up a timeout to prevent hanging
-      const checkPromise = (async () => {
-        try {
-          // Query to check if collection is premium content
-          const { data, error } = await supabase
-            .from('collections')
-            .select('is_official')
-            .eq('id', collectionId)
-            .single();
-          
-          if (error) {
-            console.error("Error checking collection access:", error);
-            // On error, default to allowing access
-            return true;
-          }
-          
-          // Allow access regardless of premium status
-          // Premium content will be handled at the flashcard level
-          console.log("Allowing access to collection regardless of premium status");
-          return true;
-        } catch (error) {
-          console.error("Error in checkPromise:", error);
-          return true; // Default to allowing access on error
-        }
-      })();
-      
-      // Create a timeout promise
-      const timeoutPromise = new Promise<boolean>(resolve => {
-        setTimeout(() => {
-          console.warn("Collection access check timed out after 5 seconds, defaulting to allow access");
-          resolve(true);
-        }, 5000);
-      });
-      
-      // Race the check against the timeout
-      return await Promise.race([checkPromise, timeoutPromise]);
     } catch (error) {
       console.error("Error checking collection access:", error);
       return true; // Default to allowing access on error
+    }
+  };
+  
+  // Set up flashcard routes
+  const flashcardRoutes = [
+    { path: 'collections', component: FlashcardCollections },
+    { path: 'collections/:id', component: FlashcardCollections, protected: true, checkAccess: checkAccessToCollection },
+    { path: 'view/:id', component: FlashcardCollections, protected: true, checkAccess: checkAccessToCollection },
+    { path: 'create-card/:collectionId?', component: AddCard },
+    { path: 'edit-card/:id', component: EditCard },
+    { path: 'create-collection', component: CreateSet },
+    { path: 'study/:collectionId', component: FlashcardStudy, protected: true, checkAccess: checkAccessToCollection },
+    { path: 'all', component: AllFlashcards },
+    { path: '/', component: () => <Navigate to="/flashcards/collections" /> },
+  ];
+
+  // Set up the routes
+  const routeElements = flashcardRoutes.map(route => {
+    if (route.protected) {
+      return (
+        <Route 
+          key={route.path}
+          path={route.path}
+          element={
+            <ProtectedResource 
+              component={route.component}
+              checkAccess={route.checkAccess}
+            />
+          }
+        />
+      );
+    }
+    return <Route key={route.path} path={route.path} element={<route.component />} />;
+  });
+
+  useEffect(() => {
+    // Skip any loading screen if we're not doing access checks
+    setInitialLoad(false);
+    
+    // Check user's subscription status once on mount
+    if (user) {
+      checkUserSubscription();
+    } else {
+      // If no user, they definitely don't have a subscription
+      setHasSubscription(false);
+      setLoading(false);
+    }
+    
+    return () => {
+      // Reset to default navbar state
+      setNavbarTitle && setNavbarTitle('');
+      hideBackButton && hideBackButton();
+    };
+  }, [user]);
+
+  const checkUserSubscription = async () => {
+    try {
+      // No need to show loading state for background subscription check
+      const hasAccess = await hasActiveSubscription(user?.id);
+      setHasSubscription(hasAccess);
+    } catch (error) {
+      console.error('Error checking subscription:', error);
+      setHasSubscription(false);
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -332,24 +302,33 @@ export default function FlashcardsPage() {
 function ProtectedResource({ checkAccess, component: Component, ...rest }: any) {
   const { id } = rest.params || { id: null };
   const [canAccess, setCanAccess] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Start with not loading
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
   
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    let longLoadingTimeoutId: NodeJS.Timeout | null = null;
+    
     async function verifyAccess() {
       console.log("ProtectedResource: Verifying access for resource with ID:", id);
       
+      // Only show loading indicator if the check takes longer than 300ms
+      timeoutId = setTimeout(() => {
+        setLoading(true);
+      }, 300);
+      
       // Safety timeout to prevent infinite loading
-      const timeoutId = setTimeout(() => {
+      longLoadingTimeoutId = setTimeout(() => {
         console.warn("ProtectedResource: Access check timed out after 8 seconds, defaulting to allow access");
         setCanAccess(true);
         setLoading(false);
+        setLoadingTimeout(false);
       }, 8000);
       
       try {
         if (id) {
           const hasAccess = await checkAccess(id);
           console.log("ProtectedResource: Access result:", hasAccess);
-          // Only update state if the timeout hasn't fired yet
           setCanAccess(hasAccess);
         } else {
           console.log("ProtectedResource: No ID provided, defaulting to allowed");
@@ -360,12 +339,18 @@ function ProtectedResource({ checkAccess, component: Component, ...rest }: any) 
         // Default to allowing access on error
         setCanAccess(true);
       } finally {
-        clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
+        if (longLoadingTimeoutId) clearTimeout(longLoadingTimeoutId);
         setLoading(false);
       }
     }
     
     verifyAccess();
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (longLoadingTimeoutId) clearTimeout(longLoadingTimeoutId);
+    };
   }, [id, checkAccess]);
   
   console.log("ProtectedResource: Current state - loading:", loading, "canAccess:", canAccess);
@@ -374,7 +359,7 @@ function ProtectedResource({ checkAccess, component: Component, ...rest }: any) 
     return (
       <div className="flex justify-center items-center py-12 mt-6">
         <LoadingSpinner size="lg" />
-        <p className="ml-2">Checking access...</p>
+        <p className="ml-2 text-gray-700 dark:text-gray-300">Checking access...</p>
       </div>
     );
   }
