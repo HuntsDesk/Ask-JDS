@@ -185,10 +185,10 @@ export function ChatInterface({
             <div className="flex items-center justify-center h-full">
               <div className="flex flex-col items-center max-w-md text-center p-4">
                 <LoadingSpinner size="lg" />
-                <p>Loading messages...</p>
+                <p className="mt-2 text-gray-700 dark:text-gray-300">Loading messages...</p>
                 {loadingTimeout && (
                   <div className="mt-4">
-                    <p className="mb-2 text-gray-600">
+                    <p className="mb-2 text-gray-600 dark:text-gray-400">
                       This is taking longer than expected. You can try refreshing.
                     </p>
                     <Button onClick={onRefresh} variant="outline">

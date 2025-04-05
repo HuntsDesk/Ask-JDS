@@ -3,8 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { X } from 'lucide-react';
 import Footer from './Footer';
 
-// Import Navbar from the JDSimplified app
-import Navbar from '../../../jdsimplified/src/components/Navbar';
+// Import our new JDSNavbar component
+import { JDSNavbar } from './JDSNavbar';
 
 interface PageLayoutProps {
   children: ReactNode;
@@ -36,7 +36,7 @@ export default function PageLayout({ children }: PageLayoutProps) {
           </button>
         </div>
       )}
-      <Navbar showPromo={showPromo} />
+      <JDSNavbar showPromo={showPromo} />
       <main className="flex-grow">
         {showPromo && <div className="h-10"></div>}
         {children}

@@ -256,7 +256,7 @@ export default function CreateSet() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
-              placeholder="e.g. Biology Midterm"
+              placeholder="Midterm: Professor Hints for Civ Pro, etc"
               required
             />
           </div>

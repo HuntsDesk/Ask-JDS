@@ -100,7 +100,7 @@ export default function Navbar() {
       };
     } else {
       return {
-        text: 'Create',
+        text: 'New Collection',
         link: '/flashcards/create-collection'
       };
     }
@@ -177,47 +177,60 @@ export default function Navbar() {
               </button>
             </div>
 
-            {/* Desktop navigation */}
-            <div className="hidden md:flex items-center space-x-6">
-              <NavLink 
-                to="/flashcards/study" 
-                icon={<Brain className="h-5 w-5" />} 
-                text="Study" 
-              />
-              <NavLink 
-                to="/flashcards/subjects" 
-                icon={<BookOpen className="h-5 w-5" />} 
-                text="Subjects" 
-              />
-              <NavLink 
-                to="/flashcards/collections" 
-                icon={<Layers className="h-5 w-5" />} 
-                text="Collections" 
-              />
-              <NavLink 
-                to="/flashcards/flashcards" 
-                icon={<FileText className="h-5 w-5" />} 
-                text="Flashcards" 
-              />
-            </div>
-
-            {/* Desktop search */}
-            <div className="hidden md:block flex-grow mx-4">
-              <SearchBar />
-            </div>
-
-            {/* Create button - visible on desktop only */}
-            <div className="hidden md:block flex-shrink-0">
-              {user && !location.pathname.includes('/flashcards/create') && (
-                <Link 
-                  to={createConfig.link} 
-                  className="flex items-center gap-1 bg-[#F37022] text-white px-3 py-2 text-sm md:text-base md:px-4 rounded-md hover:bg-[#E36012]"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <PlusCircle className="h-4 w-4" />
-                  <span>{createConfig.text}</span>
-                </Link>
-              )}
+            {/* Desktop layout container - Grid layout only applies at md breakpoint and above */}
+            <div className="hidden md:grid md:grid-cols-[auto_1fr_auto] md:items-center md:w-full md:gap-4">
+              {/* Navigation links */}
+              <div className="md:flex md:items-center md:space-x-2 lg:space-x-4 xl:space-x-5">
+                <NavLink 
+                  to="/flashcards/study" 
+                  icon={<Brain className="h-5 w-5" />} 
+                  text="Study" 
+                  className="text-base md:mr-2 lg:mr-3 xl:mr-4"
+                />
+                <NavLink 
+                  to="/flashcards/subjects" 
+                  icon={<BookOpen className="h-5 w-5" />} 
+                  text="Subjects" 
+                  className="text-base md:mr-2 lg:mr-3 xl:mr-4"
+                />
+                <NavLink 
+                  to="/flashcards/collections" 
+                  icon={<Layers className="h-5 w-5" />} 
+                  text="Collections" 
+                  className="text-base md:mr-2 lg:mr-3 xl:mr-4"
+                />
+                <NavLink 
+                  to="/flashcards/flashcards" 
+                  icon={<FileText className="h-5 w-5" />} 
+                  text="Flashcards" 
+                  className="text-base md:flex"
+                />
+              </div>
+              
+              {/* Middle flexible space */}
+              <div className="md:flex-1"></div>
+              
+              {/* Action items container - grid layout for search and button */}
+              <div className="md:grid md:grid-cols-[minmax(40px,1fr)_auto] md:items-center md:gap-3">
+                {/* Desktop search */}
+                <div className="md:w-full">
+                  <SearchBar />
+                </div>
+                
+                {/* Create button - square in minimized state */}
+                <div>
+                  {user && !location.pathname.includes('/flashcards/create') && (
+                    <Link 
+                      to={createConfig.link} 
+                      className="md:flex md:items-center md:justify-center bg-[#F37022] text-white rounded-md hover:bg-[#E36012] whitespace-nowrap h-10 md:w-10 md:aspect-square lg:aspect-auto lg:w-auto lg:px-3 transition-all duration-200"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <PlusCircle className="h-5 w-5" />
+                      <span className="hidden lg:inline ml-1">{createConfig.text}</span>
+                    </Link>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -225,7 +238,7 @@ export default function Navbar() {
 
       {/* Mobile bottom navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50">
-        <div className="grid grid-cols-4 gap-1 px-2 py-2">
+        <div className="grid grid-cols-5 gap-1 px-2 py-2">
           <MobileNavLink 
             to="/flashcards/study" 
             icon={<Brain className="h-5 w-5" />} 
@@ -246,6 +259,13 @@ export default function Navbar() {
             icon={<FileText className="h-5 w-5" />} 
             text="Flashcards" 
           />
+          <Link
+            to={createConfig.link}
+            className="flex flex-col items-center justify-center space-y-1 py-1 text-[#F37022]"
+          >
+            <PlusCircle className="h-5 w-5" />
+            <span className="text-xs">New</span>
+          </Link>
         </div>
       </div>
 

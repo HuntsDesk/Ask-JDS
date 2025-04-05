@@ -58,6 +58,10 @@ export default function FlashcardCollections() {
   const [totalCollectionCount, setTotalCollectionCount] = useState(0);
   const ITEMS_PER_PAGE = 20;
   
+  // Add a ref to track the current request
+  const requestIdRef = useRef<string>("");
+  const abortControllerRef = useRef<AbortController | null>(null);
+  
   // Improved intersection observer setup
   const observerRef = useRef<IntersectionObserver | null>(null);
   const lastCardRef = useCallback((node: HTMLDivElement | null) => {
@@ -102,12 +106,53 @@ export default function FlashcardCollections() {
     }
   }, [loadingMore, hasMore]);
 
+  // Cleanup observer on unmount
+  useEffect(() => {
+    return () => {
+      if (observerRef.current) {
+        console.log('Cleaning up intersection observer on unmount');
+        observerRef.current.disconnect();
+      }
+    };
+  }, []);
+
+  // Reset observer when collections change
+  useEffect(() => {
+    // We need to manually disconnect and reconnect the observer when collections change
+    // to ensure the last card is properly observed
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      
+      // Check if there's a "last card" element to observe
+      const lastCardElement = document.querySelector('.last-card-ref');
+      if (lastCardElement && hasMore && !loadingMore) {
+        console.log('Reconnecting observer to last card after collection change');
+        observerRef.current.observe(lastCardElement);
+      }
+    }
+  }, [collections, hasMore, loadingMore]);
+
   // Add showFilters state at the top of the component with the other state variables
   const [showFilters, setShowFilters] = useState<boolean>(false);
 
+  // Add a loading state ref at the top of the component
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const isInitialLoadRef = useRef(true);
+
+  // Consolidated effect for URL parameters and filter changes
   useEffect(() => {
+    // Cancel any in-flight request
+    if (abortControllerRef.current) {
+      console.log('Cancelling previous request');
+      abortControllerRef.current.abort();
+    }
+    
+    // Create a new request ID
+    const requestId = Date.now().toString();
+    requestIdRef.current = requestId;
+    
     // Reset pagination when filter changes
-    setPage(1);
+    setPage(0);
     setHasMore(true);
     
     // Get filter from URL if present
@@ -116,19 +161,27 @@ export default function FlashcardCollections() {
     
     if (filterParam && ['all', 'official', 'my'].includes(filterParam)) {
       currentFilter = filterParam as 'all' | 'official' | 'my';
-      setFilter(currentFilter);
+      if (currentFilter !== filter) {
+        setFilter(currentFilter);
+        // Don't load collections here, let the filter state change trigger it
+        return;
+      }
     }
     
     // Get subjects from URL if present
     const subjectParams = searchParams.getAll('subject');
-    if (subjectParams.length > 0) {
+    const subjectIdsChanged = 
+      subjectParams.length !== selectedSubjectIds.length || 
+      subjectParams.some(id => !selectedSubjectIds.includes(id));
+    
+    if (subjectIdsChanged) {
       setSelectedSubjectIds(subjectParams);
-    } else {
-      setSelectedSubjectIds([]);
+      // Don't load collections here, let the state change trigger it
+      return;
     }
     
     // Load collections with the current filters
-    loadCollections(currentFilter);
+    loadCollections();
     
     // Load subjects in parallel if not already loaded
     if (subjects.length === 0) {
@@ -138,92 +191,205 @@ export default function FlashcardCollections() {
     }
   }, [searchParams]);
 
-  // Add a new effect to handle filter changes
+  // Modify the filter change effect to prevent race conditions
   useEffect(() => {
-    if (selectedSubjectIds.length > 0 || filter !== 'all') {
-      loadCollections();
+    console.log(`Filter changed to: ${filter}, subjects: ${selectedSubjectIds.join(',')}`);
+    
+    // Cancel any in-flight request
+    if (abortControllerRef.current) {
+      console.log('Cancelling previous request due to filter change');
+      abortControllerRef.current.abort();
     }
-  }, [selectedSubjectIds, filter]);
+    
+    // Create a new request ID
+    const requestId = Date.now().toString();
+    requestIdRef.current = requestId;
+    
+    // Reset all pagination and collection state
+    setCollections([]);
+    setPage(0);
+    setHasMore(true);
+    setInitialLoadComplete(false);
+    isInitialLoadRef.current = true;
+    
+    // Always reload collections when filters change
+    loadCollections();
+    
+    // Update the URL params to match the current filters
+    const newParams = new URLSearchParams(searchParams);
+    
+    // Update filter param
+    if (filter !== 'all') {
+      newParams.set('filter', filter);
+    } else {
+      newParams.delete('filter');
+    }
+    
+    // Update subject params
+    newParams.delete('subject');
+    selectedSubjectIds.forEach(id => {
+      newParams.append('subject', id);
+    });
+    
+    // Only update URL if params actually changed
+    const currentParamsString = searchParams.toString();
+    const newParamsString = newParams.toString();
+    if (currentParamsString !== newParamsString) {
+      setSearchParams(newParams);
+    }
+  }, [filter, selectedSubjectIds, setSearchParams, searchParams]);
 
-  // Load more collections when page changes
+  // Add additional logging to the useEffect hook for page changes
   useEffect(() => {
-    if (page > 1) {
+    console.log(`Page changed to ${page}, initialLoadComplete: ${initialLoadComplete}`);
+    
+    // Only load more if we're past page 0 AND initial load is complete
+    if (page > 0 && initialLoadComplete) {
+      console.log(`Loading more collections for page ${page} - initial load is complete`);
       loadMoreCollections();
+    } else if (page > 0) {
+      console.log(`Skipping loadMore - page is ${page} but initial load is not complete yet`);
     }
-  }, [page]);
+  }, [page, initialLoadComplete]);
 
-  async function loadCollections(currentFilter?: 'all' | 'official' | 'my') {
+  async function loadCollections() {
+    // Create a new abort controller for this request
+    const abortController = new AbortController();
+    const previousController = abortControllerRef.current;
+    
+    // If there's a previous request in progress, abort it
+    if (previousController) {
+      console.log('Aborting previous collection request');
+      previousController.abort();
+    }
+    
+    abortControllerRef.current = abortController;
+    
+    // Generate a unique ID for this request
+    const requestId = Date.now().toString();
+    console.log(`Starting new collection request: ${requestId}, isInitialLoad: ${isInitialLoadRef.current}`);
+    requestIdRef.current = requestId;
+    
+    // Only show loading spinner on initial load
+    if (isInitialLoadRef.current) {
+      setLoading(true);
+      console.log('Initial load started - showing full page spinner');
+    } else {
+      setLoadingMore(true);
+      console.log('Non-initial load - showing inline spinner');
+    }
+    setError(null);
+    
     try {
-      // Only show loading spinner on initial load, not filter changes
-      const isInitialLoad = collections.length === 0;
-      if (isInitialLoad) {
-        setLoading(true);
+      // Check if this request has been superseded
+      if (requestIdRef.current !== requestId) {
+        console.log(`Request ${requestId} has been superseded, aborting`);
+        return;
       }
       
-      // Use the provided filter or fall back to the state filter
-      const filterToUse = currentFilter || filter;
-      console.log(`Loading collections with filter: ${filterToUse}`);
+      // Apply tab filters from state
+      const currentFilter = filter;
+      console.log(`Loading collections with filter: ${currentFilter}`);
       
       // Get subject filter from URL or state
       const subjectIds = selectedSubjectIds;
-      console.log(`Subject filters: ${subjectIds.join(', ') || 'none'}`);
       
-      // Build base query for collections count
-      let countQuery = supabase.from('collections').select('id', { count: 'exact' });
+      // Build queries
+      let countQuery = supabase
+        .from('collections')
+        .select('*', { count: 'exact', head: true });
       
-      // Apply tab filters to count query
-      if (filterToUse === 'official') {
+      // Apply tab filters to the count query
+      if (currentFilter === 'official') {
         countQuery = countQuery.eq('is_official', true);
-      } else if (filterToUse === 'my' && user) {
+      } else if (currentFilter === 'my' && user) {
         countQuery = countQuery.eq('user_id', user.id);
       }
       
-      // If there are subject filters, get all collection IDs for these subjects first
-      let collectionIds: string[] = [];
+      // Apply subject filter to the count query if present
+      let filteredCollectionIds: string[] = [];
+      
       if (subjectIds.length > 0) {
-        console.log(`Getting collection IDs for subjects: ${subjectIds.join(', ')}`);
+        console.log(`Filtering by subjects: ${subjectIds.join(', ')}`);
+        
+        // Get collection IDs that match these subjects
         const { data: collectionSubjects, error: junctionError } = await supabase
           .from('collection_subjects')
           .select('collection_id')
           .in('subject_id', subjectIds);
-          
+        
         if (junctionError) {
           console.error("Error fetching collections for subjects:", junctionError);
           throw junctionError;
         }
         
+        // Check if request is still valid
+        if (requestIdRef.current !== requestId || abortController.signal.aborted) {
+          console.log(`Request ${requestId} aborted during subject filter query`);
+          return;
+        }
+        
         if (collectionSubjects && collectionSubjects.length > 0) {
-          collectionIds = [...new Set(collectionSubjects.map(cs => cs.collection_id))];
-          console.log(`Found ${collectionIds.length} collections for subjects ${subjectIds.join(', ')}`);
+          filteredCollectionIds = [...new Set(collectionSubjects.map(cs => cs.collection_id))];
+          console.log(`Found ${filteredCollectionIds.length} collections for these subjects`);
           
-          // Apply collection IDs to count query
-          countQuery = countQuery.in('id', collectionIds);
+          // Apply filter to count query
+          countQuery = countQuery.in('id', filteredCollectionIds);
         } else {
           console.log(`No collections found for subjects ${subjectIds.join(', ')}`);
-          setCollections([]);
-          setHasMore(false);
-          setLoading(false);
-          setTotalCollectionCount(0);
-          updateCount(0);
+          if (requestIdRef.current === requestId && !abortController.signal.aborted) {
+            setTotalCollectionCount(0);
+            setCollections([]);
+            setHasMore(false);
+            setLoading(false);
+            setLoadingMore(false);
+            updateCount(0);
+          }
           return;
         }
       }
       
-      // Get total count with all filters applied
-      const { count: totalFilteredCount, error: countError } = await countQuery;
+      // Get total count with filters applied
+      const { count, error: countError } = await countQuery;
       
-      if (countError) {
-        console.error("Error getting collection count:", countError);
-        throw countError;
+      // Check if request is still valid after count query
+      if (requestIdRef.current !== requestId || abortController.signal.aborted) {
+        console.log(`Request ${requestId} aborted after count query`);
+        return;
       }
       
-      console.log(`Total filtered count: ${totalFilteredCount}`);
+      if (countError) throw countError;
       
-      // Update the collection count
-      setTotalCollectionCount(totalFilteredCount || 0);
-      updateCount(totalFilteredCount || 0);
+      console.log(`Total filtered collections count: ${count || 0}`);
       
-      // Now get collections with pagination
+      // Update counts immediately, even if we return early
+      if (requestIdRef.current === requestId && !abortController.signal.aborted) {
+        const totalCount = count || 0;
+        setTotalCollectionCount(totalCount);
+        updateCount(totalCount);
+        
+        // Log the totalCollectionCount to verify it's set
+        console.log(`Setting totalCollectionCount to ${totalCount}`);
+        
+        // No results? Return early but mark as complete to avoid stuck loading state
+        if (totalCount === 0) {
+          console.log('No collections found, setting empty state');
+          setCollections([]);
+          setHasMore(false);
+          setLoading(false);
+          setLoadingMore(false);
+          setInitialLoadComplete(true);
+          isInitialLoadRef.current = false;
+          return;
+        }
+      }
+      
+      // Fetch collections with pagination
+      // Subabase ranges start at 0 and are inclusive for start and end
+      const startIndex = 0;
+      const endIndex = ITEMS_PER_PAGE - 1;
+      
+      // Base query for fetching collections
       let query = supabase
         .from('collections')
         .select(`
@@ -235,112 +401,229 @@ export default function FlashcardCollections() {
           user_id
         `)
         .order('created_at', { ascending: false })
-        .range(0, ITEMS_PER_PAGE - 1);
+        .range(startIndex, endIndex);
       
       // Apply tab filters
-      if (filterToUse === 'official') {
+      if (currentFilter === 'official') {
         query = query.eq('is_official', true);
-      } else if (filterToUse === 'my' && user) {
+      } else if (currentFilter === 'my' && user) {
         query = query.eq('user_id', user.id);
       }
       
-      // Apply subject filter if we have collection IDs
-      if (subjectIds.length > 0) {
-        query = query.in('id', collectionIds);
+      // Apply subject filter if present
+      if (subjectIds.length > 0 && filteredCollectionIds.length > 0) {
+        query = query.in('id', filteredCollectionIds);
       }
       
       // Execute the query
       const { data: collectionsData, error: collectionsError } = await query;
       
-      if (collectionsError) {
-        console.error("Error fetching collections:", collectionsError);
-        throw collectionsError;
+      // Check if request is still valid after collections query
+      if (requestIdRef.current !== requestId || abortController.signal.aborted) {
+        console.log(`Request ${requestId} aborted after collections query`);
+        return;
       }
       
-      console.log(`Fetched ${collectionsData?.length || 0} collections`);
+      if (collectionsError) throw collectionsError;
       
-      let filteredCollections = collectionsData || [];
+      console.log(`Received ${collectionsData?.length || 0} collections from server`);
       
-      // Get subjects for each collection using the junction table
-      const collectionsWithSubjects = await Promise.all(
-        filteredCollections.map(async (collection) => {
-          // Get subject IDs from the junction table
-          const { data: collectionSubjects, error: subjectsError } = await supabase
-            .from('collection_subjects')
-            .select('subject_id')
-            .eq('collection_id', collection.id)
-            .limit(1); // Just get one subject for display purposes
+      if (!collectionsData || collectionsData.length === 0) {
+        if (requestIdRef.current === requestId && !abortController.signal.aborted) {
+          setCollections([]);
+          setHasMore(false);
+          setLoading(false);
+          setLoadingMore(false);
+        }
+        return;
+      }
+      
+      // Extract all collection IDs for batch queries
+      const fetchedCollectionIds = collectionsData.map(collection => collection.id);
+      
+      // BATCH QUERY 1: Get all subject relationships for these collections at once
+      const { data: allCollectionSubjects, error: allSubjectsError } = await supabase
+        .from('collection_subjects')
+        .select('collection_id, subject_id')
+        .in('collection_id', fetchedCollectionIds);
+        
+      // Check if request is still valid
+      if (requestIdRef.current !== requestId || abortController.signal.aborted) {
+        console.log(`Request ${requestId} aborted after subjects relationship query`);
+        return;
+      }
+        
+      if (allSubjectsError) throw allSubjectsError;
+      
+      // Create a lookup map for collection -> subject_id
+      const collectionToSubjectMap = new Map();
+      allCollectionSubjects?.forEach(cs => {
+        // Just store the first subject for each collection for display purposes
+        if (!collectionToSubjectMap.has(cs.collection_id)) {
+          collectionToSubjectMap.set(cs.collection_id, cs.subject_id);
+        }
+      });
+      
+      // BATCH QUERY 2: Get all subjects data at once
+      const relatedSubjectIds = [...new Set(allCollectionSubjects?.map(cs => cs.subject_id) || [])];
+      let subjectsMap = new Map();
+      
+      if (relatedSubjectIds.length > 0) {
+        const { data: subjectsData, error: subjectsQueryError } = await supabase
+          .from('subjects')
+          .select('id, name')
+          .in('id', relatedSubjectIds);
+          
+        // Check if request is still valid
+        if (requestIdRef.current !== requestId || abortController.signal.aborted) {
+          console.log(`Request ${requestId} aborted after subjects data query`);
+          return;
+        }
+          
+        if (subjectsQueryError) throw subjectsQueryError;
+        
+        // Create a lookup map for subjects
+        subjectsMap = new Map(subjectsData?.map(s => [s.id, s]) || []);
+      }
+      
+      // BATCH QUERY 3: Get flashcard counts for all collections at once
+      const { data: allFlashcardCollections, error: fcError } = await supabase
+        .from('flashcard_collections_junction')
+        .select('collection_id, flashcard_id')
+        .in('collection_id', fetchedCollectionIds);
+        
+      // Check if request is still valid
+      if (requestIdRef.current !== requestId || abortController.signal.aborted) {
+        console.log(`Request ${requestId} aborted after flashcard collections query`);
+        return;
+      }
+        
+      if (fcError) throw fcError;
+      
+      // Create a map of collection -> flashcardIds arrays
+      const collectionToFlashcardsMap = new Map();
+      allFlashcardCollections?.forEach(fc => {
+        if (!collectionToFlashcardsMap.has(fc.collection_id)) {
+          collectionToFlashcardsMap.set(fc.collection_id, []);
+        }
+        collectionToFlashcardsMap.get(fc.collection_id).push(fc.flashcard_id);
+      });
+      
+      // Count the total cards for each collection
+      const collectionCardCountMap = new Map();
+      for (const [collectionId, flashcardIds] of collectionToFlashcardsMap.entries()) {
+        collectionCardCountMap.set(collectionId, flashcardIds.length);
+      }
+      
+      // BATCH QUERY: Get progress data for all relevant flashcards if user is logged in
+      let progressMap = new Map();
+      
+      if (user) {
+        // Get all flashcard IDs from all collections
+        const allFlashcardIds = Array.from(collectionToFlashcardsMap.values()).flat();
+        
+        if (allFlashcardIds.length > 0) {
+          const { data: progressData, error: progressError } = await supabase
+            .from('flashcard_progress')
+            .select('flashcard_id, is_mastered')
+            .eq('user_id', user.id)
+            .eq('is_mastered', true)
+            .in('flashcard_id', allFlashcardIds);
             
-          if (subjectsError) throw subjectsError;
-          
-          let subject = null;
-          
-          // If the collection has subjects, get the first one's details
-          if (collectionSubjects && collectionSubjects.length > 0) {
-            const { data: subjectData, error: subjectError } = await supabase
-              .from('subjects')
-              .select('id, name')
-              .eq('id', collectionSubjects[0].subject_id)
-              .single();
-              
-            if (subjectError) throw subjectError;
-            subject = subjectData;
+          // Check if request is still valid
+          if (requestIdRef.current !== requestId || abortController.signal.aborted) {
+            console.log(`Request ${requestId} aborted after progress query`);
+            return;
           }
-          
-          // Get card counts from the flashcard_collections_junction table
-          const { data: flashcardCollections, error: fcError } = await supabase
-            .from('flashcard_collections_junction')
-            .select('flashcard_id')
-            .eq('collection_id', collection.id);
             
-          if (fcError) throw fcError;
-          
-          const totalCount = flashcardCollections?.length || 0;
-          
-          // Count mastered cards by checking progress records
-          let masteredCount = 0;
-          if (totalCount > 0 && user) {
-            const flashcardIds = flashcardCollections.map(fc => fc.flashcard_id);
-            
-            // Get mastered count
-            const { count, error: masteredError } = await supabase
-              .from('flashcard_progress')
-              .select('*', { count: 'exact', head: true })
-              .eq('user_id', user.id)
-              .in('flashcard_id', flashcardIds)
-              .eq('is_mastered', true);
-              
-            if (masteredError) throw masteredError;
-            masteredCount = count || 0;
+          if (!progressError && progressData) {
+            // Group progress data by flashcard
+            progressData.forEach(p => {
+              progressMap.set(p.flashcard_id, p);
+            });
           }
-          
-          return {
-            ...collection,
-            subject: subject,
-            card_count: totalCount,
-            mastered_count: masteredCount
-          };
-        })
-      );
+        }
+      }
       
-      setCollections(collectionsWithSubjects);
-      setError(null);
+      // Calculate mastered count for each collection
+      const collectionMasteredCountMap = new Map();
+      for (const [collectionId, flashcardIds] of collectionToFlashcardsMap.entries()) {
+        const masteredCount = flashcardIds.filter(id => progressMap.has(id)).length;
+        collectionMasteredCountMap.set(collectionId, masteredCount);
+      }
+      
+      // Combine all the data to create the final collection objects
+      const collectionsWithSubjects = collectionsData.map(collection => {
+        const subjectId = collectionToSubjectMap.get(collection.id);
+        const subject = subjectId ? subjectsMap.get(subjectId) : null;
+        const cardCount = collectionCardCountMap.get(collection.id) || 0;
+        const masteredCount = collectionMasteredCountMap.get(collection.id) || 0;
+        
+        return {
+          ...collection,
+          subject,
+          card_count: cardCount,
+          mastered_count: masteredCount
+        };
+      });
+      
+      // Update hasMore flag - if we got fewer collections than requested, there are no more
+      const mightHaveMore = collectionsWithSubjects.length === ITEMS_PER_PAGE;
+      console.log(`Setting hasMore to ${mightHaveMore} (got ${collectionsWithSubjects.length} collections)`);
+      
+      // At the end, update the state if our request is still valid
+      if (requestIdRef.current === requestId && !abortController.signal.aborted) {
+        setHasMore(mightHaveMore);
+        setCollections(collectionsWithSubjects);
+        console.log(`Now showing ${collectionsWithSubjects.length} collections out of ${count}`);
+        
+        // Mark initial load as complete
+        setInitialLoadComplete(true);
+        isInitialLoadRef.current = false;
+      }
     } catch (err: any) {
-      console.error("Error loading collections:", err);
-      setError(err.message || "An error occurred loading collections");
+      // Only update error state if this is still the current request
+      if (requestIdRef.current === requestId && !abortController.signal.aborted) {
+        console.error("Error loading collections:", err);
+        setError(err.message || "Failed to load collections");
+        // Still mark as complete on error to prevent stuck loading state
+        setInitialLoadComplete(true);
+        isInitialLoadRef.current = false;
+      }
     } finally {
-      setLoading(false);
+      // Only update loading state if this is still the current request
+      if (requestIdRef.current === requestId && !abortController.signal.aborted) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
   }
 
   // Function to load more collections (for infinite scrolling)
   async function loadMoreCollections() {
     if (!hasMore || loadingMore) {
+      console.log('Skipping loadMoreCollections - hasMore or already loading');
       return;
     }
     
     console.log(`Loading more collections for page ${page}`);
     setLoadingMore(true);
+    
+    // Create a new abort controller for this request
+    const abortController = new AbortController();
+    const previousController = abortControllerRef.current;
+    
+    // If there's a previous request in progress, abort it
+    if (previousController) {
+      console.log('Aborting previous loadMoreCollections request');
+      previousController.abort();
+    }
+    
+    abortControllerRef.current = abortController;
+    
+    // Generate a unique ID for this request
+    const requestId = Date.now().toString();
+    requestIdRef.current = requestId;
     
     // Calculate the range for the next page
     // Supabase ranges are zero-indexed and inclusive of both ends
@@ -350,6 +633,12 @@ export default function FlashcardCollections() {
     console.log(`Loading more collections: range ${startIndex}-${endIndex}`);
     
     try {
+      // Check if this request has been superseded
+      if (requestIdRef.current !== requestId || abortController.signal.aborted) {
+        console.log(`Request ${requestId} has been superseded or aborted, stopping`);
+        return;
+      }
+      
       // Apply tab filters - use the current filter from state
       const currentFilter = filter;
       
@@ -390,17 +679,25 @@ export default function FlashcardCollections() {
           throw junctionError;
         }
         
+        // Check if our request is still valid
+        if (requestIdRef.current !== requestId || abortController.signal.aborted) {
+          console.log(`Request ${requestId} aborted during subject filter query for loadMore`);
+          return;
+        }
+        
         // Filter collections by the IDs we got from the junction table
         if (collectionSubjects && collectionSubjects.length > 0) {
-          const collectionIds = collectionSubjects.map(cs => cs.collection_id);
+          const collectionIds = [...new Set(collectionSubjects.map(cs => cs.collection_id))];
           // Apply filter directly in the query
           query = query.in('id', collectionIds);
           console.log(`Applied subject filter for ${collectionIds.length} collections`);
         } else {
           // No more collections for these subjects
           console.log(`No more collections for subjects ${subjectIds.join(', ')}`);
-          setHasMore(false);
-          setLoadingMore(false);
+          if (requestIdRef.current === requestId && !abortController.signal.aborted) {
+            setHasMore(false);
+            setLoadingMore(false);
+          }
           return;
         }
       }
@@ -408,95 +705,183 @@ export default function FlashcardCollections() {
       // Execute the query
       const { data: collectionsData, error: collectionsError } = await query;
       
+      // Check if our request is still valid
+      if (requestIdRef.current !== requestId || abortController.signal.aborted) {
+        console.log(`Request ${requestId} aborted after collections query for loadMore`);
+        return;
+      }
+      
       if (collectionsError) throw collectionsError;
       
       console.log(`Received ${collectionsData?.length || 0} more collections from server`);
       
       if (!collectionsData || collectionsData.length === 0) {
         console.log('No more collections returned, setting hasMore to false');
-        setHasMore(false);
-        setLoadingMore(false);
+        if (requestIdRef.current === requestId && !abortController.signal.aborted) {
+          setHasMore(false);
+          setLoadingMore(false);
+        }
         return;
       }
       
-      // Get subjects for each collection using the junction table
-      const collectionsWithSubjects = await Promise.all(
-        collectionsData.map(async (collection) => {
-          // Get subject IDs from the junction table
-          const { data: collectionSubjects, error: subjectsError } = await supabase
-            .from('collection_subjects')
-            .select('subject_id')
-            .eq('collection_id', collection.id)
-            .limit(1); // Just get one subject for display purposes
+      // Process the fetched collections just like in loadCollections
+      const fetchedCollectionIds = collectionsData.map(collection => collection.id);
+      
+      // BATCH QUERY 1: Get all subject relationships for these collections at once
+      const { data: allCollectionSubjects, error: allSubjectsError } = await supabase
+        .from('collection_subjects')
+        .select('collection_id, subject_id')
+        .in('collection_id', fetchedCollectionIds);
+        
+      // Check if our request is still valid
+      if (requestIdRef.current !== requestId || abortController.signal.aborted) {
+        console.log(`Request ${requestId} aborted after subjects relationship query for loadMore`);
+        return;
+      }
+        
+      if (allSubjectsError) throw allSubjectsError;
+      
+      // Create a lookup map for collection -> subject_id
+      const collectionToSubjectMap = new Map();
+      allCollectionSubjects?.forEach(cs => {
+        // Just store the first subject for each collection for display purposes
+        if (!collectionToSubjectMap.has(cs.collection_id)) {
+          collectionToSubjectMap.set(cs.collection_id, cs.subject_id);
+        }
+      });
+      
+      // BATCH QUERY 2: Get all subjects data at once
+      const relatedSubjectIds = [...new Set(allCollectionSubjects?.map(cs => cs.subject_id) || [])];
+      let subjectsMap = new Map();
+      
+      if (relatedSubjectIds.length > 0) {
+        const { data: subjectsData, error: subjectsQueryError } = await supabase
+          .from('subjects')
+          .select('id, name')
+          .in('id', relatedSubjectIds);
+          
+        // Check if our request is still valid
+        if (requestIdRef.current !== requestId || abortController.signal.aborted) {
+          console.log(`Request ${requestId} aborted after subjects data query for loadMore`);
+          return;
+        }
+          
+        if (subjectsQueryError) throw subjectsQueryError;
+        
+        // Create a lookup map for subjects
+        subjectsMap = new Map(subjectsData?.map(s => [s.id, s]) || []);
+      }
+      
+      // BATCH QUERY 3: Get flashcard counts for all collections at once
+      const { data: allFlashcardCollections, error: fcError } = await supabase
+        .from('flashcard_collections_junction')
+        .select('collection_id, flashcard_id')
+        .in('collection_id', fetchedCollectionIds);
+        
+      // Check if our request is still valid
+      if (requestIdRef.current !== requestId || abortController.signal.aborted) {
+        console.log(`Request ${requestId} aborted after flashcard collections query for loadMore`);
+        return;
+      }
+        
+      if (fcError) throw fcError;
+      
+      // Create a map of collection -> flashcardIds arrays
+      const collectionToFlashcardsMap = new Map();
+      allFlashcardCollections?.forEach(fc => {
+        if (!collectionToFlashcardsMap.has(fc.collection_id)) {
+          collectionToFlashcardsMap.set(fc.collection_id, []);
+        }
+        collectionToFlashcardsMap.get(fc.collection_id).push(fc.flashcard_id);
+      });
+      
+      // Count the total cards for each collection
+      const collectionCardCountMap = new Map();
+      for (const [collectionId, flashcardIds] of collectionToFlashcardsMap.entries()) {
+        collectionCardCountMap.set(collectionId, flashcardIds.length);
+      }
+      
+      // BATCH QUERY: Get progress data for all relevant flashcards if user is logged in
+      let progressMap = new Map();
+      
+      if (user) {
+        // Get all flashcard IDs from all collections
+        const allFlashcardIds = Array.from(collectionToFlashcardsMap.values()).flat();
+        
+        if (allFlashcardIds.length > 0) {
+          const { data: progressData, error: progressError } = await supabase
+            .from('flashcard_progress')
+            .select('flashcard_id, is_mastered')
+            .eq('user_id', user.id)
+            .eq('is_mastered', true)
+            .in('flashcard_id', allFlashcardIds);
             
-          if (subjectsError) throw subjectsError;
-          
-          let subject = null;
-          
-          // If the collection has subjects, get the first one's details
-          if (collectionSubjects && collectionSubjects.length > 0) {
-            const { data: subjectData, error: subjectError } = await supabase
-              .from('subjects')
-              .select('id, name')
-              .eq('id', collectionSubjects[0].subject_id)
-              .single();
-              
-            if (subjectError) throw subjectError;
-            subject = subjectData;
+          // Check if our request is still valid
+          if (requestIdRef.current !== requestId || abortController.signal.aborted) {
+            console.log(`Request ${requestId} aborted after progress query for loadMore`);
+            return;
           }
-          
-          // Get card counts from the flashcard_collections_junction table
-          const { data: flashcardCollections, error: fcError } = await supabase
-            .from('flashcard_collections_junction')
-            .select('flashcard_id')
-            .eq('collection_id', collection.id);
             
-          if (fcError) throw fcError;
-          
-          const totalCount = flashcardCollections?.length || 0;
-          
-          // Count mastered cards by checking progress records
-          let masteredCount = 0;
-          if (totalCount > 0 && user) {
-            const flashcardIds = flashcardCollections.map(fc => fc.flashcard_id);
-            
-            // Get mastered count
-            const { count, error: masteredError } = await supabase
-              .from('flashcard_progress')
-              .select('*', { count: 'exact', head: true })
-              .eq('user_id', user.id)
-              .in('flashcard_id', flashcardIds)
-              .eq('is_mastered', true);
-              
-            if (masteredError) throw masteredError;
-            masteredCount = count || 0;
+          if (!progressError && progressData) {
+            // Group progress data by flashcard
+            progressData.forEach(p => {
+              progressMap.set(p.flashcard_id, p);
+            });
           }
-          
-          return {
-            ...collection,
-            subject: subject,
-            card_count: totalCount,
-            mastered_count: masteredCount
-          };
-        })
-      );
+        }
+      }
+      
+      // Calculate mastered count for each collection
+      const collectionMasteredCountMap = new Map();
+      for (const [collectionId, flashcardIds] of collectionToFlashcardsMap.entries()) {
+        const masteredCount = flashcardIds.filter(id => progressMap.has(id)).length;
+        collectionMasteredCountMap.set(collectionId, masteredCount);
+      }
+      
+      // Combine all the data to create the final collection objects
+      const collectionsWithSubjects = collectionsData.map(collection => {
+        const subjectId = collectionToSubjectMap.get(collection.id);
+        const subject = subjectId ? subjectsMap.get(subjectId) : null;
+        const cardCount = collectionCardCountMap.get(collection.id) || 0;
+        const masteredCount = collectionMasteredCountMap.get(collection.id) || 0;
+        
+        return {
+          ...collection,
+          subject,
+          card_count: cardCount,
+          mastered_count: masteredCount
+        };
+      });
       
       // Update hasMore flag - if we got fewer collections than requested, there are no more
       const mightHaveMore = collectionsWithSubjects.length === ITEMS_PER_PAGE;
       console.log(`Setting hasMore to ${mightHaveMore} (got ${collectionsWithSubjects.length} collections)`);
-      setHasMore(mightHaveMore);
       
-      // Append new collections to existing collections
-      setCollections(prevCollections => {
-        const newCollections = [...prevCollections, ...collectionsWithSubjects];
-        console.log(`Now showing ${newCollections.length} collections out of ${totalCollectionCount}`);
-        return newCollections;
-      });
+      // Only update the collections if our request is still valid
+      if (requestIdRef.current === requestId && !abortController.signal.aborted) {
+        setHasMore(mightHaveMore);
+        
+        // Append new collections to existing collections
+        setCollections(prevCollections => {
+          const newCollections = [...prevCollections, ...collectionsWithSubjects];
+          console.log(`Now showing ${newCollections.length} collections out of ${totalCollectionCount}`);
+          return newCollections;
+        });
+      }
     } catch (err: any) {
-      console.error("Error loading more collections:", err);
-      // Don't set error state to avoid disrupting the UI
+      // Only update error state if this is still the current request
+      if (requestIdRef.current === requestId && !abortController.signal.aborted) {
+        console.error("Error loading more collections:", err);
+        // Don't set error state to avoid disrupting the UI
+      }
     } finally {
-      setLoadingMore(false);
+      // Only update loading state if this is still the current request
+      if (requestIdRef.current !== requestId || abortController.signal.aborted) {
+        console.log(`Not updating loading state for aborted request ${requestId}`);
+      } else {
+        console.log(`Finished loading more collections for request ${requestId}`);
+        setLoadingMore(false);
+      }
     }
   }
 
@@ -553,142 +938,48 @@ export default function FlashcardCollections() {
     }
   }
 
-  function handleSubjectFilter(e: React.ChangeEvent<HTMLSelectElement>) {
-    const value = e.target.value;
-    if (value && !selectedSubjectIds.includes(value)) {
-      setSelectedSubjectIds(prev => {
-        const newSubjects = [...prev, value];
-        // Update URL parameters
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete('subject'); // Remove all existing subject parameters
-        newSubjects.forEach(id => {
-          params.append('subject', id);
-        });
-        setSearchParams(params);
-        return newSubjects;
-      });
+  // Function to handle filter changes from the UI (e.g., tab clicks)
+  function handleFilterChange(value: string) {
+    if (['all', 'official', 'my'].includes(value)) {
+      // Set the new filter - the useEffect will handle loading the data
+      const newFilter = value as 'all' | 'official' | 'my';
+      setFilter(newFilter);
+      
+      // Clear collections to avoid briefly showing old data
+      setCollections([]);
     }
   }
 
-  const removeSubject = (id: string) => {
-    setSelectedSubjectIds(prev => {
-      const newSubjects = prev.filter(subId => subId !== id);
-      // Update URL parameters
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete('subject'); // Remove all existing subject parameters
-      newSubjects.forEach(subId => {
-        params.append('subject', subId);
-      });
-      setSearchParams(params);
-      return newSubjects;
-    });
-  };
+  // Function to handle subject selection from dropdown
+  function handleSubjectDropdownChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const subjectId = e.target.value;
+    if (subjectId) {
+      // Add subject to selection if not already selected
+      if (!selectedSubjectIds.includes(subjectId)) {
+        setSelectedSubjectIds(prev => [...prev, subjectId]);
+        setCollections([]); // Clear collections to avoid showing incorrect data
+      }
+    }
+  }
+
+  // Function to remove a specific subject filter
+  function removeSubjectFilter(subjectId: string) {
+    setSelectedSubjectIds(prev => prev.filter(id => id !== subjectId));
+    setCollections([]); // Clear collections to avoid showing incorrect data
+  }
+
+  // Function to clear all subject filters
+  function clearSubjectFilters() {
+    if (selectedSubjectIds.length > 0) {
+      setSelectedSubjectIds([]);
+      setCollections([]);
+    }
+  }
 
   function handleSearch(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     // This would be implemented with a proper search in a real app
     // For now, we'll just filter the collections client-side
-  }
-
-  // This function needs to run after filter changes to update counts correctly
-  function handleFilterChange(value: string) {
-    if (['all', 'official', 'my'].includes(value)) {
-      // Reset pagination when filter changes
-      setPage(1);
-      setHasMore(true);
-      setCollections([]);
-      
-      const newFilter = value as 'all' | 'official' | 'my';
-      setFilter(newFilter);
-      
-      // Update URL
-      const params = new URLSearchParams(searchParams.toString());
-      params.set('filter', newFilter);
-      setSearchParams(params);
-      
-      // Get counts first before loading collections
-      updateCountsForCurrentFilter(newFilter).then(() => {
-        // Pass the new filter directly to loadCollections
-        loadCollections(newFilter);
-      });
-    }
-  }
-  
-  // Separate function to update counts based on filter
-  async function updateCountsForCurrentFilter(currentFilter: 'all' | 'official' | 'my') {
-    try {
-      // First, get the total count of ALL collections for the navbar
-      const { count: totalCount } = await supabase
-        .from('collections')
-        .select('id', { count: 'exact' });
-      
-      // Always update the total collection count in the navbar
-      updateTotalCollectionCount(totalCount || 0);
-      
-      // Now get the filtered count
-      let filteredQuery = supabase.from('collections').select('id', { count: 'exact' });
-      
-      if (currentFilter === 'official') {
-        filteredQuery = filteredQuery.eq('is_official', true);
-      } else if (currentFilter === 'my' && user) {
-        filteredQuery = filteredQuery.eq('user_id', user.id);
-      }
-      
-      const { count: filteredCount } = await filteredQuery;
-      
-      // Check if there's a subject filter applied
-      const subjectIds = selectedSubjectIds;
-      if (subjectIds.length > 0) {
-        // Get collections for these subjects
-        const { data: collectionSubjects } = await supabase
-          .from('collection_subjects')
-          .select('collection_id')
-          .in('subject_id', subjectIds);
-          
-        if (collectionSubjects && collectionSubjects.length > 0) {
-          const collectionIds = collectionSubjects.map(cs => cs.collection_id);
-          
-          // Get filtered collections that also belong to these subjects
-          let subjectFilteredQuery = supabase
-            .from('collections')
-            .select('id', { count: 'exact' })
-            .in('id', collectionIds);
-            
-          if (currentFilter === 'official') {
-            subjectFilteredQuery = subjectFilteredQuery.eq('is_official', true);
-          } else if (currentFilter === 'my' && user) {
-            subjectFilteredQuery = subjectFilteredQuery.eq('user_id', user.id);
-          }
-          
-          const { count: subjectFilteredCount } = await subjectFilteredQuery;
-          
-          // Update the local state with subject-filtered count
-          setTotalCollectionCount(subjectFilteredCount || 0);
-          
-          // Update the item count in the navbar
-          updateCount(subjectFilteredCount || 0);
-          
-          return { totalCount, filteredCount: subjectFilteredCount || 0 };
-        } else {
-          // No collections for these subjects
-          setTotalCollectionCount(0);
-          updateCount(0);
-          return { totalCount, filteredCount: 0 };
-        }
-      }
-      
-      // If no subject filter, update with the filtered count
-      // Update the local state with filtered count
-      setTotalCollectionCount(filteredCount || 0);
-      
-      // Update the item count in the navbar
-      updateCount(filteredCount || 0);
-      
-      return { totalCount, filteredCount };
-    } catch (error) {
-      console.error("Error updating counts:", error);
-      return { totalCount: 0, filteredCount: 0 };
-    }
   }
 
   // Filter collections based on search query and filter type
@@ -709,10 +1000,16 @@ export default function FlashcardCollections() {
   });
 
   if (loading) {
-    return <LoadingSpinner />;
+    console.log("Rendering full-page loading spinner");
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   if (error) {
+    console.log(`Rendering error message: ${error}`);
     return <ErrorMessage message={error} />;
   }
 
@@ -837,12 +1134,12 @@ export default function FlashcardCollections() {
               <select
                 id="subject-filter"
                 value=""
-                onChange={handleSubjectFilter}
+                onChange={handleSubjectDropdownChange}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022] dark:bg-gray-700 dark:text-gray-200"
               >
-                <option value="">Select subjects...</option>
+                <option value="">Select a subject to filter</option>
                 {subjects.map(subject => (
-                  <option key={subject.id} value={subject.id}>
+                  <option key={subject.id} value={subject.id} disabled={selectedSubjectIds.includes(subject.id)}>
                     {subject.name}
                   </option>
                 ))}
@@ -851,19 +1148,29 @@ export default function FlashcardCollections() {
                 <div className="mt-2 flex flex-wrap gap-2">
                   {selectedSubjectIds.map(id => {
                     const subject = subjects.find(s => s.id === id);
-                    return subject && (
-                      <div key={id} className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-md flex items-center">
-                        <span className="text-sm dark:text-gray-200">{subject.name}</span>
+                    return subject ? (
+                      <div key={id} className="flex items-center bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">
+                        <span className="text-sm text-gray-800 dark:text-gray-200">{subject.name}</span>
                         <button 
                           type="button" 
-                          onClick={() => removeSubject(id)}
+                          onClick={() => removeSubjectFilter(id)}
                           className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                         >
-                          <X className="h-3 w-3" />
+                          <X size={14} />
                         </button>
                       </div>
-                    );
+                    ) : null;
                   })}
+                  
+                  {selectedSubjectIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearSubjectFilters}
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Clear all
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -894,6 +1201,7 @@ export default function FlashcardCollections() {
               return (
                 <div
                   key={collection.id}
+                  className={isLastItem ? 'last-card-ref' : ''}
                   ref={isLastItem ? lastCardRef : null}
                 >
                   <Card

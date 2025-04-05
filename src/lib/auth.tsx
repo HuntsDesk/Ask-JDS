@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from './supabase';
 import type { AuthContextType, User } from '@/types';
 import { withTimeout, ensureUserRecord } from './auth-utils';
@@ -34,6 +34,8 @@ let authInstance = getGlobalAuthInstance() || {
 let isAuthInitializing = false;
 let authInitPromise: Promise<void> | null = null;
 let authInitialized = false;
+// Add cancellation reference for session fetch
+let currentSessionFetch: any = null;
 
 // Initialize auth
 export async function initializeAuth() {
@@ -51,6 +53,13 @@ export async function initializeAuth() {
     return authInitPromise;
   }
 
+  // If user is already authenticated, don't re-initialize
+  if (authInstance.user && authInstance.status === 'authenticated') {
+    console.log('User already authenticated, skipping initialization');
+    authInitialized = true;
+    return;
+  }
+
   isAuthInitializing = true;
   
   authInitPromise = new Promise<void>(async (resolve) => {
@@ -62,8 +71,32 @@ export async function initializeAuth() {
       
       console.log('Got Supabase client for auth initialization');
       
+      // Check localStorage for existing session first
+      let existingSession = null;
+      
+      try {
+        if (typeof window !== 'undefined') {
+          const authStorage = localStorage.getItem('ask-jds-auth-storage');
+          if (authStorage) {
+            const authData = JSON.parse(authStorage);
+            if (authData?.access_token && authData?.expires_at) {
+              // Check if token is still valid (not expired)
+              const expiresAt = new Date(authData.expires_at);
+              if (expiresAt > new Date()) {
+                console.log('Found valid session in localStorage');
+                existingSession = authData;
+              } else {
+                console.log('Found expired session in localStorage');
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error checking localStorage for session:', e);
+      }
+      
       // Set up the auth state change listener before fetching initial session
-      supabase.auth.onAuthStateChange((event, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
         console.log(`Auth state change: ${event}`);
         const prevAuthStatus = authInstance.status;
         
@@ -87,6 +120,16 @@ export async function initializeAuth() {
             authInstance.initialized = true;
             authInstance.loading = false;
             setGlobalAuthInstance(authInstance);
+            
+            // Cancel any in-progress session fetch to prevent race conditions
+            if (currentSessionFetch && typeof currentSessionFetch.cancel === 'function') {
+              console.log('Cancelling in-progress session fetch due to sign-in');
+              currentSessionFetch.cancel();
+              currentSessionFetch = null;
+            }
+            
+            // Mark auth as initialized to prevent redundant checks
+            authInitialized = true;
             
             // Refresh user data if needed
             refreshUserData(userData);
@@ -141,17 +184,38 @@ export async function initializeAuth() {
           } else {
             console.log(`Ignoring INITIAL_SESSION event because auth status is already ${prevAuthStatus}`);
           }
+        } else if (event === 'TOKEN_REFRESHED') {
+          console.log('Auth token refreshed');
+          // No need to update state as the user remains the same
         }
       });
       
+      // If we already have a user (from storage or a previous auth change), skip session fetch
+      if (authInstance.user && authInstance.status === 'authenticated') {
+        console.log('User already authenticated, skipping session fetch');
+        authInitialized = true;
+        resolve();
+        return;
+      }
+      
       try {
         // Use our improved withTimeout utility to fetch the session
-        const { data: { session } } = await withTimeout(
+        currentSessionFetch = withTimeout(
           () => supabase.auth.getSession(),
-          15000,
+          15000, // Use a reasonable timeout
           'Auth session fetch timed out',
-          2
+          2 // Use a reasonable retry count
         );
+        
+        const { data: { session } } = await currentSessionFetch;
+        currentSessionFetch = null;
+        
+        // Check if auth state was already set by another process
+        if (authInitialized) {
+          console.log('Auth already initialized by another process, skipping duplicate initialization');
+          resolve();
+          return;
+        }
         
         console.log('Initial session fetch successful', session ? 'with session' : 'without session');
         
@@ -174,6 +238,16 @@ export async function initializeAuth() {
           authInstance.loading = false;
           setGlobalAuthInstance(authInstance);
           
+          // Store session information in a more reliable way
+          try {
+            if (typeof window !== 'undefined') {
+              // Don't replace existing storage, just ensure tokens are there
+              localStorage.setItem('auth-user-id', session.user.id);
+            }
+          } catch (e) {
+            console.warn('Error updating localStorage with session info:', e);
+          }
+          
           // Refresh user data
           refreshUserData(userData);
         } else {
@@ -187,14 +261,61 @@ export async function initializeAuth() {
           setGlobalAuthInstance(authInstance);
         }
       } catch (error) {
+        // If error is "Operation cancelled", this is expected behavior due to sign-in
+        if (error.message === 'Operation cancelled') {
+          console.log('Session fetch cancelled due to auth state change');
+          // Auth state should already be set by the process that cancelled this operation
+          resolve();
+          return;
+        }
+        
         console.error('Error fetching initial session:', error);
         
-        // Update singleton instance
-        authInstance.user = null;
-        authInstance.status = 'unauthenticated';
-        authInstance.initialized = true;
-        authInstance.loading = false;
-        setGlobalAuthInstance(authInstance);
+        // Try to recover from localStorage if session fetch failed
+        let recoveredFromStorage = false;
+        try {
+          if (typeof window !== 'undefined') {
+            const userId = localStorage.getItem('auth-user-id');
+            const authStorage = localStorage.getItem('ask-jds-auth-storage');
+            
+            if (userId && authStorage) {
+              const authData = JSON.parse(authStorage);
+              if (authData?.user?.id === userId) {
+                console.log('Recovered user from localStorage after session fetch error');
+                
+                // Create user object from storage
+                const userData = {
+                  id: authData.user.id,
+                  email: authData.user.email,
+                  isAdmin: false,
+                  last_sign_in_at: authData.user.last_sign_in_at || new Date().toISOString(),
+                  user_metadata: authData.user.user_metadata || {}
+                };
+                
+                // Update singleton instance with recovered data
+                authInstance.user = userData;
+                authInstance.status = 'authenticated';
+                authInstance.initialized = true;
+                authInstance.loading = false;
+                setGlobalAuthInstance(authInstance);
+                
+                recoveredFromStorage = true;
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Error recovering from localStorage:', e);
+        }
+        
+        // If we couldn't recover from storage, set to unauthenticated
+        if (!recoveredFromStorage) {
+          // Update singleton instance
+          authInstance.user = null;
+          authInstance.status = 'unauthenticated';
+          authInstance.initialized = true;
+          authInstance.loading = false;
+          setGlobalAuthInstance(authInstance);
+        }
       }
       
       authInitialized = true;
@@ -356,8 +477,8 @@ export function handleSessionExpiration(preservedMessage?: string) {
       sessionStorage.setItem('preserved_message', preservedMessage);
     }
     
-    // Redirect to the login page
-    window.location.href = '/login';
+    // Redirect to the auth page
+    window.location.href = '/auth';
   }
 }
 
@@ -367,58 +488,84 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(authInstance.loading);
   const [authInitialized, setAuthInitialized] = useState(authInstance.authInitialized);
   
+  // Reference to track component mount status
+  const isMountedRef = useRef(true);
+  
+  // Update local state when auth state changes
+  const updateStateFromAuthInstance = useCallback(() => {
+    if (!isMountedRef.current) return;
+    
+    if (authInstance.user !== user) {
+      setUser(authInstance.user);
+    }
+    if (authInstance.loading !== loading) {
+      setLoading(authInstance.loading);
+    }
+    if (authInstance.authInitialized !== authInitialized) {
+      setAuthInitialized(authInstance.authInitialized);
+    }
+  }, [user, loading, authInitialized]);
+  
   // Trigger auth initialization when the component mounts
   useEffect(() => {
     console.log('AuthProvider mounted, initializing auth');
+    isMountedRef.current = true;
     
-    // Start initialization after a small delay to ensure Supabase client has time to initialize
-    setTimeout(() => {
-      const initialize = async () => {
-        try {
-          await initializeAuth();
-          setIsInitialized(true);
-          
-          // Update component state from singleton
-          setUser(authInstance.user);
-          setLoading(false);
-          setAuthInitialized(true);
-        } catch (error) {
-          console.error('Error during auth initialization:', error);
-          setIsInitialized(true);
-          setLoading(false);
-          setAuthInitialized(true);
-        }
-      };
+    // Check if auth is already initialized
+    if (authInitialized || authInstance.authInitialized) {
+      console.log('Auth already initialized, updating state');
+      updateStateFromAuthInstance();
+      setIsInitialized(true);
+      return;
+    }
+    
+    // Start initialization immediately to reduce race condition window
+    const initialize = async () => {
+      if (!isMountedRef.current) return;
       
-      void initialize();
-    }, 100);
+      try {
+        await initializeAuth();
+        
+        if (!isMountedRef.current) return;
+        
+        setIsInitialized(true);
+        
+        // Update component state from singleton
+        updateStateFromAuthInstance();
+      } catch (error) {
+        if (!isMountedRef.current) return;
+        
+        console.error('Error during auth initialization:', error);
+        setIsInitialized(true);
+        setLoading(false);
+        setAuthInitialized(true);
+      }
+    };
     
-    // Subscribe to auth changes
-    const authCheckInterval = setInterval(() => {
-      if (authInstance.user !== user) {
-        setUser(authInstance.user);
-      }
-      if (authInstance.loading !== loading) {
-        setLoading(authInstance.loading);
-      }
-      if (authInstance.authInitialized !== authInitialized) {
-        setAuthInitialized(authInstance.authInitialized);
-      }
-    }, 100);
+    void initialize();
+    
+    // Subscribe to auth changes - use a more efficient approach
+    const authSubscription = supabase.auth.onAuthStateChange(() => {
+      // Only update when auth instance changes
+      updateStateFromAuthInstance();
+    });
     
     return () => {
       console.log('AuthProvider unmounted');
-      clearInterval(authCheckInterval);
+      isMountedRef.current = false;
+      authSubscription.data.subscription.unsubscribe();
     };
-  }, []);
+  }, [updateStateFromAuthInstance]);
   
   // Add visibilitychange event listener to check token when user returns to tab
   useEffect(() => {
+    if (!user) return; // Skip if no user
+    
     const checkSessionOnVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && user) {
+      if (document.visibilityState === 'visible' && user && isMountedRef.current) {
         console.log('Tab became visible, checking session validity');
         validateSessionToken().then(isValid => {
-          if (!isValid) {
+          if (!isValid && isMountedRef.current) {
             console.log('Session invalid after visibility change, handling expiration');
             handleSessionExpiration();
           }
@@ -428,10 +575,10 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
     
     // Set up periodic validation (every 30 mins)
     const periodicValidationInterval = setInterval(() => {
-      if (user) {
+      if (user && isMountedRef.current) {
         console.log('Performing periodic session validation');
         validateSessionToken().then(isValid => {
-          if (!isValid) {
+          if (!isValid && isMountedRef.current) {
             console.log('Session invalid during periodic check, handling expiration');
             handleSessionExpiration();
           }

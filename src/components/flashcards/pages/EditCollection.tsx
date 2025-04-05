@@ -227,7 +227,11 @@ export default function EditCollection() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await saveChanges();
+    const saved = await saveChanges();
+    if (saved) {
+      // Navigate back to collections after successful save
+      navigate('/flashcards/collections');
+    }
   };
 
   const handleDeleteCollection = async () => {
@@ -473,7 +477,7 @@ export default function EditCollection() {
               
               <button
                 type="button"
-                onClick={() => handleNavigation(`/flashcards/manage-cards/${id}`)}
+                onClick={() => handleNavigation(`/flashcards/cards/${id}`)}
                 className="flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 flex-1"
               >
                 Manage Collection Cards

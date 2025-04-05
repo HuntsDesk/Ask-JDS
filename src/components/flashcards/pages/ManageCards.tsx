@@ -20,9 +20,6 @@ interface Flashcard {
 interface Collection {
   id: string;
   title: string;
-  subject: {
-    name: string;
-  };
 }
 
 export default function ManageCards() {
@@ -49,32 +46,46 @@ export default function ManageCards() {
       
       // Load collection details
       const { data: collectionData, error: collectionError } = await supabase
-        .from('flashcard_collections')
-        .select(`
-          *,
-          subject:subject_id (
-            name
-          )
-        `)
+        .from('collections')
+        .select('*')
         .eq('id', id)
         .single();
 
       if (collectionError) throw collectionError;
       setCollection(collectionData);
 
-      // Load flashcards
-      let query = supabase
-        .from('flashcards')
-        .select('*')
-        .eq('collection_id', id)
-        .order('position')
-        .order('created_at');
+      // Load flashcards using junction table
+      // First get the flashcard IDs for this collection
+      const { data: junctionData, error: junctionError } = await supabase
+        .from('flashcard_collections_junction')
+        .select('flashcard_id')
+        .eq('collection_id', id);
       
-      if (!showMastered) {
-        query = query.eq('is_mastered', false);
+      if (junctionError) throw junctionError;
+      
+      // If no flashcards are associated with this collection, return empty array
+      if (!junctionData || junctionData.length === 0) {
+        setCards([]);
+        setLoading(false);
+        return;
       }
       
-      const { data: cardsData, error: cardsError } = await query;
+      // Get the flashcard IDs from the junction data
+      const flashcardIds = junctionData.map(junction => junction.flashcard_id);
+      
+      // Query the flashcards table with these IDs
+      let flashcardsQuery = supabase
+        .from('flashcards')
+        .select('*')
+        .in('id', flashcardIds)
+        .order('position')
+        .order('created_at');
+        
+      if (!showMastered) {
+        flashcardsQuery = flashcardsQuery.eq('is_mastered', false);
+      }
+      
+      const { data: cardsData, error: cardsError } = await flashcardsQuery;
 
       if (cardsError) throw cardsError;
       setCards(cardsData || []);
@@ -203,7 +214,7 @@ export default function ManageCards() {
         </Link>
         <h1 className="text-3xl font-bold text-gray-900 mt-4">Manage Flashcards</h1>
         <p className="text-gray-600">
-          {collection.title} • {collection.subject.name}
+          {collection.title}
         </p>
       </div>
 
@@ -295,9 +306,9 @@ export default function ManageCards() {
         
         <Link
           to={`/flashcards/study/${id}`}
-          className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+          className="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300"
         >
-          Study This Collection
+          Save & Study
         </Link>
       </div>
     </div>

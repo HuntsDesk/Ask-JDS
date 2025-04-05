@@ -1,4 +1,3 @@
-
 import {
   Accordion,
   AccordionContent,
@@ -54,9 +53,9 @@ const FaqSection = () => {
             {faqItems.map((faq, index) => (
               <AccordionItem key={index} value={`item-${index}`} className="border border-gray-200 rounded-lg overflow-hidden">
                 <AccordionTrigger className="px-6 py-4 hover:bg-gray-50 text-left">
-                  <span className="font-medium text-gray-900">{faq.question}</span>
+                  <span className="text-xl font-bold text-gray-900">{faq.question}</span>
                 </AccordionTrigger>
-                <AccordionContent className="px-6 pb-4 pt-2 text-gray-600">
+                <AccordionContent className="px-6 pb-4 pt-2 text-base text-gray-600">
                   {faq.answer}
                 </AccordionContent>
               </AccordionItem>

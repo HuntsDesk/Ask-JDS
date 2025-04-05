@@ -127,11 +127,15 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
     }
   }
   
+  // Use a longer timeout for auth-related requests
+  const isAuthRequest = url.includes('/auth/') || url.includes('/user_subscriptions');
+  const timeoutDuration = isAuthRequest ? 30000 : 10000; // 30 seconds for auth, 10 for others
+  
   const timeoutId = setTimeout(() => {
     controller.abort();
     const duration = Date.now() - startTime;
     
-    console.warn(`[${requestId}] Supabase fetch request timed out after 10 seconds: ${url} (${duration}ms)`);
+    console.warn(`[${requestId}] Supabase fetch request timed out after ${timeoutDuration/1000} seconds: ${url} (${duration}ms)`);
     
     // Log additional information about the request
     if (typeof input === 'string') {
@@ -143,10 +147,29 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       console.warn(`[${requestId}] Network appears to be offline. This may be causing the timeout.`);
     }
-  }, 10000); // 10 second timeout for all Supabase requests (reduced from 15)
+  }, timeoutDuration); // Variable timeout based on request type
+  
+  // Add auth headers if available and not already included
+  let finalInit = { ...init };
+  if (isAuthRequest && typeof window !== 'undefined') {
+    const authStorage = localStorage.getItem('ask-jds-auth-storage');
+    if (authStorage) {
+      try {
+        const authData = JSON.parse(authStorage);
+        if (authData?.access_token && (!finalInit.headers || !('Authorization' in finalInit.headers))) {
+          finalInit.headers = {
+            ...finalInit.headers,
+            Authorization: `Bearer ${authData.access_token}`
+          };
+        }
+      } catch (e) {
+        console.error('Error parsing auth storage:', e);
+      }
+    }
+  }
   
   const fetchPromise = fetch(input, {
-    ...init,
+    ...finalInit,
     signal: controller.signal
   });
   
@@ -162,7 +185,7 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
       
       // If this is an abort error from our timeout, provide a clearer message
       if (error.name === 'AbortError') {
-        throw new Error(`Request to ${url} timed out after 10 seconds. Please check your network connection.`);
+        throw new Error(`Request to ${url} timed out after ${timeoutDuration/1000} seconds. Please check your network connection.`);
       }
       
       // Provide a more user-friendly error for network issues

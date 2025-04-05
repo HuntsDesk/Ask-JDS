@@ -154,8 +154,8 @@ const Dashboard = () => {
       {/* Header section */}
       <div className="flex justify-between items-end mb-2">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Your Learning Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400">Track your progress and continue your learning journey</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Learning Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400">Browse courses, review lessons, and continue your journey toward legal mastery.</p>
         </div>
       </div>
       
