@@ -37,7 +37,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        run: npm run build:askjds
+        run: npx vite build --mode askjds
 
       - name: Copy build artifacts to proper directory
         run: |
@@ -106,7 +106,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        run: npm run build:jds
+        run: npx vite build --mode jds
 
       - name: Copy build artifacts to proper directory
         run: |
