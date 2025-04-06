@@ -9,6 +9,10 @@ jobs:
   deploy-askjds:
     name: Deploy Ask JDS
     runs-on: ubuntu-latest
+    # Allow this job to run concurrently with deploy-jdsimplified
+    concurrency: 
+      group: deploy-askjds-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout Code
@@ -38,7 +42,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          SOURCE_DIR: dist/askjds
+          SOURCE_DIR: dist_askjds
 
       - name: Invalidate CloudFront
         uses: koki-develop/cloudfront-invalidate-action@v1
@@ -52,6 +56,10 @@ jobs:
   deploy-jdsimplified:
     name: Deploy JD Simplified
     runs-on: ubuntu-latest
+    # Allow this job to run concurrently with deploy-askjds
+    concurrency: 
+      group: deploy-jdsimplified-${{ github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout Code
@@ -81,7 +89,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
-          SOURCE_DIR: dist/jdsimplified
+          SOURCE_DIR: dist_jdsimplified
 
       - name: Invalidate CloudFront
         uses: koki-develop/cloudfront-invalidate-action@v1

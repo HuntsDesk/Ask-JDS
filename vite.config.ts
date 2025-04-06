@@ -45,7 +45,8 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_BUILD_DOMAIN': JSON.stringify(domain),
     },
     build: {
-      outDir: `dist/${domain}`,
+      // Use separate root folders for each domain build
+      outDir: domain === 'askjds' ? 'dist_askjds' : 'dist_jdsimplified',
       rollupOptions: {
         output: {
           manualChunks: {
