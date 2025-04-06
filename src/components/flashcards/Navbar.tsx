@@ -160,11 +160,11 @@ export default function Navbar() {
               </button>
               
               <div className="flex flex-col flex-grow">
-                <h1 className="text-lg font-semibold text-center">
+                <h1 className="text-lg font-semibold text-center dark:text-white">
                   {pageInfo.title}
                 </h1>
                 {pageInfo.countKey && (
-                  <p className="text-sm text-gray-500 text-center">
+                  <p className="text-sm text-gray-500 dark:text-gray-300 text-center">
                     {count} {pageInfo.title.toLowerCase()}
                   </p>
                 )}
