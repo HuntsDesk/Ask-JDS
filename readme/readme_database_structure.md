@@ -111,7 +111,7 @@ This document outlines the database schema for Ask JDS, a legal flashcard and le
    - Governmental Interest
    - Areas of Law (e.g., Torts, Contracts, Property)
 
-# Database Information
+# Database Information 
 
 ## Schema Inspection Tools
 
