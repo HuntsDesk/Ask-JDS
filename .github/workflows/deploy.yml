@@ -31,7 +31,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Fix known security vulnerabilities
-        run: npm audit fix --production --legacy-peer-deps || true
+        run: npm audit fix --legacy-peer-deps || true
 
       - name: Build Ask JDS
         env:
@@ -100,7 +100,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Fix known security vulnerabilities
-        run: npm audit fix --production --legacy-peer-deps || true
+        run: npm audit fix --legacy-peer-deps || true
 
       - name: Build JD Simplified
         env:
