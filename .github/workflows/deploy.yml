@@ -28,10 +28,10 @@ jobs:
           cache-dependency-path: '**/package-lock.json'
       
       - name: Install Dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci --legacy-peer-deps
 
-      - name: Install Vite globally
-        run: npm install -g vite
+      - name: Install Vite locally
+        run: npm install --save-dev vite
 
       - name: Fix known security vulnerabilities
         run: npm audit fix --production --legacy-peer-deps || true
@@ -100,10 +100,10 @@ jobs:
           cache-dependency-path: '**/package-lock.json'
       
       - name: Install Dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci --legacy-peer-deps
 
-      - name: Install Vite globally
-        run: npm install -g vite
+      - name: Install Vite locally
+        run: npm install --save-dev vite
 
       - name: Fix known security vulnerabilities
         run: npm audit fix --production --legacy-peer-deps || true
