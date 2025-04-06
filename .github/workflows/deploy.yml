@@ -30,6 +30,9 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Install Vite globally
+        run: npm install -g vite
+
       - name: Fix known security vulnerabilities
         run: npm audit fix --production --legacy-peer-deps || true
 
@@ -98,6 +101,9 @@ jobs:
       
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
+
+      - name: Install Vite globally
+        run: npm install -g vite
 
       - name: Fix known security vulnerabilities
         run: npm audit fix --production --legacy-peer-deps || true
