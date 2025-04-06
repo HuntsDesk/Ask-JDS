@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { supabase } from '@/lib/supabase';
 import { BookOpen } from 'lucide-react';
+import MobileTopBar from './MobileTopBar';
+import MobileBottomNav from './MobileBottomNav';
 
 interface Course {
   id: string;
@@ -65,8 +67,11 @@ export default function CoursesPage() {
   return (
     <>
       <div className="w-full bg-white dark:bg-gray-900 min-h-screen">
+        <div className="flex md:hidden items-center justify-between h-16 px-4 bg-white dark:bg-gray-800 shadow-sm mb-4">
+          <MobileTopBar title="Courses" count={courses.length} />
+        </div>
         <div className="container mx-auto px-4 py-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Courses</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 hidden md:block">Courses</h1>
           
           {loading ? (
             <div className="flex justify-center items-center h-64">
@@ -126,6 +131,7 @@ export default function CoursesPage() {
           )}
         </div>
       </div>
+      <MobileBottomNav />
     </>
   );
 } 
