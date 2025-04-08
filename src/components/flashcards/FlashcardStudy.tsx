@@ -141,6 +141,7 @@ export default function FlashcardStudy() {
           )
         `)
         .eq('collection_id', collectionId)
+        .order('is_public_sample', { ascending: false })
         .order('created_at');
       
       if (cardsError) throw cardsError;

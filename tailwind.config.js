@@ -28,7 +28,7 @@ module.exports = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         jdblue: {
-          DEFAULT: "#002171",
+          DEFAULT: "#00178E",
           light: "#0037C2",
           dark: "#001a5e"
         },

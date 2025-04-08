@@ -107,6 +107,7 @@ export interface Flashcard {
   is_official: boolean;
   difficulty_level?: string;
   is_common_pitfall?: boolean;
+  is_public_sample?: boolean;
   // Optional collections, subjects and exam types from many-to-many relationships
   collections?: FlashcardCollection[];
   subjects?: Subject[];

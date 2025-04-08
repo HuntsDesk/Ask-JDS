@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -39,12 +38,12 @@ export default {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         jdorange: {
-          DEFAULT: "#FF6B18",
-          light: "#FF8A4C",
-          dark: "#E55200",
+          DEFAULT: "#F37022",
+          light: "#FF8C47",
+          dark: "#D45C0A",
         },
         jdblue: {
-          DEFAULT: "#002E73",
+          DEFAULT: "#00178E",
           light: "#0046B5",
           dark: "#001F4D",
         },

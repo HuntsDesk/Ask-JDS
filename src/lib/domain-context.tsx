@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-export type Domain = 'askjds' | 'jdsimplified';
+export type Domain = 'askjds' | 'jdsimplified' | 'admin';
 
 interface DomainContextType {
   currentDomain: Domain;
   isJDSimplified: boolean;
   isAskJDS: boolean;
+  isAdmin: boolean;
 }
 
 const DomainContext = createContext<DomainContextType | undefined>(undefined);
@@ -20,13 +21,15 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
       return 'jdsimplified';
     } else if (envMode === 'askjds') {
       return 'askjds';
+    } else if (envMode === 'admin') {
+      return 'admin';
     }
     
     // If no environment variable is set explicitly, then use localStorage
     if (typeof window !== 'undefined') {
       const storedDomain = localStorage.getItem('current_domain');
-      if (storedDomain === 'jdsimplified' || storedDomain === 'askjds') {
-        return storedDomain;
+      if (storedDomain === 'jdsimplified' || storedDomain === 'askjds' || storedDomain === 'admin') {
+        return storedDomain as Domain;
       }
     }
     
@@ -36,11 +39,11 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
   const [currentDomain, setCurrentDomain] = useState<Domain>(getInitialDomain());
 
   useEffect(() => {
-    // Check for environment variable first (for npm run dev:jds/askjds)
+    // Check for environment variable first (for npm run dev:jds/askjds/admin)
     const envMode = import.meta.env.MODE;
     console.log('Domain detection:', {
       envMode,
-      currentMode: envMode === 'jds' ? 'jdsimplified' : envMode === 'askjds' ? 'askjds' : 'default',
+      currentMode: envMode === 'jds' ? 'jdsimplified' : envMode === 'askjds' ? 'askjds' : envMode === 'admin' ? 'admin' : 'default',
       hostname: window.location.hostname,
       port: window.location.port,
       allEnv: import.meta.env
@@ -55,6 +58,9 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
     } else if (envMode === 'askjds') {
       console.log('Setting domain to Ask JDS based on environment variable');
       detectedDomain = 'askjds';
+    } else if (envMode === 'admin') {
+      console.log('Setting domain to Admin based on environment variable');
+      detectedDomain = 'admin';
     } else {
       // If no environment variable, check hostname
       const hostname = window.location.hostname;
@@ -63,10 +69,22 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
       if (hostname === 'localhost' || hostname === '127.0.0.1') {
         // Use path for local development
         const path = window.location.pathname;
-        detectedDomain = path.startsWith('/jds') ? 'jdsimplified' : 'askjds';
+        if (path.startsWith('/admin')) {
+          detectedDomain = 'admin';
+        } else if (path.startsWith('/jds')) {
+          detectedDomain = 'jdsimplified';
+        } else {
+          detectedDomain = 'askjds';
+        }
       } else {
         // Use hostname for production
-        detectedDomain = hostname.includes('jdsimplified.com') ? 'jdsimplified' : 'askjds';
+        if (hostname.includes('admin.jdsimplified.com') || hostname.includes(import.meta.env.VITE_ADMIN_DOMAIN || '')) {
+          detectedDomain = 'admin';
+        } else if (hostname.includes('jdsimplified.com') || hostname.includes(import.meta.env.VITE_JDSIMPLIFIED_DOMAIN || '')) {
+          detectedDomain = 'jdsimplified';
+        } else {
+          detectedDomain = 'askjds';
+        }
       }
     }
     
@@ -79,6 +97,7 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
     currentDomain,
     isJDSimplified: currentDomain === 'jdsimplified',
     isAskJDS: currentDomain === 'askjds',
+    isAdmin: currentDomain === 'admin',
   };
 
   return (
