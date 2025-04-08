@@ -78,6 +78,7 @@ export default function ManageCards() {
         .from('flashcards')
         .select('*')
         .in('id', flashcardIds)
+        .order('is_public_sample', { ascending: false })
         .order('position')
         .order('created_at');
         

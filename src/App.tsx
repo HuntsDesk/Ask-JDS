@@ -18,7 +18,7 @@ const ChatLayout = lazy(() => import('@/components/chat/ChatLayout').then(module
 const AuthPage = lazy(() => import('@/components/auth/AuthPage').then(module => ({ default: module.AuthPage })));
 const FlashcardsPage = lazy(() => import('@/components/flashcards/FlashcardsPage'));
 const CoursesPage = lazy(() => import('@/components/courses/CoursesPage'));
-const CourseDetail = lazy(() => import('@/components/courses/CourseDetail'));
+const CourseDetail = lazy(() => import('./components/admin/CourseDetail').then(module => ({ default: module.CourseDetail })));
 const CourseContent = lazy(() => import('@/components/courses/CourseContent'));
 const SubscriptionSuccess = lazy(() => import('@/components/SubscriptionSuccess').then(module => ({ default: module.SubscriptionSuccess })));
 
@@ -52,6 +52,22 @@ import { CourseLayout } from './components/layout/CourseLayout';
 // Import settings page directly to prevent lazy loading issues with sidebar
 import { SettingsPage } from '@/components/settings/SettingsPage';
 
+// Import our admin components
+const AdminDashboard = lazy(() => import('@/components/admin/Dashboard').then(module => ({ default: module.default })));
+const AdminUsers = lazy(() => import('@/components/admin/Users').then(module => ({ default: module.default })));
+const AdminErrorLogs = lazy(() => import('@/components/admin/ErrorLogs').then(module => ({ default: module.default })));
+const AdminCourses = lazy(() => import('@/components/admin/Courses').then(module => ({ default: module.default })));
+const AdminFlashcards = lazy(() => import('@/components/admin/Flashcards').then(module => ({ default: module.default })));
+const AdminAskJDS = lazy(() => import('@/components/admin/AskJDS').then(module => ({ default: module.default })));
+const AdminSettings = lazy(() => import('@/components/admin/Settings').then(module => ({ default: module.default })));
+const SetAdminStatus = lazy(() => import('@/components/admin/SetAdmin').then(module => ({ default: module.default })));
+
+// Import SetAdminStatus directly for the setup route
+import SetAdminSetup from './components/admin/SetAdmin';
+
+// Check if admin setup is allowed from environment variables
+const allowSetupAdmin = import.meta.env.VITE_ALLOW_ADMIN_SETUP === 'true';
+
 // Create sidebar context
 export type SidebarContextType = {
   isExpanded: boolean;
@@ -83,10 +99,119 @@ const SimpleRedirect = ({ to }: { to: string }) => {
 
 // Create router with domain-aware routes
 function AppRoutes() {
-  const { isJDSimplified } = useDomain();
+  const { isJDSimplified, isAskJDS, isAdmin } = useDomain();
   
-  console.log('Rendering routes with isJDSimplified:', isJDSimplified);
+  console.log('Rendering routes with isJDSimplified:', isJDSimplified, 'isAdmin:', isAdmin);
   
+  // Admin domain routes
+  if (isAdmin) {
+    return (
+      <Routes>
+        <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route 
+          path="/admin/dashboard" 
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader message="Loading admin dashboard..." />}>
+                <AdminDashboard />
+              </Suspense>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/users" 
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader message="Loading user management..." />}>
+                <AdminUsers />
+              </Suspense>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/error-logs" 
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader message="Loading error logs..." />}>
+                <AdminErrorLogs />
+              </Suspense>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/courses" 
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader message="Loading courses management..." />}>
+                <AdminCourses />
+              </Suspense>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/courses/:courseId" 
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader message="Loading course details..." />}>
+                <CourseDetail />
+              </Suspense>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/flashcards" 
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader message="Loading flashcards management..." />}>
+                <AdminFlashcards />
+              </Suspense>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/askjds" 
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader message="Loading AskJDS management..." />}>
+                <AdminAskJDS />
+              </Suspense>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/settings" 
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader message="Loading admin settings..." />}>
+                <AdminSettings />
+              </Suspense>
+            </ProtectedRoute>
+          } 
+        />
+        <Route path="/auth" element={
+          <AuthProvider>
+            <AuthPage />
+          </AuthProvider>
+        } />
+        <Route path="admin" element={<AdminDashboard />} />
+        <Route path="admin/users" element={<AdminUsers />} />
+        <Route path="admin/error-logs" element={<AdminErrorLogs />} />
+        <Route path="admin/courses" element={<AdminCourses />} />
+        <Route path="admin/courses/:courseId" element={<CourseDetail />} />
+        <Route path="admin/flashcards" element={<AdminFlashcards />} />
+        <Route path="admin/askjds" element={<AdminAskJDS />} />
+        <Route path="admin/settings" element={<AdminSettings />} />
+        <Route path="admin/set-admin" element={<SetAdminStatus />} />
+        {/* Special setup route that doesn't require admin auth */}
+        {allowSetupAdmin && (
+          <Route path="setup-admin" element={<SetAdminSetup />} />
+        )}
+        <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+      </Routes>
+    );
+  }
+  
+  // Regular routes for Ask JDS and JD Simplified domains
   return (
     <Routes>
       <Route path="/" element={isJDSimplified ? <JDSHomePage /> : <HomePage />} />

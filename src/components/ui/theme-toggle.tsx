@@ -1,48 +1,95 @@
-import React from "react";
 import { Moon, Sun } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useTheme } from "@/lib/theme-provider";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
-export function ThemeToggle({ className }: { className?: string }) {
-  const { theme, setTheme } = useTheme();
+interface ThemeToggleProps {
+  variant?: "icon" | "switch";
+  className?: string;
+}
+
+export function ThemeToggle({
+  variant = "icon",
+  className = "",
+}: ThemeToggleProps) {
+  const [theme, setThemeState] = useState<"light" | "dark" | null>(null);
+
+  useEffect(() => {
+    const isDark = document.documentElement.classList.contains("dark");
+    setThemeState(isDark ? "dark" : "light");
+  }, []);
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      const isDark = document.documentElement.classList.contains("dark");
+      setThemeState(isDark ? "dark" : "light");
+    };
+
+    // Listen for theme changes from other components
+    window.addEventListener("themeChange", handleThemeChange);
+    return () => window.removeEventListener("themeChange", handleThemeChange);
+  }, []);
+
+  const setTheme = (newTheme: "light" | "dark") => {
+    setThemeState(newTheme);
+    
+    if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+    
+    // Dispatch an event so other components can react to theme changes
+    window.dispatchEvent(new Event("themeChange"));
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === "light" ? "dark" : "light");
+  };
+
+  if (theme === null) {
+    return null; // Avoid flash of incorrect theme
+  }
+
+  if (variant === "switch") {
+    return (
+      <div className={`flex items-center space-x-2 ${className}`}>
+        <Label htmlFor="theme-toggle" className="cursor-pointer">
+          <div className="flex items-center gap-2">
+            {theme === "dark" ? (
+              <Moon className="h-4 w-4 text-indigo-400" />
+            ) : (
+              <Sun className="h-4 w-4 text-amber-500" />
+            )}
+            <span>{theme === "dark" ? "Dark" : "Light"} Mode</span>
+          </div>
+        </Label>
+        <Switch
+          id="theme-toggle"
+          checked={theme === "dark"}
+          onCheckedChange={() => toggleTheme()}
+        />
+      </div>
+    );
+  }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className={className}>
-          <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Toggle theme</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>
-          <Sun className="mr-2 h-4 w-4" />
-          <span>Light</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
-          <Moon className="mr-2 h-4 w-4" />
-          <span>Dark</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="mr-2 h-4 w-4"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25"
-            />
-          </svg>
-          <span>System</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={toggleTheme}
+      className={className}
+      title={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
+    >
+      {theme === "dark" ? (
+        <Sun className="h-5 w-5 text-amber-500" />
+      ) : (
+        <Moon className="h-5 w-5 text-slate-700" />
+      )}
+      <span className="sr-only">Toggle theme</span>
+    </Button>
   );
 } 

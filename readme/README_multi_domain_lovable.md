@@ -16,15 +16,48 @@ A robust React TypeScript boilerplate that supports multi-domain deployment from
 
 The application is designed to support multiple domains using:
 
-- A DomainContext provider that detects the current domain via window.location.hostname
-- A domain-based feature flag system (isAskJDS, isJDSimplified, isAdmin)
+- A DomainContext provider that detects the current domain via multiple strategies (hostname, localStorage, URL paths)
+- A domain-based feature flag system (isAskJDS, isJDSimplified)
 - Domain-specific routing and UI customization
 
-### Sample Domains
+### Current Domains
 
 - askjds.com → package name: ask-jds
-- jdsimplified.com → package name: jds
-- admin.jdsimplified.com → package name: admin
+- jdsimplified.com → package name: ask-jds (shares same codebase)
+
+## Project Structure
+
+The project follows a monorepo-style structure with shared code between domains:
+
+```
+/                           # Root project directory
+├── .github/                # GitHub configurations
+│   └── workflows/          # GitHub Actions workflows
+│       └── deploy.yml      # Deployment workflow
+├── dist/                   # Build output (created during build)
+├── dist_askjds/            # AskJDS build copied here for deployment
+├── dist_jdsimplified/      # JD Simplified build copied here for deployment
+├── node_modules/           # Shared dependencies
+├── public/                 # Public assets
+├── src/                    # Main source code
+│   ├── components/         # Shared components
+│   ├── config/             # Configuration files
+│   │   └── domains.ts      # Domain configuration
+│   ├── contexts/           # React contexts
+│   │   ├── DomainContext.tsx  # Domain detection and feature flags
+│   │   └── AuthContext.tsx    # Authentication with Supabase
+│   ├── layouts/            # Layout components
+│   ├── lib/                # Utility functions and libraries
+│   ├── pages/              # Page components
+│   │   ├── common/         # Shared pages
+│   │   ├── askjds/         # AskJDS specific pages
+│   │   └── jds/            # JD Simplified specific pages
+│   └── router/             # Routing configuration
+│       └── DomainRouter.tsx  # Domain-aware routing
+├── package.json            # Main package configuration
+├── package-lock.json       # Dependency lock file
+└── vite.config.js          # Vite configuration
+```
 
 ## Environment Configuration
 
@@ -35,8 +68,9 @@ VITE_SUPABASE_URL=https://prbbuxgirnecbkpdpgcb.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByYmJ1eGdpcm5lY2JrcGRwZ2NiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk0NjY1NTAsImV4cCI6MjA1NTA0MjU1MH0.tUE2nfjVbY2NCr0duUyhC5Rx-fe5TMBeCoWlkzAxxds
 VITE_ASKJDS_DOMAIN=askjds.com
 VITE_JDSIMPLIFIED_DOMAIN=jdsimplified.com
-VITE_ADMIN_DOMAIN=admin.jdsimplified.com
 ```
+
+For GitHub Actions deployment, these variables should be configured as GitHub Secrets.
 
 ## Build & Development Scripts
 
@@ -45,42 +79,165 @@ The application includes the following NPM scripts for development and productio
 ```json
 {
   "scripts": {
-    "dev:askjds": "BUILD_DOMAIN=askjds vite",
-    "dev:jds": "BUILD_DOMAIN=jds vite",
-    "dev:admin": "BUILD_DOMAIN=admin vite",
-    "build:askjds": "BUILD_DOMAIN=askjds vite build --outDir=dist/askjds",
-    "build:jds": "BUILD_DOMAIN=jds vite build --outDir=dist/jdsimplified",
-    "build:admin": "BUILD_DOMAIN=admin vite build --outDir=dist/admin",
-    "build": "npm run build:askjds && npm run build:jds && npm run build:admin"
+    "dev": "vite",
+    "dev:askjds": "vite --mode askjds",
+    "dev:jds": "vite --mode jds",
+    "build:askjds": "vite build --mode askjds",
+    "build:jds": "vite build --mode jds",
+    "build": "npm run build:askjds && npm run build:jds",
+    "type-check": "tsc -b --noEmit",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
   }
 }
 ```
 
-Add these scripts to your package.json file to enable domain-specific development and builds.
+The `--mode` flag is used to specify which domain configuration to use during build time. This affects environment variables and conditional compilation.
 
-## Project Structure
+## Domain Detection Implementation
 
-The application follows a structured organization:
+The domain detection system is implemented through the `DomainContext` in `src/contexts/DomainContext.tsx`, which provides domain awareness throughout the application. This context-based approach enables components to conditionally render based on the current domain.
 
+Domain detection follows this priority order:
+
+1. **Environment Variables**: The Vite mode (`import.meta.env.MODE`) takes highest precedence:
+   - `mode === 'jds'` → Sets domain to 'jdsimplified'
+   - `mode === 'askjds'` → Sets domain to 'askjds'
+
+2. **Local Storage**: If no environment variables are set, check localStorage for previously detected domain.
+
+3. **URL-Based Detection**: If neither env vars nor localStorage has a value:
+   - **For localhost**: Checks URL path (`path.startsWith('/jds')`)
+   - **For production**: Checks hostname (`hostname.includes('jdsimplified.com')`)
+
+4. **Default Fallback**: If all other methods fail, defaults to 'askjds'.
+
+### Usage in Components
+
+Components can access domain information using the `useDomain` hook:
+
+```typescript
+import { useDomain } from '@/contexts/DomainContext';
+
+function MyComponent() {
+  const { currentDomain, isJDSimplified, isAskJDS } = useDomain();
+  
+  // Conditional rendering based on domain
+  return (
+    <div>
+      {isJDSimplified ? (
+        <JDSimplifiedFeature />
+      ) : (
+        <AskJDSFeature />
+      )}
+    </div>
+  );
+}
 ```
-src/
-├── config/
-│   └── domains.ts           # Domain configuration
-├── contexts/
-│   ├── DomainContext.tsx    # Domain detection and feature flags
-│   └── AuthContext.tsx      # Authentication with Supabase
-├── layouts/
-│   ├── MainLayout.tsx       # Main application layout
-│   └── AuthLayout.tsx       # Layout for authentication pages
-├── lib/
-│   └── supabase.ts          # Supabase client setup
-├── pages/
-│   ├── common/              # Pages shared across domains
-│   ├── askjds/              # AskJDS specific pages
-│   ├── jds/                 # JDSimplified specific pages
-│   └── admin/               # Admin specific pages
-└── router/
-    └── DomainRouter.tsx     # Domain-aware routing
+
+## Deployment with GitHub Actions
+
+The application is deployed using GitHub Actions with a workflow defined in `.github/workflows/deploy.yml`. This workflow:
+
+1. Checks out the code
+2. Sets up Node.js with npm caching
+3. Installs dependencies using `npm ci --legacy-peer-deps`
+4. Builds the application for each domain
+5. Verifies build output (checks for presence of index.html)
+6. Deploys to AWS S3
+7. Invalidates CloudFront cache
+
+### Required GitHub Secrets
+
+The deployment workflow requires the following GitHub Secrets:
+
+1. **AWS Credentials**:
+   - `AWS_ACCESS_KEY_ID`
+   - `AWS_SECRET_ACCESS_KEY`
+   - `AWS_REGION`
+
+2. **Supabase Credentials**:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+
+3. **CloudFront Distribution IDs**:
+   - `CLOUDFRONT_ID_ASKJDS` - For Ask JDS
+   - `CLOUDFRONT_ID_JDS` - For JD Simplified
+
+### Sample Workflow Configuration
+
+```yaml
+name: Deploy Website
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-askjds:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+      
+      - name: Install Dependencies
+        run: npm ci --legacy-peer-deps
+      
+      - name: Fix vulnerabilities
+        run: npm audit fix --legacy-peer-deps || true
+        
+      - name: Build Ask JDS
+        run: npx vite build --mode askjds
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          
+      - name: Prepare deployment directory
+        run: |
+          mkdir -p dist_askjds
+          cp -r dist/* dist_askjds/
+          
+      - name: Verify build output
+        run: |
+          if [ ! -f dist_askjds/index.html ]; then
+            echo "Error: Build output missing index.html file"
+            exit 1
+          fi
+          echo "Build verification successful"
+          
+      - name: Deploy to S3
+        uses: jakejarvis/s3-sync-action@v0.5.1
+        with:
+          args: --delete
+        env:
+          AWS_S3_BUCKET: ask-jds
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          SOURCE_DIR: dist_askjds
+          
+      - name: Invalidate CloudFront
+        uses: koki-develop/cloudfront-invalidate-action@v0.1.0
+        with:
+          id: ${{ secrets.CLOUDFRONT_ID_ASKJDS }}
+          paths: /*
+          wait: true
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+
+  # Similar job for JD Simplified...
 ```
 
 ## Adding a New Domain
@@ -106,7 +263,6 @@ export const domains: Record<DomainType, DomainConfig> = {
     features: {
       chat: true,
       courses: false,
-      admin: false,
       // Add domain-specific feature flags
     }
   }
@@ -116,7 +272,7 @@ export const domains: Record<DomainType, DomainConfig> = {
 2. Update the `DomainType` type in the same file:
 
 ```typescript
-export type DomainType = 'askjds' | 'jds' | 'admin' | 'newDomain';
+export type DomainType = 'askjds' | 'jdsimplified' | 'newDomain';
 ```
 
 3. Add the domain to your `.env` file:
@@ -130,10 +286,10 @@ VITE_NEW_DOMAIN=newdomain.com
 ```json
 {
   "scripts": {
-    "dev:newDomain": "BUILD_DOMAIN=newDomain vite",
-    "build:newDomain": "BUILD_DOMAIN=newDomain vite build --outDir=dist/newDomain",
+    "dev:newDomain": "vite --mode newDomain",
+    "build:newDomain": "vite build --mode newDomain",
     // Update the build script to include the new domain
-    "build": "npm run build:askjds && npm run build:jds && npm run build:admin && npm run build:newDomain"
+    "build": "npm run build:askjds && npm run build:jds && npm run build:newDomain"
   }
 }
 ```
@@ -144,98 +300,7 @@ VITE_NEW_DOMAIN=newdomain.com
 src/pages/newDomain/
 ```
 
-6. Update the `DomainRouter.tsx` to include routes for the new domain:
-
-```typescript
-{isNewDomain && (
-  <>
-    <Route path="/" element={
-      <MainLayout>
-        <NewDomainHomePage />
-      </MainLayout>
-    } />
-    {/* Add other domain-specific routes */}
-  </>
-)}
-```
-
-## Adding Domain-Specific Routes or UI Logic
-
-The application uses the `useDomain` hook to determine what features, routes, or UI elements to render:
-
-```typescript
-const MyComponent = () => {
-  const { currentDomain, isAskJDS, isJDSimplified, isAdmin } = useDomain();
-  
-  return (
-    <div>
-      {/* Common UI for all domains */}
-      <h1>{currentDomain.name}</h1>
-      
-      {/* Domain-specific UI */}
-      {isAskJDS && <div>AskJDS specific content</div>}
-      {isJDSimplified && <div>JD Simplified specific content</div>}
-      {isAdmin && <div>Admin specific content</div>}
-      
-      {/* Feature-based UI */}
-      {currentDomain.features.chat && <ChatComponent />}
-      {currentDomain.features.courses && <CoursesComponent />}
-    </div>
-  );
-};
-```
-
-## How Domain-Based Feature Flags Work
-
-The domain-based feature flag system works as follows:
-
-1. The `DomainContext` provider determines the current domain based on `window.location.hostname` or a build-time environment variable.
-
-2. It provides domain information and feature flags through the `useDomain` hook.
-
-3. Components can access domain-specific data and feature flags using the hook:
-
-```typescript
-const { currentDomain, isAskJDS, isJDSimplified, isAdmin } = useDomain();
-
-// Using domain-specific data
-const primaryColor = currentDomain.primaryColor;
-const homeRoute = currentDomain.routes.home;
-
-// Using feature flags from the domain config
-const showChatFeature = currentDomain.features.chat;
-const showCoursesFeature = currentDomain.features.courses;
-
-// Using domain-type flags
-if (isAskJDS) {
-  // AskJDS specific logic
-}
-```
-
-4. The router uses these flags to determine which routes to render for the current domain.
-
-## Authentication Setup with Supabase
-
-The application uses Supabase for authentication:
-
-1. The Supabase client is configured in `src/lib/supabase.ts` using environment variables.
-
-2. The `AuthContext` provides authentication functionality:
-
-```typescript
-const { user, session, loading, signIn, signUp, signOut } = useAuth();
-
-// Sign in a user
-await signIn('user@example.com', 'password');
-
-// Sign up a new user
-await signUp('newuser@example.com', 'password');
-
-// Sign out
-await signOut();
-```
-
-3. Protected routes use a `ProtectedRoute` component that redirects to the login page if the user is not authenticated.
+6. Update the deployment workflow to include the new domain.
 
 ## Development Workflow
 
@@ -249,7 +314,7 @@ cd <repository-directory>
 2. Install dependencies:
 
 ```bash
-npm install
+npm ci
 ```
 
 3. Create a `.env` file with the required environment variables.
@@ -260,8 +325,6 @@ npm install
 npm run dev:askjds
 # or
 npm run dev:jds
-# or
-npm run dev:admin
 ```
 
 5. Build for production:
@@ -270,14 +333,58 @@ npm run dev:admin
 npm run build
 ```
 
-This will create separate builds for each domain in the `dist` directory.
+## Performance Optimization Recommendations
 
-## Deployment
+Based on build logs, consider these optimizations:
 
-You can deploy the domain-specific builds to different environments:
+1. **Code Splitting**: Some chunks are larger than 500KB after minification. Use dynamic imports to code-split:
 
-1. For askjds.com, deploy the contents of `dist/askjds`
-2. For jdsimplified.com, deploy the contents of `dist/jdsimplified`
-3. For admin.jdsimplified.com, deploy the contents of `dist/admin`
+```typescript
+// Instead of direct import
+import { HeavyComponent } from './components/HeavyComponent';
 
-Each build contains only the code and dependencies needed for that specific domain.
+// Use dynamic import
+const HeavyComponent = React.lazy(() => import('./components/HeavyComponent'));
+```
+
+2. **Manual Chunking**: Configure Vite to better split vendor code:
+
+```javascript
+// vite.config.js
+export default defineConfig({
+  // ...other config
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-popover'],
+          'data-vendor': ['@tanstack/react-query']
+        }
+      }
+    }
+  }
+});
+```
+
+3. **Update Dependencies**: Consider addressing the moderate security vulnerabilities in esbuild (via vite) when convenient. Test thoroughly after updates as they may contain breaking changes.
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Dependency Conflicts**: If you encounter peer dependency issues, use the `--legacy-peer-deps` flag with npm:
+
+```bash
+npm ci --legacy-peer-deps
+```
+
+2. **Build Verification Failures**: If the build fails verification, check that:
+   - index.html is being generated properly
+   - Required assets are included in the build output
+   - Environment variables are correctly set
+
+3. **Deployment Failures**: For S3 or CloudFront issues, verify:
+   - AWS credentials are correctly set in GitHub Secrets
+   - Bucket permissions allow for the actions being performed
+   - CloudFront distribution IDs are correct

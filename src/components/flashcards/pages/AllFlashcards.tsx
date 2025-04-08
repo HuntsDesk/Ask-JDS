@@ -503,6 +503,11 @@ export default function AllFlashcards() {
     if (filter === 'my') {
       return false;
     }
+    
+    // Public sample cards are always free
+    if (card.is_public_sample) {
+      return false;
+    }
       
     // Only official collections can have premium cards
     // If forceSubscription is true, treat as if user has subscription
@@ -685,6 +690,18 @@ export default function AllFlashcards() {
         );
         
         return isUserOwned || isUserCreated;
+      });
+    }
+    
+    // For non-subscribers, prioritize public sample cards at the top of the list
+    if (!hasSubscription) {
+      filtered.sort((a, b) => {
+        // First by public sample status (true first)
+        if (a.is_public_sample && !b.is_public_sample) return -1;
+        if (!a.is_public_sample && b.is_public_sample) return 1;
+        
+        // Then use existing order (position, created_at, etc.)
+        return 0;
       });
     }
     

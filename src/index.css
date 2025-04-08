@@ -169,7 +169,7 @@ body {
     --card-foreground: 224 71.4% 4.1%;
     --popover: 0 0% 100%;
     --popover-foreground: 224 71.4% 4.1%;
-    --primary: 262.1 83.3% 57.8%;
+    --primary: 23 91% 54%;
     --primary-foreground: 210 20% 98%;
     --secondary: 220 14.3% 95.9%;
     --secondary-foreground: 220.9 39.3% 11%;
@@ -181,7 +181,7 @@ body {
     --destructive-foreground: 210 20% 98%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 262.1 83.3% 57.8%;
+    --ring: 23 91% 54%;
     --radius: 0.75rem;
     --sidebar-width: 280px;
     --sidebar-collapsed-width: 70px;
@@ -194,7 +194,7 @@ body {
     --card-foreground: 210 20% 98%;
     --popover: 224 71.4% 4.1%;
     --popover-foreground: 210 20% 98%;
-    --primary: 263.4 70% 50.4%;
+    --primary: 23 91% 54%;
     --primary-foreground: 210 20% 98%;
     --secondary: 215 27.9% 16.9%;
     --secondary-foreground: 210 20% 98%;
@@ -206,7 +206,7 @@ body {
     --destructive-foreground: 210 20% 98%;
     --border: 215 27.9% 16.9%;
     --input: 215 27.9% 16.9%;
-    --ring: 263.4 70% 50.4%;
+    --ring: 23 91% 54%;
   }
 }
 
@@ -675,6 +675,34 @@ body {
   --ring: 262.1 83.3% 57.8%;
   background-color: white;
   color: black;
+}
+
+/* Override dark mode styles within force-light-mode */
+.force-light-mode .dark\:bg-gray-800 {
+  background-color: white !important;
+}
+.force-light-mode .dark\:text-blue-300 {
+  color: #00178E !important;
+}
+.force-light-mode .dark\:text-gray-400 {
+  color: #6b7280 !important;
+}
+.force-light-mode .dark\:text-gray-300 {
+  color: #6b7280 !important;
+}
+.force-light-mode .dark\:border-jdorange\/20 {
+  border-color: rgba(243, 112, 34, 0.3) !important;
+}
+.force-light-mode .dark\:border-blue-300 {
+  border-color: #00178E !important;
+}
+.force-light-mode .dark\:filter,
+.force-light-mode .dark\:brightness-0,
+.force-light-mode .dark\:invert {
+  filter: none !important;
+}
+.force-light-mode .dark\:hover\:bg-blue-600:hover {
+  background-color: #00178E !important;
 }
 
 /* Fix for homepage on mobile/tablet */

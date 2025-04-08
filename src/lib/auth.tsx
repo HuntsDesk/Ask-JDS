@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from './supabase';
 import type { AuthContextType, User } from '@/types';
-import { withTimeout, ensureUserRecord } from './auth-utils';
+import { withTimeout } from './auth-utils';
+import { useDomain } from './domain-context';
 
 // Create a global key for the auth instance
 const GLOBAL_AUTH_KEY = '__AUTH_INSTANCE__';
@@ -105,11 +106,11 @@ export async function initializeAuth() {
           const user = session?.user;
           
           if (user) {
-            // Create user object with isAdmin always set to false
+            // Create user object with base properties
             const userData = {
               id: user.id,
               email: user.email!,
-              isAdmin: false, // Always false in user app
+              isAdmin: false, // Default to false, will be updated by refreshUser if needed
               last_sign_in_at: user.last_sign_in_at,
               user_metadata: user.user_metadata
             };
@@ -155,11 +156,11 @@ export async function initializeAuth() {
           if (prevAuthStatus === 'loading') {
             console.log('Initial session received', session?.user ? 'with user' : 'without user');
             if (session?.user) {
-              // Create user object with isAdmin always set to false
+              // Create user object with base properties
               const userData = {
                 id: session.user.id,
                 email: session.user.email!,
-                isAdmin: false, // Always false in user app
+                isAdmin: false, // Default to false, will be updated by refreshUser if needed
                 last_sign_in_at: session.user.last_sign_in_at,
                 user_metadata: session.user.user_metadata
               };
@@ -207,7 +208,8 @@ export async function initializeAuth() {
           2 // Use a reasonable retry count
         );
         
-        const { data: { session } } = await currentSessionFetch;
+        const response = await currentSessionFetch;
+        const session = response?.data?.session || null;
         currentSessionFetch = null;
         
         // Check if auth state was already set by another process
@@ -222,11 +224,11 @@ export async function initializeAuth() {
         if (session?.user) {
           console.log('User found in session, updating auth instance');
           
-          // Create user object with isAdmin always set to false
+          // Create user object with base properties
           const userData = {
             id: session.user.id,
             email: session.user.email!,
-            isAdmin: false, // Always false in user app
+            isAdmin: false, // Default to false, will be updated by refreshUser if needed
             last_sign_in_at: session.user.last_sign_in_at,
             user_metadata: session.user.user_metadata
           };
@@ -287,7 +289,7 @@ export async function initializeAuth() {
                 const userData = {
                   id: authData.user.id,
                   email: authData.user.email,
-                  isAdmin: false,
+                  isAdmin: false, // Default to false, will be updated by refreshUser if needed
                   last_sign_in_at: authData.user.last_sign_in_at || new Date().toISOString(),
                   user_metadata: authData.user.user_metadata || {}
                 };
@@ -363,8 +365,73 @@ async function ensureSupabaseClientReady(): Promise<void> {
 async function refreshUserData(user: User): Promise<void> {
   console.log('Refreshing user data for:', user.email);
   
-  // Ensure the user has a record in the public.users table
-  await ensureUserRecord(user.id, user.email);
+  try {
+    // Check if we're in admin domain
+    const isAdminDomain = window.location.hostname.includes('admin') || 
+                         window.location.port === '5175' ||
+                         window.location.pathname.startsWith('/admin');
+    
+    if (isAdminDomain) {
+      console.log('In admin domain, checking admin status');
+      
+      // Check if user is admin from metadata
+      const isAdminFromMetadata = user.user_metadata?.is_admin === true || 
+                                 user.user_metadata?.admin === true;
+      
+      if (isAdminFromMetadata) {
+        console.log('User is admin based on metadata');
+        
+        // Update user object and auth instance
+        if (authInstance.user) {
+          authInstance.user.isAdmin = true;
+          setGlobalAuthInstance(authInstance);
+        }
+        
+        return;
+      }
+      
+      // Check from database via profiles table
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
+      
+      if (!error && data && data.is_admin) {
+        console.log('User is admin based on profiles table');
+        
+        // Update user object and auth instance
+        if (authInstance.user) {
+          authInstance.user.isAdmin = true;
+          setGlobalAuthInstance(authInstance);
+        }
+        
+        return;
+      }
+      
+      // Try RPC function as a last resort
+      try {
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc('is_user_admin', { user_id: user.id });
+        
+        if (!rpcError && rpcData === true) {
+          console.log('User is admin based on RPC function');
+          
+          // Update user object and auth instance
+          if (authInstance.user) {
+            authInstance.user.isAdmin = true;
+            setGlobalAuthInstance(authInstance);
+          }
+        } else {
+          console.log('User is not an admin based on all checks');
+        }
+      } catch (e) {
+        console.error('Error checking admin status via RPC:', e);
+      }
+    }
+  } catch (e) {
+    console.error('Error in refreshUserData:', e);
+  }
 }
 
 /**
@@ -612,6 +679,7 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
         
         if (error) {
           console.error('Sign in error from Supabase:', error);
+          console.error('Error details:', error.message, error.status);
           setLoading(false);
           
           // Update singleton
@@ -622,16 +690,27 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
         }
         
         console.log('Sign in successful for:', data.user?.email);
+        console.log('User data from login:', {
+          id: data.user?.id,
+          email: data.user?.email,
+          app_metadata: data.user?.app_metadata,
+          user_metadata: data.user?.user_metadata,
+        });
         
         // Create a user object if sign-in successful
         if (data.user) {
           console.log('Setting user immediately after sign in');
           
-          // Create user without admin status
+          // Check if user is admin from metadata first
+          const isAdminFromMetadata = 
+            data.user.user_metadata?.is_admin === true || 
+            data.user.user_metadata?.admin === true;
+          
+          // Create user object with correct isAdmin
           const userData: User = {
             id: data.user.id,
             email: data.user.email!,
-            isAdmin: false, // Always false in user app
+            isAdmin: isAdminFromMetadata, // Set based on metadata
             last_sign_in_at: data.user.last_sign_in_at,
             user_metadata: data.user.user_metadata
           };
@@ -648,6 +727,18 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
           setGlobalAuthInstance(authInstance);
           
           console.log('User state updated immediately after sign in:', userData);
+          
+          // After setting initial user state, check for admin status
+          setTimeout(() => {
+            if (isMountedRef.current) {
+              refreshUserData(userData).then(() => {
+                if (authInstance.user && authInstance.user.isAdmin !== userData.isAdmin) {
+                  // Update user state if admin status has changed
+                  setUser({...authInstance.user});
+                }
+              });
+            }
+          }, 0);
         } else {
           setLoading(false);
           
@@ -739,8 +830,9 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
         authInstance.loading = false;
         setGlobalAuthInstance(authInstance);
         
-        // Use window.location.href for a full page reload to clear any stale state
-        window.location.href = '/';
+        // Redirect to auth page instead of root
+        console.log('Redirecting to auth page after sign out');
+        window.location.href = '/auth';
         
         return { error: null };
       } catch (err) {
@@ -751,6 +843,12 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
         authInstance.loading = false;
         setGlobalAuthInstance(authInstance);
         
+        // Even on error, try to redirect to auth page
+        console.log('Attempting to redirect to auth page after sign out error');
+        setTimeout(() => {
+          window.location.href = '/auth';
+        }, 500);
+        
         return { error: err instanceof Error ? err : new Error(String(err)) };
       }
     },
@@ -758,6 +856,7 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
       if (!user) return;
       
       try {
+        console.log('Refreshing user data');
         // Get updated user data from Supabase
         const { data: { user: authUser }, error } = await supabase.auth.getUser();
         
@@ -766,14 +865,21 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
           return;
         }
         
-        // Create user object with isAdmin always set to false in the user app
+        // Check for admin status in metadata
+        const isAdminFromMetadata = 
+          authUser.user_metadata?.is_admin === true || 
+          authUser.user_metadata?.admin === true;
+        
+        // Create user object with initial props
         const updatedUser = {
           id: authUser.id,
           email: authUser.email!,
-          isAdmin: false,
+          isAdmin: isAdminFromMetadata, // Set based on metadata first
           last_sign_in_at: authUser.last_sign_in_at,
           user_metadata: authUser.user_metadata
         };
+        
+        console.log('User refreshed with data:', updatedUser);
         
         // Update state
         setUser(updatedUser);
@@ -782,8 +888,14 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
         authInstance.user = updatedUser;
         setGlobalAuthInstance(authInstance);
         
-        // Refresh additional user data
-        refreshUserData(updatedUser);
+        // Refresh additional user data and check admin status
+        await refreshUserData(updatedUser);
+        
+        // Update user with latest admin status if it changed
+        if (authInstance.user && authInstance.user.isAdmin !== updatedUser.isAdmin) {
+          console.log('Admin status changed, updating user state');
+          setUser({...authInstance.user});
+        }
       } catch (err) {
         console.error('Error refreshing user:', err);
       }

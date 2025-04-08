@@ -13,6 +13,8 @@ export default defineConfig(({ mode }) => {
     domain = 'jdsimplified';
   } else if (mode === 'askjds') {
     domain = 'askjds';
+  } else if (mode === 'admin') {
+    domain = 'admin';
   }
   
   // Override with explicit env var if set
@@ -25,7 +27,7 @@ export default defineConfig(({ mode }) => {
   console.log(`Mode: ${mode}`);
   console.log(`Building for domain: ${domain}`);
   console.log(`Environment variables:`, env);
-  console.log(`Port: ${domain === 'askjds' ? 5173 : 5174}`);
+  console.log(`Port: ${domain === 'askjds' ? 5173 : domain === 'jdsimplified' ? 5174 : 5175}`);
   console.log('===========================================');
 
   return {
@@ -46,7 +48,11 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       // Use separate root folders for each domain build
-      outDir: domain === 'askjds' ? 'dist_askjds' : 'dist_jdsimplified',
+      outDir: domain === 'askjds' 
+        ? 'dist_askjds' 
+        : domain === 'jdsimplified' 
+          ? 'dist_jdsimplified' 
+          : 'dist_admin',
       rollupOptions: {
         output: {
           manualChunks: {
@@ -77,7 +83,11 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 1000,
     },
     server: {
-      port: domain === 'askjds' ? 5173 : 5174,
+      port: domain === 'askjds' 
+        ? 5173 
+        : domain === 'jdsimplified' 
+          ? 5174 
+          : 5175,
     },
   };
 });

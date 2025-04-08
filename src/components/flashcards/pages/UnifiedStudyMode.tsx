@@ -412,11 +412,38 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
 
   // Card navigation functions
   const shuffleCards = () => {
-    const shuffled = [...filteredCards]
-      .map(value => ({ value, sort: Math.random() }))
-      .sort((a, b) => a.sort - b.sort)
-      .map(({ value }) => value);
-    setFilteredCards(shuffled);
+    // For non-subscribers, keep public samples at the beginning even when shuffling
+    let cardsToShuffle = [...filteredCards];
+    
+    if (!hasSubscription) {
+      // Separate public samples from regular cards
+      const publicSamples = cardsToShuffle.filter(card => card.is_public_sample);
+      const regularCards = cardsToShuffle.filter(card => !card.is_public_sample);
+      
+      // Shuffle the public samples among themselves
+      const shuffledSamples = publicSamples
+        .map(value => ({ value, sort: Math.random() }))
+        .sort((a, b) => a.sort - b.sort)
+        .map(({ value }) => value);
+      
+      // Shuffle only the regular cards
+      const shuffledRegular = regularCards
+        .map(value => ({ value, sort: Math.random() }))
+        .sort((a, b) => a.sort - b.sort)
+        .map(({ value }) => value);
+      
+      // Combine with public samples first
+      setFilteredCards([...shuffledSamples, ...shuffledRegular]);
+    } else {
+      // Subscribers see a complete shuffle
+      const shuffled = cardsToShuffle
+        .map(value => ({ value, sort: Math.random() }))
+        .sort((a, b) => a.sort - b.sort)
+        .map(({ value }) => value);
+      
+      setFilteredCards(shuffled);
+    }
+    
     setCurrentIndex(0);
     setShowAnswer(false);
   };

@@ -6,6 +6,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { supabase } from '@/lib/supabase';
 import { ChevronLeft, ChevronRight, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { VideoPlayer } from '@/components/VideoPlayer';
 
 interface Course {
   id: string;
@@ -22,7 +23,7 @@ interface Lesson {
   id: string;
   title: string;
   content: string;
-  video_url?: string;
+  video_id?: string;
   position: number;
   module_id: string;
 }
@@ -191,14 +192,9 @@ export default function CourseContent() {
             <div className="max-w-4xl mx-auto">
               <Card className="p-6">
                 <h2 className="text-2xl font-bold mb-4">{currentLesson.title}</h2>
-                {currentLesson.video_url && (
+                {currentLesson.video_id && (
                   <div className="aspect-video mb-6">
-                    <iframe
-                      src={currentLesson.video_url}
-                      className="w-full h-full rounded-lg"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
+                    <VideoPlayer videoId={currentLesson.video_id} />
                   </div>
                 )}
                 <div className="prose max-w-none">
