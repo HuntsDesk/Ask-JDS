@@ -8,9 +8,64 @@ import {
 
 import { cn } from '@/lib/utils';
 
-const DropdownMenu = DropdownMenuPrimitive.Root;
+const DropdownMenu = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root> & {
+    preventImmediateClose?: boolean;
+  }
+>(({ preventImmediateClose = true, ...props }, ref) => {
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  const mergedRef = (ref as any) || rootRef;
+  
+  const [justOpened, setJustOpened] = React.useState(false);
+  
+  const handleOpenChange = (open: boolean) => {
+    if (open && preventImmediateClose) {
+      setJustOpened(true);
+      setTimeout(() => {
+        setJustOpened(false);
+      }, 100);
+    }
+    
+    if (props.onOpenChange) {
+      props.onOpenChange(open);
+    }
+  };
+  
+  return (
+    <DropdownMenuPrimitive.Root
+      {...props}
+      onOpenChange={(open) => {
+        if (!open && justOpened && preventImmediateClose) {
+          return;
+        }
+        handleOpenChange(open);
+      }}
+    />
+  );
+});
+DropdownMenu.displayName = 'DropdownMenu';
 
-const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
+const DropdownMenuTrigger = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Trigger>
+>(({ className, children, ...props }, ref) => (
+  <DropdownMenuPrimitive.Trigger
+    ref={ref}
+    className={cn('focus:outline-none', className)}
+    {...props}
+    onClick={(e) => {
+      e.stopPropagation();
+      
+      if (props.onClick) {
+        props.onClick(e);
+      }
+    }}
+  >
+    {children}
+  </DropdownMenuPrimitive.Trigger>
+));
+DropdownMenuTrigger.displayName = DropdownMenuPrimitive.Trigger.displayName;
 
 const DropdownMenuGroup = DropdownMenuPrimitive.Group;
 

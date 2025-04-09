@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, PenSquare, Trash2, Layers, FileText, GripVertical, Info, ChevronDown, ChevronRight, ChevronUp, Edit } from 'lucide-react';
+import { ChevronLeft, Plus, PenSquare, Trash2, Layers, FileText, GripVertical, Info, ChevronDown, ChevronRight, ChevronUp, Edit, X, RefreshCw } from 'lucide-react';
 import AdminLayout from './AdminLayout';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Define the DragHandle component
 const DragHandle = ({ className }: { className?: string }) => (
@@ -119,6 +121,9 @@ export const CourseDetail = () => {
     modules: null as string | null
   });
   
+  // Add a reloading state for after updates
+  const [reloading, setReloading] = useState(false);
+  
   // Modal states
   const [isModuleModalOpen, setIsModuleModalOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<string | null>(null);
@@ -156,6 +161,10 @@ export const CourseDetail = () => {
   const [deleteLessonId, setDeleteLessonId] = useState<string | null>(null);
   const [deleteLessonTitle, setDeleteLessonTitle] = useState<string>('');
   const [deleteLessonLoading, setDeleteLessonLoading] = useState(false);
+
+  const [subjects, setSubjects] = useState<{ id: string; name: string }[]>([]);
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
+  const [updateLoading, setUpdateLoading] = useState(false);
 
   // Fetch course details
   useEffect(() => {
@@ -221,14 +230,16 @@ export const CourseDetail = () => {
         
         if (lessonsError) throw new Error(`Error fetching lessons: ${lessonsError.message}`);
         
-        // Group lessons by module
+        // Organize lessons by module
         const modulesWithLessons = modulesData.map(module => {
-          const moduleLessons = lessonsData?.filter(lesson => lesson.module_id === module.id) || [];
+          const moduleLessons = lessonsData 
+            ? lessonsData.filter(lesson => lesson.module_id === module.id)
+            : [];
           
           return {
             ...module,
             lessons: moduleLessons,
-            isExpanded: true // Default to expanded
+            isExpanded: true // Start with modules expanded
           };
         });
         
@@ -244,6 +255,106 @@ export const CourseDetail = () => {
     fetchModulesAndLessons();
   }, [courseId]);
   
+  // Create a loadData function to reload all data after updates
+  const loadData = async () => {
+    if (!courseId) return;
+    
+    try {
+      setReloading(true);
+      
+      // Reload course data
+      const { data: courseData, error: courseError } = await supabase
+        .from('courses')
+        .select('*')
+        .eq('id', courseId)
+        .single();
+      
+      if (courseError) throw new Error(`Error reloading course: ${courseError.message}`);
+      setCourse(courseData);
+      
+      // Reload modules and lessons
+      const { data: modulesData, error: modulesError } = await supabase
+        .from('modules')
+        .select('*')
+        .eq('course_id', courseId)
+        .order('position', { ascending: true });
+      
+      if (modulesError) throw new Error(`Error reloading modules: ${modulesError.message}`);
+      
+      if (!modulesData || modulesData.length === 0) {
+        setModules([]);
+        return;
+      }
+      
+      // Fetch lessons for these modules
+      const moduleIds = modulesData.map(module => module.id);
+      
+      const { data: lessonsData, error: lessonsError } = await supabase
+        .from('lessons')
+        .select('*')
+        .in('module_id', moduleIds)
+        .order('position', { ascending: true });
+      
+      if (lessonsError) throw new Error(`Error reloading lessons: ${lessonsError.message}`);
+      
+      // Organize lessons by module
+      const modulesWithLessons = modulesData.map(module => {
+        const moduleLessons = lessonsData 
+          ? lessonsData.filter(lesson => lesson.module_id === module.id)
+          : [];
+        
+        return {
+          ...module,
+          lessons: moduleLessons,
+          // Preserve expanded state if possible
+          isExpanded: modules.find(m => m.id === module.id)?.isExpanded ?? true
+        };
+      });
+      
+      setModules(modulesWithLessons);
+      
+      // Reload subject associations
+      const { data: courseSubjects, error: courseSubjectsError } = await supabase
+        .from('course_subjects')
+        .select('subject_id')
+        .eq('course_id', courseId);
+      
+      if (courseSubjectsError) throw new Error(`Error reloading subject associations: ${courseSubjectsError.message}`);
+      
+      if (courseSubjects && courseSubjects.length > 0) {
+        setSelectedSubjectIds(courseSubjects.map(cs => cs.subject_id));
+      } else {
+        setSelectedSubjectIds([]);
+      }
+      
+    } catch (err) {
+      console.error('Error reloading data:', err);
+      toast({
+        title: "Error",
+        description: `Failed to reload data: ${err.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setReloading(false);
+    }
+  };
+
+  // Add debug reference for easier testing
+  useEffect(() => {
+    // @ts-ignore - For debugging only
+    window.jdsDebug = window.jdsDebug || {};
+    // @ts-ignore - For debugging only
+    window.jdsDebug.courseDetail = { loadData: () => loadData() };
+    
+    return () => {
+      // @ts-ignore - For debugging only
+      if (window.jdsDebug?.courseDetail) {
+        // @ts-ignore - For debugging only
+        delete window.jdsDebug.courseDetail;
+      }
+    };
+  }, [loadData]);
+
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), 'MMM d, yyyy');
@@ -904,36 +1015,66 @@ export const CourseDetail = () => {
   };
 
   // Handle course update
-  const handleUpdateCourse = async (updatedCourse: Partial<Course>) => {
-    if (!courseId) return;
-    
+  const handleUpdateCourse = async (course) => {
     try {
-      const { error } = await supabase
+      setUpdateLoading(true);
+      
+      // Update the course
+      const { error: updateError } = await supabase
         .from('courses')
-        .update(updatedCourse)
+        .update({
+          title: course.title,
+          status: course.status,
+          tile_description: course.tile_description,
+          overview: course.overview,
+          what_youll_learn: course.what_youll_learn,
+          days_of_access: course.days_of_access,
+          is_featured: course.is_featured
+        })
         .eq('id', courseId);
       
-      if (error) throw new Error(`Error updating course: ${error.message}`);
+      if (updateError) throw updateError;
       
-      // Update local state
-      setCourse(prev => prev ? { ...prev, ...updatedCourse } : null);
+      // Handle subject associations
+      // First, delete existing associations
+      const { error: deleteError } = await supabase
+        .from('course_subjects')
+        .delete()
+        .eq('course_id', courseId);
+      
+      if (deleteError) throw deleteError;
+      
+      // Then, create new associations
+      if (selectedSubjectIds.length > 0) {
+        const courseSubjects = selectedSubjectIds.map(subjectId => ({
+          course_id: courseId,
+          subject_id: subjectId
+        }));
+        
+        const { error: insertError } = await supabase
+          .from('course_subjects')
+          .insert(courseSubjects);
+        
+        if (insertError) throw insertError;
+      }
       
       toast({
-        title: "Course updated",
-        description: "The course has been updated successfully.",
-        duration: 3000,
+        title: "Course Saved",
+        description: "Your changes have been saved successfully",
       });
       
+      // Reload data to reflect changes
+      loadData();
       setIsCourseModalOpen(false);
-      
-    } catch (err: any) {
-      console.error('Error updating course:', err);
+    } catch (error) {
+      console.error('Error updating course:', error);
       toast({
         title: "Error",
-        description: err.message || "Failed to update course.",
+        description: `Failed to update course: ${error.message}`,
         variant: "destructive",
-        duration: 5000,
       });
+    } finally {
+      setUpdateLoading(false);
     }
   };
   
@@ -941,6 +1082,39 @@ export const CourseDetail = () => {
     setEditingCourse(course);
     setIsCourseModalOpen(true);
   };
+
+  // Add this effect to fetch subjects and course-subject relationships
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const { data: subjectsData, error: subjectsError } = await supabase
+          .from('subjects')
+          .select('*')
+          .order('name');
+        
+        if (subjectsError) throw subjectsError;
+        setSubjects(subjectsData || []);
+        
+        // If we have a course ID, fetch its associated subjects
+        if (courseId) {
+          const { data: courseSubjects, error: courseSubjectsError } = await supabase
+            .from('course_subjects')
+            .select('subject_id')
+            .eq('course_id', courseId);
+          
+          if (courseSubjectsError) throw courseSubjectsError;
+          
+          if (courseSubjects && courseSubjects.length > 0) {
+            setSelectedSubjectIds(courseSubjects.map(cs => cs.subject_id));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching subjects:', error);
+      }
+    };
+    
+    fetchSubjects();
+  }, [courseId]);
 
   if (loading.course) {
     return (
@@ -996,6 +1170,7 @@ export const CourseDetail = () => {
           <span>{course?.title || 'Course Detail'}</span>
           {getStatusBadge(course.status)}
           {course.is_featured && <Badge className="bg-amber-500">Featured</Badge>}
+          {reloading && <LoadingSpinner className="h-4 w-4 ml-2" />}
         </div>
       }
       className="overflow-hidden"
@@ -1045,13 +1220,6 @@ export const CourseDetail = () => {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
-                <div className="mt-1">
-                  {getStatusBadge(course.status)}
-                </div>
-              </div>
-              
-              <div>
                 <h3 className="text-sm font-medium text-muted-foreground">Created</h3>
                 <p>{formatDate(course.created_at)}</p>
               </div>
@@ -1080,7 +1248,7 @@ export const CourseDetail = () => {
         </Card>
       </div>
       
-      <div className="mb-6 h-[calc(100vh-350px)]">
+      <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold flex items-center">
             <Layers className="h-5 w-5 mr-2 text-orange-500" />
@@ -1100,6 +1268,18 @@ export const CourseDetail = () => {
             >
               <Plus className="h-4 w-4" />
               Add Module
+            </Button>
+            <Button 
+              onClick={loadData}
+              variant="outline"
+              disabled={reloading}
+              title="Refresh course data"
+            >
+              {reloading ? (
+                <LoadingSpinner className="h-4 w-4" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </div>
@@ -1133,8 +1313,7 @@ export const CourseDetail = () => {
                 <div
                   {...provided.droppableProps}
                   ref={provided.innerRef}
-                  className="space-y-4 overflow-y-auto h-full pr-2"
-                  style={{ scrollbarWidth: 'thin' }}
+                  className="space-y-4"
                 >
                   {modules.map((module, moduleIndex) => (
                     <Draggable
@@ -1293,7 +1472,7 @@ export const CourseDetail = () => {
                           </div>
 
                           {module.isExpanded && (
-                            <div className="p-4 max-h-[60vh] overflow-visible">
+                            <div className="p-4">
                               {(!module.lessons || module.lessons.length === 0) && !inlineEditingLessonId ? (
                                 <div className="text-center p-4">
                                   <p className="text-muted-foreground text-sm mb-4">
@@ -1315,10 +1494,9 @@ export const CourseDetail = () => {
                                 >
                                   {(provided) => (
                                     <div
-                                      className="space-y-2 overflow-y-auto max-h-[400px] pr-1"
+                                      className="space-y-2"
                                       ref={provided.innerRef}
                                       {...provided.droppableProps}
-                                      style={{ scrollbarWidth: 'thin' }}
                                     >
                                       {module.lessons && module.lessons.map((lesson, lessonIndex) => (
                                         <Draggable
@@ -1518,6 +1696,9 @@ export const CourseDetail = () => {
       {/* Lesson Sheet */}
       <Sheet open={isLessonModalOpen} onOpenChange={setIsLessonModalOpen}>
         <SheetContent className="sm:max-w-md md:max-w-xl overflow-y-auto" showCloseButton={false}>
+          <SheetHeader>
+            <SheetTitle>{editingLesson ? 'Edit Lesson' : 'Create Lesson'}</SheetTitle>
+          </SheetHeader>
           <CreateLesson
             editMode={!!editingLesson}
             lessonId={editingLesson}
@@ -1593,6 +1774,9 @@ export const CourseDetail = () => {
       {/* Course Edit Sheet */}
       <Sheet open={isCourseModalOpen} onOpenChange={setIsCourseModalOpen}>
         <SheetContent className="sm:max-w-md md:max-w-xl overflow-y-auto" showCloseButton={false}>
+          <SheetHeader>
+            <SheetTitle>Edit Course</SheetTitle>
+          </SheetHeader>
           {editingCourse && (
             <form onSubmit={(e) => {
               e.preventDefault();
@@ -1676,6 +1860,50 @@ export const CourseDetail = () => {
                   placeholder="Enter learning objectives, one per line"
                   rows={4}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Subjects</label>
+                <select
+                  id="subject"
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value && !selectedSubjectIds.includes(e.target.value)) {
+                      setSelectedSubjectIds([...selectedSubjectIds, e.target.value]);
+                    }
+                  }}
+                  className="w-full h-10 px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                >
+                  <option value="">Select subjects...</option>
+                  {subjects.map(subject => (
+                    <option key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedSubjectIds.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {selectedSubjectIds.map(id => {
+                      const subject = subjects.find(s => s.id === id);
+                      return (
+                        <div key={id} className="bg-accent px-3 py-1 rounded-md flex items-center">
+                          <span className="text-sm">{subject?.name}</span>
+                          <button 
+                            type="button" 
+                            onClick={() => setSelectedSubjectIds(selectedSubjectIds.filter(subId => subId !== id))}
+                            className="ml-2 text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="h-3 w-3" />
+                            <span className="sr-only">Remove {subject?.name}</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Select one or more subjects for this course.
+                </p>
               </div>
               
               <div className="space-y-2">

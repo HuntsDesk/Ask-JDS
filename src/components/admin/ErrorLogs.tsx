@@ -208,7 +208,7 @@ export const AdminErrorLogs = () => {
               Complete error information and stack trace
             </DialogDescription>
           </DialogHeader>
-
+          
           {selectedLog && (
             <div className="space-y-4 max-h-[70vh] overflow-y-auto">
               <div>
