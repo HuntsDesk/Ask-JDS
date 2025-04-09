@@ -51,14 +51,18 @@ export default function CourseDetail() {
   useEffect(() => {
     async function fetchCourseData() {
       try {
-        // Fetch course details
-        const { data: courseData, error: courseError } = await supabase
+        // Fetch course details - avoid using .single() to prevent 406 errors
+        const { data: courseDataArray, error: courseError } = await supabase
           .from('courses')
           .select('*')
-          .eq('id', id)
-          .single();
+          .eq('id', id);
 
         if (courseError) throw courseError;
+        
+        // Get the first item if it exists
+        const courseData = courseDataArray?.[0];
+        if (!courseData) throw new Error('Course not found');
+        
         setCourse(courseData);
 
         // Fetch course modules
