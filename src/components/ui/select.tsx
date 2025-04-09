@@ -9,7 +9,46 @@ import * as SelectPrimitive from '@radix-ui/react-select';
 
 import { cn } from '@/lib/utils';
 
-const Select = SelectPrimitive.Root;
+// Create a custom Select component with protection against immediate closing
+const Select = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root> & {
+    preventImmediateClose?: boolean;
+  }
+>(({ preventImmediateClose = true, ...props }, ref) => {
+  // Track if the select was just opened to prevent immediate closing
+  const [justOpened, setJustOpened] = React.useState(false);
+  
+  // Handle open state changes
+  const handleOpenChange = (open: boolean) => {
+    if (open && preventImmediateClose) {
+      setJustOpened(true);
+      // Reset the flag after a short delay
+      setTimeout(() => {
+        setJustOpened(false);
+      }, 100);
+    }
+    
+    // Call the original onOpenChange handler if provided
+    if (props.onOpenChange) {
+      props.onOpenChange(open);
+    }
+  };
+  
+  return (
+    <SelectPrimitive.Root
+      {...props}
+      onOpenChange={(open) => {
+        // If we're trying to close the menu and it just opened, prevent it
+        if (!open && justOpened && preventImmediateClose) {
+          return;
+        }
+        handleOpenChange(open);
+      }}
+    />
+  );
+});
+Select.displayName = 'Select';
 
 const SelectGroup = SelectPrimitive.Group;
 
@@ -25,6 +64,15 @@ const SelectTrigger = React.forwardRef<
       'flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
       className
     )}
+    onClick={(e) => {
+      // Stop the event from bubbling to prevent immediate closing
+      e.stopPropagation();
+      
+      // Call the original onClick handler if provided
+      if (props.onClick) {
+        props.onClick(e);
+      }
+    }}
     {...props}
   >
     {children}

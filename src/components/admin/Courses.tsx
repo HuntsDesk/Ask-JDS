@@ -459,7 +459,7 @@ export const AdminCourses = () => {
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold">Courses</h2>
-          <Button onClick={handleOpenCreateModal}>
+          <Button onClick={handleOpenCreateModal} className="bg-orange-500 hover:bg-orange-600 text-white">
             <Plus className="h-4 w-4 mr-2" />
             Add Course
           </Button>
@@ -491,7 +491,7 @@ export const AdminCourses = () => {
           <div className="bg-muted p-8 text-center rounded-lg">
             <h3 className="text-lg font-medium mb-2">No courses found</h3>
             <p className="text-muted-foreground mb-4">Get started by creating your first course.</p>
-            <Button onClick={handleOpenCreateModal}>
+            <Button onClick={handleOpenCreateModal} className="bg-orange-500 hover:bg-orange-600 text-white">
               <Plus className="h-4 w-4 mr-2" />
               Add Course
             </Button>

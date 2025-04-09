@@ -95,6 +95,12 @@ export const CreateLesson = ({
     if (editMode && lessonId) {
       const fetchLesson = async () => {
         try {
+          // Skip fetching if it's a temporary ID
+          if (lessonId.startsWith('temp-')) {
+            setLoading(prev => ({ ...prev, fetch: false }));
+            return;
+          }
+          
           const { data, error } = await supabase
             .from('lessons')
             .select('*')
@@ -363,7 +369,7 @@ export const CreateLesson = ({
         <Button type="button" variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button type="submit" disabled={loading.submit} className="bg-primary">
+        <Button type="submit" disabled={loading.submit} className="bg-orange-500 hover:bg-orange-600 text-white">
           {loading.submit ? (
             <>
               <LoadingSpinner className="mr-2 h-4 w-4" />
