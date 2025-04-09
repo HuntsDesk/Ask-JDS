@@ -59,13 +59,29 @@ const Dashboard = () => {
       try {
         setIsLoading(true);
         
-        // Fetch all published courses
-        const { data: coursesData, error: coursesError } = await supabase
+        // Fetch all courses without filtering by status first
+        const { data: allCoursesData, error: allCoursesError } = await supabase
           .from('courses')
           .select('*')
-          .eq('status', 'Published');
+          .order('title', { ascending: true });
         
-        if (coursesError) throw coursesError;
+        if (allCoursesError) throw allCoursesError;
+        
+        // Sort the results manually to ensure featured courses appear first
+        const sortedCoursesData = [...(allCoursesData || [])].sort((a, b) => {
+          // First sort by featured status
+          if (Boolean(a.is_featured) !== Boolean(b.is_featured)) {
+            return Boolean(a.is_featured) ? -1 : 1;
+          }
+          // Then by title
+          return a.title.localeCompare(b.title);
+        });
+        
+        // Filter the courses on the client-side
+        // The RLS policy now allows both 'Published' and 'Coming Soon' courses
+        // Only exclude those explicitly marked as 'archived'
+        const coursesData = sortedCoursesData?.filter(course => 
+          course.status?.toLowerCase() !== 'archived');
         
         // Fetch user's course enrollments
         if (user) {
@@ -157,6 +173,42 @@ const Dashboard = () => {
     course.tile_description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Sort helper function with correct priority order:
+  // 1. Featured & NOT Coming Soon
+  // 2. Featured & Coming Soon
+  // 3. Coming Soon only (not featured)
+  // 4. All other courses
+  const sortByFeatured = (a, b) => {
+    // First level: Featured non-coming-soon courses
+    const aFeaturedNotComingSoon = a.is_featured && a.status !== 'Coming Soon';
+    const bFeaturedNotComingSoon = b.is_featured && b.status !== 'Coming Soon';
+    
+    if (aFeaturedNotComingSoon && !bFeaturedNotComingSoon) return -1;
+    if (!aFeaturedNotComingSoon && bFeaturedNotComingSoon) return 1;
+    
+    // Second level: Featured AND coming soon courses
+    const aFeaturedAndComingSoon = a.is_featured && a.status === 'Coming Soon';
+    const bFeaturedAndComingSoon = b.is_featured && b.status === 'Coming Soon';
+    
+    if (aFeaturedAndComingSoon && !bFeaturedAndComingSoon) return -1;
+    if (!aFeaturedAndComingSoon && bFeaturedAndComingSoon) return 1;
+    
+    // Third level: Non-featured coming soon courses
+    const aComingSoonNotFeatured = !a.is_featured && a.status === 'Coming Soon';
+    const bComingSoonNotFeatured = !b.is_featured && b.status === 'Coming Soon';
+    
+    if (aComingSoonNotFeatured && !bComingSoonNotFeatured) return -1;
+    if (!aComingSoonNotFeatured && bComingSoonNotFeatured) return 1;
+    
+    // If we get here, both courses are in the same category, sort by title
+    return a.title.localeCompare(b.title);
+  };
+
+  // Sort the course lists
+  const sortedPurchasedCourses = [...purchasedCourses].sort(sortByFeatured);
+  const sortedAvailableCourses = [...availableCourses].sort(sortByFeatured);
+  const sortedFilteredCourses = [...filteredCourses].sort(sortByFeatured);
+
   // Calculate access percentage remaining for burndown visualization
   const getAccessPercentage = (expiresIn) => {
     if (expiresIn === null) return 100;
@@ -205,9 +257,9 @@ const Dashboard = () => {
               <div key={i} className="h-48 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
             ))}
           </div>
-        ) : purchasedCourses.length > 0 ? (
+        ) : sortedPurchasedCourses.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {purchasedCourses.map(course => (
+            {sortedPurchasedCourses.map(course => (
               <CourseCard 
                 key={course.id}
                 id={course.id}
@@ -220,6 +272,7 @@ const Dashboard = () => {
                 featured={course.is_featured}
                 isBlue={course.id % 2 === 0} // Alternate colors for variation
                 _count={course._count}
+                status={course.status}
               />
             ))}
           </div>
@@ -246,13 +299,13 @@ const Dashboard = () => {
           <div className="flex justify-center items-center py-12">
             <LoadingSpinner size="lg" />
           </div>
-        ) : availableCourses.length === 0 ? (
+        ) : sortedAvailableCourses.length === 0 ? (
           <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-lg">
             <p className="text-gray-500 dark:text-gray-400">No courses available at the moment.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {(searchQuery ? filteredCourses.filter(course => !course.purchased) : availableCourses).map(course => (
+            {(searchQuery ? sortedFilteredCourses.filter(course => !course.purchased) : sortedAvailableCourses).map(course => (
               <CourseCard 
                 key={course.id}
                 id={course.id}
@@ -265,6 +318,7 @@ const Dashboard = () => {
                 featured={course.is_featured}
                 isBlue={course.id % 2 === 0} // Alternate colors for variation
                 _count={course._count}
+                status={course.status}
               />
             ))}
           </div>
