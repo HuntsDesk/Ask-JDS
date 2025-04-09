@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   name: string;
@@ -37,6 +36,10 @@ export interface Course {
   level: 'Beginner' | 'Intermediate' | 'Advanced';
   createdAt: string;
   updatedAt: string;
+  _count?: {
+    modules: number;
+    lessons: number;
+  };
 }
 
 export interface Instructor {

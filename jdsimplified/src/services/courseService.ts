@@ -1,4 +1,3 @@
-
 import { 
   Course, 
   Module, 
@@ -11,6 +10,7 @@ import {
   CartItem,
   Subject
 } from '@/types/course';
+import { supabase } from '@/lib/supabase';
 
 // Mock data for initial development
 const MOCK_SUBJECTS: Subject[] = [
@@ -165,7 +165,55 @@ export const getSubjectById = async (id: string): Promise<Subject | null> => {
 
 // Course functions
 export const getCourses = async (): Promise<Course[]> => {
-  return MOCK_COURSES;
+  try {
+    // First get all courses
+    const { data: coursesData, error: coursesError } = await supabase
+      .from('courses')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (coursesError) throw new Error(`Error fetching courses: ${coursesError.message}`);
+    if (!coursesData) return [];
+    
+    // Now get all modules with their course_id
+    const { data: modulesData, error: modulesError } = await supabase
+      .from('modules')
+      .select(`
+        id,
+        course_id,
+        lessons(id)
+      `);
+    
+    if (modulesError) throw new Error(`Error fetching modules with lessons: ${modulesError.message}`);
+    if (!modulesData) return coursesData;
+    
+    // Process the data to get module and lesson counts
+    const coursesWithCount = coursesData.map(course => {
+      // Find all modules belonging to this course
+      const courseModules = modulesData.filter(module => module.course_id === course.id);
+      
+      // Count modules
+      const moduleCount = courseModules.length;
+      
+      // Count all lessons across all modules of this course
+      const lessonCount = courseModules.reduce((total, module) => {
+        return total + (module.lessons ? module.lessons.length : 0);
+      }, 0);
+      
+      return {
+        ...course,
+        _count: {
+          modules: moduleCount,
+          lessons: lessonCount
+        }
+      };
+    });
+    
+    return coursesWithCount;
+  } catch (err) {
+    console.error('Error in getCourses:', err);
+    return [];
+  }
 };
 
 export const getFeaturedCourses = async (): Promise<Course[]> => {
@@ -206,8 +254,19 @@ export const deleteCourse = async (id: string): Promise<void> => {
 
 // Module functions
 export const getModulesByCourseId = async (courseId: string): Promise<Module[]> => {
-  return MOCK_MODULES.filter(module => module.courseId === courseId)
-    .sort((a, b) => a.position - b.position);
+  try {
+    const { data, error } = await supabase
+      .from('modules')
+      .select('*')
+      .eq('course_id', courseId)
+      .order('position', { ascending: true });
+    
+    if (error) throw new Error(`Error fetching modules: ${error.message}`);
+    return data || [];
+  } catch (err) {
+    console.error('Error in getModulesByCourseId:', err);
+    return [];
+  }
 };
 
 export const createModule = async (module: Omit<Module, 'id' | 'createdAt' | 'updatedAt'>): Promise<Module> => {
@@ -237,8 +296,19 @@ export const deleteModule = async (id: string): Promise<void> => {
 
 // Lesson functions
 export const getLessonsByModuleId = async (moduleId: string): Promise<Lesson[]> => {
-  return MOCK_LESSONS.filter(lesson => lesson.moduleId === moduleId)
-    .sort((a, b) => a.position - b.position);
+  try {
+    const { data, error } = await supabase
+      .from('lessons')
+      .select('*')
+      .eq('module_id', moduleId)
+      .order('position', { ascending: true });
+    
+    if (error) throw new Error(`Error fetching lessons: ${error.message}`);
+    return data || [];
+  } catch (err) {
+    console.error('Error in getLessonsByModuleId:', err);
+    return [];
+  }
 };
 
 export const createLesson = async (lesson: Omit<Lesson, 'id' | 'createdAt' | 'updatedAt'>): Promise<Lesson> => {

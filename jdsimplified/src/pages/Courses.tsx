@@ -1,94 +1,11 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Filter, BookOpen, Clock, ChevronDown } from 'lucide-react';
 import PageLayout from '@/components/PageLayout';
 import CourseCard from '@/components/CourseCard';
-
-// Sample courses data
-const coursesData = [
-  {
-    id: '1',
-    title: 'Constitutional Law Fundamentals',
-    description: 'Master the essential principles and landmark cases of Constitutional Law with a strategic framework.',
-    price: 299,
-    originalPrice: 399,
-    image: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
-    duration: '24 Lessons',
-    lessons: 24,
-    level: 'Intermediate',
-    featured: true,
-    category: 'Constitutional Law'
-  },
-  {
-    id: '2',
-    title: 'Evidence Law Made Simple',
-    description: 'Break down complex evidence rules into simple, applicable frameworks that will help you excel on exams.',
-    price: 249,
-    originalPrice: 349,
-    image: 'https://images.unsplash.com/photo-1423592707957-3b212afa6733?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2074&q=80',
-    duration: '18 Lessons',
-    lessons: 18,
-    level: 'Beginner',
-    featured: false,
-    category: 'Evidence'
-  },
-  {
-    id: '3',
-    title: 'Criminal Law: Essential Concepts',
-    description: 'Understand criminal law concepts through a strategic approach that simplifies complex theories.',
-    price: 279,
-    originalPrice: 349,
-    image: 'https://images.unsplash.com/photo-1593115057322-e94b77572f20?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2071&q=80',
-    duration: '21 Lessons',
-    lessons: 21,
-    level: 'Intermediate',
-    featured: false,
-    category: 'Criminal Law'
-  },
-  {
-    id: '4',
-    title: 'Contract Law Simplified',
-    description: 'Master contract formation, performance, breach, and remedies through practical frameworks and examples.',
-    price: 249,
-    originalPrice: 349,
-    image: 'https://images.unsplash.com/photo-1589391886645-d51941baf7fb?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
-    duration: '18 Lessons',
-    lessons: 18,
-    level: 'Beginner',
-    featured: false,
-    category: 'Contract Law'
-  },
-  {
-    id: '5',
-    title: 'Torts in a Nutshell',
-    description: 'Navigate negligence, intentional torts, and strict liability with clear strategies and frameworks.',
-    price: 249,
-    originalPrice: 329,
-    image: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
-    duration: '15 Lessons',
-    lessons: 15,
-    level: 'Beginner',
-    featured: false,
-    category: 'Tort Law'
-  },
-  {
-    id: '6',
-    title: 'Property Law Essentials',
-    description: 'Demystify estates in land, future interests, landlord-tenant relationships, and more.',
-    price: 279,
-    originalPrice: 379,
-    image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2073&q=80',
-    duration: '20 Lessons',
-    lessons: 20,
-    level: 'Intermediate',
-    featured: false,
-    category: 'Property Law'
-  },
-];
-
-const categories = [...new Set(coursesData.map(course => course.category))];
-const levels = [...new Set(coursesData.map(course => course.level))];
+import { getCourses, getModulesByCourseId, getLessonsByModuleId } from '@/services/courseService';
+import { Course } from '@/types/course';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 const Courses = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -97,11 +14,39 @@ const Courses = () => {
   const [sortBy, setSortBy] = useState('featured');
   const [showFilters, setShowFilters] = useState(false);
   
+  // State for courses data
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Load courses with module and lesson counts
+  useEffect(() => {
+    const loadCourses = async () => {
+      try {
+        setLoading(true);
+        // Get all courses (which now includes module and lesson counts)
+        const coursesData = await getCourses();
+        setCourses(coursesData);
+      } catch (err) {
+        console.error('Error loading courses:', err);
+        setError('Failed to load courses. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadCourses();
+  }, []);
+  
+  // Extract unique categories and levels from courses
+  const categories = [...new Set(courses.map(course => course.category))];
+  const levels = [...new Set(courses.map(course => course.level))];
+  
   // Filter and sort courses
-  const filteredCourses = coursesData
+  const filteredCourses = courses
     .filter(course => {
       const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           course.description.toLowerCase().includes(searchTerm.toLowerCase());
+                           (course.description && course.description.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesCategory = selectedCategory === '' || course.category === selectedCategory;
       const matchesLevel = selectedLevel === '' || course.level === selectedLevel;
       
@@ -109,18 +54,20 @@ const Courses = () => {
     })
     .sort((a, b) => {
       if (sortBy === 'featured') {
-        return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
+        return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
       } else if (sortBy === 'priceAsc') {
         return a.price - b.price;
       } else if (sortBy === 'priceDesc') {
         return b.price - a.price;
       } else if (sortBy === 'newest') {
-        // In a real app, this would sort by date added
-        return a.id < b.id ? 1 : -1;
+        // Sort by date if available, otherwise by ID
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
       }
       return 0;
     });
-  
+
   return (
     <PageLayout>
       {/* Hero Section */}
@@ -251,27 +198,63 @@ const Courses = () => {
             </div>
           )}
           
-          {/* Course Grid */}
-          {filteredCourses.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredCourses.map((course) => (
-                <CourseCard key={course.id} {...course} />
-              ))}
+          {/* Error message */}
+          {error && (
+            <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-8">
+              <p>{error}</p>
+              <button 
+                className="mt-2 text-sm font-medium underline"
+                onClick={() => window.location.reload()}
+              >
+                Try again
+              </button>
+            </div>
+          )}
+          
+          {/* Loading state */}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <LoadingSpinner className="h-12 w-12 text-jdorange mb-4" />
+              <p className="text-gray-600">Loading courses...</p>
+            </div>
+          ) : filteredCourses.length === 0 ? (
+            <div className="bg-white p-8 rounded-lg text-center shadow-sm">
+              <h3 className="text-xl font-semibold mb-2">No courses found</h3>
+              <p className="text-gray-600 mb-4">
+                {searchTerm || selectedCategory || selectedLevel ? 
+                  'Try adjusting your filters or search term' : 
+                  'There are currently no courses available'}
+              </p>
+              {(searchTerm || selectedCategory || selectedLevel) && (
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedCategory('');
+                    setSelectedLevel('');
+                  }}
+                  className="px-4 py-2 bg-jdorange text-white rounded-lg hover:bg-jdorange-dark transition-colors"
+                >
+                  Clear Filters
+                </button>
+              )}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <h3 className="text-xl font-medium text-gray-700 mb-2">No courses found</h3>
-              <p className="text-gray-500">Try adjusting your search or filters to find what you're looking for.</p>
-              <button 
-                className="mt-4 px-4 py-2 bg-jdorange text-white rounded-lg font-medium"
-                onClick={() => {
-                  setSearchTerm('');
-                  setSelectedCategory('');
-                  setSelectedLevel('');
-                }}
-              >
-                Clear all filters
-              </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredCourses.map((course) => (
+                <CourseCard
+                  key={course.id}
+                  id={course.id}
+                  title={course.title}
+                  description={course.description || ''}
+                  price={course.price}
+                  originalPrice={course.originalPrice}
+                  image={course.image}
+                  duration={`${course._count?.modules || 0} modules, ${course._count?.lessons || 0} lessons`}
+                  level={course.level}
+                  featured={course.isFeatured}
+                  _count={course._count}
+                />
+              ))}
             </div>
           )}
         </div>
