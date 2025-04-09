@@ -31,6 +31,10 @@ interface Course {
   purchased?: boolean; // Whether user has purchased this course
   expiresIn?: number | null; // Days until access expires
   lessons?: number; // Number of lessons in the course
+  _count: {
+    modules: number;
+    lessons: number;
+  };
 }
 
 interface CourseEnrollment {
@@ -73,6 +77,17 @@ const Dashboard = () => {
           if (enrollmentsError) throw enrollmentsError;
           setEnrollments(enrollmentsData || []);
         }
+
+        // Get all modules with their course_id and lessons
+        const { data: modulesData, error: modulesError } = await supabase
+          .from('modules')
+          .select(`
+            id,
+            course_id,
+            lessons(id)
+          `);
+        
+        if (modulesError) throw modulesError;
         
         // Process the courses data to add UI-specific properties
         const processedCourses = (coursesData || []).map(course => {
@@ -98,6 +113,13 @@ const Dashboard = () => {
                              'law';
           
           const image = `https://source.unsplash.com/featured/?${imageKeyword},legal`;
+
+          // Calculate module and lesson counts
+          const courseModules = modulesData?.filter(module => module.course_id === course.id) || [];
+          const moduleCount = courseModules.length;
+          const lessonCount = courseModules.reduce((total, module) => {
+            return total + (module.lessons ? module.lessons.length : 0);
+          }, 0);
           
           return {
             ...course,
@@ -105,7 +127,10 @@ const Dashboard = () => {
             purchased,
             expiresIn,
             progress: 0, // For now, default to 0 until we implement progress tracking
-            lessons: 15 // Default number until we fetch actual lesson counts
+            _count: {
+              modules: moduleCount,
+              lessons: lessonCount
+            }
           };
         });
         
@@ -191,10 +216,10 @@ const Dashboard = () => {
                 price={29.99} // This would be the actual price they paid
                 image={course.image}
                 duration={`${course.expiresIn} days left`}
-                lessons={course.lessons || 15}
                 level="All Levels"
                 featured={course.is_featured}
                 isBlue={course.id % 2 === 0} // Alternate colors for variation
+                _count={course._count}
               />
             ))}
           </div>
@@ -236,10 +261,10 @@ const Dashboard = () => {
                 price={29.99} // Temporary placeholder price
                 image={course.image}
                 duration={`${course.days_of_access} days access`}
-                lessons={course.lessons || 15}
                 level="All Levels"
                 featured={course.is_featured}
                 isBlue={course.id % 2 === 0} // Alternate colors for variation
+                _count={course._count}
               />
             ))}
           </div>

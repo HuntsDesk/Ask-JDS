@@ -19,6 +19,7 @@ const AuthPage = lazy(() => import('@/components/auth/AuthPage').then(module => 
 const FlashcardsPage = lazy(() => import('@/components/flashcards/FlashcardsPage'));
 const CoursesPage = lazy(() => import('@/components/courses/CoursesPage'));
 const CourseDetail = lazy(() => import('./components/admin/CourseDetail').then(module => ({ default: module.CourseDetail })));
+const PublicCourseDetail = lazy(() => import('@/components/courses/CourseDetail'));
 const CourseContent = lazy(() => import('@/components/courses/CourseContent'));
 const SubscriptionSuccess = lazy(() => import('@/components/SubscriptionSuccess').then(module => ({ default: module.SubscriptionSuccess })));
 
@@ -266,11 +267,11 @@ function AppRoutes() {
         path="/courses/:id" 
         element={
           <ProtectedRoute>
-            <Suspense fallback={<PageLoader message="Loading course details..." />}>
-              <DashboardLayout>
-                <CourseDetail />
-              </DashboardLayout>
-            </Suspense>
+            <DashboardLayout>
+              <Suspense fallback={<PageLoader message="Loading course details..." />}>
+                <PublicCourseDetail />
+              </Suspense>
+            </DashboardLayout>
           </ProtectedRoute>
         } 
       />

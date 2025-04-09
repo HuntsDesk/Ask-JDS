@@ -6,7 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth";
 import Index from "./pages/Index";
 import Courses from "./pages/Courses";
-import CourseDetail from "./pages/CourseDetail";
+import CourseDetail from "./components/courses/CourseDetail";
+import { CourseDetail as AdminCourseDetail } from "./components/admin/CourseDetail";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
@@ -47,11 +48,7 @@ const App = () => (
             {/* Protected User Routes with AuthenticatedLayout */}
             <Route element={<AuthenticatedLayout />}>
               <Route path="/courses" element={<Dashboard />} />
-              <Route path="/courses/:id" element={
-                <DashboardLayout>
-                  <CourseDetail />
-                </DashboardLayout>
-              } />
+              <Route path="/courses/:id" element={<CourseDetail />} />
               <Route path="/course/:courseId" element={<CourseContent />} />
               <Route path="/course/:courseId/module/:moduleId" element={<CourseContent />} />
               <Route path="/course/:courseId/module/:moduleId/lesson/:lessonId" element={<CourseContent />} />
@@ -61,17 +58,16 @@ const App = () => (
             </Route>
             
             {/* Admin Routes */}
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="courses" element={<AdminCourses />} />
-              <Route path="courses/new" element={<AdminCourseEdit />} />
-              <Route path="courses/:courseId" element={<AdminCourseEdit />} />
-              <Route path="courses/:courseId/modules" element={<AdminModules />} />
-              <Route path="courses/:courseId/modules/:moduleId/lessons" element={<AdminLessons />} />
-              <Route path="users" element={<AdminUsers />} />
+            <Route element={<AdminLayout />}>
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/courses" element={<AdminCourses />} />
+              <Route path="/admin/courses/:courseId" element={<AdminCourseDetail />} />
+              <Route path="/admin/modules" element={<AdminModules />} />
+              <Route path="/admin/lessons" element={<AdminLessons />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
             </Route>
             
-            {/* Catch-all route */}
+            {/* 404 Route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

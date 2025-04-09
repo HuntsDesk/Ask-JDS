@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, BookOpen, Clock, Check } from 'lucide-react';
+import { ShoppingCart, BookOpen, Clock, Check, Layers } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface CourseCardProps {
@@ -10,11 +10,15 @@ interface CourseCardProps {
   price: number;
   originalPrice?: number;
   image?: string;
-  duration: string;
-  lessons: number;
-  level: string;
+  duration?: string;
+  lessons?: number;
+  level?: string;
   featured?: boolean;
   isBlue?: boolean; // Option to switch between orange and blue styling
+  _count?: {
+    modules: number;
+    lessons: number;
+  };
 }
 
 const CourseCard = ({
@@ -28,9 +32,14 @@ const CourseCard = ({
   lessons,
   level,
   featured = false,
-  isBlue = false
+  isBlue = false,
+  _count
 }: CourseCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  
+  // Use _count if available, otherwise fall back to the direct lessons prop
+  const modulesCount = _count?.modules || 0;
+  const lessonsCount = _count?.lessons || lessons || 0;
   
   return (
     <div 
@@ -68,9 +77,16 @@ const CourseCard = ({
       </div>
       
       {/* Course Info */}
-      <div className="flex items-center mt-1 mb-1.5 text-sm text-gray-500 dark:text-gray-400">
-        <BookOpen className="h-4 w-4 mr-1" />
-        <span>{lessons} lessons</span>
+      <div className="flex flex-wrap items-center mt-1 mb-1.5 text-sm text-gray-500 dark:text-gray-400 gap-4">
+        <div className="flex items-center">
+          <Layers className="h-4 w-4 mr-1" />
+          <span>{modulesCount} {modulesCount === 1 ? 'module' : 'modules'}</span>
+        </div>
+        
+        <div className="flex items-center">
+          <BookOpen className="h-4 w-4 mr-1" />
+          <span>{lessonsCount} {lessonsCount === 1 ? 'lesson' : 'lessons'}</span>
+        </div>
       </div>
       
       {/* Description */}
