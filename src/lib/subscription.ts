@@ -427,6 +427,14 @@ export async function getUserSubscription(
   }
 
   try {
+    // Ensure we have a valid session before proceeding
+    const hasValidSession = await ensureValidSession();
+    if (!hasValidSession) {
+      console.warn('No valid session found for subscription check, using fallback');
+      // Continue with the API call but it will likely fail
+      // The fallback to supabase client might still work
+    }
+    
     const apiKey = supabase.supabaseKey;
     const baseUrl = supabase.supabaseUrl;
     
@@ -452,20 +460,60 @@ export async function getUserSubscription(
       console.log(`Fetching subscription for user ${userId}`);
       const endpoint = `${baseUrl}/rest/v1/user_subscriptions?user_id=eq.${userId}&select=*`;
       
+      // Get the user's JWT token from local storage
+      let userToken = null;
+      if (typeof window !== 'undefined') {
+        try {
+          const authStorage = localStorage.getItem('ask-jds-auth-storage');
+          if (authStorage) {
+            const authData = JSON.parse(authStorage);
+            if (authData?.access_token) {
+              userToken = authData.access_token;
+              console.log('Found user JWT token in localStorage');
+              
+              // Log token expiration if available
+              if (authData.expires_at) {
+                const expiresAt = new Date(authData.expires_at);
+                const now = new Date();
+                const minutesRemaining = Math.round((expiresAt.getTime() - now.getTime()) / (60 * 1000));
+                console.log(`Token expires in approximately ${minutesRemaining} minutes`);
+              }
+            } else {
+              console.warn('No access_token found in auth storage');
+            }
+          } else {
+            console.warn('No auth storage found in localStorage');
+          }
+        } catch (e) {
+          console.error('Error retrieving user token from localStorage:', e);
+        }
+      }
+      
       // Use a variable to track if we received a successful response
       let receivedResponse = false;
+      
+      // Prepare headers with either user token (preferred) or API key (fallback)
+      const headers: Record<string, string> = {
+        'apikey': apiKey,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Prefer': 'return=representation'
+      };
+      
+      // Use the user's JWT token if available, otherwise use the API key
+      if (userToken) {
+        console.log('Using user JWT token for subscription API request');
+        headers['Authorization'] = `Bearer ${userToken}`;
+      } else {
+        console.log('No user JWT token available, using API key as fallback');
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
       
       const fetchPromise = fetchWithRetry(
         endpoint,
         {
           method: 'GET',
-          headers: {
-            'apikey': apiKey,
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Prefer': 'return=representation'
-          },
+          headers,
         },
         2
       );
@@ -490,6 +538,19 @@ export async function getUserSubscription(
           }
         } else {
           console.warn(`Direct API subscription fetch failed with status ${response.status}`);
+          if (response.status === 401) {
+            console.warn('Authentication error (401), user may need to re-authenticate');
+            
+            // Try refreshing the session
+            try {
+              const { data } = await supabase.auth.refreshSession();
+              if (data?.session) {
+                console.log('Successfully refreshed session, user should retry');
+              }
+            } catch (refreshError) {
+              console.error('Failed to refresh session:', refreshError);
+            }
+          }
         }
       }
     } catch (apiError) {
@@ -505,6 +566,22 @@ export async function getUserSubscription(
     // Create a new promise that will be resolved with the query result
     const queryPromise = new Promise(async (resolve) => {
       try {
+        // First check if we need to initialize the auth session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Error getting auth session for subscription fallback:', sessionError);
+          resolve(null);
+          return;
+        }
+        
+        if (!session) {
+          console.warn('No active session found for subscription fallback');
+          resolve(null);
+          return;
+        }
+        
+        // Now make the query with the authenticated session
         const { data, error } = await supabase
           .from('user_subscriptions')
           .select('*')
@@ -591,6 +668,63 @@ export function clearCachedSubscription(): void {
 }
 
 /**
+ * Ensures we have a valid authenticated session before making subscription API calls
+ * @returns True if session is valid, false otherwise
+ */
+async function ensureValidSession(): Promise<boolean> {
+  try {
+    console.log('Validating session before subscription API call');
+    
+    // First check if we have a session in localStorage
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    
+    const authStorage = localStorage.getItem('ask-jds-auth-storage');
+    if (!authStorage) {
+      console.warn('No auth storage found in localStorage');
+      return false;
+    }
+    
+    try {
+      const authData = JSON.parse(authStorage);
+      if (!authData?.access_token || !authData?.expires_at) {
+        console.warn('Invalid auth data in localStorage');
+        return false;
+      }
+      
+      // Check if token is expired
+      const expiresAt = new Date(authData.expires_at);
+      const now = new Date();
+      
+      // If token expires in less than 5 minutes, refresh it
+      const fiveMinutes = 5 * 60 * 1000;
+      if (expiresAt.getTime() - now.getTime() < fiveMinutes) {
+        console.log('Token expires soon, refreshing session');
+        const { data, error } = await supabase.auth.refreshSession();
+        
+        if (error || !data?.session) {
+          console.error('Failed to refresh session:', error);
+          return false;
+        }
+        
+        console.log('Session refreshed successfully');
+        return true;
+      }
+      
+      // Token is still valid
+      return true;
+    } catch (e) {
+      console.error('Error parsing auth storage:', e);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error ensuring valid session:', error);
+    return false;
+  }
+}
+
+/**
  * Check if the user has an active subscription
  */
 export async function hasActiveSubscription(userId?: string): Promise<boolean> {
@@ -601,6 +735,24 @@ export async function hasActiveSubscription(userId?: string): Promise<boolean> {
       console.log('DEV: Forcing subscription to true via localStorage flag');
       return true;
     }
+  }
+
+  // First ensure we have a valid session
+  const hasValidSession = await ensureValidSession();
+  if (!hasValidSession) {
+    console.warn('No valid session found, redirecting to authentication');
+    // In case of auth issues, trigger a sign-out/redirect in the next tick
+    setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        // Store a message to display after redirect
+        sessionStorage.setItem('auth_redirect_reason', 'session_expired');
+        // Redirect to the auth page
+        window.location.href = '/auth';
+      }
+    }, 0);
+    
+    // Default to true to avoid blocking UI during redirect
+    return true;
   }
 
   // Create a promise that resolves after a timeout
