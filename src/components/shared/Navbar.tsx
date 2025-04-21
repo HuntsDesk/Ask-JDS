@@ -18,6 +18,7 @@ interface NavItem {
   label: string;
   href: string;
   icon?: React.ReactNode;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }
 
 interface NavbarProps {
@@ -101,6 +102,7 @@ export function Navbar({
                     "nav-link",
                     location.pathname === item.href && "text-jdblue after:w-full after:bg-jdblue"
                   )}
+                  onClick={item.onClick}
                 >
                   {item.label}
                 </Link>
@@ -113,7 +115,11 @@ export function Navbar({
             {user ? (
               <div className="flex items-center space-x-4">
                 <Link to={dashboardHref}>
-                  <Button variant="default" className="bg-jdblue hover:bg-jdblue-light">
+                  <Button variant="default" className={cn(
+                    siteName === 'askjds' && dashboardText === 'Chat' 
+                      ? "bg-jdorange hover:bg-jdorange-dark" 
+                      : "bg-jdblue hover:bg-jdblue-light"
+                  )}>
                     {dashboardText}
                   </Button>
                 </Link>
@@ -129,9 +135,11 @@ export function Navbar({
                       {user?.email}
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => window.location.href = '/settings'}>
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Settings</span>
+                    <DropdownMenuItem asChild>
+                      <Link to="/settings">
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Settings</span>
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleSignOut}>
                       <LogOut className="mr-2 h-4 w-4" />
@@ -146,7 +154,11 @@ export function Navbar({
                   <Button variant="ghost">Log In</Button>
                 </Link>
                 <Link to="/register">
-                  <Button variant="default" className="bg-jdblue hover:bg-jdblue-light">
+                  <Button variant="default" className={cn(
+                    siteName === 'askjds' 
+                      ? "bg-jdorange hover:bg-jdorange-dark" 
+                      : "bg-jdblue hover:bg-jdblue-light"
+                  )}>
                     Sign Up
                   </Button>
                 </Link>
@@ -179,6 +191,7 @@ export function Navbar({
                   "flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-jdblue hover:bg-gray-50",
                   location.pathname === item.href && "text-jdblue bg-gray-50"
                 )}
+                onClick={item.onClick}
               >
                 {item.icon && <span className="mr-2">{item.icon}</span>}
                 {item.label}
@@ -190,7 +203,12 @@ export function Navbar({
               <>
                 <Link
                   to={dashboardHref}
-                  className="flex items-center px-3 py-2 rounded-md text-base font-medium text-white bg-jdblue hover:bg-jdblue/90"
+                  className={cn(
+                    "flex items-center px-3 py-2 rounded-md text-base font-medium text-white hover:bg-opacity-90",
+                    siteName === 'askjds' && dashboardText === 'Chat' 
+                      ? "bg-jdorange hover:bg-jdorange/90" 
+                      : "bg-jdblue hover:bg-jdblue/90"
+                  )}
                 >
                   {dashboardText}
                 </Link>
@@ -222,7 +240,12 @@ export function Navbar({
                 </Link>
                 <Link
                   to="/register"
-                  className="flex items-center px-3 py-2 rounded-md text-base font-medium text-white bg-jdblue hover:bg-jdblue/90"
+                  className={cn(
+                    "flex items-center px-3 py-2 rounded-md text-base font-medium text-white",
+                    siteName === 'askjds' 
+                      ? "bg-jdorange hover:bg-jdorange/90" 
+                      : "bg-jdblue hover:bg-jdblue/90"
+                  )}
                 >
                   Sign Up
                 </Link>

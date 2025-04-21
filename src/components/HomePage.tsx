@@ -156,7 +156,7 @@ export function HomePage() {
       }}
     >
       {/* Hero Section */}
-        <section className="pt-20 pb-16 md:pt-28 md:pb-24">
+        <section id="top" className="pt-20 pb-16 md:pt-28 md:pb-24">
         <div className="max-w-4xl mx-auto px-4 box-border">
           {/* Hero Logo Section - Larger, vertically stacked */}
           <div className="flex flex-col items-center justify-center mb-8">
@@ -215,8 +215,9 @@ export function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 bg-gradient-to-b from-[#00178E]/5 to-[#00178E]/5 overflow-x-hidden" style={{
-        background: 'linear-gradient(180deg, rgba(0, 23, 142, 0.05), rgba(0, 23, 142, 0.05))'
+      <section id="how-it-works" className="py-20 bg-gradient-to-b from-[#00178E]/5 to-[#00178E]/5 overflow-x-hidden" style={{
+        backgroundImage: "url('/images/grid-pattern.svg')",
+        backgroundSize: "cover",
       }}>
         <div className="max-w-6xl mx-auto px-4 box-border">
           <h2 className="text-4xl font-bold text-center mb-16 text-black">How It Works</h2>
@@ -319,7 +320,7 @@ export function HomePage() {
       </section>
 
       {/* Pricing Section */}
-      <section className="py-20 bg-gray-50 overflow-x-hidden">
+      <section id="pricing" className="py-20 bg-gray-50 overflow-x-hidden">
         <div className="max-w-4xl mx-auto text-center px-4 box-border">
           <h2 className="text-4xl font-bold text-black">Simple, Transparent Pricing</h2>
           <p className="text-lg text-gray-600 mt-2">
