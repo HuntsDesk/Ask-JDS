@@ -12,9 +12,9 @@ import { Input } from '../../src/components/ui/input';
 import { Card } from '../../src/components/ui/card';
 import { Progress } from '../../src/components/ui/progress';
 import { Badge } from '../../src/components/ui/badge';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../../src/lib/supabase';
 import { useAuth } from '@/lib/auth';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { LoadingSpinner } from '../components/course/LoadingSpinner';
 import CourseCard from '../components/CourseCard';
 
 // Interface for course data
@@ -31,6 +31,8 @@ interface Course {
   purchased?: boolean; // Whether user has purchased this course
   expiresIn?: number | null; // Days until access expires
   lessons?: number; // Number of lessons in the course
+  price?: number; // Optional price
+  original_price?: number; // Optional original price
   _count: {
     modules: number;
     lessons: number;
@@ -41,8 +43,8 @@ interface CourseEnrollment {
   id: string;
   user_id: string;
   course_id: string;
-  enrolled_at: string;
   expires_at: string;
+  enrolled_at?: string; // Make this optional
 }
 
 const Dashboard = () => {
@@ -84,14 +86,16 @@ const Dashboard = () => {
           course.status?.toLowerCase() !== 'archived');
         
         // Fetch user's course enrollments
+        let enrollmentsData = [];
         if (user) {
-          const { data: enrollmentsData, error: enrollmentsError } = await supabase
+          const { data: fetchedEnrollments, error: enrollmentsError } = await supabase
             .from('course_enrollments')
-            .select('*')
+            .select('id, user_id, course_id, expires_at')
             .eq('user_id', user.id);
           
           if (enrollmentsError) throw enrollmentsError;
-          setEnrollments(enrollmentsData || []);
+          enrollmentsData = fetchedEnrollments || [];
+          setEnrollments(enrollmentsData);
         }
 
         // Get all modules with their course_id and lessons
@@ -108,7 +112,7 @@ const Dashboard = () => {
         // Process the courses data to add UI-specific properties
         const processedCourses = (coursesData || []).map(course => {
           // Find user enrollment for this course if it exists
-          const enrollment = enrollments.find(e => e.course_id === course.id);
+          const enrollment = enrollmentsData.find(e => e.course_id === course.id);
           
           // Calculate days until expiration if enrolled
           let expiresIn = null;
@@ -221,7 +225,7 @@ const Dashboard = () => {
       <div className="flex flex-col items-center justify-center min-h-[50vh] p-4">
         <AlertCircle className="h-10 w-10 text-red-500 mb-4" />
         <p className="text-lg font-medium text-red-500 mb-2">{error}</p>
-        <Button onClick={() => window.location.reload()}>Try Again</Button>
+        <Button onClick={() => window.location.reload()} className="bg-jdorange hover:bg-jdorange-dark">Try Again</Button>
       </div>
     );
   }
@@ -241,7 +245,7 @@ const Dashboard = () => {
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 h-4 w-4" />
         <Input 
           placeholder="Search courses..." 
-          className="pl-10 focus-visible:ring-jdorange focus-visible:border-jdorange dark:bg-gray-800 dark:border-gray-700"
+          className="pl-10 focus-visible:ring-jdorange focus-visible:border-jdorange dark:bg-gray-800 dark:border-gray-700 dark:text-white"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -265,12 +269,13 @@ const Dashboard = () => {
                 id={course.id}
                 title={course.title}
                 description={course.tile_description}
-                price={29.99} // This would be the actual price they paid
+                price={course.price || 0}
+                originalPrice={course.original_price}
                 image={course.image}
                 duration={`${course.expiresIn} days left`}
                 level="All Levels"
                 featured={course.is_featured}
-                isBlue={course.id % 2 === 0} // Alternate colors for variation
+                isBlue={parseInt(course.id) % 2 === 0} // Alternate colors for variation
                 _count={course._count}
                 status={course.status}
               />
@@ -311,12 +316,13 @@ const Dashboard = () => {
                 id={course.id}
                 title={course.title}
                 description={course.tile_description}
-                price={29.99} // Temporary placeholder price
+                price={course.price || 0}
+                originalPrice={course.original_price}
                 image={course.image}
                 duration={`${course.days_of_access} days access`}
                 level="All Levels"
                 featured={course.is_featured}
-                isBlue={course.id % 2 === 0} // Alternate colors for variation
+                isBlue={parseInt(course.id) % 2 === 0} // Alternate colors for variation
                 _count={course._count}
                 status={course.status}
               />
