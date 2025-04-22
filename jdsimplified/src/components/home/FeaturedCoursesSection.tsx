@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
-import CourseCard from '../../components/courses/CourseCard';
+import CourseCard from '../../../src/components/courses/CourseCard';
 
 interface Course {
   id: string;

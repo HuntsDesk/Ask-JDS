@@ -7,15 +7,15 @@ import {
   ChevronRight,
   AlertCircle
 } from 'lucide-react';
-import { Button } from '../../src/components/ui/button';
-import { Input } from '../../src/components/ui/input';
-import { Card } from '../../src/components/ui/card';
-import { Progress } from '../../src/components/ui/progress';
-import { Badge } from '../../src/components/ui/badge';
-import { supabase } from '../../src/lib/supabase';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { LoadingSpinner } from '../components/course/LoadingSpinner';
-import CourseCard from '../components/courses/CourseCard';
+import CourseCard from '../../../src/components/courses/CourseCard';
 
 // Interface for course data
 interface Course {
