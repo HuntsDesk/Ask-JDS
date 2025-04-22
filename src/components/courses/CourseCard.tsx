@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingCart, BookOpen, Clock, Check, Layers, Bell } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
+import { useToast } from '../../hooks/use-toast';
+import { useAuth } from '../../lib/auth';
+import { createCourseCheckout } from '../../lib/stripe/checkout';
 
 interface CourseCardProps {
   id: string;
@@ -38,10 +41,82 @@ const CourseCard = ({
   status
 }: CourseCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
   
   // Use _count if available, otherwise fall back to the direct lessons prop
   const modulesCount = _count?.modules || 0;
   const lessonsCount = _count?.lessons || lessons || 0;
+  
+  // Handle course purchase via Stripe
+  const handleCoursePurchase = async () => {
+    setIsLoading(true);
+    
+    try {
+      if (!user) {
+        // Redirect to login if not authenticated
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to purchase this course.",
+          variant: "destructive"
+        });
+        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+        return;
+      }
+      
+      // Show loading toast
+      const loadingToast = toast({
+        title: "Initiating checkout...",
+        description: "Please wait while we prepare your checkout session.",
+        variant: "default"
+      });
+      
+      console.log("Starting checkout process for course:", { id, title, price, user: user.id });
+      
+      // Create checkout session
+      const response = await createCourseCheckout(user.id, id);
+      console.log("Checkout response:", response);
+      
+      // Remove loading toast
+      toast.dismiss(loadingToast);
+      
+      // Redirect to Stripe checkout
+      if (response && response.url) {
+        console.log("Redirecting to Stripe checkout URL:", response.url);
+        
+        // Show success toast before redirect
+        toast({
+          title: "Checkout Ready",
+          description: "You'll be redirected to Stripe to complete your purchase.",
+          variant: "default"
+        });
+        
+        // Small delay to allow toast to be visible
+        setTimeout(() => {
+          window.location.href = response.url;
+        }, 1000);
+      } else {
+        console.error("Missing checkout URL in response:", response);
+        throw new Error("Failed to create checkout session - missing URL");
+      }
+    } catch (error) {
+      console.error("Checkout error details:", {
+        message: error.message,
+        stack: error.stack,
+        course: { id, title, price },
+        user: user?.id
+      });
+      
+      toast({
+        title: "Checkout Failed",
+        description: error.message || "Something went wrong. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   return (
     <div 
@@ -140,21 +215,36 @@ const CourseCard = ({
             </Link>
             <button 
               className={`px-4 py-2 rounded-lg font-medium flex items-center justify-center shadow-sm transition-all duration-300 ${
-                status?.toLowerCase() === 'draft'
+                status?.toLowerCase() === 'draft' || isLoading
                   ? 'bg-gray-400 hover:bg-gray-500 text-white cursor-not-allowed opacity-80' 
                   : 'bg-gradient-to-r from-jdorange to-jdorange-dark text-white hover:opacity-90'
               }`}
-              disabled={status?.toLowerCase() === 'draft'}
+              disabled={status?.toLowerCase() === 'draft' || isLoading}
+              onClick={(e) => {
+                e.preventDefault(); // Prevent navigating to course detail
+                if (status?.toLowerCase() !== 'draft' && !isLoading) {
+                  // Initialize Stripe checkout
+                  handleCoursePurchase();
+                }
+              }}
             >
               {status?.toLowerCase() === 'draft' ? (
                 <>
                   <Clock className="h-4 w-4 mr-2" />
                   Coming Soon
                 </>
+              ) : isLoading ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </>
               ) : (
                 <>
                   <ShoppingCart className="h-4 w-4 mr-2" />
-                  Add
+                  Purchase
                 </>
               )}
             </button>
@@ -165,4 +255,4 @@ const CourseCard = ({
   );
 };
 
-export default CourseCard;
+export default CourseCard; 

@@ -3,6 +3,7 @@
  */
 import { createClient } from '@supabase/supabase-js';
 import { trackEvent } from '../analytics/track';
+import { createSupabaseClient } from '../supabase/client';
 
 // Create a supabase client
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -266,5 +267,108 @@ export async function createUnlimitedSubscriptionCheckout(
     });
     
     throw error;
+  }
+}
+
+/**
+ * Create a checkout session for subscription
+ * 
+ * @param tier Subscription tier (premium or unlimited)
+ * @param interval Billing interval (monthly or yearly)
+ * @param userId Optional user ID
+ * @returns Object with error message or checkout URL
+ */
+export async function createSubscriptionCheckout({
+  tier,
+  interval,
+  userId
+}: {
+  tier: 'premium' | 'unlimited';
+  interval: 'monthly' | 'yearly';
+  userId?: string;
+}) {
+  console.log('Starting subscription checkout process', { tier, interval });
+  
+  // If userId is not provided, try to get it from the authenticated user
+  const supabase = createSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    console.error('Authentication required for subscription checkout');
+    return { error: 'Authentication required', url: null };
+  }
+  
+  const finalUserId = userId || user.id;
+  console.log('Authenticated user for subscription checkout', { userId: finalUserId });
+
+  try {
+    // Check if we're in production or development
+    const isProduction = import.meta.env.MODE === 'production';
+    console.log('Environment mode:', isProduction ? 'production' : 'development');
+    
+    // Get the Supabase URL for the Edge Function
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    console.log('Using Supabase URL:', supabaseUrl);
+
+    // Get the current session to use for authorization
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      console.error('No authenticated session available');
+      return { error: 'Authentication required', url: null };
+    }
+
+    // Convert interval to format expected by the API
+    const apiInterval = interval === 'monthly' ? 'month' : 'year';
+
+    // Call the Edge Function to create a checkout
+    const response = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        tier,
+        interval: apiInterval,
+        userId: finalUserId,
+        origin: window.location.origin
+      }),
+    });
+
+    const data = await response.json();
+    console.log('Subscription checkout response:', data);
+
+    if (data.error) {
+      console.error('Error creating subscription checkout:', data.error);
+      
+      // Track checkout error
+      trackEvent('checkout_failed', {
+        error_message: data.error,
+        subscription_type: tier,
+        interval
+      });
+      
+      return { error: data.error, url: null };
+    }
+    
+    // Track successful checkout creation
+    trackEvent('checkout_initiated', {
+      subscription_plan_type: `${tier}_${interval}`,
+      checkout_session_id: data.sessionId
+    });
+
+    return { error: null, url: data.url };
+  } catch (error: any) {
+    console.error('Exception in subscription checkout:', error);
+    
+    // Track checkout error
+    trackEvent('checkout_failed', {
+      error_message: error.message,
+      subscription_type: tier,
+      interval
+    });
+    
+    return { error: 'Failed to create checkout session', url: null };
   }
 } 
