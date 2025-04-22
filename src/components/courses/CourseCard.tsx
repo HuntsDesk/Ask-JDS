@@ -5,6 +5,7 @@ import { cn } from '../../lib/utils';
 import { useToast } from '../../hooks/use-toast';
 import { useAuth } from '../../lib/auth';
 import { createCourseCheckout } from '../../lib/stripe/checkout';
+import { supabase } from '../../lib/supabase';
 
 interface CourseCardProps {
   id: string;
@@ -61,6 +62,24 @@ const CourseCard = ({
           description: "Please log in to purchase this course.",
           variant: "destructive"
         });
+        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+        return;
+      }
+      
+      // Check if we have a valid session
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("Auth session check:", session ? "Valid session" : "No valid session found");
+      
+      if (!session) {
+        // Session expired or invalid - redirect to login
+        toast({
+          title: "Session Expired",
+          description: "Your session has expired. Please log in again.",
+          variant: "destructive"
+        });
+        
+        // Force logout to clear invalid session data
+        await supabase.auth.signOut();
         window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
         return;
       }
