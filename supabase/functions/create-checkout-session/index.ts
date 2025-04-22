@@ -1,10 +1,8 @@
 /// <reference lib="deno.ns" />
 /// <reference types="https://deno.land/x/stripe@v3.14.0/types/mod.d.ts" />
 // @deno-types="npm:@types/node"
-import { createClient } from '@supabase/supabase-js';
-import Stripe from 'stripe';
-// @ts-ignore
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.7.1";
+import Stripe from "npm:stripe@12.6.0";
 
 // Define types
 type SubscriptionTier = 'premium' | 'unlimited';
@@ -75,7 +73,7 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Serve HTTP requests
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { 
