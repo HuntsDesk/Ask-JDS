@@ -15,7 +15,7 @@ import { Badge } from '../../src/components/ui/badge';
 import { supabase } from '../../src/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { LoadingSpinner } from '../components/course/LoadingSpinner';
-import CourseCard from '/Users/hunteranderson/dev/Ask-JDS/src/components/courses/CourseCard';
+import CourseCard from '../components/courses/CourseCard';
 
 // Interface for course data
 interface Course {
