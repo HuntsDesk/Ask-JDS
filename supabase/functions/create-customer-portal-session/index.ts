@@ -1,14 +1,11 @@
-import { createClient } from "npm:@supabase/supabase-js@2.7.1";
-import Stripe from "npm:stripe@12.6.0";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// deno-lint-ignore-file no-explicit-any
+import { createClient } from "npm:@supabase/supabase-js@2.39.3";
+import Stripe from "npm:stripe@17.7.0";
+import { corsHeaders } from "../_shared/cors.ts";
 
 console.info('Customer portal session server started');
 
-Deno.serve(async (req) => {
+const handler = async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -33,7 +30,7 @@ Deno.serve(async (req) => {
 
     // Initialize Stripe
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-      apiVersion: '2023-10-16',
+      apiVersion: '2025-03-31.basil',
     });
 
     // Get the user's Stripe customer ID
@@ -71,4 +68,6 @@ Deno.serve(async (req) => {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-}); 
+};
+
+Deno.serve(handler); 

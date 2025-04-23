@@ -19,8 +19,18 @@ export function AuthPage() {
       console.log('AuthPage: Auth state check', { user, loading, authInitialized });
       
       if (user) {
-        console.log('AuthPage: User already authenticated, navigating to /chat', user);
-        navigate('/chat', { replace: true });
+        // Get return URL from state or localStorage
+        const stateReturnUrl = location.state?.returnUrl;
+        const storedReturnUrl = localStorage.getItem('auth-return-url');
+        const returnUrl = stateReturnUrl || storedReturnUrl || '/chat';
+        
+        console.log('AuthPage: User authenticated, navigating to', returnUrl);
+        
+        // Clear the stored return URL
+        localStorage.removeItem('auth-return-url');
+        
+        // Redirect to the return URL
+        navigate(returnUrl, { replace: true });
         return;
       }
       
@@ -37,9 +47,20 @@ export function AuthPage() {
           }
           
           if (data?.session?.user) {
-            console.log('AuthPage: Session found manually, navigating to /chat', data.session.user.email);
+            console.log('AuthPage: Session found manually');
+            
+            // Get return URL from state or localStorage
+            const stateReturnUrl = location.state?.returnUrl;
+            const storedReturnUrl = localStorage.getItem('auth-return-url');
+            const returnUrl = stateReturnUrl || storedReturnUrl || '/chat';
+            
+            console.log('AuthPage: Navigating to', returnUrl);
+            
+            // Clear the stored return URL
+            localStorage.removeItem('auth-return-url');
+            
             // Force a page reload to ensure all authentication states are properly initialized
-            window.location.href = '/chat';
+            window.location.href = returnUrl;
           } else {
             console.log('AuthPage: No session found manually');
           }
@@ -51,7 +72,7 @@ export function AuthPage() {
     
     // Check auth in the background without blocking rendering
     checkAuth();
-  }, [user, loading, authInitialized, navigate]);
+  }, [user, loading, authInitialized, navigate, location.state]);
   
   useEffect(() => {
     // Check for tab parameter in URL

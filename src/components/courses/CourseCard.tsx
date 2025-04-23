@@ -5,7 +5,7 @@ import { cn } from '../../lib/utils';
 import { useToast } from '../../hooks/use-toast';
 import { useAuth } from '../../lib/auth';
 import { createCourseCheckout } from '../../lib/stripe/checkout';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase'; // Import the central Supabase instance
 
 interface CourseCardProps {
   id: string;
@@ -44,7 +44,7 @@ const CourseCard = ({
   const [isHovered, setIsHovered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
   
   // Use _count if available, otherwise fall back to the direct lessons prop
   const modulesCount = _count?.modules || 0;
@@ -53,24 +53,44 @@ const CourseCard = ({
   // Handle course purchase via Stripe
   const handleCoursePurchase = async () => {
     setIsLoading(true);
+    console.log("===== CHECKOUT FLOW BEGIN =====");
     
     try {
       if (!user) {
+        console.log("No user found, redirecting to login");
         // Redirect to login if not authenticated
         toast({
           title: "Authentication Required",
           description: "Please log in to purchase this course.",
           variant: "destructive"
         });
-        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+        window.location.href = `/auth?redirect=${encodeURIComponent(window.location.pathname)}`;
         return;
       }
       
-      // Check if we have a valid session
-      const { data: { session } } = await supabase.auth.getSession();
+      console.log("User authenticated:", user.id);
+      
+      // Use the central Supabase instance to verify session
+      console.log("Checking authentication session...");
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       console.log("Auth session check:", session ? "Valid session" : "No valid session found");
       
+      if (sessionError) {
+        console.error("Session check error:", sessionError);
+        toast({
+          title: "Authentication Error",
+          description: "We couldn't verify your account. Please try logging in again.",
+          variant: "destructive"
+        });
+        
+        // Force logout to clear invalid session data
+        await supabase.auth.signOut();
+        window.location.href = `/auth?redirect=${encodeURIComponent(window.location.pathname)}`;
+        return;
+      }
+      
       if (!session) {
+        console.log("No valid session found, redirecting to login");
         // Session expired or invalid - redirect to login
         toast({
           title: "Session Expired",
@@ -80,59 +100,109 @@ const CourseCard = ({
         
         // Force logout to clear invalid session data
         await supabase.auth.signOut();
-        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+        window.location.href = `/auth?redirect=${encodeURIComponent(window.location.pathname)}`;
         return;
       }
       
       // Show loading toast
-      const loadingToast = toast({
+      console.log("Showing loading toast");
+      const loadingToastId = toast({
         title: "Initiating checkout...",
         description: "Please wait while we prepare your checkout session.",
         variant: "default"
-      });
+      }).id;
       
-      console.log("Starting checkout process for course:", { id, title, price, user: user.id });
+      console.log("Starting checkout process for course:", { id, title, price });
+      console.log("Auth token for request:", session.access_token.substring(0, 15) + "...");
+      console.log("Supabase URL:", import.meta.env.VITE_SUPABASE_URL);
       
-      // Create checkout session
-      const response = await createCourseCheckout(user.id, id);
-      console.log("Checkout response:", response);
-      
-      // Remove loading toast
-      toast.dismiss(loadingToast);
-      
-      // Redirect to Stripe checkout
-      if (response && response.url) {
-        console.log("Redirecting to Stripe checkout URL:", response.url);
+      try {
+        // Create checkout session - no need to pass userId anymore
+        console.log("Calling createCourseCheckout function");
+        const response = await createCourseCheckout(id);
+        console.log("Checkout response received:", response);
         
-        // Show success toast before redirect
-        toast({
-          title: "Checkout Ready",
-          description: "You'll be redirected to Stripe to complete your purchase.",
-          variant: "default"
-        });
+        // Remove loading toast
+        dismiss(loadingToastId);
         
-        // Small delay to allow toast to be visible
-        setTimeout(() => {
-          window.location.href = response.url;
-        }, 1000);
-      } else {
-        console.error("Missing checkout URL in response:", response);
-        throw new Error("Failed to create checkout session - missing URL");
+        // Redirect to Stripe checkout
+        if (response && response.url) {
+          console.log("Redirecting to Stripe checkout URL:", response.url);
+          
+          // Show success toast before redirect
+          toast({
+            title: "Checkout Ready",
+            description: "You'll be redirected to Stripe to complete your purchase.",
+            variant: "default"
+          });
+          
+          // Small delay to allow toast to be visible
+          setTimeout(() => {
+            window.location.href = response.url;
+          }, 1000);
+        } else {
+          console.error("Missing checkout URL in response:", response);
+          throw new Error("Failed to create checkout session - missing URL");
+        }
+      } catch (checkoutError) {
+        console.error("Specific checkout error:", checkoutError);
+        throw checkoutError; // Re-throw to be handled by the outer catch
       }
     } catch (error) {
+      console.error("===== CHECKOUT FLOW ERROR =====");
       console.error("Checkout error details:", {
         message: error.message,
         stack: error.stack,
-        course: { id, title, price },
-        user: user?.id
+        course: { id, title, price }
       });
       
+      // Handle specific error cases
+      let errorTitle = "Checkout Failed";
+      let errorMessage = "Something went wrong. Please try again.";
+      
+      if (error.message) {
+        // Authentication errors
+        if (error.message.includes('Authentication required') || 
+            error.message.includes('auth') || 
+            error.message.includes('session')) {
+          errorTitle = "Authentication Error";
+          errorMessage = "Please log in again to continue with your purchase.";
+        }
+        // Network errors
+        else if (error.message.includes('network') || 
+                 error.message.includes('Network') || 
+                 error.message.includes('connect') ||
+                 error.message.includes('fetch') ||
+                 error.message.includes('timeout')) {
+          errorTitle = "Network Error";
+          errorMessage = "Please check your internet connection and try again.";
+        }
+        // Server errors
+        else if (error.message.includes('500') || 
+                 error.message.includes('server') || 
+                 error.message.includes('Server')) {
+          errorTitle = "Server Error";
+          errorMessage = "Our servers are experiencing issues. Please try again later.";
+        }
+        // Missing course details
+        else if (error.message.includes('not found') || 
+                 error.message.includes('Course not found')) {
+          errorTitle = "Course Not Found";
+          errorMessage = "This course is not available at the moment. Please contact support.";
+        }
+        // Otherwise use the error message from the server
+        else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
-        title: "Checkout Failed",
-        description: error.message || "Something went wrong. Please try again.",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
+      console.log("===== CHECKOUT FLOW END =====");
       setIsLoading(false);
     }
   };
