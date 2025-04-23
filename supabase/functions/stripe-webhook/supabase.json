@@ -1,3 +1,6 @@
 {
-  "verify_jwt": false
+  "name": "stripe-webhook",
+  "verify_jwt": false,
+  "version": "1.0",
+  "description": "Stripe webhook handler for processing checkout sessions and subscription updates"
 } 

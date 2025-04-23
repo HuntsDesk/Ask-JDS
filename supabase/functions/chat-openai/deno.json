@@ -1,0 +1,9 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.39.3",
+    "openai": "npm:openai@4.29.1"
+  },
+  "compilerOptions": {
+    "lib": ["deno.ns", "dom"]
+  }
+} 

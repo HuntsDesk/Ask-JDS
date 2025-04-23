@@ -4,20 +4,28 @@
  * This file provides both client and server-side Stripe configurations
  */
 
-import Stripe from 'stripe';
+import { loadStripe } from '@stripe/stripe-js';
+import type { Stripe } from '@stripe/stripe-js';
 
-// Get the appropriate environment variables based on environment
-const STRIPE_SECRET_KEY = import.meta.env.VITE_STRIPE_SECRET_KEY;
-const STRIPE_WEBHOOK_SECRET = import.meta.env.VITE_STRIPE_WEBHOOK_SECRET;
+let stripePromise: Promise<Stripe | null>;
 
-// Initialize Stripe with the appropriate API key
-const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: '2023-10-16', // Use the latest stable API version
-  appInfo: {
-    name: 'Ask JDS',
-    version: '1.0.0',
-  },
-});
+// Only keep publishable key - remove other sensitive keys
+const STRIPE_PUBLISHABLE_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+
+if (!STRIPE_PUBLISHABLE_KEY) {
+  throw new Error('Missing Stripe publishable key');
+}
+
+/**
+ * Initialize Stripe client
+ * @returns Stripe client instance
+ */
+export const getStripe = () => {
+  if (!stripePromise) {
+    stripePromise = loadStripe(STRIPE_PUBLISHABLE_KEY);
+  }
+  return stripePromise;
+};
 
 // Export constants needed for stripe integration
 export const UNLIMITED_SUBSCRIPTION_PRICE_ID = {
@@ -25,9 +33,7 @@ export const UNLIMITED_SUBSCRIPTION_PRICE_ID = {
   yearly: import.meta.env.VITE_STRIPE_UNLIMITED_YEARLY_PRICE_ID,
 };
 
-export const WEBHOOK_SECRET = STRIPE_WEBHOOK_SECRET;
-
-export default stripe;
+export const WEBHOOK_SECRET = import.meta.env.VITE_STRIPE_WEBHOOK_SECRET;
 
 // For client-side usage
 export const loadStripeClient = async () => {

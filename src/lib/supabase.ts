@@ -246,3 +246,12 @@ export async function logError(
     console.error('Failed to log error:', logError);
   }
 }
+
+// Optional: prevent multiple instantiations
+if (typeof window !== 'undefined') {
+  // @ts-ignore - Add property to window for debugging
+  window.__SUPABASE_CLIENT_COUNT = (window.__SUPABASE_CLIENT_COUNT || 0) + 1
+  console.log(`Supabase client initialized (count: ${window.__SUPABASE_CLIENT_COUNT})`)
+}
+
+export default supabase;

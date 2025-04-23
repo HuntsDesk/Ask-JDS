@@ -1,0 +1,7 @@
+{
+  "name": "askjds-scripts",
+  "version": "1.0.0",
+  "description": "Utility scripts for Ask JDS",
+  "type": "module",
+  "private": true
+} 
