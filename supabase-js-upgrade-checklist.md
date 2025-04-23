@@ -12,6 +12,13 @@
 - [x] Created `supabase/functions/_shared/deno.json` with Supabase JS 2.39.3
 - [x] Verified that the root `package.json` already uses Supabase JS 2.39.3
 
+## Prerequisites
+
+- [ ] Ensure Supabase is running locally:
+  ```bash
+  supabase start
+  ```
+
 ## Deployment Steps
 
 1. [ ] Deploy all Edge Functions to verify compatibility with Supabase JS 2.39.3
