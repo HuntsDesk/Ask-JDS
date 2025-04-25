@@ -483,8 +483,8 @@ export function Sidebar({
           </TooltipProvider>
         </div>
 
-        <ScrollArea className="flex-1 overflow-hidden custom-scrollbar bg-white dark:bg-gray-800">
-          <div className="space-y-4 p-2">
+        <ScrollArea className="flex-1 overflow-hidden custom-scrollbar bg-white dark:bg-gray-800 [&_[data-radix-scroll-area-viewport]]:block">
+          <div className="space-y-4 p-2 w-full max-w-full">
             {sortedSessionEntries.map(([date, dateSessions]) => (
               <div key={date} className="space-y-1">
                 {isDesktopExpanded && (
@@ -517,7 +517,7 @@ export function Sidebar({
                         <button
                           onClick={() => handleThreadClick(session.id)}
                           className={cn(
-                            "w-full flex items-center gap-3 rounded-lg nav-item",
+                            "w-full flex items-center gap-2 rounded-lg nav-item overflow-hidden",
                             isDesktopExpanded ? "px-3 py-2" : "p-2 justify-center",
                             (selectedThreadId === session.id) ? 
                               "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300" : 
@@ -531,8 +531,8 @@ export function Sidebar({
                             )} 
                           />
                           <span className={cn(
-                            "truncate text-sm flex-1 text-left transition-all duration-300",
-                            isDesktopExpanded ? "opacity-100 w-auto" : "opacity-0 w-0 absolute overflow-hidden",
+                            "truncate min-w-0 flex-1 text-left text-sm",
+                            isDesktopExpanded ? "block" : "hidden",
                             (selectedThreadId === session.id) && "font-medium text-[#F37022] dark:text-orange-300"
                           )}>{session.title}</span>
                           {isDesktopExpanded && (selectedThreadId === session.id) && (

@@ -108,29 +108,28 @@ export function SubscriptionSettings() {
   }, [toast, user?.id]);
   
   // Handle subscribe button click
-  const handleSubscribe = async () => {
+  const handleUpgrade = async () => {
+    setIsLoading(true);
     try {
-      setIsActionLoading(true);
-      
-      const url = await createCheckoutSession(user?.id);
+      const url = await createCheckoutSession('unlimited', 'month');
       if (url) {
         window.location.href = url;
       } else {
         toast({
-          title: 'Error',
-          description: 'Failed to create checkout session. Please try again later.',
-          variant: 'destructive',
+          title: "Error",
+          description: "Failed to create checkout session. Please try again.",
+          variant: "destructive"
         });
       }
     } catch (error) {
-      console.error('Error creating checkout session:', error);
+      console.error('Error upgrading subscription:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to create checkout session. Please try again later.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to upgrade subscription. Please try again.",
+        variant: "destructive"
       });
     } finally {
-      setIsActionLoading(false);
+      setIsLoading(false);
     }
   };
   
@@ -505,7 +504,7 @@ export function SubscriptionSettings() {
                   Upgrade to Premium for unlimited messages and priority support.
                 </p>
                 <Button 
-                  onClick={handleSubscribe} 
+                  onClick={handleUpgrade} 
                   disabled={isActionLoading}
                   className="w-full bg-[#F37022] hover:bg-[#E36012] text-white"
                 >
@@ -601,7 +600,7 @@ export function SubscriptionSettings() {
         {isFreeTier() ? (
           <Button 
             className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white"
-            onClick={handleSubscribe}
+            onClick={handleUpgrade}
             disabled={isActionLoading}
           >
             {isActionLoading ? (

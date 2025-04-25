@@ -815,41 +815,55 @@ export async function hasActiveSubscription(userId?: string): Promise<boolean> {
 }
 
 /**
- * Create a Stripe checkout session
+ * Create a checkout session for subscription
+ * @returns Checkout session URL
  */
-export async function createCheckoutSession(userId?: string): Promise<string | null> {
+export async function createCheckoutSession(
+  tier: 'premium' | 'unlimited' = 'unlimited',
+  interval: 'month' | 'year' = 'month'
+): Promise<string | null> {
   try {
-    // If no userId provided, get the current user
-    if (!userId) {
-      const { data: { user } } = await supabase.auth.getUser();
-      userId = user?.id;
-      
-      if (!userId) {
-        console.warn('No user ID available for creating checkout session');
-        return null;
-      }
-    }
+    // Get authenticated session for the API call
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
-    try {
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { 
-          priceId: SUBSCRIPTION_PRICE_ID,
-          userId 
-        }
-      });
-      
-      if (error) {
-        console.error('Error creating checkout session:', error);
-        return null;
-      }
-      
-      return data.url;
-    } catch (invokeErr) {
-      console.error('Failed to invoke create-checkout-session function:', invokeErr);
+    if (sessionError) {
+      console.error('Error getting auth session:', sessionError);
       return null;
     }
-  } catch (err) {
-    console.error('Failed to create checkout session:', err);
+    
+    if (!session) {
+      console.error('No auth session found');
+      return null;
+    }
+
+    // Call the Edge Function to create checkout
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          subscriptionTier: tier,
+          interval: interval === 'year' ? 'year' : 'month',
+          mode: 'subscription',
+          successUrl: `${window.location.origin}/subscription/success`,
+          cancelUrl: `${window.location.origin}/subscribe`
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to create checkout session');
+    }
+
+    const { url } = await response.json();
+    return url;
+  } catch (error) {
+    console.error('Error creating checkout session:', error);
     return null;
   }
 }

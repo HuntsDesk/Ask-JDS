@@ -1,5 +1,4 @@
-import { serve } from "https://deno.land/std/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.8.0';
+import { createClient } from 'npm:@supabase/supabase-js@2.8.0';
 
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
 const GOOGLE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent";
@@ -9,8 +8,8 @@ const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 
 let cachedSystemPrompt = null;
 
-// Serve the function
-serve(async (req) => {
+// Use Deno.serve directly as recommended
+Deno.serve(async (req) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { 
