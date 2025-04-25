@@ -58,7 +58,3 @@ VITE_STRIPE_LIVE_PUBLISHABLE_KEY=pk_live_...
 1. Create a feature branch
 2. Make your changes
 3. Submit a pull request
-
-## License
-
-[License details here] 
