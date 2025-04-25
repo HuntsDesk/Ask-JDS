@@ -531,8 +531,8 @@ export function Sidebar({
                             )} 
                           />
                           <span className={cn(
-                            "truncate text-sm flex-1 text-left transition-all duration-300",
-                            isDesktopExpanded ? "opacity-100 w-auto" : "opacity-0 w-0 absolute overflow-hidden",
+                            "truncate min-w-0 flex-1 text-left text-sm",
+                            isDesktopExpanded ? "block" : "hidden",
                             (selectedThreadId === session.id) && "font-medium text-[#F37022] dark:text-orange-300"
                           )}>{session.title}</span>
                           {isDesktopExpanded && (selectedThreadId === session.id) && (

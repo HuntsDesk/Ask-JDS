@@ -42,3 +42,4 @@ dist-ssr
 *.sw?
 Thumbs.db
 *.tsbuildinfo
+/.env.backups
