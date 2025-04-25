@@ -35,24 +35,25 @@ export function FlashcardPaywall({ onCancel }: FlashcardPaywallProps) {
   }, [dismiss]);
   
   const handleSubscribe = async () => {
-    setIsLoading(true);
     try {
-      const checkoutUrl = await createCheckoutSession('unlimited', 'month');
+      setIsLoading(true);
+      const checkoutUrl = await createCheckoutSession();
+      
       if (checkoutUrl) {
         window.location.href = checkoutUrl;
       } else {
         toast({
-          title: "Error",
-          description: "Failed to start checkout process. Please try again.",
-          variant: "destructive"
+          title: 'Error',
+          description: 'Failed to create checkout session. Please try again later.',
+          variant: 'destructive',
         });
       }
     } catch (error) {
-      console.error('Error starting checkout:', error);
+      console.error('Error creating checkout session:', error);
       toast({
-        title: "Error",
-        description: "Failed to start checkout process. Please try again.",
-        variant: "destructive"
+        title: 'Error',
+        description: 'Something went wrong. Please try again later.',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);

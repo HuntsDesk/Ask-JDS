@@ -22,9 +22,6 @@ const CourseDetail = lazy(() => import('./components/admin/CourseDetail').then(m
 const PublicCourseDetail = lazy(() => import('@/components/courses/CourseDetail'));
 const CourseContent = lazy(() => import('@/components/courses/CourseContent'));
 const SubscriptionSuccess = lazy(() => import('@/components/SubscriptionSuccess').then(module => ({ default: module.SubscriptionSuccess })));
-const PurchaseSuccessPage = lazy(() => import('@/pages/PurchaseSuccessPage'));
-const ThankYouPage = lazy(() => import('@/pages/ThankYouPage'));
-const TestCheckoutPage = lazy(() => import('@/pages/TestCheckoutPage'));
 
 // Import Dashboard directly to avoid lazy loading issues
 import JDSDashboard from '../jdsimplified/src/pages/Dashboard';
@@ -68,9 +65,6 @@ const SetAdminStatus = lazy(() => import('@/components/admin/SetAdmin').then(mod
 
 // Import SetAdminStatus directly for the setup route
 import SetAdminSetup from './components/admin/SetAdmin';
-
-// Import the token util page
-const TokenUtilPage = lazy(() => import('@/pages/TokenUtilPage'));
 
 // Check if admin setup is allowed from environment variables
 const allowSetupAdmin = import.meta.env.VITE_ALLOW_ADMIN_SETUP === 'true';
@@ -302,29 +296,6 @@ function AppRoutes() {
         } 
       />
       
-      {/* Add new routes for purchase success and thank-you */}
-      <Route 
-        path="/purchase/success" 
-        element={
-          <ProtectedRoute>
-            <Suspense fallback={<PageLoader message="Processing purchase..." />}>
-              <PurchaseSuccessPage />
-            </Suspense>
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path="/thank-you" 
-        element={
-          <ProtectedRoute>
-            <Suspense fallback={<PageLoader message="Processing payment..." />}>
-              <ThankYouPage />
-            </Suspense>
-          </ProtectedRoute>
-        } 
-      />
-      
       {/* JDS Course Routes */}
       <Route 
         path="/course/:courseId" 
@@ -364,33 +335,6 @@ function AppRoutes() {
           </ProtectedRoute>
         } 
       />
-
-      {/* Add the test checkout page */}
-      <Route 
-        path="/test-checkout" 
-        element={
-          <ProtectedRoute>
-            <Suspense fallback={<PageLoader message="Loading test checkout..." />}>
-              <TestCheckoutPage />
-            </Suspense>
-          </ProtectedRoute>
-        } 
-      />
-      
-      {/* Add the token utility page */}
-      <Route 
-        path="/token-util" 
-        element={
-          <ProtectedRoute>
-            <Suspense fallback={<PageLoader message="Loading token utility..." />}>
-              <TokenUtilPage />
-            </Suspense>
-          </ProtectedRoute>
-        } 
-      />
-      
-      {/* Add catch-all route that doesn't redirect to chat */}
-      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

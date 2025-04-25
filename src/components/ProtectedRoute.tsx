@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useEffect, useState, Suspense, useRef } from 'react';
@@ -18,7 +18,6 @@ export function ProtectedRoute({
   const [fallbackChecked, setFallbackChecked] = useState(false);
   const [fallbackAuth, setFallbackAuth] = useState<boolean | null>(null);
   const isMountedRef = useRef(true);
-  const location = useLocation();
 
   // For debugging only
   useEffect(() => {
@@ -128,12 +127,6 @@ export function ProtectedRoute({
   }
 
   // If authentication failed or user is not logged in, redirect
-  // Store the current path to return to after login
-  const returnPath = location.pathname + location.search;
-  console.log("ProtectedRoute - No user, redirecting to", redirectTo, "with returnUrl:", returnPath);
-  
-  // Save the current location to localStorage for redirection after login
-  localStorage.setItem('auth-return-url', returnPath);
-  
-  return <Navigate to={redirectTo} state={{ returnUrl: returnPath }} />;
+  console.log("ProtectedRoute - No user, redirecting to", redirectTo);
+  return <Navigate to={redirectTo} />;
 } 
