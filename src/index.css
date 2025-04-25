@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fix for Radix ScrollArea viewport display issue */
+[data-radix-scroll-area-viewport] {
+  display: block !important;
+}
+
 /* Add missing JD Simplified animations */
 @keyframes slideUp {
   from { transform: translateY(20px); opacity: 0; }
@@ -264,6 +269,14 @@ body {
 
 .nav-item.active {
   @apply bg-accent text-accent-foreground;
+}
+
+/* Thread title text overflow handling */
+.nav-item span.truncate {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 /* Sidebar transition */
