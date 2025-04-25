@@ -3,10 +3,6 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@components/*": ["./src/components/*"],
-      "@lib/*": ["./src/lib/*"],
-      "@hooks/*": ["./src/hooks/*"],
-      "@app/*": ["./src/app/*"],
       "@jds/*": ["./jdsimplified/src/*"]
     },
     "esModuleInterop": true,

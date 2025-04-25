@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Filter, BookOpen, Clock, ChevronDown } from 'lucide-react';
-import PageLayout from '../components/PageLayout';
-import CourseCard from '@/components/courses/CourseCard';
-import { getCourses, getModulesByCourseId, getLessonsByModuleId } from '../services/courseService';
-import { Course } from '../types/course';
-import { LoadingSpinner } from '../components/LoadingSpinner';
+import PageLayout from '@/components/PageLayout';
+import CourseCard from '@/components/CourseCard';
+import { getCourses, getModulesByCourseId, getLessonsByModuleId } from '@/services/courseService';
+import { Course } from '@/types/course';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 const Courses = () => {
   const [searchTerm, setSearchTerm] = useState('');
