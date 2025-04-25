@@ -156,66 +156,63 @@ export function HomePage() {
       }}
     >
       {/* Hero Section */}
-        <section id="top" className="pt-20 pb-16 md:pt-28 md:pb-24 relative overflow-hidden">
-          <div className="absolute inset-0 animated-gradient opacity-60"></div>
-          <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#F37022]/10 rounded-full filter blur-3xl animate-float-slow"></div>
-          <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-[#00178E]/10 rounded-full filter blur-3xl animate-float-medium"></div>
-          <div className="max-w-4xl mx-auto px-4 box-border relative z-10">
-            {/* Hero Logo Section - Larger, vertically stacked */}
-            <div className="flex flex-col items-center justify-center mb-8">
-              <div className="relative w-32 h-32 mb-3">
-                <div className="absolute -top-4 -right-4 animate-float-delayed z-0">
-                  <Scale className="w-12 h-12 text-[#F5B111] opacity-60" />
-                </div>
-                <div className="absolute -bottom-3 -left-4 animate-float z-0">
-                  <BookOpenCheck className="w-12 h-12 text-[#9333EA] opacity-70" />
-                </div>
-                <div className="absolute -bottom-4 -right-3 z-0">
-                  <Sparkles className="w-10 h-10 text-[#38BDF8] animate-pulse" />
-                </div>
-                <div className="absolute top-0 left-0 animate-float-slow z-10">
-                  <Brain className="w-32 h-32 text-[#F37022]" />
-                </div>
+        <section id="top" className="pt-20 pb-16 md:pt-28 md:pb-24">
+        <div className="max-w-4xl mx-auto px-4 box-border">
+          {/* Hero Logo Section - Larger, vertically stacked */}
+          <div className="flex flex-col items-center justify-center mb-8">
+            <div className="relative w-32 h-32 mb-3">
+              <div className="absolute -top-4 -right-4 animate-float-delayed z-0">
+                <Scale className="w-12 h-12 text-[#F5B111] opacity-60" />
               </div>
-              <span className="text-5xl font-bold text-black">Ask JDS</span>
+              <div className="absolute -bottom-3 -left-4 animate-float z-0">
+                <BookOpenCheck className="w-12 h-12 text-[#9333EA] opacity-70" />
+              </div>
+              <div className="absolute -bottom-4 -right-3 z-0">
+                <Sparkles className="w-10 h-10 text-[#38BDF8] animate-pulse" />
+              </div>
+              <div className="absolute top-0 left-0 animate-float-slow z-10">
+                <Brain className="w-32 h-32 text-[#F37022]" />
+              </div>
             </div>
+            <span className="text-5xl font-bold text-black">Ask JDS</span>
+          </div>
 
-            {/* Hero Content */}
-            <div className="text-center mt-16">
-              <h1 className="text-5xl font-bold text-black mb-8">
-                The <i className="text-[#F37022]">Law Study Buddy</i> that won't judge you for procrastinating.
-              </h1>
+          {/* Hero Content */}
+          <div className="text-center mt-16">
+            <h1 className="text-5xl font-bold text-black mb-8">
+              The <i className="text-[#F37022]">Law Study Buddy</i> that won't judge you for procrastinating.
+            </h1>
 
-              <h2 className="text-3xl font-bold text-black mb-4">
-                Struggling with law school or the bar exam?
-              </h2>
+            <h2 className="text-3xl font-bold text-black mb-4">
+              Struggling with law school or the bar exam?
+            </h2>
 
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-                Welcome to Ask JDS, where you can throw your burning law school and bar prep questions at a friendly AI Law Nerd who won't shame you for forgetting the rule against perpetuities (again).
-              </p>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
+              Welcome to Ask JDS, where you can throw your burning law school and bar prep questions at a friendly AI Law Nerd who won't shame you for forgetting the rule against perpetuities (again).
+            </p>
 
-              <div className="flex flex-col md:flex-row gap-4 mt-8 justify-center">
-                {user ? (
-                  <button 
-                    onClick={() => navigate('/chat')}
-                    className="bg-[#F37022] hover:bg-[#E35D10] text-white font-medium py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
-                  >
-                    <MessageSquare className="w-5 h-5" />
-                    Start Chatting
-                  </button>
-                ) : (
-                  <Link 
-                    to="/auth"
-                    className="bg-[#F37022] hover:bg-[#E35D10] text-white font-medium py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
-                  >
-                    <Rocket className="w-5 h-5" />
-                    Sign Up
-                  </Link>
-                )}
-              </div>
+            <div className="flex flex-col md:flex-row gap-4 mt-8 justify-center">
+              {user ? (
+                <button 
+                  onClick={() => navigate('/chat')}
+                  className="bg-[#F37022] hover:bg-[#E35D10] text-white font-medium py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <MessageSquare className="w-5 h-5" />
+                  Start Chatting
+                </button>
+              ) : (
+                <Link 
+                  to="/auth"
+                  className="bg-[#F37022] hover:bg-[#E35D10] text-white font-medium py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <Rocket className="w-5 h-5" />
+                  Sign Up
+                </Link>
+              )}
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
       {/* How It Works */}
       <section id="how-it-works" className="py-20 bg-gradient-to-b from-[#00178E]/5 to-[#00178E]/5 overflow-x-hidden" style={{
