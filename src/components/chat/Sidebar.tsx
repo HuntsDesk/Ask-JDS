@@ -483,8 +483,8 @@ export function Sidebar({
           </TooltipProvider>
         </div>
 
-        <ScrollArea className="flex-1 overflow-hidden custom-scrollbar bg-white dark:bg-gray-800">
-          <div className="space-y-4 p-2">
+        <ScrollArea className="flex-1 overflow-hidden custom-scrollbar bg-white dark:bg-gray-800 [&_[data-radix-scroll-area-viewport]]:block">
+          <div className="space-y-4 p-2 w-full max-w-full">
             {sortedSessionEntries.map(([date, dateSessions]) => (
               <div key={date} className="space-y-1">
                 {isDesktopExpanded && (
@@ -517,11 +517,11 @@ export function Sidebar({
                         <button
                           onClick={() => handleThreadClick(session.id)}
                           className={cn(
-                            "w-full flex items-center gap-3 rounded-lg nav-item",
+                            "w-full flex items-center gap-2 rounded-lg nav-item overflow-hidden",
                             isDesktopExpanded ? "px-3 py-2" : "p-2 justify-center",
                             (selectedThreadId === session.id) ? 
                               "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300" : 
-                              "hover:bg-muted/50 dark:hover:bg-gray-700/50 dark:text-gray-200"
+                              "hover:bg-gray-100 dark:hover:bg-gray-700/30"
                           )}
                         >
                           <MessageSquare 
