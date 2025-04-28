@@ -13,18 +13,14 @@ export function PersistentLayout() {
   const { isExpanded, setIsExpanded, isMobile } = useContext(SidebarContext);
   const { selectedThreadId, setSelectedThreadId } = useContext(SelectedThreadContext);
   const isDesktop = useMediaQuery('(min-width: 768px)');
-  
-  // Use persisted state for pinning sidebar
   const [isPinned, setIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
 
-  // Use query-threads hooks
   const threadQuery = useThreads();
   const threads = threadQuery.data || [];
   const createThreadMutation = useCreateThread();
   const updateThreadMutation = useUpdateThread();
   const deleteThreadMutation = useDeleteThread();
 
-  // Handler for creating new chat
   const handleNewChat = async () => {
     try {
       const thread = await createThreadMutation.mutateAsync('New Conversation');
@@ -37,7 +33,6 @@ export function PersistentLayout() {
     }
   };
 
-  // Handler for signing out
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -47,7 +42,6 @@ export function PersistentLayout() {
     }
   };
 
-  // Handler for deleting threads
   const handleDeleteThread = async (threadId: string) => {
     try {
       await deleteThreadMutation.mutateAsync(threadId);
@@ -56,7 +50,6 @@ export function PersistentLayout() {
     }
   };
 
-  // Handler for renaming threads
   const handleRenameThread = async (threadId: string, newTitle: string) => {
     try {
       await updateThreadMutation.mutateAsync({ id: threadId, title: newTitle });
@@ -65,17 +58,13 @@ export function PersistentLayout() {
     }
   };
 
-  // Handler for thread selection
   const handleSetActiveThread = (threadId: string) => {
     setSelectedThreadId(threadId);
     navigate(`/chat/${threadId}`, { state: { fromSidebar: true } });
   };
 
-  // Handle pin change
   const handlePinChange = (pinned: boolean) => {
     setIsPinned(pinned);
-    
-    // When pinned, ensure sidebar is expanded
     if (pinned) {
       setIsExpanded(true);
     }
@@ -83,15 +72,13 @@ export function PersistentLayout() {
 
   return (
     <div className="flex h-full bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      {/* Mobile backdrop - only show on mobile when sidebar is expanded */}
       {isExpanded && !isDesktop && (
         <div 
           className="fixed inset-0 bg-black/50 z-20"
           onClick={() => setIsExpanded(false)}
         />
       )}
-      
-      {/* Sidebar with proper width handling */}
+
       <div 
         className={`${
           isExpanded || isDesktop ? 'translate-x-0' : '-translate-x-full'
@@ -118,12 +105,11 @@ export function PersistentLayout() {
         />
       </div>
 
-      {/* Main content area with dynamic padding */}
-      <div className={`flex-1 overflow-auto w-full ${isDesktop ? (isExpanded ? 'pl-6' : 'pl-4') : 'pl-0'} transition-all duration-300`} style={{ zIndex: 1 }}>
+      <div className="flex-1 overflow-auto w-full transition-all duration-300" style={{ zIndex: 1 }}>
         <Outlet />
       </div>
     </div>
   );
 }
 
-export default PersistentLayout; 
+export default PersistentLayout;
