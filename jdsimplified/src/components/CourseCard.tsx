@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Clock, Layers, Ticket } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../lib/auth';
+import { toast } from 'react-hot-toast';
 
 interface CourseCardProps {
   id: string;
@@ -38,10 +41,77 @@ const CourseCard = ({
   status
 }: CourseCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user, signIn } = useAuth();
+  const navigate = useNavigate();
   
   // Use _count if available, otherwise fall back to the direct lessons prop
   const modulesCount = _count?.modules || 0;
   const lessonsCount = _count?.lessons || lessons || 0;
+  
+  // Handle rent button click
+  const handleRent = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    
+    if (!user) {
+      console.log('User not authenticated, redirecting to login');
+      navigate(`/login?redirectTo=${encodeURIComponent(`/courses/${id}`)}`);
+      return;
+    }
+    
+    console.log(`Starting checkout for course: ${id}`);
+    
+    setIsLoading(true);
+    
+    try {
+      // Get the authenticated session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        console.error('No authenticated session available');
+        toast.error('Authentication error. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/create-checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          courseId: id,
+          isRenewal: false,
+        }),
+      });
+      
+      console.log(`Checkout API response status: ${response.status}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Checkout API error:', errorData);
+        toast.error(errorData.error || 'Failed to create checkout session');
+        setIsLoading(false);
+        return;
+      }
+      
+      const { url: checkoutUrl } = await response.json();
+      
+      if (checkoutUrl) {
+        console.log(`Redirecting to checkout: ${checkoutUrl}`);
+        window.location.href = checkoutUrl;
+      } else {
+        console.error('No checkout URL returned');
+        toast.error('Failed to create checkout session');
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      toast.error('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   return (
     <div 
@@ -144,12 +214,21 @@ const CourseCard = ({
                   ? 'bg-gray-400 hover:bg-gray-500 text-white cursor-not-allowed opacity-80' 
                   : 'bg-gradient-to-r from-jdorange to-jdorange-dark text-white hover:opacity-90'
               }`}
-              disabled={status?.toLowerCase() === 'draft'}
+              disabled={status?.toLowerCase() === 'draft' || isLoading}
+              onClick={status?.toLowerCase() !== 'draft' ? handleRent : undefined}
             >
               {status?.toLowerCase() === 'draft' ? (
                 <>
                   <Clock className="h-4 w-4 mr-2" />
                   Coming Soon
+                </>
+              ) : isLoading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing
                 </>
               ) : (
                 <>
