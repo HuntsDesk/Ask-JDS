@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
-import { Sidebar } from '@/components/chat/Sidebar'; 
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { hasActiveSubscription } from '@/lib/subscription';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { useThreads } from '@/hooks/use-threads';
 import { SelectedThreadContext, SidebarContext } from '@/App';
 import { FlashcardPaywall } from '@/components/FlashcardPaywall';
 import { NavbarProvider } from '@/contexts/NavbarContext';
@@ -47,13 +45,7 @@ export default function FlashcardsPage() {
   const { isMobile, isExpanded, setIsExpanded } = useContext(SidebarContext);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const { setNavbarTitle, updateCount, setShowBackButton, hideBackButton } = useNavbar();
-  
-  // Use the threads hook to fetch actual threads
-  const { threads, loading: threadsLoading, deleteThread, updateThread, createThread } = useThreads();
-  
-  // Use persisted state for pinning to maintain consistency across pages
-  const [isPinned, setIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
-  
+    
   // Function to check if a collection is a user collection or premium one
   const checkAccessToCollection = async (collectionId: string) => {
     try {
@@ -146,42 +138,7 @@ export default function FlashcardsPage() {
     }
   };
   
-  // Mock functions for sidebar - they don't need full implementation for flashcards page
-  const handleNewChat = () => {
-    // Instead of just navigating to chat, first create a new thread
-    createThread()
-      .then(thread => {
-        if (thread) {
-          console.log('FlashcardsPage: Created new thread', thread.id);
-          // Set the selected thread ID in the context first
-          setSelectedThreadId(thread.id);
-          // Then navigate to the new thread
-          navigate(`/chat/${thread.id}`);
-        } else {
-          console.error('FlashcardsPage: Failed to create new thread');
-          navigate('/chat'); // Fallback to chat home if creation fails
-        }
-      })
-      .catch(error => {
-        console.error('FlashcardsPage: Error creating new thread:', error);
-        navigate('/chat'); // Fallback to chat home if error occurs
-      });
-  };
-  
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
-  };
-  
-  const handleDeleteThread = async (id: string) => {
-    await deleteThread(id);
-  };
-  
-  const handleRenameThread = async (id: string, newTitle: string) => {
-    await updateThread(id, { title: newTitle });
-  };
-  
-  // Handle thread selection from sidebar
+  // Handler for navigating to chat
   const handleThreadSelect = (threadId: string) => {
     // First set the global selected thread ID
     console.log('FlashcardsPage: handleThreadSelect called with thread ID:', threadId);
@@ -190,110 +147,54 @@ export default function FlashcardsPage() {
     // Debug log
     console.log('FlashcardsPage: Set global thread ID, now preparing navigation');
     
-    // Use setTimeout to ensure context update happens before navigation
-    setTimeout(() => {
-      // Then navigate to the chat page with the selected thread ID
-      console.log('FlashcardsPage: Now navigating to thread:', threadId);
-      navigate(`/chat/${threadId}`);
-    }, 0);
+    // Navigate to the chat page with the selected thread ID
+    navigate(`/chat/${threadId}`, { state: { fromSidebar: true } });
   };
 
-  if (loading) {
+  // Loading state handling
+  if (initialLoad) {
     return (
-      <div className="flex justify-center items-center h-screen dark:bg-gray-900 pt-6">
-        <LoadingSpinner size="lg" />
-        <p className="ml-2 dark:text-gray-300">Checking access...</p>
+      <div className="w-full h-full flex items-center justify-center">
+        <LoadingSpinner className="w-8 h-8 text-jdblue" />
       </div>
     );
   }
+  
+  // Paywall handling
+  if (showPaywall) {
+    return <FlashcardPaywall onClose={handleClosePaywall} />;
+  }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {/* Mobile backdrop - only show when sidebar is expanded on mobile */}
-      {isExpanded && isMobile && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40"
-          onClick={() => setIsExpanded(false)}
-        />
-      )}
-      
-      {/* Chat Sidebar */}
-      <div 
-        className={cn(
-          "sidebar-container h-screen bg-white dark:bg-gray-800 z-50 border-r dark:border-gray-700 transition-all duration-300",
-          isExpanded ? "w-[280px]" : "w-[70px]",
-          isMobile && !isExpanded && "hidden"
-        )}
-      >
-        <Sidebar 
-          setActiveTab={handleThreadSelect}
-          isDesktopExpanded={isExpanded}
-          onDesktopExpandedChange={setIsExpanded}
-          isPinned={isPinned}
-          onPinChange={setIsPinned}
-          onNewChat={handleNewChat}
-          onSignOut={handleSignOut}
-          onDeleteThread={handleDeleteThread}
-          onRenameThread={handleRenameThread}
-          sessions={threads || []}
-          currentSession={null}
-        />
-      </div>
-      
-      {/* Main Content */}
-      <div className={cn(
-        "flex-1 overflow-auto w-full h-screen transition-all duration-300 bg-white dark:bg-gray-900",
-        isExpanded ? "md:pl-0" : "md:pl-0"
-      )}>
-        <NavbarProvider>
-          <StudyProvider>
-            <Navbar />
-            <div className="container mx-auto px-4 pt-10 md:pt-28 mt-16 md:mt-0">
-              {showPaywall ? (
-                <FlashcardPaywall 
-                  onCancel={handleClosePaywall}
-                />
-              ) : (
-                <Routes>
-                  <Route path="/" element={<Navigate to="/flashcards/subjects" replace />} />
-                  <Route 
-                    path="subjects" 
-                    element={<ManageSubjects />}
-                  />
-                  <Route path="/subjects/:id" element={
-                    <UnifiedStudyMode subjectId />
-                  } />
-                  <Route path="/collections" element={<FlashcardCollections />} />
-                  <Route path="/flashcards" element={<AllFlashcards />} />
-                  <Route path="/study/:id" element={
-                    <UnifiedStudyMode collectionId />
-                  } />
-                  <Route path="/study" element={
-                    <UnifiedStudyMode />
-                  } />
-                  <Route path="/study/:mode/:id" element={
-                    <UnifiedStudyMode />
-                  } />
-                  <Route path="/create-collection" element={<CreateSet />} />
-                  <Route path="/create" element={<Navigate to="/flashcards/create-collection" replace />} />
-                  <Route path="/edit/:id" element={<EditCollection />} />
-                  <Route path="/cards/:id" element={<ManageCards />} />
-                  <Route path="/add-card/:id" element={<AddCard />} />
-                  <Route path="/edit-card/:cardId" element={<EditCard />} />
-                  <Route path="/all-flashcards" element={<AllFlashcards />} />
-                  <Route path="/search" element={<SearchResults />} />
-                  <Route path="/edit-subject/:id" element={<EditSubject />} />
-                  <Route path="/create-subject" element={<CreateSubject />} />
-                  <Route path="/create-flashcard-select" element={<CreateFlashcardSelect />} />
-                  <Route path="/create-flashcard" element={<CreateFlashcard />} />
-                  {/* Add a catch-all route to redirect to subjects */}
-                  <Route path="*" element={<Navigate to="/flashcards/subjects" replace />} />
-                </Routes>
-              )}
-            </div>
-          </StudyProvider>
-        </NavbarProvider>
-      </div>
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Use the NavbarProvider to control the navbar state */}
+      <StudyProvider>
+        <div className="flex-1 flex flex-col overflow-auto">
+          {/* Navbar */}
+          <Navbar />
+          
+          {/* Main content */}
+          <div className="flex-1 overflow-auto">
+            <Routes>
+              {routeElements}
+              
+              {/* Additional routes */}
+              <Route path="edit-collection/:id" element={<EditCollection />} />
+              <Route path="manage-cards/:collectionId" element={<ManageCards />} />
+              <Route path="subjects" element={<ManageSubjects />} />
+              <Route path="edit-subject/:id" element={<EditSubject />} />
+              <Route path="create-subject" element={<CreateSubject />} />
+              <Route path="create-flashcard-select" element={<CreateFlashcardSelect />} />
+              <Route path="create-flashcard/:subjectId?" element={<CreateFlashcard />} />
+              <Route path="search" element={<SearchResults />} />
+              
+              {/* Study routes */}
+              <Route path="study" element={<UnifiedStudyMode />} />
+              <Route path="*" element={<Navigate to="/flashcards/collections" />} />
+            </Routes>
+          </div>
+        </div>
+      </StudyProvider>
     </div>
   );
 }
