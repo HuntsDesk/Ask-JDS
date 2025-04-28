@@ -1,39 +1,258 @@
-import { useEffect, useState, useRef, useContext } from 'react';
+import { useState, useEffect, useRef, useContext, useMemo, useCallback } from 'react';
 import { useAuth } from '@/lib/auth';
-import { useThreads } from '@/hooks/use-threads';
+import { useThreads } from '@/hooks/use-query-threads';
 import { useMessages } from '@/hooks/use-messages';
 import { ChatInterface } from './ChatInterface';
 import { useToast } from '@/hooks/use-toast';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { SelectedThreadContext, SidebarContext } from '@/App';
 import { useTheme } from '@/lib/theme-provider';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { usePersistedState } from '@/hooks/use-persisted-state';
+import useMediaQuery from '@/hooks/useMediaQuery';
+import { useCreateThread, useUpdateThread, useDeleteThread } from '@/hooks/use-query-threads';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import type { Thread } from '@/types';
 
 export function ChatContainer() {
-  // Move all the chat-specific logic from ChatLayout to here
+  // =========== HOOKS - All called unconditionally at the top ===========
+  
+  // Router and URL params
+  const { threadId: urlThreadId } = useParams<{ threadId?: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  
+  // Context
   const { user, signOut } = useAuth();
   const { selectedThreadId, setSelectedThreadId } = useContext(SelectedThreadContext);
   const { isExpanded, setIsExpanded, isMobile } = useContext(SidebarContext);
-  const { theme } = useTheme(); // Add theme context
+  const { theme } = useTheme();
+  const { toast, dismiss } = useToast();
+  
+  // Media queries
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+
+  // Refs for hook consistency and state tracking
+  const chatRef = useRef(null);
+  const hasInitializedRef = useRef(false);
+  const lastInitializedThreadIdRef = useRef<string | null>(null);
+  const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+  const messagesTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+  const prevLoadingRef = useRef<boolean>(false);
+  const prevContentReadyRef = useRef<boolean>(false);
+  
+  // State variables - all at the top level
+  const [isLoading, setIsLoading] = useState(true);
   const [activeThread, setActiveThread] = useState<string | null>(null);
   const [activeThreadTitle, setActiveThreadTitle] = useState<string>('');
   const [threads, setThreads] = useState<Thread[]>([]);
-  const [loading, setLoading] = useState(true);  // Start with loading state to avoid flashing content
-  const [contentReady, setContentReady] = useState(false); // New state to track when content is fully ready
+  const [loading, setLoading] = useState(true);
+  const [contentReady, setContentReady] = useState(false);
   const [sending, setSending] = useState(false);
   const [threadsLoading, setThreadsLoading] = useState(true);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const [isThreadDeletion, setIsThreadDeletion] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [isPinnedSidebar, setIsPinnedSidebar] = useState(false);
+  const [isNavigatingFromSidebar, setIsNavigatingFromSidebar] = useState(false);
+  const [preservedMessage, setPreservedMessage] = usePersistedState<string>('preserved-message', '');
   
-  const navigate = useNavigate();
-  const params = useParams<{ threadId?: string }>();
-  const [searchParams] = useSearchParams();
+  // Data fetching and mutations
+  const threadQuery = useThreads();
+  const originalThreads = threadQuery.data || [];
+  const originalThreadsLoading = threadQuery.isLoading || threadQuery.isFetching;
   
-  const threadId = params.threadId || null;
-  const initialTitle = threadId ? searchParams.get('title') || 'New Chat' : 'New Chat';
+  const createThreadMutation = useCreateThread();
+  const updateThreadMutation = useUpdateThread();
+  const deleteThreadMutation = useDeleteThread();
 
-  // Ensure dark mode class is applied to root based on theme
+  // =========== CALLBACKS - Define all callbacks before using them in hooks ===========
+  
+  // Define callbacks that will be passed to hooks
+  const handleFirstMessage = useCallback((message: string) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[ChatContainer] First message sent:', message);
+    }
+    // No-op for now, but defining it ensures consistent hook order
+  }, []);
+  
+  const handleThreadTitleUpdate = useCallback(async (title: string) => {
+    try {
+      if (activeThread) {
+        await updateThreadMutation.mutateAsync({ 
+          id: activeThread, 
+          title 
+        });
+      }
+    } catch (error) {
+      console.error('[ChatContainer] Failed to update thread title:', error);
+    }
+  }, [activeThread, updateThreadMutation]);
+
+  // =========== Thread ID and messaging logic ===========
+  
+  // Compute stable thread ID
+  const stableThreadId = useMemo(() => {
+    const id = activeThread || urlThreadId;
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[ChatContainer] Computing stable thread ID:', {
+        activeThreadId: activeThread,
+        urlThreadId: urlThreadId,
+        result: id
+      });
+    }
+    return id;
+  }, [activeThread, urlThreadId]);
+
+  // Set debounced thread ID to avoid rapid changes
+  const debouncedThreadId = useDebouncedValue(stableThreadId, 300);
+
+  // Pass the stable/debounced threadId to useMessages
+  const messagesResult = useMessages(
+    debouncedThreadId,
+    handleFirstMessage,
+    handleThreadTitleUpdate
+  );
+  
+  const { 
+    messages: threadMessages,
+    loading: messagesLoading,
+    isGenerating,
+    messageCount,
+    messageLimit,
+    showPaywall,
+    sendMessage: handleSendMessage,
+    refreshMessages: handleRefreshMessages,
+    handleClosePaywall: handlePaywallClose,
+    preservedMessage: messagePreserved
+  } = messagesResult || {
+    messages: [],
+    loading: false,
+    isGenerating: false,
+    messageCount: 0,
+    messageLimit: 0,
+    showPaywall: false,
+    sendMessage: async (_content: string) => null,
+    refreshMessages: async () => {},
+    handleClosePaywall: () => {},
+    preservedMessage: null
+  };
+
+  // =========== Event handlers ===========
+  
+  // Set active thread - fixed with proper deps
+  const handleSetActiveThread = useCallback((threadId: string) => {
+    if (threadId && originalThreads.some(t => t.id === threadId)) {
+      setContentReady(false);
+      setLoading(true);
+      setActiveThread(threadId);
+      setSelectedThreadId(threadId);
+    }
+  }, [originalThreads, setSelectedThreadId]);
+
+  // Create new thread - properly manage dependencies
+  const handleNewChat = useCallback(async () => {
+    try {
+      sessionStorage.removeItem('attemptingThreadCreation');
+      setContentReady(false);
+      setLoading(true);
+      
+      toast({
+        title: "Creating new conversation",
+        description: "This might take a moment due to slow database response times.",
+        variant: "default",
+      });
+      
+      const thread = await createThreadMutation.mutateAsync('New Conversation');
+      if (thread) {
+        setActiveThread(thread.id);
+        setSelectedThreadId(thread.id);
+        navigate(`/chat/${thread.id}`, { replace: true });
+      } else {
+        toast({
+          title: "Error creating conversation",
+          description: "We couldn't create a new conversation. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error creating conversation",
+        description: "We couldn't create a new conversation. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [createThreadMutation, navigate, setSelectedThreadId, toast]);
+
+  // Sign out - properly manage dependencies
+  const handleSignOut = useCallback(async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('[ChatContainer] Failed to sign out:', error);
+    }
+  }, [signOut, navigate]);
+
+  // Delete thread - fixed dependency array
+  const handleDeleteThread = useCallback(async (threadId: string) => {
+    try {
+      setIsThreadDeletion(true);
+      
+      const threadIndex = originalThreads.findIndex(t => t.id === threadId);
+      const isActiveThread = activeThread === threadId;
+      
+      await deleteThreadMutation.mutateAsync(threadId);
+      
+      if (isActiveThread) {
+        setContentReady(false);
+        setLoading(true);
+        
+        if (originalThreads.length > 1) {
+          const nextThreadIndex = threadIndex > 0 ? threadIndex - 1 : (threadIndex < originalThreads.length - 1 ? threadIndex + 1 : -1);
+          
+          if (nextThreadIndex >= 0) {
+            const nextThreadId = originalThreads[nextThreadIndex].id;
+            setActiveThread(nextThreadId);
+            setSelectedThreadId(nextThreadId);
+            navigate(`/chat/${nextThreadId}`, { replace: true });
+          } else {
+            setActiveThread(null);
+            setSelectedThreadId(null);
+            navigate('/chat', { replace: true });
+          }
+        } else {
+          handleNewChat();
+        }
+      }
+      
+      setIsThreadDeletion(false);
+    } catch (error) {
+      setIsThreadDeletion(false);
+      console.error('[ChatContainer] Error deleting thread:', error);
+    }
+  }, [activeThread, deleteThreadMutation, handleNewChat, navigate, originalThreads, setSelectedThreadId]);
+
+  // Rename thread - properly manage dependencies
+  const handleRenameThread = useCallback(async (threadId: string, newTitle: string) => {
+    try {
+      await updateThreadMutation.mutateAsync({ id: threadId, title: newTitle });
+    } catch (error) {
+      console.error('[ChatContainer] Failed to rename thread:', error);
+    }
+  }, [updateThreadMutation]);
+
+  // Refresh messages - stability improvement
+  const handleRefresh = useCallback(() => {
+    if (handleRefreshMessages) {
+      handleRefreshMessages();
+    }
+  }, [handleRefreshMessages]);
+
+  // =========== Effects ===========
+  
+  // Ensure dark mode is applied correctly
   useEffect(() => {
     const root = window.document.documentElement;
     if (theme === 'dark') {
@@ -48,325 +267,273 @@ export function ChatContainer() {
         root.classList.remove('dark');
       }
     }
+    
+    // Set up listener for system preference changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (event: MediaQueryListEvent) => {
+      if (theme === 'system') {
+        if (event.matches) {
+          root.classList.add('dark');
+        } else {
+          root.classList.remove('dark');
+        }
+      }
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
   }, [theme]);
 
-  const {
-    threads: originalThreads,
-    loading: originalThreadsLoading,
-    createThread,
-    updateThread,
-    deleteThread,
-    refetchThreads
-  } = useThreads();
-
-  const { toast, dismiss } = useToast();
-  const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
-  const messagesTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
-
-  const isDesktop = !isMobile;
-
-  // Create a callback for updating thread titles
-  const handleThreadTitleGenerated = async (title: string) => {
-    if (activeThread) {
-      console.log(`Updating thread title to "${title}" after 2 messages`);
-      await updateThread(activeThread, { title });
-    }
-  };
-
-  // A helper function to log thread details
-  const logThreadInfo = () => {
-    console.log('----------- Thread Debug Info -----------');
-    console.log('ThreadID from URL:', threadId);
-    console.log('Global selectedThreadId:', selectedThreadId);
-    console.log('Component activeThread:', activeThread);
-    console.log('Available Threads:', originalThreads.map(t => ({id: t.id, title: t.title})));
-    console.log('Thread loading:', originalThreadsLoading);
-    console.log('----------------------------------------');
-  };
-
-  // Log thread info on important state changes
+  // Initial loading state - ensure cleanup
   useEffect(() => {
-    logThreadInfo();
-  }, [threadId, activeThread, originalThreads, originalThreadsLoading, selectedThreadId]);
-
-  // MESSAGES HANDLING LOGIC - Must be defined before it's used in the loading state effect!
-  const messagesResult = useMessages(
-    activeThread, 
-    undefined, 
-    handleThreadTitleGenerated
-  );
-  const threadMessages = messagesResult?.messages || [];
-  const messagesLoading = messagesResult?.loading || false;
-  const isGenerating = messagesResult?.isGenerating || false;
-  const showPaywall = messagesResult?.showPaywall || false;
-  const handleClosePaywall = messagesResult?.handleClosePaywall;
-  const messageCount = messagesResult?.messageCount || 0;
-  const messageLimit = messagesResult?.messageLimit || 0;
-  const preservedMessage = messagesResult?.preservedMessage;
-  
-  // Track when content is fully ready to display
-  useEffect(() => {
-    // First, check if we're still in any loading state
-    const isStillLoading = 
-      originalThreadsLoading || 
-      (activeThread && messagesLoading) ||
-      isGenerating;
-      
-    // Next, check if we have an active thread selected
-    const hasActiveThread = !!activeThread;
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
     
-    // Finally, check if we have messages or if this is a new thread (which might legitimately have no messages)
-    const hasValidContent = threadMessages.length > 0 || (hasActiveThread && !messagesLoading);
-    
-    // Only set content as ready when everything is loaded and we have valid content to show
-    if (!isStillLoading && hasActiveThread && hasValidContent) {
-      console.log('ChatContainer: Content is fully ready to display');
-      
-      // Set content ready immediately without delay
-      setContentReady(true);
-      setLoading(false);
-    } else {
-      // If we're not fully ready, make sure loading is true and contentReady is false
-      setLoading(true);
-      setContentReady(false);
-    }
-  }, [originalThreadsLoading, activeThread, messagesLoading, isGenerating, threadMessages.length]);
-  
-  // Initialize the thread from URL or global state when component mounts
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Check for navigation from sidebar
   useEffect(() => {
-    // Make sure we have threads loaded
-    if (originalThreads.length === 0 || originalThreadsLoading) {
-      console.log('ChatContainer: Threads not loaded yet, waiting');
+    const fromSidebar = location.state && (location.state as any).fromSidebar === true;
+    
+    if (fromSidebar) {
+      setIsNavigatingFromSidebar(fromSidebar);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
+
+  // Initialize active thread when threads load or URL changes
+  useEffect(() => {
+    // Skip if still loading
+    if (originalThreadsLoading) {
       return;
     }
     
-    console.log('ChatContainer: Initializing thread selection with priorities:');
-    console.log('1. URL Param:', threadId);
-    console.log('2. Global Context:', selectedThreadId);
-    console.log('3. Current Active:', activeThread);
-    
-    // PRIORITY 1: URL parameter (highest priority)
-    if (threadId) {
-      const threadExists = originalThreads.some(t => t.id === threadId);
-      if (threadExists) {
-        console.log('ChatContainer: Using thread ID from URL:', threadId);
-        setActiveThread(threadId);
-        // Also update global context
-        if (selectedThreadId !== threadId) {
-          setSelectedThreadId(threadId);
-        }
-        return;
-      } else {
-        console.warn('ChatContainer: Thread from URL not found:', threadId);
+    // Skip if no threads available
+    if (originalThreads.length === 0) {
+      if (activeThread) {
+        setActiveThread(null);
       }
-    } else if (selectedThreadId) {
-      // SPECIAL CASE: No threadId in URL, but we have a selectedThreadId
-      // This happens when "New Chat" is created but we're on /chat without ID
-      console.log('ChatContainer: No thread ID in URL but we have selected thread:', selectedThreadId);
-      const threadExists = originalThreads.some(t => t.id === selectedThreadId);
-      if (threadExists) {
-        console.log('ChatContainer: Found thread in list, navigating and setting active');
-        setActiveThread(selectedThreadId);
-        // Force navigation to the thread URL
+      return;
+    }
+    
+    // Skip if already initialized
+    if (hasInitializedRef.current && lastInitializedThreadIdRef.current === urlThreadId) {
+      return;
+    }
+    
+    // Skip if navigation is from sidebar to the same thread
+    if (isNavigatingFromSidebar && activeThread && urlThreadId === activeThread && contentReady) {
+      setLoading(false);
+      return;
+    }
+    
+    // Helper to check if thread exists
+    const threadExists = (id: string | null | undefined) => 
+      id && originalThreads.some(t => t.id === id);
+    
+    // Set active thread based on priority
+    let newActiveThread: string | null = null;
+    
+    // Priority 1: URL parameter
+    if (urlThreadId && threadExists(urlThreadId)) {
+      newActiveThread = urlThreadId;
+    }
+    // Priority 2: Global context
+    else if (selectedThreadId && threadExists(selectedThreadId)) {
+      newActiveThread = selectedThreadId;
+      // Update URL if different
+      if (urlThreadId !== selectedThreadId) {
         navigate(`/chat/${selectedThreadId}`, { replace: true });
-        return;
+      }
+    }
+    // Priority 3: Current active thread
+    else if (activeThread && threadExists(activeThread)) {
+      newActiveThread = activeThread;
+      // Update URL if different
+      if (urlThreadId !== activeThread) {
+        navigate(`/chat/${activeThread}`, { replace: true });
+      }
+    }
+    // Priority 4: Default to first thread
+    else if (originalThreads.length > 0) {
+      newActiveThread = originalThreads[0].id;
+      // Update URL if different
+      if (urlThreadId !== newActiveThread) {
+        navigate(`/chat/${newActiveThread}`, { replace: true });
       }
     }
     
-    // PRIORITY 2: Global context state
-    if (selectedThreadId) {
-      const threadExists = originalThreads.some(t => t.id === selectedThreadId);
-      if (threadExists) {
-        console.log('ChatContainer: Using thread ID from global context:', selectedThreadId);
-        setActiveThread(selectedThreadId);
-        
-        // Update URL if needed
-        if (threadId !== selectedThreadId) {
-          console.log('ChatContainer: Updating URL to match global context:', selectedThreadId);
-          navigate(`/chat/${selectedThreadId}`, { replace: true });
-        }
-        return;
-      } else {
-        console.warn('ChatContainer: Thread from global context not found:', selectedThreadId);
-      }
+    // Update active thread if different
+    if (newActiveThread !== activeThread) {
+      setActiveThread(newActiveThread);
     }
     
-    // PRIORITY 3: Current active thread state
-    if (activeThread) {
-      const threadExists = originalThreads.some(t => t.id === activeThread);
-      if (threadExists) {
-        console.log('ChatContainer: Keeping current active thread:', activeThread);
-        
-        // Update URL and global context if needed
-        if (threadId !== activeThread) {
-          navigate(`/chat/${activeThread}`, { replace: true });
-        }
-        if (selectedThreadId !== activeThread) {
-          setSelectedThreadId(activeThread);
-        }
-        return;
-      }
+    // Update selected thread context if different
+    if (newActiveThread !== selectedThreadId) {
+      setSelectedThreadId(newActiveThread);
     }
     
-    // PRIORITY 4: Default to first thread if nothing else is selected
-    if (originalThreads.length > 0) {
-      const firstThreadId = originalThreads[0].id;
-      console.log('ChatContainer: Nothing selected, defaulting to first thread:', firstThreadId);
-      setActiveThread(firstThreadId);
-      setSelectedThreadId(firstThreadId);
-      navigate(`/chat/${firstThreadId}`, { replace: true });
-    }
-  }, [originalThreads, originalThreadsLoading, threadId, selectedThreadId, activeThread, navigate, setSelectedThreadId]);
+    // Mark as initialized
+    hasInitializedRef.current = true;
+    lastInitializedThreadIdRef.current = urlThreadId;
+  }, [originalThreads, originalThreadsLoading, urlThreadId, selectedThreadId, activeThread, navigate, setSelectedThreadId, isNavigatingFromSidebar, contentReady]);
 
-  // Change active thread when a new thread is selected
-  const handleSetActiveThread = (threadId: string) => {
-    console.log('ChatContainer: handleSetActiveThread called with thread ID:', threadId);
-    if (threadId && originalThreads.some(t => t.id === threadId)) {
-      // When changing threads, reset the loading states
-      setContentReady(false);
-      setLoading(true);
-      setActiveThread(threadId);
-      setSelectedThreadId(threadId);
-    } else {
-      console.log('ChatContainer: Attempted to set invalid thread ID:', threadId);
-    }
-  };
-
-  // Create a new thread
-  const handleNewChat = async () => {
-    try {
-      console.log('ChatContainer: Creating new thread');
-      
-      // Clear any stale creation flags
-      sessionStorage.removeItem('attemptingThreadCreation');
-      
-      // Reset loading states for new thread creation
-      setContentReady(false);
-      setLoading(true);
-      
-      toast({
-        title: "Creating new conversation",
-        description: "This might take a moment due to slow database response times.",
-        variant: "default",
-      });
-      
-      // Create the thread
-      const thread = await createThread();
-      if (thread) {
-        console.log('ChatContainer: Thread created successfully:', thread.id);
-        setActiveThread(thread.id);
-        setSelectedThreadId(thread.id);
-        navigate(`/chat/${thread.id}`, { replace: true });
-      } else {
-        console.error('ChatContainer: Thread creation returned null');
-        toast({
-          title: "Error creating conversation",
-          description: "We couldn't create a new conversation. Please try again.",
-          variant: "destructive",
-        });
+  // Track loading state transitions using refs
+  useEffect(() => {
+    // Only trigger when loading transitions from true to false
+    if (prevLoadingRef.current && !loading) {
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[ChatContainer] Loading state transitioned from true → false');
       }
-    } catch (error) {
-      console.error('Failed to create new thread:', error);
-      toast({
-        title: "Error creating conversation",
-        description: "We couldn't create a new conversation. Please try again.",
-        variant: "destructive",
+      // Place any post-load actions here if needed
+    }
+    prevLoadingRef.current = loading;
+  }, [loading]);
+
+  // Track contentReady state transitions using refs
+  useEffect(() => {
+    // Only trigger when contentReady transitions from false to true
+    if (!prevContentReadyRef.current && contentReady) {
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[ChatContainer] Content ready state transitioned from false → true');
+      }
+      // Place any post-content-ready actions here if needed
+    }
+    prevContentReadyRef.current = contentReady;
+  }, [contentReady]);
+
+  // Track content readiness - fixed dependencies
+  useEffect(() => {
+    const isStillLoading = 
+      originalThreadsLoading || 
+      (!!debouncedThreadId && messagesLoading) ||
+      isGenerating;
+      
+    const hasActiveThread = !!debouncedThreadId;
+    const hasValidContent = threadMessages.length > 0 || (hasActiveThread && !messagesLoading);
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('[ChatContainer] Content ready check:', {
+        isStillLoading,
+        hasActiveThread,
+        hasValidContent,
+        threadMessages: threadMessages.length,
+        originalThreadsLoading,
+        messagesLoading,
+        isGenerating,
+        debouncedThreadId
       });
     }
-  };
-
-  // Handle sign out
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate('/');
-    } catch (error) {
-      console.error('Failed to sign out:', error);
-    }
-  };
-
-  // Handle thread deletion
-  const handleDeleteThread = async (threadId: string) => {
-    try {
-      console.log('ChatContainer: Deleting thread:', threadId);
-      setIsThreadDeletion(true);
-      
-      // Get the index of the thread to delete
-      const threadIndex = originalThreads.findIndex(t => t.id === threadId);
-      const isActiveThread = activeThread === threadId;
-      
-      // Delete the thread
-      await deleteThread(threadId);
-      
-      // If we deleted the active thread, navigate to another thread
-      if (isActiveThread) {
-        // Reset loading states when navigating away from deleted thread
+    
+    if (!isStillLoading && hasActiveThread && hasValidContent) {
+      if (!contentReady) {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[ChatContainer] Setting content as ready');
+        }
+        setContentReady(true);
+        setLoading(false);
+      }
+    } else if (contentReady || !loading) {
+      if (contentReady) {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[ChatContainer] Setting content as NOT ready');
+        }
         setContentReady(false);
-        setLoading(true);
-        
-        if (originalThreads.length > 1) {
-          // Find the next thread to navigate to
-          // Use the thread before if available, otherwise use the thread after
-          const nextThreadIndex = threadIndex > 0 ? threadIndex - 1 : (threadIndex < originalThreads.length - 1 ? threadIndex + 1 : -1);
-          
-          if (nextThreadIndex >= 0) {
-            const nextThreadId = originalThreads[nextThreadIndex].id;
-            console.log('ChatContainer: Navigating to next thread after deletion:', nextThreadId);
-            setActiveThread(nextThreadId);
-            setSelectedThreadId(nextThreadId);
-            navigate(`/chat/${nextThreadId}`, { replace: true });
-          } else {
-            // If there are no more threads, navigate to the chat page without a thread
-            console.log('ChatContainer: No more threads after deletion, navigating to /chat');
-            setActiveThread(null);
-            setSelectedThreadId(null);
-            navigate('/chat', { replace: true });
-          }
-        } else {
-          // If there are no more threads, create a new one
-          console.log('ChatContainer: No more threads after deletion, creating a new one');
-          handleNewChat();
-        }
       }
-      
-      setIsThreadDeletion(false);
-    } catch (error) {
-      console.error('Failed to delete thread:', error);
-      setIsThreadDeletion(false);
+      if (!loading) {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[ChatContainer] Setting loading to true');
+        }
+        setLoading(true);
+      }
     }
-  };
+  }, [
+    originalThreadsLoading, 
+    debouncedThreadId, 
+    messagesLoading, 
+    isGenerating, 
+    threadMessages, 
+    contentReady, 
+    loading
+  ]);
 
-  // Handle thread renaming
-  const handleRenameThread = async (threadId: string, newTitle: string) => {
-    try {
-      console.log(`Renaming thread ${threadId} to "${newTitle}"`);
-      await updateThread(threadId, { title: newTitle });
-    } catch (error) {
-      console.error('Failed to rename thread:', error);
+  // Update threads state when originalThreads changes
+  useEffect(() => {
+    if (!originalThreadsLoading) {
+      setThreads(originalThreads);
+      setThreadsLoading(false);
     }
-  };
+  }, [originalThreads, originalThreadsLoading]);
 
-  const handleRefresh = () => {
-    window.location.reload();
-  };
+  // Select thread when ID changes
+  useEffect(() => {
+    if (!originalThreadsLoading && debouncedThreadId) {
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('[ChatContainer] Looking for thread by ID:', debouncedThreadId);
+      }
+      const thread = threads.find(t => t.id === debouncedThreadId);
+      if (thread) {
+        if (activeThread !== thread.id) {
+          if (process.env.NODE_ENV === 'development') {
+            console.debug('[ChatContainer] Setting active thread:', thread.id);
+          }
+          setActiveThread(thread.id);
+        }
+      } else if (debouncedThreadId && !messagesLoading) {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('[ChatContainer] Thread not found, navigating to /chat');
+        }
+        navigate('/chat');
+      }
+    }
+  }, [debouncedThreadId, threads, originalThreadsLoading, activeThread, navigate, messagesLoading]);
 
-  // Return the chat interface component
+  // =========== Render logic ===========
+  
+  // Loading state
+  if (isLoading || originalThreadsLoading) {
+    return (
+      <div className="flex-1 flex justify-center items-center h-full py-8">
+        <LoadingSpinner className="w-10 h-10 text-jdblue" />
+      </div>
+    );
+  }
+  
+  // Welcome state - no thread selected
+  if (!urlThreadId && !selectedThreadId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full max-w-3xl mx-auto px-4 text-center">
+        <h1 className="text-3xl font-bold mb-6 text-jdblue">Welcome to AskJDS</h1>
+        <p className="text-lg mb-8 text-gray-600 dark:text-gray-300">
+          Ask any law school or bar exam related questions. Start a new chat to begin the conversation.
+        </p>
+      </div>
+    );
+  }
+  
+  // Main chat interface
   return (
-    <ChatInterface 
-      threadId={activeThread}
-      messages={contentReady ? threadMessages : []}  // Only show messages when fully ready
-      loading={loading}
-      loadingTimeout={messagesTimeoutIdRef.current !== null && messagesLoading}
-      onSend={messagesResult?.sendMessage}
-      onRefresh={handleRefresh}
-      messageCount={messageCount}
-      messageLimit={messageLimit}
-      preservedMessage={preservedMessage}
-      showPaywall={showPaywall}
-      onToggleSidebar={() => setIsExpanded(true)}
-      isSidebarOpen={isExpanded}
-      isDesktop={isDesktop}
-      isGenerating={isGenerating}
-    />
+    <div className="flex flex-col h-full overflow-hidden" ref={chatRef}>
+      <ChatInterface 
+        threadId={debouncedThreadId || selectedThreadId || urlThreadId}
+        messages={threadMessages}
+        loading={loading || !contentReady}
+        loadingTimeout={loadingTimeout}
+        onSend={handleSendMessage}
+        onRefresh={handleRefresh}
+        messageCount={messageCount}
+        messageLimit={messageLimit}
+        preservedMessage={preservedMessage}
+        showPaywall={showPaywall}
+        onToggleSidebar={() => {}}
+        isSidebarOpen={true}
+        isDesktop={isDesktop}
+        isGenerating={isGenerating}
+      />
+    </div>
   );
-} 
+}
+
+export default ChatContainer; 
