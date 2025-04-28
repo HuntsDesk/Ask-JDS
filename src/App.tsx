@@ -74,6 +74,9 @@ const SetAdminStatus = lazy(() => import('@/components/admin/SetAdmin').then(mod
 // Import SetAdminStatus directly for the setup route
 import SetAdminSetup from './components/admin/SetAdmin';
 
+// Import our wrapper instead of direct import
+import { JDSDashboardWrapper } from '@/components/jds/JDSDashboardWrapper';
+
 // Check if admin setup is allowed from environment variables
 const allowSetupAdmin = import.meta.env.VITE_ALLOW_ADMIN_SETUP === 'true';
 
@@ -249,7 +252,7 @@ function AppRoutes() {
             </NavbarProvider>
           </Suspense>
         } />
-        <Route path="/courses" element={<JDSDashboard />} />
+        <Route path="/courses" element={<JDSDashboardWrapper />} />
         <Route path="/courses/:id" element={
           <Suspense fallback={<PageLoader message="Loading course details..." />}>
             <PublicCourseDetail />

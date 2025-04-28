@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { cn } from '@/lib/utils';
+import { Outlet } from 'react-router-dom';
 
 interface AuthenticatedLayoutProps {
   children: ReactNode;
@@ -7,13 +7,14 @@ interface AuthenticatedLayoutProps {
 
 const AuthenticatedLayout = ({ children }: AuthenticatedLayoutProps) => {
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Main content - removed sidebar */}
-      <div className="min-h-screen transition-all duration-300">
-        <div className="p-6 max-w-7xl mx-auto">
-          {children}
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+      <main className="flex-1 w-full">
+        <div className="w-full max-w-7xl mx-auto px-6 py-8">
+          <div className="space-y-6 bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6">
+            {children || <Outlet />}
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
