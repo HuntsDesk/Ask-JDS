@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, BookOpen, Clock, Check, Layers, Bell } from 'lucide-react';
+import { BookOpen, Clock, Layers, Ticket } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface CourseCardProps {
@@ -153,8 +153,8 @@ const CourseCard = ({
                 </>
               ) : (
                 <>
-                  <ShoppingCart className="h-4 w-4 mr-2" />
-                  Add
+                  <Ticket className="h-4 w-4 mr-2" />
+                  Rent
                 </>
               )}
             </button>
