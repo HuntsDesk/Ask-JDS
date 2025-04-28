@@ -4,6 +4,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { DomainProvider, useDomain } from '@/lib/domain-context';
 import SimplifiedMode from '@/lib/SimplifiedMode';
 import { NavbarProvider } from '@/contexts/NavbarContext';
+import { CloseProvider } from '@/contexts/close-context';
+import { PaywallProvider } from '@/contexts/paywall-context';
 
 // Direct imports for homepage components
 import { HomePage } from '@/components/HomePage';
@@ -12,6 +14,9 @@ import { HomePage as JDSHomePage } from '@/components/jds/HomePage';
 // Import our new Navbar components
 import { JDSNavbar } from '@/components/jds/JDSNavbar';
 import { AskJDSNavbar } from '@/components/askjds/AskJDSNavbar';
+
+// Import the new PersistentLayout
+import { PersistentLayout } from '@/components/layout/PersistentLayout';
 
 // Lazy load large components
 const ChatLayout = lazy(() => import('@/components/chat/ChatLayout').then(module => ({ default: module.ChatLayout })));
@@ -22,9 +27,9 @@ const CourseDetail = lazy(() => import('./components/admin/CourseDetail').then(m
 const PublicCourseDetail = lazy(() => import('@/components/courses/CourseDetail'));
 const CourseContent = lazy(() => import('@/components/courses/CourseContent'));
 const SubscriptionSuccess = lazy(() => import('@/components/SubscriptionSuccess').then(module => ({ default: module.SubscriptionSuccess })));
-const PurchaseSuccessPage = lazy(() => import('@/pages/PurchaseSuccessPage'));
-const ThankYouPage = lazy(() => import('@/pages/ThankYouPage'));
-const TestCheckoutPage = lazy(() => import('@/pages/TestCheckoutPage'));
+
+// Import ChatContainer instead of using ChatLayout
+const ChatContainer = lazy(() => import('@/components/chat/ChatContainer').then(module => ({ default: module.default })));
 
 // Import Dashboard directly to avoid lazy loading issues
 import JDSDashboard from '../jdsimplified/src/pages/Dashboard';
@@ -68,9 +73,6 @@ const SetAdminStatus = lazy(() => import('@/components/admin/SetAdmin').then(mod
 
 // Import SetAdminStatus directly for the setup route
 import SetAdminSetup from './components/admin/SetAdmin';
-
-// Import the token util page
-const TokenUtilPage = lazy(() => import('@/pages/TokenUtilPage'));
 
 // Check if admin setup is allowed from environment variables
 const allowSetupAdmin = import.meta.env.VITE_ALLOW_ADMIN_SETUP === 'true';
@@ -231,166 +233,64 @@ function AppRoutes() {
           <AuthPage />
         </AuthProvider>
       } />
-      <Route 
-        path="/chat/:threadId?" 
-        element={
-          <ProtectedRoute>
-            <ChatLayout />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/settings" 
-        element={
-          <ProtectedRoute>
-            <SettingsPage />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/flashcards/*" 
-        element={
-          <ProtectedRoute>
-            <Suspense fallback={<PageLoader message="Loading flashcards..." />}>
-              <NavbarProvider>
-                <FlashcardsPage />
-              </NavbarProvider>
-            </Suspense>
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/courses" 
-        element={
-          <ProtectedRoute>
-            <DashboardLayout>
+      
+      {/* Protected routes wrapped in PersistentLayout */}
+      <Route element={
+        <ProtectedRoute>
+          <PersistentLayout />
+        </ProtectedRoute>
+      }>
+        <Route path="/chat/:threadId?" element={<ChatContainer />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/flashcards/*" element={
+          <Suspense fallback={<PageLoader message="Loading flashcards..." />}>
+            <NavbarProvider>
+              <FlashcardsPage />
+            </NavbarProvider>
+          </Suspense>
+        } />
+        <Route path="/courses" element={<JDSDashboard />} />
+        <Route path="/courses/:id" element={
+          <Suspense fallback={<PageLoader message="Loading course details..." />}>
+            <PublicCourseDetail />
+          </Suspense>
+        } />
+        <Route path="/course/:courseId/*" element={
+          <Suspense fallback={<PageLoader message="Loading course content..." />}>
+            <CourseContent />
+          </Suspense>
+        } />
+        <Route path="/subscription/success" element={
+          <Suspense fallback={<PageLoader message="Loading subscription details..." />}>
+            <SubscriptionSuccess />
+          </Suspense>
+        } />
+        
+        {/* JDS Course Routes */}
+        <Route path="/course/:courseId" element={
+          <SimplifiedMode>
+            <CourseLayout>
               <JDSDashboard />
-            </DashboardLayout>
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/courses/:id" 
-        element={
-          <ProtectedRoute>
-            <DashboardLayout>
-              <Suspense fallback={<PageLoader message="Loading course details..." />}>
-                <PublicCourseDetail />
-              </Suspense>
-            </DashboardLayout>
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/course/:courseId/*" 
-        element={
-          <ProtectedRoute>
-            <Suspense fallback={<PageLoader message="Loading course content..." />}>
-              <CourseContent />
-            </Suspense>
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/subscription/success" 
-        element={
-          <ProtectedRoute>
-            <Suspense fallback={<PageLoader message="Loading subscription details..." />}>
-              <SubscriptionSuccess />
-            </Suspense>
-          </ProtectedRoute>
-        } 
-      />
-      
-      {/* Add new routes for purchase success and thank-you */}
-      <Route 
-        path="/purchase/success" 
-        element={
-          <ProtectedRoute>
-            <Suspense fallback={<PageLoader message="Processing purchase..." />}>
-              <PurchaseSuccessPage />
-            </Suspense>
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path="/thank-you" 
-        element={
-          <ProtectedRoute>
-            <Suspense fallback={<PageLoader message="Processing payment..." />}>
-              <ThankYouPage />
-            </Suspense>
-          </ProtectedRoute>
-        } 
-      />
-      
-      {/* JDS Course Routes */}
-      <Route 
-        path="/course/:courseId" 
-        element={
-          <ProtectedRoute>
-            <SimplifiedMode>
-              <CourseLayout>
-                <JDSDashboard />
-              </CourseLayout>
-            </SimplifiedMode>
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path="/course/:courseId/module/:moduleId" 
-        element={
-          <ProtectedRoute>
-            <SimplifiedMode>
-              <CourseLayout>
-                <JDSDashboard />
-              </CourseLayout>
-            </SimplifiedMode>
-          </ProtectedRoute>
-        } 
-      />
-      
-      <Route 
-        path="/course/:courseId/module/:moduleId/lesson/:lessonId" 
-        element={
-          <ProtectedRoute>
-            <SimplifiedMode>
-              <CourseLayout>
-                <JDSDashboard />
-              </CourseLayout>
-            </SimplifiedMode>
-          </ProtectedRoute>
-        } 
-      />
-
-      {/* Add the test checkout page */}
-      <Route 
-        path="/test-checkout" 
-        element={
-          <ProtectedRoute>
-            <Suspense fallback={<PageLoader message="Loading test checkout..." />}>
-              <TestCheckoutPage />
-            </Suspense>
-          </ProtectedRoute>
-        } 
-      />
-      
-      {/* Add the token utility page */}
-      <Route 
-        path="/token-util" 
-        element={
-          <ProtectedRoute>
-            <Suspense fallback={<PageLoader message="Loading token utility..." />}>
-              <TokenUtilPage />
-            </Suspense>
-          </ProtectedRoute>
-        } 
-      />
-      
-      {/* Add catch-all route that doesn't redirect to chat */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+            </CourseLayout>
+          </SimplifiedMode>
+        } />
+        
+        <Route path="/course/:courseId/module/:moduleId" element={
+          <SimplifiedMode>
+            <CourseLayout>
+              <JDSDashboard />
+            </CourseLayout>
+          </SimplifiedMode>
+        } />
+        
+        <Route path="/course/:courseId/module/:moduleId/lesson/:lessonId" element={
+          <SimplifiedMode>
+            <CourseLayout>
+              <JDSDashboard />
+            </CourseLayout>
+          </SimplifiedMode>
+        } />
+      </Route>
     </Routes>
   );
 }
@@ -430,42 +330,44 @@ function App() {
   }, []);
   
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="system" storageKey="ui-theme">
-        <DomainProvider>
-          <AuthProvider>
-            <SidebarContext.Provider value={{ isExpanded, setIsExpanded, isMobile }}>
-              <SelectedThreadContext.Provider value={{ selectedThreadId, setSelectedThreadId }}>
-                <ErrorBoundary
-                  fallback={
-                    <div className="fixed inset-0 flex items-center justify-center bg-background">
-                      <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full text-center">
-                        <h2 className="text-xl font-bold mb-4">Application Error</h2>
-                        <p className="mb-4">
-                          The application encountered an unexpected error. Please try refreshing the page.
-                        </p>
-                        <Button 
-                          onClick={() => window.location.reload()}
-                          className="w-full bg-orange-600 hover:bg-orange-500"
-                        >
-                          Reload Application
-                        </Button>
+    <ThemeProvider defaultTheme="system" storageKey="ui-theme">
+      <DomainProvider>
+        <AuthProvider>
+          <PaywallProvider>
+            <CloseProvider>
+              <SidebarContext.Provider value={{ isExpanded, setIsExpanded, isMobile }}>
+                <SelectedThreadContext.Provider value={{ selectedThreadId, setSelectedThreadId }}>
+                  <ErrorBoundary
+                    fallback={
+                      <div className="fixed inset-0 flex items-center justify-center bg-background">
+                        <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full text-center">
+                          <h2 className="text-xl font-bold mb-4">Application Error</h2>
+                          <p className="mb-4">
+                            The application encountered an unexpected error. Please try refreshing the page.
+                          </p>
+                          <Button 
+                            onClick={() => window.location.reload()}
+                            className="w-full bg-orange-600 hover:bg-orange-500"
+                          >
+                            Reload Application
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  }
-                >
-                  <BrowserRouter>
-                    <AppRoutes />
-                    <Toaster />
-                    <OfflineIndicator />
-                  </BrowserRouter>
-                </ErrorBoundary>
-              </SelectedThreadContext.Provider>
-            </SidebarContext.Provider>
-          </AuthProvider>
-        </DomainProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+                    }
+                  >
+                    <BrowserRouter>
+                      <AppRoutes />
+                      <Toaster />
+                      <OfflineIndicator />
+                    </BrowserRouter>
+                  </ErrorBoundary>
+                </SelectedThreadContext.Provider>
+              </SidebarContext.Provider>
+            </CloseProvider>
+          </PaywallProvider>
+        </AuthProvider>
+      </DomainProvider>
+    </ThemeProvider>
   );
 }
 

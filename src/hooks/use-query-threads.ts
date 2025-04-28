@@ -15,9 +15,9 @@ export function useThreads() {
   const { user } = useAuth();
   const userId = user?.id;
   
-  return useQuery(
-    threadKeys.all,
-    async () => {
+  return useQuery<Thread[]>({
+    queryKey: threadKeys.all,
+    queryFn: async () => {
       if (!userId) return [];
       
       const { data, error } = await supabase
@@ -29,22 +29,24 @@ export function useThreads() {
       if (error) throw error;
       return data as Thread[];
     },
-    {
-      // Only fetch if we have a user
-      enabled: !!userId,
-      // Keep the previous data when refetching
-      keepPreviousData: true,
-      // Cache for 2 minutes
-      staleTime: 2 * 60 * 1000,
-    }
-  );
+    // Only fetch if we have a user
+    enabled: !!userId,
+    // Use placeholderData instead of keepPreviousData in v5
+    placeholderData: keepData => keepData as Thread[] | undefined,
+    // Cache for 2 minutes
+    staleTime: 2 * 60 * 1000,
+    // Important: Don't refetch on window focus to prevent flashing
+    refetchOnWindowFocus: false,
+    // Reduce unnecessary network requests
+    refetchOnMount: false
+  });
 }
 
 // Hook to fetch a specific thread with its messages
 export function useThread(id: string | null) {
-  return useQuery(
-    threadKeys.thread(id || 'null'),
-    async () => {
+  return useQuery<Thread | null>({
+    queryKey: threadKeys.thread(id || 'null'),
+    queryFn: async () => {
       if (!id) return null;
       
       const { data, error } = await supabase
@@ -56,20 +58,20 @@ export function useThread(id: string | null) {
       if (error) throw error;
       return data as Thread;
     },
-    {
-      // Don't fetch if no ID is provided
-      enabled: !!id,
-      // Keep the previous data when refetching
-      keepPreviousData: true,
-    }
-  );
+    // Don't fetch if no ID is provided
+    enabled: !!id,
+    // Use placeholderData instead of keepPreviousData in v5
+    placeholderData: keepData => keepData as Thread | null | undefined,
+    // Cache for 2 minutes
+    staleTime: 2 * 60 * 1000
+  });
 }
 
 // Hook to fetch messages for a thread
 export function useMessages(threadId: string | null) {
-  return useQuery(
-    threadKeys.messages(threadId || 'null'),
-    async () => {
+  return useQuery<Message[]>({
+    queryKey: threadKeys.messages(threadId || 'null'),
+    queryFn: async () => {
       if (!threadId) return [];
       
       const { data, error } = await supabase
@@ -81,24 +83,22 @@ export function useMessages(threadId: string | null) {
       if (error) throw error;
       return data as Message[];
     },
-    {
-      // Don't fetch if no thread ID is provided
-      enabled: !!threadId,
-      // Refetch messages periodically 
-      refetchInterval: 10000, // Every 10 seconds
-      // Keep the previous data when refetching
-      keepPreviousData: true,
-    }
-  );
+    // Don't fetch if no thread ID is provided
+    enabled: !!threadId,
+    // Refetch messages periodically 
+    refetchInterval: 10000, // Every 10 seconds
+    // Use placeholderData instead of keepPreviousData in v5
+    placeholderData: keepData => keepData as Message[] | undefined,
+  });
 }
 
-// Mutation to create a new thread
+// Mutation to create a new thread - updated to match original API
 export function useCreateThread() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   
-  return useMutation(
-    async (title: string) => {
+  return useMutation<Thread, Error, string | undefined>({
+    mutationFn: async (title: string = 'New Conversation') => {
       if (!user) throw new Error('User not authenticated');
       
       const { data, error } = await supabase
@@ -115,54 +115,78 @@ export function useCreateThread() {
       if (error) throw error;
       return data as Thread;
     },
-    {
-      // When mutation succeeds, update the threads list
-      onSuccess: (newThread) => {
-        // Get the current threads from the cache
-        const previousThreads = queryClient.getQueryData<Thread[]>(threadKeys.all) || [];
-        
-        // Update the cache with the new thread
-        queryClient.setQueryData(threadKeys.all, [newThread, ...previousThreads]);
-      },
-    }
-  );
+    // When mutation succeeds, update the threads list
+    onSuccess: (newThread) => {
+      // Get the current threads from the cache
+      const previousThreads = queryClient.getQueryData<Thread[]>(threadKeys.all) || [];
+      
+      // Update the cache with the new thread
+      queryClient.setQueryData(threadKeys.all, [newThread, ...previousThreads]);
+    },
+  });
 }
 
-// Mutation to add a new message to a thread
-export function useAddMessage() {
+// Mutation to update a thread - adapted to match original API
+export function useUpdateThread() {
   const queryClient = useQueryClient();
   
-  return useMutation(
-    async ({ threadId, content, role }: { threadId: string; content: string; role: 'user' | 'assistant' }) => {
+  return useMutation<Thread, Error, { id: string } & Partial<Thread>>({
+    mutationFn: async ({ id, ...updates }) => {
       const { data, error } = await supabase
-        .from('messages')
-        .insert([
-          { 
-            thread_id: threadId, 
-            content,
-            role
-          }
-        ])
+        .from('threads')
+        .update(updates)
+        .eq('id', id)
         .select()
         .single();
       
       if (error) throw error;
-      return data as Message;
+      return data as Thread;
     },
-    {
-      // When mutation succeeds, update the messages list
-      onSuccess: (newMessage) => {
-        // Get the current messages from the cache
-        const previousMessages = queryClient.getQueryData<Message[]>(
-          threadKeys.messages(newMessage.thread_id)
-        ) || [];
-        
-        // Update the cache with the new message
-        queryClient.setQueryData(
-          threadKeys.messages(newMessage.thread_id), 
-          [...previousMessages, newMessage]
-        );
-      },
-    }
-  );
+    // When mutation succeeds, update the thread in the cache
+    onSuccess: (updatedThread) => {
+      // Update in the threads list
+      const previousThreads = queryClient.getQueryData<Thread[]>(threadKeys.all) || [];
+      queryClient.setQueryData(
+        threadKeys.all, 
+        previousThreads.map(thread => 
+          thread.id === updatedThread.id ? updatedThread : thread
+        )
+      );
+      
+      // Update the individual thread cache
+      queryClient.setQueryData(threadKeys.thread(updatedThread.id), updatedThread);
+    },
+  });
+}
+
+// Mutation to delete a thread - adapted to match original API
+export function useDeleteThread() {
+  const queryClient = useQueryClient();
+  
+  return useMutation<string, Error, string>({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('threads')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      return id;
+    },
+    // When mutation succeeds, remove the thread from the cache
+    onSuccess: (deletedId) => {
+      // Remove from threads list
+      const previousThreads = queryClient.getQueryData<Thread[]>(threadKeys.all) || [];
+      queryClient.setQueryData(
+        threadKeys.all, 
+        previousThreads.filter(thread => thread.id !== deletedId)
+      );
+      
+      // Invalidate the individual thread
+      queryClient.removeQueries(threadKeys.thread(deletedId));
+      
+      // Invalidate messages for this thread
+      queryClient.removeQueries(threadKeys.messages(deletedId));
+    },
+  });
 } 

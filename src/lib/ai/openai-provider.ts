@@ -56,4 +56,43 @@ export class OpenAIProvider implements AIProvider {
       throw error;
     }
   }
+
+  async generateThreadTitle(prompt: string): Promise<string> {
+    try {
+      console.log('🔵 OpenAI Provider - Generating Thread Title');
+      
+      // Create a system prompt specifically for generating a title
+      const titleSystemPrompt = "Generate a concise and descriptive title (max 50 characters) for a conversation that starts with this message. The title should clearly indicate the main topic or question.";
+      
+      // Format messages for title generation
+      const messages = [
+        { role: 'system', content: titleSystemPrompt },
+        { role: 'user', content: prompt }
+      ];
+      
+      // Use a smaller model for title generation if available
+      const model = this.settings.model || 'gpt-4o';
+      
+      const data = await callAIRelay(
+        'openai',
+        model,
+        prompt,
+        messages
+      );
+      
+      // Extract and clean the title
+      let title = data.choices?.[0]?.message?.content || 'New Chat';
+      
+      // Trim it to ensure it's not too long
+      title = title.trim();
+      if (title.length > 50) {
+        title = title.substring(0, 47) + '...';
+      }
+      
+      return title;
+    } catch (error) {
+      console.error('Error generating thread title:', error);
+      return 'New Chat';
+    }
+  }
 }
