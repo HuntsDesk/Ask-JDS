@@ -1,66 +1,131 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
-import type { Message } from '@/types';
-import { useToast } from './use-toast';
-import { setPaywallActive } from './use-toast';
-import { logError } from '@/lib/supabase';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { supabase, logError } from '@/lib/supabase';
+import { Message } from '@/types';
 import { createAIProvider } from '@/lib/ai/provider-factory';
-import { useSettings } from './use-settings';
-import type { AIProvider } from '@/types/ai';
-import { Toast } from '@/components/ui/toast';
-import { 
-  incrementUserMessageCount, 
-  hasReachedFreeMessageLimit,
+import { useCloseContext } from '@/contexts/close-context';
+import { validateSessionToken } from '@/lib/auth';
+import {
   getUserMessageCount,
+  incrementUserMessageCount,
   getLifetimeMessageCount,
-  FREE_MESSAGE_LIMIT,
-  hasActiveSubscription,
-  forceUpdateMessageCount,
-  ensureMessageCountRecord,
-  specialUpdateMessageCount
+  hasActiveSubscription
 } from '@/lib/subscription';
-import { validateSessionToken, handleSessionExpiration } from '@/lib/auth';
+import { useSettings } from './use-settings';
+import { usePaywall } from '@/contexts/paywall-context';
+import { useAuth } from '@/lib/auth';
+import { useSupabaseClient } from '@supabase/auth-helpers-react';
+import { AIProvider } from '@/types/ai';
+
+// Free tier message limit
+export const FREE_MESSAGE_LIMIT = 20;
+
+// Default return object to ensure consistent hook return shape
+const defaultUseMessagesReturn = {
+  messages: [] as Message[],
+  loading: false,
+  loadingTimeout: null as NodeJS.Timeout | null,
+  isGenerating: false,
+  sendMessage: async (_content: string) => null,
+  refreshMessages: async () => {},
+  showPaywall: false,
+  handleClosePaywall: () => {},
+  messageCount: 0,
+  lifetimeMessageCount: 0,
+  messageLimit: FREE_MESSAGE_LIMIT,
+  isSubscribed: false,
+  preservedMessage: null as string | null
+};
 
 export function useMessages(threadId: string | null, onFirstMessage?: (message: string) => void, onThreadTitleGenerated?: (title: string) => Promise<void>) {
-  const { settings } = useSettings();
-  const aiProvider = useRef<AIProvider | null>(null);
+  // Keep track of the last valid threadId to avoid hook order issues
+  const lastValidThreadIdRef = useRef<string | null>(null);
+  
+  // Track the last fetched threadId to prevent infinite refreshes
+  const lastFetchedThreadId = useRef<string | null>(null);
+  
+  // Create a ref to keep track of message IDs we've already added
+  const addedMessageIds = useRef(new Set<string>());
+  
+  // Create a ref to keep track of if we need to generate a thread title
+  const isFirstMessageRef = useRef(true);
+  
+  // Create a ref to count user messages
+  const userMessageCountRef = useRef(0);
+  
+  // General state 
   const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [lifetimeMessageCount, setLifetimeMessageCount] = useState(0);
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const [preservedMessage, setPreservedMessage] = useState<string | undefined>(undefined);
-  const { toast, dismiss } = useToast();
-  const isFirstMessageRef = useRef(true);
-  const userMessageCountRef = useRef(0);
-  // Add a ref to track message IDs we've already added
-  const addedMessageIds = useRef(new Set<string>());
-  // Add refs for tracking initial load and toast timeouts
-  const initialLoadRef = useRef(true);
+  
+  // Create refs for the AI provider and toast timeout
+  const aiProvider = useRef<AIProvider>(createAIProvider());
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // For managing paywall visibility
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [preservedMessage, setPreservedMessage] = useState<string | null>(null);
+  
+  // Get the toast function
+  const { toast, dismiss } = useToast();
+  
+  // Access close context for handling session expiration
+  const { setOnClose } = useCloseContext();
+  
+  // Access the paywall context to control global paywall active flag
+  const { setPaywallActive } = usePaywall();
+  
+  // Get the settings
+  const { settings } = useSettings();
+  
+  // Get the auth context
+  const { signOut } = useAuth();
 
-  // Initialize AI provider when settings change
+  // Update the last valid threadId ref
+  useEffect(() => {
+    if (threadId) {
+      lastValidThreadIdRef.current = threadId;
+    }
+  }, [threadId]);
+
+  // Update the AI provider when settings change
   useEffect(() => {
     if (settings) {
       aiProvider.current = createAIProvider(settings);
     }
   }, [settings]);
 
-  // Load user's message count and subscription status on mount
+  // Handle session expiration during message send
+  const handleSessionExpiration = useCallback((messageContent: string) => {
+    // Save the user's message to localStorage so it can be restored after login
+    if (messageContent && messageContent.trim()) {
+      localStorage.setItem('preservedMessage', messageContent);
+      
+      // Also save the thread ID so we can restore the right conversation
+      if (threadId) {
+        localStorage.setItem('preservedThreadId', threadId);
+      }
+    }
+    
+    // Sign the user out, which will redirect to login
+    signOut(true);
+  }, [signOut, threadId]);
+
+  // Load user data (message count and subscription status) on mount
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        const [count, lifetimeCount, subscribed] = await Promise.all([
-          getUserMessageCount(),
-          getLifetimeMessageCount(),
-          hasActiveSubscription()
-        ]);
-        
+        const count = await getUserMessageCount();
         setMessageCount(count);
+        
+        const lifetimeCount = await getLifetimeMessageCount();
         setLifetimeMessageCount(lifetimeCount);
-        setIsSubscribed(subscribed);
+        
+        const subscription = await hasActiveSubscription();
+        setIsSubscribed(subscription);
       } catch (error) {
         console.error('Error loading user data:', error);
       }
@@ -69,251 +134,227 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     loadUserData();
   }, []);
 
-  // Function to generate a thread title based on multiple messages
+  // Function to generate a thread title based on user messages
   const generateThreadTitle = async (userMessages: Message[]): Promise<string> => {
-    if (!aiProvider.current) {
-      return "New Conversation";
+    if (!aiProvider.current || userMessages.length === 0) {
+      return 'New Chat';
     }
-
+    
     try {
-      // Extract the content from user messages
-      const messageContents = userMessages.map(msg => msg.content).join("\n- ");
-      
-      // Create a prompt for the AI to generate a concise title based on multiple messages
-      const titlePrompt = `Generate a concise, descriptive title (5 words or less) for a conversation that includes these messages:
-- ${messageContents}
-
-Respond with ONLY the title, no quotes or additional text.`;
-      
-      // Use the AI to generate a title
-      const titleResponse = await aiProvider.current.generateResponse(titlePrompt, []);
-      
-      // Clean up the response (remove quotes, trim whitespace)
-      const cleanTitle = titleResponse.replace(/^["']|["']$/g, '').trim();
-      
-      // Use the generated title, or a fallback if it's empty
-      return cleanTitle || "New Conversation";
+      const firstUserMessage = userMessages[0]?.content || '';
+      const title = await aiProvider.current.generateThreadTitle(firstUserMessage);
+      return title || 'New Chat';
     } catch (error) {
       console.error('Error generating thread title:', error);
-      return "New Conversation";
+      return 'New Chat';
     }
   };
 
-  // Helper function to show delayed toast notifications
-  const showDelayedToast = useCallback((toastOptions: any, delay: number = 2000) => {
-    // Clear any existing timeout
-    if (toastTimeoutRef.current) {
-      clearTimeout(toastTimeoutRef.current);
-    }
-    
-    // Only delay toasts on initial load
-    if (initialLoadRef.current) {
-      toastTimeoutRef.current = setTimeout(() => {
-        toast(toastOptions);
-        toastTimeoutRef.current = null;
-      }, delay);
-    } else {
-      toast(toastOptions);
-    }
-  }, [toast]);
-
-  const loadMessages = useCallback(async () => {
-    if (!threadId) {
-      setMessages([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    // Clear the set of added message IDs when loading a new thread
-    addedMessageIds.current.clear();
-    // Reset user message counter when loading a new thread
-    userMessageCountRef.current = 0;
-
-    // Maximum number of retry attempts
-    const MAX_RETRIES = 2;
-    let retryCount = 0;
-    let success = false;
-
-    while (retryCount <= MAX_RETRIES && !success) {
-      try {
-        let timeoutId: NodeJS.Timeout | null = null;
-        let hasReceivedResponse = false;
-        
-        // Create a timeout promise that resolves to empty messages
-        const timeoutPromise = new Promise<{data: Message[], error: null}>((resolve) => {
-          timeoutId = setTimeout(() => {
-            if (!hasReceivedResponse) {
-              console.warn(`useMessages: Loading messages timed out after 10 seconds (attempt ${retryCount + 1}/${MAX_RETRIES + 1}), returning empty messages`);
-              resolve({data: [], error: null});
-            }
-          }, 10000); // 10 second timeout
-        });
-        
-        // Load messages
-        const fetchPromise = supabase
-          .from('messages')
-          .select('*')
-          .eq('thread_id', threadId)
-          .order('created_at', { ascending: true });
-        
-        // Race the fetch against the timeout
-        const result = await Promise.race([fetchPromise, timeoutPromise]);
-        hasReceivedResponse = true;
-        if (timeoutId) clearTimeout(timeoutId);
-        
-        const { data, error } = result;
-
-        if (error) {
-          console.error('Error loading messages:', error);
-          throw error;
-        }
-
-        if (data && data.length > 0) {
-          // Sort messages by created_at just to be safe
-          const sortedMessages = [...data].sort((a, b) => 
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          );
-          
-          // Count user messages for tracking limits
-          const userMessageCount = sortedMessages.filter(m => m.role === 'user').length;
-          userMessageCountRef.current = userMessageCount;
-          
-          console.log(`Loaded ${sortedMessages.length} messages (${userMessageCount} from user) for thread ${threadId}`);
-          
-          setMessages(sortedMessages);
-          success = true;
-          
-          // If this is the first load and the thread has a user message, call onFirstMessage
-          if (isFirstMessageRef.current && sortedMessages.some(m => m.role === 'user') && onFirstMessage) {
-            const firstUserMessage = sortedMessages.find(m => m.role === 'user');
-            if (firstUserMessage) {
-              onFirstMessage(firstUserMessage.content);
-              isFirstMessageRef.current = false;
-            }
-          }
-
-          break; // Exit the retry loop if successful
-        } else {
-          console.log(`No messages found for thread ${threadId} (attempt ${retryCount + 1}/${MAX_RETRIES + 1})`);
-          setMessages([]);
-          success = true; // Consider empty results a success
-          setLoading(false); // Set loading to false immediately for empty threads
-          break; // Exit the retry loop since we have a valid (empty) result
-        }
-      } catch (error) {
-        console.error(`Error loading messages (attempt ${retryCount + 1}/${MAX_RETRIES + 1}):`, error);
-        
-        // If this is the last attempt, set an empty array and show an error
-        if (retryCount === MAX_RETRIES) {
-          setMessages([]);
-          showDelayedToast({
-            title: "Error loading messages",
-            description: "We encountered an error loading messages. Please try refreshing.",
-            variant: "destructive",
-          });
-        } else {
-          // Otherwise, retry after a short delay
-          await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-          console.log(`Retrying message load (attempt ${retryCount + 2}/${MAX_RETRIES + 1})...`);
-        }
-      } finally {
-        retryCount++;
-      }
-    }
-
-    setLoading(false);
-  }, [threadId, onFirstMessage, showDelayedToast]);
-
-  // Load messages when thread changes
-  useEffect(() => {
-    loadMessages();
-    // Reset isFirstMessageRef when threadId changes
-    isFirstMessageRef.current = true;
-    // Reset user message counter when thread changes
-    userMessageCountRef.current = 0;
-    
-    return () => {
-      // Clear any pending toast timeouts when unmounting or changing threads
-      if (toastTimeoutRef.current) {
-        clearTimeout(toastTimeoutRef.current);
-        toastTimeoutRef.current = null;
-      }
-    };
-  }, [threadId, loadMessages]);
-
-  // Subscribe to real-time updates
-  useEffect(() => {
-    if (threadId) {
-      // Set up real-time subscription for new messages
-      const channel = supabase
-        .channel(`messages:thread_id=eq.${threadId}`)
-        .on('postgres_changes', { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'messages',
-          filter: `thread_id=eq.${threadId}`
-        }, (payload) => {
-          const newMessageId = payload.new.id;
-          
-          // Only add the message if we haven't already added it
-          if (!addedMessageIds.current.has(newMessageId)) {
-            // Double-check that this message isn't already in the list
-            // This prevents duplicate messages with the same ID
-            setMessages(prev => {
-              // Check if message with this ID already exists
-              const exists = prev.some(msg => msg.id === newMessageId);
-              if (exists) {
-                return prev; // Don't add it again
-              }
-              
-              // Add the message ID to our tracking set
-              addedMessageIds.current.add(newMessageId);
-              return [...prev, payload.new as Message];
-            });
-          }
-        })
-        .subscribe();
-      
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [threadId]);
-
-  // Check if user has reached message limit before sending
-  const checkMessageLimit = useCallback(async (messageContent?: string): Promise<boolean> => {
+  // Create a function to check if the user has reached the message limit
+  const checkMessageLimit = useCallback(async (content: string) => {
     try {
-      // Refresh subscription status before checking limit
-      const subscribed = await hasActiveSubscription();
-      setIsSubscribed(subscribed);
-      
-      // If user is subscribed, they have no limit
-      if (subscribed) {
-        return false;
-      }
-      
-      // For free users, check if they've reached the limit
       const count = await getUserMessageCount();
-      setMessageCount(count);
+      const hasSubscription = await hasActiveSubscription();
       
-      const hasReachedLimit = count >= FREE_MESSAGE_LIMIT;
-      
-      // If limit reached and a message was provided, preserve it
-      if (hasReachedLimit && messageContent) {
-        setPreservedMessage(messageContent);
+      if (!hasSubscription && count >= FREE_MESSAGE_LIMIT) {
+        console.log(`User has reached message limit (${count}/${FREE_MESSAGE_LIMIT})`);
         
-        // Dismiss any active toasts to prevent them from appearing alongside the paywall
-        dismiss();
+        // Save the message they were trying to send
+        setPreservedMessage(content);
+        
+        // Show the paywall
+        setShowPaywall(true);
+        
+        return true;
       }
       
-      setShowPaywall(hasReachedLimit);
-      return hasReachedLimit;
+      return false;
     } catch (error) {
       console.error('Error checking message limit:', error);
       return false;
     }
-  }, [dismiss]);
+  }, []);
+
+  // Function to refresh messages - defining with stable identity
+  const refreshMessages = useCallback(async () => {
+    // Don't refresh if already loading
+    if (loading) {
+      if (process.env.NODE_ENV === 'development') {
+        console.debug("[useMessages] Skipping refresh because messages are already loading");
+      }
+      return;
+    }
+    
+    // Skip refresh if no thread ID
+    if (!threadId) {
+      if (process.env.NODE_ENV === 'development') {
+        console.debug("[useMessages] No thread ID, skipping refresh");
+      }
+      return;
+    }
+
+    // Skip refresh if threadId hasn't changed since last fetch
+    if (lastFetchedThreadId.current === threadId) {
+      if (process.env.NODE_ENV === 'development') {
+        console.debug("[useMessages] Skipping fetch: threadId unchanged", threadId);
+      }
+      return;
+    }
+    
+    // Clear the toast timeout if it exists
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = null;
+    }
+    
+    // Update the last fetched threadId
+    lastFetchedThreadId.current = threadId;
+    
+    // Use a local reference to prevent race conditions
+    const currentThreadId = threadId;
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.debug(`[useMessages] Loading messages for thread: ${currentThreadId}`);
+    }
+    setLoading(true);
+    addedMessageIds.current.clear();
+
+    try {
+      // Fetch messages
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('thread_id', currentThreadId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      // Set messages
+      if (data) {
+        // Update the set of message IDs we've seen
+        data.forEach(msg => addedMessageIds.current.add(msg.id));
+        
+        // Update the user message counter for thread title generation
+        userMessageCountRef.current = data.filter(msg => msg.role === 'user').length;
+        
+        // If we haven't sent any messages yet and there are no messages, flag for thread title generation
+        isFirstMessageRef.current = userMessageCountRef.current === 0;
+        
+        setMessages(data);
+        if (process.env.NODE_ENV === 'development') {
+          console.debug(`[useMessages] Loaded ${data.length} messages`);
+        }
+      }
+    } catch (error) {
+      console.error('[useMessages] Error loading messages:', error);
+      await logError(error, 'Load Messages');
+      
+      toast({
+        title: 'Error',
+        description: 'Failed to load messages. Please try refreshing the page.',
+        variant: 'destructive',
+      });
+    } finally {
+      // Only set loading to false if the thread ID hasn't changed
+      if (currentThreadId === threadId) {
+        setLoading(false);
+      }
+    }
+  }, [loading, threadId, toast]);
+
+  // Prevent infinite message refresh by ensuring we only reload if threadId changes.
+  // This guards against infinite loops and unnecessary network requests.
+  useEffect(() => {
+    // This useEffect is called when threadId changes - but ONLY perform a refresh 
+    // if the threadId hasn't been fetched already (tracked with lastFetchedThreadId)
+    refreshMessages();
+  }, [threadId, refreshMessages]);
+
+  // Set up and clean up real-time Supabase subscription for messages on threadId change
+  useEffect(() => {
+    if (!threadId) return;
+    
+    // Subscribe to real-time message inserts for this thread
+    let subscription: { subscription?: { unsubscribe?: () => void } } | null = null;
+    
+    try {
+      subscription = supabase
+        .channel(`messages:thread_id=eq.${threadId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `thread_id=eq.${threadId}`
+          },
+          async (payload) => {
+            const newMessage = payload.new as Message;
+            if (process.env.NODE_ENV === 'development') {
+              console.debug('[useMessages] Real-time message received:', newMessage.id);
+            }
+            
+            // Only add the message if we haven't already added it
+            if (!addedMessageIds.current.has(newMessage.id)) {
+              addedMessageIds.current.add(newMessage.id);
+              
+              // Update the user message counter for title generation
+              if (newMessage.role === 'user') {
+                userMessageCountRef.current++;
+              }
+              
+              setMessages(currentMessages => [...currentMessages, newMessage]);
+            }
+          }
+        )
+        .subscribe();
+    } catch (error) {
+      console.error('[useMessages] Error setting up real-time subscription:', error);
+    }
+    
+    // Cleanup on threadId change or unmount
+    return () => {
+      if (subscription && subscription.subscription && typeof subscription.subscription.unsubscribe === 'function') {
+        try {
+          if (process.env.NODE_ENV === 'development') {
+            console.debug('[useMessages] Unsubscribing from real-time messages');
+          }
+          subscription.subscription.unsubscribe();
+        } catch (error) {
+          console.error('[useMessages] Error unsubscribing from real-time subscription:', error);
+        }
+      }
+    };
+  }, [threadId]);
+
+  // Show toast after delay if loading takes too long
+  useEffect(() => {
+    if (loading && threadId) {
+      // Clear any existing timeout
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+      
+      // Set a timeout to show a toast if loading takes too long
+      toastTimeoutRef.current = setTimeout(() => {
+        toast({
+          title: 'Taking longer than expected',
+          description: 'Messages are still loading. Please wait a moment...',
+        });
+      }, 3000);
+    } else if (!loading && toastTimeoutRef.current) {
+      // Clear the timeout if we're no longer loading
+      clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = null;
+    }
+    
+    // Clean up on unmount
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, [loading, threadId, toast]);
 
   // Handle closing the paywall
   const handleClosePaywall = useCallback(() => {
@@ -326,7 +367,7 @@ Respond with ONLY the title, no quotes or additional text.`;
     
     // We don't clear preservedMessage here because we need it to be picked up
     // by the ChatInterface component after the paywall is closed
-  }, []);
+  }, [setPaywallActive]);
 
   // Effect to set paywall state
   useEffect(() => {
@@ -339,7 +380,7 @@ Respond with ONLY the title, no quotes or additional text.`;
         setPaywallActive(false);
       }
     };
-  }, [showPaywall]);
+  }, [showPaywall, setPaywallActive]);
 
   const sendMessage = useCallback(async (content: string) => {
     if (!threadId || !aiProvider.current) return null;
@@ -583,15 +624,21 @@ Respond with ONLY the title, no quotes or additional text.`;
     } finally {
       setIsGenerating(false);
     }
-  }, [threadId, messages, toast, onFirstMessage, checkMessageLimit, generateThreadTitle, onThreadTitleGenerated]);
+  }, [threadId, messages, toast, dismiss, onFirstMessage, checkMessageLimit, generateThreadTitle, onThreadTitleGenerated, handleSessionExpiration, setPaywallActive]);
 
-  return {
+  // If no threadId (and if we've called all hooks), return our default object
+  if (!threadId) {
+    return defaultUseMessagesReturn;
+  }
+
+  // Create the return object with all functionality - ensure consistent keys
+  const returnObject = {
     messages,
     loading,
     loadingTimeout: toastTimeoutRef.current,
     isGenerating,
     sendMessage,
-    refreshMessages: loadMessages,
+    refreshMessages,
     showPaywall,
     handleClosePaywall,
     messageCount,
@@ -600,4 +647,6 @@ Respond with ONLY the title, no quotes or additional text.`;
     isSubscribed,
     preservedMessage
   };
+
+  return returnObject;
 }

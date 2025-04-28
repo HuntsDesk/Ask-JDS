@@ -35,10 +35,6 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
-        '@components': path.resolve(__dirname, './src/components'),
-        '@lib': path.resolve(__dirname, './src/lib'),
-        '@hooks': path.resolve(__dirname, './src/hooks'),
-        '@app': path.resolve(__dirname, './src/app'),
         '@jds': path.resolve(__dirname, './jdsimplified/src'),
       },
     },

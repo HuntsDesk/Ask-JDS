@@ -2,23 +2,19 @@
 .env
 .env.local
 .env.*.local
-.env.backups
+.env.backups/
+*.local
 
 # Dependencies
-/node_modules
+/node_modules/
 
 # Build output
-/dist
-/build
-
-# Editor files
-.vscode
-.idea
-*.swp
-*.swo
+/dist/
+/build/
+/dist-ssr/
 
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -26,20 +22,19 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# TypeScript
+*.tsbuildinfo
 
-# Editor directories and files
-.vscode/*
+# Editor settings
+.vscode/
 !.vscode/extensions.json
-.idea
+.idea/
+
+# OS metadata
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
 Thumbs.db
+
 *.tsbuildinfo.env.backups/
+*.tsbuildinfo
+node_modules/
+/.env.backups
