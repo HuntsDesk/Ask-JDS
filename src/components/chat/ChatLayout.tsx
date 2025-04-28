@@ -1,13 +1,8 @@
-import { ReactNode, useContext, useEffect } from 'react';
-import { SidebarLayout } from '../layout/SidebarLayout';
+import { ReactNode, useEffect } from 'react';
 import { ChatContainer } from './ChatContainer';
-import { useThreads } from '@/hooks/use-threads';
-import { useAuth } from '@/lib/auth';
-import { SelectedThreadContext } from '@/App';
-import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@/lib/theme-provider';
 
-// Simplified ChatLayout now just composes other components
+// Simplified ChatLayout now just handles theme and renders the chat container or children
 const ChatLayout = ({ 
   children,
   disableAutoNavigation = false 
@@ -15,17 +10,7 @@ const ChatLayout = ({
   children?: ReactNode,
   disableAutoNavigation?: boolean
 }) => {
-  const { user, signOut } = useAuth();
-  const { selectedThreadId, setSelectedThreadId } = useContext(SelectedThreadContext);
-  const navigate = useNavigate();
   const { theme } = useTheme();
-
-  const {
-    threads: originalThreads,
-    createThread,
-    updateThread,
-    deleteThread
-  } = useThreads();
   
   // Ensure dark mode class is applied at layout level
   useEffect(() => {
@@ -43,74 +28,17 @@ const ChatLayout = ({
       }
     }
   }, [theme]);
-  
-  // Define handlers for sidebar actions
-  const handleNewChat = async () => {
-    try {
-      const thread = await createThread();
-      if (thread) {
-        setSelectedThreadId(thread.id);
-        navigate(`/chat/${thread.id}`, { replace: true });
-      }
-    } catch (error) {
-      console.error('Failed to create thread:', error);
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate('/');
-    } catch (error) {
-      console.error('Failed to sign out:', error);
-    }
-  };
-
-  const handleDeleteThread = async (threadId: string) => {
-    try {
-      await deleteThread(threadId);
-    } catch (error) {
-      console.error('Failed to delete thread:', error);
-    }
-  };
-
-  const handleRenameThread = async (threadId: string, newTitle: string) => {
-    try {
-      await updateThread(threadId, { title: newTitle });
-    } catch (error) {
-      console.error('Failed to rename thread:', error);
-    }
-  };
-
-  const handleSetActiveThread = (threadId: string) => {
-    setSelectedThreadId(threadId);
-  };
-
-  // Simplified props for the sidebar specific to chat functionality
-  const sidebarProps = {
-    onNewChat: handleNewChat,
-    onSignOut: handleSignOut,
-    onDeleteThread: handleDeleteThread,
-    onRenameThread: handleRenameThread,
-    sessions: originalThreads.map(thread => ({
-      id: thread.id,
-      title: thread.title,
-      created_at: thread.created_at
-    })),
-    currentSession: selectedThreadId,
-    setActiveTab: handleSetActiveThread,
-  };
 
   return (
-    <SidebarLayout sidebarProps={sidebarProps}>
+    <>
       {children ? (
-        // If children are provided, render them instead of the chat interface
+        // If children are provided, render them
         children
       ) : (
         // Otherwise render the chat container
         <ChatContainer />
       )}
-    </SidebarLayout>
+    </>
   );
 };
 

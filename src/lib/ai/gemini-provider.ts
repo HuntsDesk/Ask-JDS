@@ -70,4 +70,64 @@ export class GeminiProvider implements AIProvider {
       throw error;
     }
   }
+
+  async generateThreadTitle(prompt: string): Promise<string> {
+    try {
+      console.log('🚀 Gemini Provider - Generating Thread Title');
+      
+      // Get current session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('🚫 No active session found for thread title generation');
+        return 'New Chat';
+      }
+      
+      // Create special prompt for title generation
+      const titlePrompt = `Generate a short, descriptive title (maximum 50 characters) that captures the main topic of this message: "${prompt}"`;
+      
+      // Set up timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for title generation
+      
+      const baseUrl = new URL(import.meta.env.VITE_SUPABASE_URL).origin;
+      const url = `${baseUrl}/functions/v1/chat-google`;
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ 
+          messages: [{ role: 'user', content: titlePrompt }],
+          title_generation: true // Indicate this is for title generation
+        }),
+        signal: controller.signal
+      });
+      
+      // Clear the timeout
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        console.error('Gemini API error for title generation:', response.status);
+        return 'New Chat';
+      }
+      
+      const data = await response.json();
+      
+      // Extract and clean the title
+      let title = data.choices?.[0]?.message?.content || 'New Chat';
+      
+      // Trim it to ensure it's not too long
+      title = title.trim();
+      if (title.length > 50) {
+        title = title.substring(0, 47) + '...';
+      }
+      
+      return title;
+    } catch (error) {
+      console.error('Error generating thread title with Gemini:', error);
+      return 'New Chat';
+    }
+  }
 }
