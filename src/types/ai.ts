@@ -11,4 +11,5 @@ export interface AISettings {
 
 export interface AIProvider {
   generateResponse: (prompt: string, threadMessages: Message[]) => Promise<string>;
+  generateThreadTitle: (prompt: string) => Promise<string>;
 }

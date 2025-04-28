@@ -317,8 +317,9 @@ export function Sidebar({
   const handleNavLinkClick = useCallback((path: string) => {
     console.log('Sidebar: Navigation link clicked, path:', path);
     
-    // Navigate to the specified path
-    navigate(path);
+    // Use React Router's navigate function with replace: false
+    // This preserves the current sidebar state in the history
+    navigate(path, { replace: false, state: { fromSidebar: true } });
     
     // If on mobile, collapse the sidebar after navigation
     if (isMobile) {
@@ -327,7 +328,7 @@ export function Sidebar({
       onDesktopExpandedChange(false);
     }
     
-    // Prevent default link behavior
+    // Prevent default link behavior by returning false
     return false;
   }, [isMobile, onDesktopExpandedChange, setIsExpanded, navigate]);
 
@@ -521,7 +522,7 @@ export function Sidebar({
                             isDesktopExpanded ? "px-3 py-2" : "p-2 justify-center",
                             (selectedThreadId === session.id) ? 
                               "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300" : 
-                              "hover:bg-gray-100 dark:hover:bg-gray-700/30"
+                              "hover:bg-gray-100 dark:hover:bg-gray-700/30 text-gray-700 dark:text-gray-200"
                           )}
                         >
                           <MessageSquare 
