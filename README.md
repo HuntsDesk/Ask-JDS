@@ -5,6 +5,7 @@
 - [Architecture](#architecture)
 - [Build System](#build-system)
 - [Multi-Domain Setup](#multi-domain-setup)
+- [Layout System](#layout-system)
 - [Database Structure](#database-structure)
 - [UI Style Guide](#ui-style-guide)
 - [Development Guidelines](#development-guidelines)
@@ -155,6 +156,42 @@ Routes are conditionally rendered in DomainRouter.tsx based on flags: isAskJDS, 
   <Route path="/dashboard" element={<ProtectedRoute element={<MainLayout><AdminDashboardPage /></MainLayout>} />} />
 )}
 ```
+
+## Layout System
+
+### Layout Components
+
+The application uses several layout components for consistency across features:
+
+1. **BaseLayout**: A simple container layout that provides the core layout structure.
+
+2. **PersistentLayout**: Used for protected routes, includes the sidebar and maintains state across navigation. This component handles:
+   - Sidebar state management (expanded/collapsed)
+   - Thread context for chat
+   - Authentication redirects
+   - Dynamic content padding based on sidebar state
+
+3. **CourseLayout**: Specialized layout for course content, includes navigation for modules and lessons.
+
+4. **DashboardLayout**: Used for dashboard pages with specialized navigation.
+
+### Dynamic Padding Handling
+
+The PersistentLayout component handles responsive content padding based on sidebar state:
+
+```jsx
+// Main content area with dynamic padding
+<div className={`flex-1 overflow-auto w-full ${isDesktop ? (isExpanded ? 'pl-6' : 'pl-4') : 'pl-0'} transition-all duration-300`} style={{ zIndex: 1 }}>
+  <Outlet />
+</div>
+```
+
+This ensures content properly adjusts when the sidebar expands or collapses, maintaining consistent spacing and preventing layout shifts. 
+
+Key points:
+- On desktop, adds left padding when sidebar is expanded (pl-6) or collapsed (pl-4)
+- On mobile, removes padding completely (pl-0)
+- Uses transition effects for smooth visual changes
 
 ### Shared Functionality
 
