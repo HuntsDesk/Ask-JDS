@@ -1,19 +1,24 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useThreads, useCreateThread, useDeleteThread, useUpdateThread } from '@/hooks/use-query-threads';
 import { Sidebar } from '@/components/chat/Sidebar';
 import { useAuth } from '@/lib/auth';
 import { SidebarContext, SelectedThreadContext } from '@/App';
-import { useContext } from 'react';
+import { useContext, useEffect } from 'react';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import useMediaQuery from '@/hooks/useMediaQuery';
+import { useLastVisitedPage } from '@/hooks/use-last-visited-page';
 
 export function PersistentLayout() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isExpanded, setIsExpanded, isMobile } = useContext(SidebarContext);
   const { selectedThreadId, setSelectedThreadId } = useContext(SelectedThreadContext);
   const isDesktop = useMediaQuery('(min-width: 768px)');
   const [isPinned, setIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
+  
+  // Use our custom hook to track the last visited page
+  useLastVisitedPage();
 
   const threadQuery = useThreads();
   const threads = threadQuery.data || [];
