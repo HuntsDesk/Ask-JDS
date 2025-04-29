@@ -303,6 +303,35 @@ where policies != '[]'::jsonb;
 --error: #EF4444;                     /* Red for error states */
 ```
 
+### Chat Bubble Styling
+
+The chat interface uses distinctive bubble styling to differentiate between user and assistant messages.
+
+#### Current Implementation
+- **User Messages**: 
+  - Right-aligned with orange background (`#F37022`)
+  - White text with rounded corners (except bottom-right)
+  - Maximum width of 80% of container
+
+- **Assistant Messages**:
+  - Left-aligned with light gray background (`bg-gray-100`, dark: `bg-gray-800`)
+  - Dark text (light in dark mode) with rounded corners (except bottom-left)
+  - Maximum width of 80% of container
+
+#### Planned Enhancements
+
+1. **Timestamp Display**
+   - Add subtle timestamps to messages (either always visible or on hover)
+   - Use small, low-contrast text (0.75rem/12px) below each message
+   - Format: "hh:mm AM/PM" or "Today, hh:mm" depending on recency
+   - For older messages, display full date
+
+2. **Interaction Enhancements**
+   - Add copy button to messages for easy text copying
+   - Implement message reactions (like/bookmark)
+   - Add context menu with options: Copy, Quote, Share
+   - Long-press on mobile should reveal interaction options
+
 ## Development Guidelines
 
 ### React Hooks Coding Standard
