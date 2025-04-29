@@ -4,6 +4,10 @@ import { AuthForm } from './AuthForm';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
+// Constants for the default redirect
+const DEFAULT_REDIRECT = '/chat';
+const LAST_PAGE_KEY = 'ask-jds-last-visited-page';
+
 export function AuthPage() {
   const [isVisible, setIsVisible] = useState(false);
   const location = useLocation();
@@ -19,8 +23,10 @@ export function AuthPage() {
       console.log('AuthPage: Auth state check', { user, loading, authInitialized });
       
       if (user) {
-        console.log('AuthPage: User already authenticated, navigating to /chat', user);
-        navigate('/chat', { replace: true });
+        // Get the last visited page, or default to /chat
+        const lastVisitedPage = localStorage.getItem(LAST_PAGE_KEY) || DEFAULT_REDIRECT;
+        console.log('AuthPage: User already authenticated, navigating to', lastVisitedPage);
+        navigate(lastVisitedPage, { replace: true });
         return;
       }
       
@@ -37,9 +43,11 @@ export function AuthPage() {
           }
           
           if (data?.session?.user) {
-            console.log('AuthPage: Session found manually, navigating to /chat', data.session.user.email);
+            console.log('AuthPage: Session found manually, navigating to last page');
+            // Get the last visited page or default to /chat
+            const lastVisitedPage = localStorage.getItem(LAST_PAGE_KEY) || DEFAULT_REDIRECT;
             // Force a page reload to ensure all authentication states are properly initialized
-            window.location.href = '/chat';
+            window.location.href = lastVisitedPage;
           } else {
             console.log('AuthPage: No session found manually');
           }

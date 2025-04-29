@@ -544,6 +544,12 @@ export function handleSessionExpiration(preservedMessage?: string) {
       sessionStorage.setItem('preserved_message', preservedMessage);
     }
     
+    // Store the current path before redirecting (we'll save the full URL for simplicity)
+    const currentPath = window.location.pathname + window.location.search;
+    if (currentPath && currentPath !== '/' && !currentPath.startsWith('/auth') && !currentPath.startsWith('/login')) {
+      localStorage.setItem('ask-jds-last-visited-page', currentPath);
+    }
+    
     // Redirect to the auth page
     window.location.href = '/auth';
   }
