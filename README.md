@@ -128,6 +128,10 @@ Domain detection follows this priority order:
 
 4. **Default Fallback**: If all other methods fail, defaults to 'askjds'.
 
+### GitHub Actions Setup
+
+**Note**: The GitHub Actions workflow for JDS domain deployment needs the `CLOUDFRONT_ID_JDS` secret to be added to the repository secrets. This is currently not complete.
+
 ### Routing & Domain Router
 
 Routing is driven by domain and feature flags from useDomain():
