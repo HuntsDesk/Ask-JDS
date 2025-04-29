@@ -54,7 +54,6 @@ import { queryClient } from '@/lib/query-client';
 import { ThemeProvider } from '@/lib/theme-provider';
 
 // Import the AuthenticatedLayout component
-import AuthenticatedLayout from '../jdsimplified/src/components/AuthenticatedLayout';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { CourseLayout } from './components/layout/CourseLayout';
 
