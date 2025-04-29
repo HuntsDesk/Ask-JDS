@@ -6,6 +6,9 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { toast } from 'react-hot-toast';
 
+// Get Supabase URL from environment variable
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+
 interface CourseCardProps {
   id: string;
   title: string;
@@ -74,7 +77,7 @@ const CourseCard = ({
         return;
       }
       
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/create-checkout-session`, {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/create-checkout-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
