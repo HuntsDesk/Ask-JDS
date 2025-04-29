@@ -44,6 +44,7 @@ export function ChatInterface({
   const messageTopRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const previousThreadIdRef = useRef<string | null>(null);
   const [message, setMessage] = useState(preservedMessage || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -52,12 +53,52 @@ export function ChatInterface({
   // Combine our local submission state with the external isGenerating prop
   const isShowingResponseIndicator = isSubmitting || isGenerating;
   
-  useEffect(() => {
-    // Scroll to bottom when messages change
+  // Scroll to bottom helper function
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     if (messageEndRef.current) {
-      messageEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      messageEndRef.current.scrollIntoView({ behavior });
+    }
+  };
+  
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToBottom();
     }
   }, [messages]);
+  
+  // Handle initial load and thread switching
+  useEffect(() => {
+    // If thread ID changes, scroll to bottom
+    if (threadId && threadId !== previousThreadIdRef.current) {
+      // Use a slight delay to ensure the messages are rendered
+      const timeoutId = setTimeout(() => {
+        if (messages.length > 0 && !loading) {
+          // Use 'auto' for thread switching to avoid animation
+          scrollToBottom('auto');
+        }
+      }, 100);
+      
+      // Update the previous thread ID
+      previousThreadIdRef.current = threadId;
+      
+      // Clean up timeout
+      return () => clearTimeout(timeoutId);
+    }
+  }, [threadId, messages.length, loading]);
+  
+  // Additional scroll to bottom on initial content load
+  useEffect(() => {
+    // Trigger when loading changes from true to false
+    if (!loading && messages.length > 0) {
+      // Use a slight delay to ensure the messages are rendered
+      const timeoutId = setTimeout(() => {
+        scrollToBottom('auto');
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [loading, messages.length]);
 
   // Function to scroll to the top of the messages
   const scrollToTop = () => {
