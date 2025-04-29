@@ -32,10 +32,10 @@ const SubscriptionSuccess = lazy(() => import('@/components/SubscriptionSuccess'
 const ChatContainer = lazy(() => import('@/components/chat/ChatContainer').then(module => ({ default: module.default })));
 
 // Import Dashboard directly to avoid lazy loading issues
-import JDSDashboard from '../jdsimplified/src/pages/Dashboard';
+import JDSDashboard from '@/pages/Dashboard';
 
 // Import directly for debugging purposes
-// import JDSDashboardDirect from '../jdsimplified/src/pages/Dashboard';
+// import JDSDashboardDirect from '@/pages/Dashboard';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
