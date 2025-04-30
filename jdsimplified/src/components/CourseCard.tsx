@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Clock, Layers, Ticket } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { supabase } from '../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '../lib/auth';
 import { toast } from 'react-hot-toast';
 

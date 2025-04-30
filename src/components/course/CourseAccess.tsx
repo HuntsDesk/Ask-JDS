@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createClient } from '@supabase/supabase-js';
 import { Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Badge } from '@/components/ui';
 import { useUserContext } from '@/context/UserContext';
 import { trackEvent, AnalyticsEventType } from '@/lib/flotiq/analytics';
+import { supabase } from '@/lib/supabase';
 
 // Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+// const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface CourseAccessProps {
   courseId: string;
