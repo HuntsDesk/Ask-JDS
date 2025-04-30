@@ -612,3 +612,4 @@ Reference documentation for specific technical implementations:
 
 - [Supabase JS Upgrade Summary](readme/supabase-js-upgrade-summary.md) - Technical details about the upgrade from Supabase JS 2.38.0 to 2.39.3
 - [Supabase JS Upgrade Checklist](readme/supabase-js-upgrade-checklist.md) - Implementation checklist for the Supabase JS upgrade
+- [Supabase Client Pattern](readme/supabase-client-pattern.md) - Standardized pattern for using the Supabase client throughout the codebase

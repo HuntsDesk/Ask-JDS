@@ -4,13 +4,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatPrice } from '../../utils/format';
-import { createClient } from '@supabase/supabase-js';
 import { trackEvent } from '../../lib/analytics/track';
+import { supabase } from '@/lib/supabase';
 
 // Create a supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+// const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface CourseEnrollmentCardProps {
   courseId: number;
