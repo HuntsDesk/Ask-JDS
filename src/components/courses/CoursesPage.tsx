@@ -8,6 +8,8 @@ import { BookOpen } from 'lucide-react';
 import MobileTopBar from './MobileTopBar';
 import MobileBottomNav from './MobileBottomNav';
 import PageContainer from '@/components/layout/PageContainer';
+import { useLayoutState } from '@/hooks/useLayoutState';
+import { cn } from '@/lib/utils';
 
 // Log outside of the component to verify this file is being parsed
 // console.log('ROOT LEVEL - CoursesPage.tsx is being loaded');
@@ -40,6 +42,7 @@ export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { contentPadding } = useLayoutState();
 
   useEffect(() => {
     // console.log('EFFECT LEVEL - useEffect hook is running');
@@ -145,7 +148,7 @@ export default function CoursesPage() {
   // console.log('DIRECT LOG - Non-featured courses:', courses.filter(c => !c.is_featured));
 
   return (
-    <PageContainer className="pt-4">
+    <PageContainer className={cn("pt-4", contentPadding)} disablePadding>
       <div className="flex md:hidden items-center justify-between h-16 px-4 shadow-sm mb-4">
         <MobileTopBar title="Courses" count={courses.length} />
       </div>

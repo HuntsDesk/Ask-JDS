@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { BookOpen, CheckCircle2, ChevronDown, ChevronRight, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import PageContainer from '@/components/layout/PageContainer';
+import { useLayoutState } from '@/hooks/useLayoutState';
 
 interface Course {
   id: string;
@@ -41,6 +42,7 @@ export default function CourseDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
+  const { contentPadding } = useLayoutState();
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules(prev => ({
@@ -129,7 +131,7 @@ export default function CourseDetail() {
   }
 
   return (
-    <PageContainer className="pt-4">
+    <PageContainer className={cn("pt-4", contentPadding)} disablePadding>
       <div className="max-w-4xl mx-auto">
         {/* Course Header */}
         <div className="mb-8">
