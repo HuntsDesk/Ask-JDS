@@ -145,7 +145,7 @@ export default function CoursesPage() {
   // console.log('DIRECT LOG - Non-featured courses:', courses.filter(c => !c.is_featured));
 
   return (
-    <PageContainer className="pt-4">
+    <PageContainer className="pt-4" flexColumn>
       <div className="flex md:hidden items-center justify-between h-16 px-4 shadow-sm mb-4">
         <MobileTopBar title="Courses" count={courses.length} />
       </div>
