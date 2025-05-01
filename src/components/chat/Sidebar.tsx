@@ -392,7 +392,7 @@ export function Sidebar({
       >
         <div className="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
           <div className={cn(
-            "flex items-center justify-center py-4", // Increased padding
+            "flex items-center justify-center py-5", // Increased padding from py-4 to py-5
             isDesktopExpanded ? "px-4" : "px-2"
           )}>
             {/* Close button for mobile */}
