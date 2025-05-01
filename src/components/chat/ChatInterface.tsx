@@ -22,13 +22,14 @@ interface ChatInterfaceProps {
   isSidebarOpen?: boolean;
   isDesktop: boolean;
   isGenerating?: boolean;
+  onClosePaywall?: () => void;
 }
 
 export function ChatInterface({
   threadId,
-  messages,
-  loading,
-  loadingTimeout,
+  messages = [],
+  loading = false,
+  loadingTimeout = false,
   onSend,
   onRefresh,
   messageCount = 0,
@@ -38,7 +39,8 @@ export function ChatInterface({
   onToggleSidebar,
   isSidebarOpen,
   isDesktop,
-  isGenerating = false
+  isGenerating = false,
+  onClosePaywall = () => {}
 }: ChatInterfaceProps) {
   const messageEndRef = useRef<HTMLDivElement>(null);
   const messageTopRef = useRef<HTMLDivElement>(null);
@@ -49,6 +51,10 @@ export function ChatInterface({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showGeneratingStatus, setShowGeneratingStatus] = useState<boolean>(true);
+  const [textareaValue, setTextareaValue] = useState<string>('');
+  const [isSending, setIsSending] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   
   // Combine our local submission state with the external isGenerating prop
   const isShowingResponseIndicator = isSubmitting || isGenerating;
@@ -138,6 +144,39 @@ export function ChatInterface({
       setMessage(preservedMessage);
     }
   }, [preservedMessage]);
+
+  // Reset textarea when thread changes
+  useEffect(() => {
+    setTextareaValue('');
+    setIsSending(false);
+  }, [threadId]);
+
+  // Reset state when thread changes
+  useEffect(() => {
+    if (threadId !== previousThreadIdRef.current) {
+      console.log(`[ChatInterface] Thread changed from ${previousThreadIdRef.current} to ${threadId}, resetting state`);
+      
+      // Reset local states
+      setIsSubmitting(false);
+      setSendError(null);
+      setIsScrolled(false);
+      setShowGeneratingStatus(true);
+      setShowScrollButton(false);
+      
+      // Clear the message if it was preserved from a previous thread
+      if (!preservedMessage) {
+        setMessage('');
+      }
+      
+      // Save the new thread ID
+      previousThreadIdRef.current = threadId;
+      
+      // Force a scroll to bottom once messages load
+      if (messages.length > 0 && !loading) {
+        setTimeout(() => scrollToBottom('auto'), 100);
+      }
+    }
+  }, [threadId, messages.length, loading, preservedMessage]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);

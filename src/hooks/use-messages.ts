@@ -177,15 +177,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
 
   // Function to refresh messages - defining with stable identity
   const refreshMessages = useCallback(async () => {
-    // Don't refresh if already loading
-    if (loading) {
-      if (process.env.NODE_ENV === 'development') {
-        console.debug("[useMessages] Skipping refresh because messages are already loading");
-      }
-      return;
-    }
-    
-    // Skip refresh if no thread ID
+    // Don't refresh if no thread ID
     if (!threadId) {
       if (process.env.NODE_ENV === 'development') {
         console.debug("[useMessages] No thread ID, skipping refresh");
@@ -193,40 +185,22 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       return;
     }
 
-    // Force a refresh when threadId changes, even if it was previously fetched
-    // This ensures messages are always updated when switching threads
+    // Force a refresh when threadId changes from last fetched thread ID
     const forceRefresh = lastFetchedThreadId.current !== threadId;
     
-    if (!forceRefresh && lastFetchedThreadId.current === threadId) {
-      if (process.env.NODE_ENV === 'development') {
-        console.debug("[useMessages] Skipping fetch: threadId unchanged and no force refresh", threadId);
-      }
-      return;
-    }
-    
-    // Clear the toast timeout if it exists
-    if (toastTimeoutRef.current) {
-      clearTimeout(toastTimeoutRef.current);
-      toastTimeoutRef.current = null;
-    }
+    // Start loading state
+    setLoading(true);
     
     // Update the last fetched threadId
+    const previousThreadId = lastFetchedThreadId.current;
     lastFetchedThreadId.current = threadId;
     
     // Use a local reference to prevent race conditions
     const currentThreadId = threadId;
     
     if (process.env.NODE_ENV === 'development') {
-      console.debug(`[useMessages] Loading messages for thread: ${currentThreadId}`);
+      console.debug(`[useMessages] ${forceRefresh ? 'Force refreshing' : 'Refreshing'} messages for thread: ${currentThreadId} (previous: ${previousThreadId})`);
     }
-    
-    // Clear existing messages when switching threads
-    if (forceRefresh) {
-      setMessages([]);
-    }
-    
-    setLoading(true);
-    addedMessageIds.current.clear();
 
     try {
       // Fetch messages
@@ -238,27 +212,32 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
 
       if (error) throw error;
 
-      // Set messages
-      if (data) {
-        // Update the set of message IDs we've seen
-        data.forEach(msg => addedMessageIds.current.add(msg.id));
-        
-        // Update the user message counter for thread title generation
-        userMessageCountRef.current = data.filter(msg => msg.role === 'user').length;
-        
-        // If we haven't sent any messages yet and there are no messages, flag for thread title generation
-        isFirstMessageRef.current = userMessageCountRef.current === 0;
-        
-        setMessages(data);
-        if (process.env.NODE_ENV === 'development') {
-          console.debug(`[useMessages] Loaded ${data.length} messages for thread ${currentThreadId}`);
+      // Check if we're still on the same thread before updating state
+      if (threadId === currentThreadId) {
+        // Set messages
+        if (data) {
+          // Update the set of message IDs we've seen
+          data.forEach(msg => addedMessageIds.current.add(msg.id));
+          
+          // Update the user message counter for thread title generation
+          userMessageCountRef.current = data.filter(msg => msg.role === 'user').length;
+          
+          // If we haven't sent any messages yet and there are no messages, flag for thread title generation
+          isFirstMessageRef.current = userMessageCountRef.current === 0;
+          
+          setMessages(data);
+          if (process.env.NODE_ENV === 'development') {
+            console.debug(`[useMessages] Loaded ${data.length} messages for thread ${currentThreadId}`);
+          }
+        } else {
+          // Set empty array if no data
+          setMessages([]);
+          if (process.env.NODE_ENV === 'development') {
+            console.debug(`[useMessages] No messages found for thread ${currentThreadId}`);
+          }
         }
       } else {
-        // Set empty array if no data
-        setMessages([]);
-        if (process.env.NODE_ENV === 'development') {
-          console.debug(`[useMessages] No messages found for thread ${currentThreadId}`);
-        }
+        console.debug(`[useMessages] Thread changed during fetch, discarding results for ${currentThreadId}, current thread is ${threadId}`);
       }
     } catch (error) {
       console.error('[useMessages] Error loading messages:', error);
@@ -271,25 +250,37 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       });
     } finally {
       // Only set loading to false if the thread ID hasn't changed
-      if (currentThreadId === threadId) {
+      if (threadId === currentThreadId) {
         setLoading(false);
+      } else {
+        console.debug(`[useMessages] Thread changed during fetch, not updating loading state`);
       }
     }
-  }, [loading, threadId, toast]);
+  }, [threadId, toast]);
 
   // Reset messages when threadId changes to prevent stale data showing
   useEffect(() => {
-    if (threadId !== lastFetchedThreadId.current) {
+    if (threadId && threadId !== lastFetchedThreadId.current) {
+      console.debug(`[useMessages] Thread ID changed from ${lastFetchedThreadId.current} to ${threadId}, forcing full refresh`);
+      
       // Clear messages immediately when switching threads
       setMessages([]);
+      
       // Make sure we're in loading state
       setLoading(true);
       
-      if (process.env.NODE_ENV === 'development') {
-        console.debug(`[useMessages] Thread ID changed from ${lastFetchedThreadId.current} to ${threadId}, clearing messages`);
-      }
+      // Reset the added message IDs set
+      addedMessageIds.current.clear();
+      
+      // Immediately update the last fetched thread ID to prevent duplicate refreshes
+      lastFetchedThreadId.current = threadId;
+      
+      // Force a refresh of messages with a slight delay to ensure state updates have completed
+      setTimeout(() => {
+        refreshMessages();
+      }, 50);
     }
-  }, [threadId]);
+  }, [threadId, refreshMessages]);
 
   // Prevent infinite message refresh by ensuring we only reload if threadId changes.
   // This guards against infinite loops and unnecessary network requests.

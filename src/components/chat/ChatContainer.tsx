@@ -95,7 +95,8 @@ export function ChatContainer() {
   
   // Compute stable thread ID
   const stableThreadId = useMemo(() => {
-    const id = activeThread || urlThreadId;
+    // Give priority to URL parameter when switching threads
+    const id = urlThreadId || activeThread;
     if (process.env.NODE_ENV === 'development') {
       console.debug('[ChatContainer] Computing stable thread ID:', {
         activeThreadId: activeThread,
@@ -109,9 +110,9 @@ export function ChatContainer() {
   // Set debounced thread ID to avoid rapid changes
   const debouncedThreadId = useDebouncedValue(stableThreadId, 300);
 
-  // Pass the stable/debounced threadId to useMessages
+  // Pass the URL thread ID directly to useMessages
   const messagesResult = useMessages(
-    debouncedThreadId,
+    urlThreadId,
     handleFirstMessage,
     handleThreadTitleUpdate
   );
@@ -409,10 +410,10 @@ export function ChatContainer() {
   useEffect(() => {
     const isStillLoading = 
       originalThreadsLoading || 
-      (!!debouncedThreadId && messagesLoading) ||
+      messagesLoading ||
       isGenerating;
       
-    const hasActiveThread = !!debouncedThreadId;
+    const hasActiveThread = !!urlThreadId;
     const hasValidContent = threadMessages.length > 0 || (hasActiveThread && !messagesLoading);
     
     if (process.env.NODE_ENV === 'development') {
@@ -424,7 +425,7 @@ export function ChatContainer() {
         originalThreadsLoading,
         messagesLoading,
         isGenerating,
-        debouncedThreadId
+        urlThreadId
       });
     }
     
@@ -452,7 +453,7 @@ export function ChatContainer() {
     }
   }, [
     originalThreadsLoading, 
-    debouncedThreadId, 
+    urlThreadId, 
     messagesLoading, 
     isGenerating, 
     threadMessages, 
@@ -468,28 +469,21 @@ export function ChatContainer() {
     }
   }, [originalThreads, originalThreadsLoading]);
 
-  // Select thread when ID changes
+  // Update active thread when URL changes
   useEffect(() => {
-    if (!originalThreadsLoading && debouncedThreadId) {
-      if (process.env.NODE_ENV === 'development') {
-        console.debug('[ChatContainer] Looking for thread by ID:', debouncedThreadId);
-      }
-      const thread = threads.find(t => t.id === debouncedThreadId);
-      if (thread) {
-        if (activeThread !== thread.id) {
-          if (process.env.NODE_ENV === 'development') {
-            console.debug('[ChatContainer] Setting active thread:', thread.id);
-          }
-          setActiveThread(thread.id);
-        }
-      } else if (debouncedThreadId && !messagesLoading) {
-        if (process.env.NODE_ENV === 'development') {
-          console.debug('[ChatContainer] Thread not found, navigating to /chat');
-        }
-        navigate('/chat');
-      }
+    if (urlThreadId && urlThreadId !== activeThread) {
+      // If URL thread ID is different from active thread, update active thread
+      console.log(`[ChatContainer] URL thread ID changed to ${urlThreadId}, updating active thread`);
+      
+      setContentReady(false);
+      setLoading(true);
+      setActiveThread(urlThreadId);
+      setSelectedThreadId(urlThreadId);
+      
+      // We don't need to call refreshMessages here as the useMessages hook 
+      // will handle the refresh when threadId changes
     }
-  }, [debouncedThreadId, threads, originalThreadsLoading, activeThread, navigate, messagesLoading]);
+  }, [urlThreadId, activeThread, setSelectedThreadId]);
 
   // =========== Render logic ===========
   
@@ -527,7 +521,7 @@ export function ChatContainer() {
       */}
       <div className="flex flex-col h-screen w-full overflow-hidden" ref={chatRef}>
         <ChatInterface 
-          threadId={debouncedThreadId || selectedThreadId || urlThreadId}
+          threadId={urlThreadId || activeThread}
           messages={threadMessages}
           loading={loading || !contentReady}
           loadingTimeout={loadingTimeout}
@@ -541,6 +535,7 @@ export function ChatContainer() {
           isSidebarOpen={true}
           isDesktop={isDesktop}
           isGenerating={isGenerating}
+          onClosePaywall={handlePaywallClose}
         />
       </div>
     </PageContainer>
