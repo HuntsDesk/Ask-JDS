@@ -193,10 +193,13 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       return;
     }
 
-    // Skip refresh if threadId hasn't changed since last fetch
-    if (lastFetchedThreadId.current === threadId) {
+    // Force a refresh when threadId changes, even if it was previously fetched
+    // This ensures messages are always updated when switching threads
+    const forceRefresh = lastFetchedThreadId.current !== threadId;
+    
+    if (!forceRefresh && lastFetchedThreadId.current === threadId) {
       if (process.env.NODE_ENV === 'development') {
-        console.debug("[useMessages] Skipping fetch: threadId unchanged", threadId);
+        console.debug("[useMessages] Skipping fetch: threadId unchanged and no force refresh", threadId);
       }
       return;
     }
@@ -216,6 +219,12 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     if (process.env.NODE_ENV === 'development') {
       console.debug(`[useMessages] Loading messages for thread: ${currentThreadId}`);
     }
+    
+    // Clear existing messages when switching threads
+    if (forceRefresh) {
+      setMessages([]);
+    }
+    
     setLoading(true);
     addedMessageIds.current.clear();
 
@@ -242,7 +251,13 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
         
         setMessages(data);
         if (process.env.NODE_ENV === 'development') {
-          console.debug(`[useMessages] Loaded ${data.length} messages`);
+          console.debug(`[useMessages] Loaded ${data.length} messages for thread ${currentThreadId}`);
+        }
+      } else {
+        // Set empty array if no data
+        setMessages([]);
+        if (process.env.NODE_ENV === 'development') {
+          console.debug(`[useMessages] No messages found for thread ${currentThreadId}`);
         }
       }
     } catch (error) {
@@ -262,11 +277,24 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     }
   }, [loading, threadId, toast]);
 
+  // Reset messages when threadId changes to prevent stale data showing
+  useEffect(() => {
+    if (threadId !== lastFetchedThreadId.current) {
+      // Clear messages immediately when switching threads
+      setMessages([]);
+      // Make sure we're in loading state
+      setLoading(true);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.debug(`[useMessages] Thread ID changed from ${lastFetchedThreadId.current} to ${threadId}, clearing messages`);
+      }
+    }
+  }, [threadId]);
+
   // Prevent infinite message refresh by ensuring we only reload if threadId changes.
   // This guards against infinite loops and unnecessary network requests.
   useEffect(() => {
-    // This useEffect is called when threadId changes - but ONLY perform a refresh 
-    // if the threadId hasn't been fetched already (tracked with lastFetchedThreadId)
+    // Always refresh messages when threadId changes
     refreshMessages();
   }, [threadId, refreshMessages]);
 
