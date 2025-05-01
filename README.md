@@ -708,3 +708,42 @@ Reference documentation for specific technical implementations:
 - [Supabase JS Upgrade Summary](readme/supabase-js-upgrade-summary.md) - Technical details about the upgrade from Supabase JS 2.38.0 to 2.39.3
 - [Supabase JS Upgrade Checklist](readme/supabase-js-upgrade-checklist.md) - Implementation checklist for the Supabase JS upgrade
 - [Supabase Client Pattern](readme/supabase-client-pattern.md) - Standardized pattern for using the Supabase client throughout the codebase
+
+### Flashcards Module
+
+The Flashcards module provides study tools with the following features:
+- Collections of flashcards organized by subject
+- Progressive loading with skeleton UI for improved UX
+- React Query integration for efficient data fetching and caching
+- Mastery tracking with visual indicators
+- Premium content access control
+- Responsive grid layouts for all screen sizes
+
+#### Component Structure
+- `FlashcardsPage`: Main container for all flashcard-related routes
+- `FlashcardCollections`: Displays collections with card counts and mastery stats
+- `AllFlashcards`: Shows all flashcards with filtering options
+- `FlashcardItem`: Individual flashcard component with mastery toggle
+- `Card`: Reusable card component for collections and subjects
+- `SkeletonFlashcard`: Loading placeholder components
+
+#### Performance Optimizations
+- Parallel data fetching for collections, subjects, and relationships
+- Efficient relationship data processing with lookup maps
+- Progressive content rendering with skeleton UI
+- Memoization of filtered and processed data
+- React Query for caching and background updates
+
+#### Known Issues
+- Tile buttons in study mode need adjustment for proper rendering
+- Optimizations needed for handling large collections
+
+To create a new flashcard collection:
+1. Navigate to `/flashcards/collections`
+2. Click "Add Collection"
+3. Fill in the details and assign subjects
+
+To study flashcards:
+1. Select a collection
+2. Click "Study" to enter study mode
+3. Toggle mastery status with the checkmark button
