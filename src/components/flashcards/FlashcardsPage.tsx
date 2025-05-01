@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext, useRef, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import { supabase } from '@/lib/supabase';
@@ -33,6 +33,25 @@ import CreateFlashcard from './pages/CreateFlashcard';
 import UnifiedStudyMode from './pages/UnifiedStudyMode';
 import FlashcardStudy from './FlashcardStudy';
 
+// Add a Suspense wrapped component for each major page
+const SuspenseAllFlashcards = () => (
+  <Suspense fallback={<div className="w-full py-8 flex justify-center"><LoadingSpinner className="w-8 h-8 text-jdblue" /></div>}>
+    <AllFlashcards />
+  </Suspense>
+);
+
+const SuspenseFlashcardCollections = () => (
+  <Suspense fallback={<div className="w-full py-8 flex justify-center"><LoadingSpinner className="w-8 h-8 text-jdblue" /></div>}>
+    <FlashcardCollections />
+  </Suspense>
+);
+
+const SuspenseManageSubjects = () => (
+  <Suspense fallback={<div className="w-full py-8 flex justify-center"><LoadingSpinner className="w-8 h-8 text-jdblue" /></div>}>
+    <ManageSubjects />
+  </Suspense>
+);
+
 export default function FlashcardsPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -64,14 +83,15 @@ export default function FlashcardsPage() {
   
   // Set up flashcard routes
   const flashcardRoutes = [
-    { path: 'collections', component: FlashcardCollections },
-    { path: 'collections/:id', component: FlashcardCollections, protected: true, checkAccess: checkAccessToCollection },
-    { path: 'view/:id', component: FlashcardCollections, protected: true, checkAccess: checkAccessToCollection },
+    { path: 'collections', component: SuspenseFlashcardCollections },
+    { path: 'collections/:id', component: SuspenseFlashcardCollections, protected: true, checkAccess: checkAccessToCollection },
+    { path: 'view/:id', component: SuspenseFlashcardCollections, protected: true, checkAccess: checkAccessToCollection },
     { path: 'create-card/:collectionId?', component: AddCard },
     { path: 'edit-card/:id', component: EditCard },
     { path: 'create-collection', component: CreateSet },
     { path: 'study/:collectionId', component: FlashcardStudy, protected: true, checkAccess: checkAccessToCollection },
-    { path: 'all', component: AllFlashcards },
+    { path: 'flashcards', component: SuspenseAllFlashcards },
+    { path: 'all', component: SuspenseAllFlashcards },
     { path: '/', component: () => <Navigate to="/flashcards/collections" /> },
   ];
 
@@ -182,7 +202,7 @@ export default function FlashcardsPage() {
         
         {/* Main content with top margin to clear navbar */}
         <div className="flex-1 flex flex-col overflow-auto">
-          <PageContainer noOverflow>
+          <PageContainer noOverflow className="pt-4">
             <div className="flex-1 overflow-auto">
               <Routes>
                 {routeElements}
@@ -190,7 +210,7 @@ export default function FlashcardsPage() {
                 {/* Additional routes */}
                 <Route path="edit-collection/:id" element={<EditCollection />} />
                 <Route path="manage-cards/:collectionId" element={<ManageCards />} />
-                <Route path="subjects" element={<ManageSubjects />} />
+                <Route path="subjects" element={<SuspenseManageSubjects />} />
                 <Route path="edit-subject/:id" element={<EditSubject />} />
                 <Route path="create-subject" element={<CreateSubject />} />
                 <Route path="create-flashcard-select" element={<CreateFlashcardSelect />} />
