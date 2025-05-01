@@ -213,6 +213,7 @@ PageContainer features:
 | `fullHeight` | boolean | true | Make container full height |
 | `noTransitions` | boolean | false | Disable smooth transitions |
 | `showBoundary` | boolean | false | Show visual boundary with sidebar |
+| `flexColumn` | boolean | false | Use flex column layout to prevent sidebar overlap |
 | `bare` | boolean | false | Remove all layout constraints for complete control |
 | `className` | string | undefined | Additional CSS classes |
 
