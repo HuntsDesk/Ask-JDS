@@ -392,7 +392,7 @@ export function Sidebar({
       >
         <div className="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
           <div className={cn(
-            "flex items-center justify-center py-5", // Increased padding from py-4 to py-5
+            "flex items-center justify-center py-4", // Reduced vertical padding
             isDesktopExpanded ? "px-4" : "px-2"
           )}>
             {/* Close button for mobile */}
@@ -415,19 +415,19 @@ export function Sidebar({
                 <img 
                   src="/images/JDSimplified_Logo.png" 
                   alt="JD Simplified Logo" 
-                  className="h-10 transition-all dark:hidden" 
+                  className="h-12 transition-all dark:hidden" 
                 />
                 <img 
                   src="/images/JDSimplified_Logo_wht.png" 
                   alt="JD Simplified Logo" 
-                  className="h-10 transition-all hidden dark:block" 
+                  className="h-12 transition-all hidden dark:block" 
                 />
               </>
             ) : (
               <img 
                 src="/images/JD Simplified Favicon.svg" 
                 alt="JDS" 
-                className="h-8 transition-all dark:invert" 
+                className="h-10 transition-all dark:invert" 
               />
             )}
           </div>
