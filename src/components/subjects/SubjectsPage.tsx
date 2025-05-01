@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { Loader2 } from 'lucide-react';
 import SubjectCard from './SubjectCard';
 import SearchBar from '../flashcards/SearchBar';
+import PageContainer from '@/components/layout/PageContainer';
 
 export default function SubjectsPage() {
   const [subjects, setSubjects] = useState([]);
@@ -188,67 +189,69 @@ export default function SubjectsPage() {
   );
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white">Subjects</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {totalSubjectCount} {totalSubjectCount === 1 ? 'subject' : 'subjects'}
-          </p>
+    <PageContainer>
+      <div className="w-full max-w-6xl mx-auto px-4 py-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white">Subjects</h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              {totalSubjectCount} {totalSubjectCount === 1 ? 'subject' : 'subjects'}
+            </p>
+          </div>
+          <div className="w-full sm:w-auto max-w-md">
+            <SearchBar value={searchTerm} onChange={handleSearchChange} placeholder="Search subjects..." />
+          </div>
         </div>
-        <div className="w-full sm:w-auto max-w-md">
-          <SearchBar value={searchTerm} onChange={handleSearchChange} placeholder="Search subjects..." />
-        </div>
-      </div>
 
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-        </div>
-      ) : filteredSubjects.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-          {filteredSubjects.map((subject, index) => {
-            // Determine if this is the last item for observer attachment
-            const isLastItem = index === filteredSubjects.length - 1;
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          </div>
+        ) : filteredSubjects.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+            {filteredSubjects.map((subject, index) => {
+              // Determine if this is the last item for observer attachment
+              const isLastItem = index === filteredSubjects.length - 1;
+              
+              return (
+                <div 
+                  key={subject.id}
+                  ref={isLastItem && !searchTerm ? lastCardRef : null}
+                >
+                  <SubjectCard key={subject.id} subject={subject} />
+                </div>
+              );
+            })}
             
-            return (
-              <div 
-                key={subject.id}
-                ref={isLastItem && !searchTerm ? lastCardRef : null}
-              >
-                <SubjectCard key={subject.id} subject={subject} />
+            {/* Loading indicator for infinite scroll */}
+            {loadingMore && !searchTerm && (
+              <div className="col-span-1 sm:col-span-2 md:col-span-3 py-4 flex justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
               </div>
-            );
-          })}
-          
-          {/* Loading indicator for infinite scroll */}
-          {loadingMore && !searchTerm && (
-            <div className="col-span-1 sm:col-span-2 md:col-span-3 py-4 flex justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-            </div>
-          )}
-        </div>
-      ) : searchTerm ? (
-        <div className="flex flex-col items-center justify-center h-64 text-center">
-          <p className="text-lg text-gray-600 dark:text-gray-400 mb-2">No subjects found matching "{searchTerm}"</p>
-          <button 
-            onClick={() => setSearchTerm('')}
-            className="text-sm text-[#F37022] hover:underline"
-          >
-            Clear search
-          </button>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-64 text-center p-4">
-          <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">No subjects have been created yet.</p>
-          <button 
-            onClick={() => navigate('/flashcards/create-subject')}
-            className="px-4 py-2 bg-[#F37022] text-white rounded-md hover:bg-[#E36012] transition-colors"
-          >
-            Create your first subject
-          </button>
-        </div>
-      )}
-    </div>
+            )}
+          </div>
+        ) : searchTerm ? (
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <p className="text-lg text-gray-600 dark:text-gray-400 mb-2">No subjects found matching "{searchTerm}"</p>
+            <button 
+              onClick={() => setSearchTerm('')}
+              className="text-sm text-[#F37022] hover:underline"
+            >
+              Clear search
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-64 text-center p-4">
+            <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">No subjects have been created yet.</p>
+            <button 
+              onClick={() => navigate('/flashcards/create-subject')}
+              className="px-4 py-2 bg-[#F37022] text-white rounded-md hover:bg-[#E36012] transition-colors"
+            >
+              Create your first subject
+            </button>
+          </div>
+        )}
+      </div>
+    </PageContainer>
   );
 } 

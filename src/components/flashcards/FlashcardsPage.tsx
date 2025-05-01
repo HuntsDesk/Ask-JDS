@@ -12,6 +12,7 @@ import { NavbarProvider } from '@/contexts/NavbarContext';
 import { StudyProvider } from '@/contexts/StudyContext';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { useNavbar } from '@/contexts/NavbarContext';
+import PageContainer from '@/components/layout/PageContainer';
 
 // Import pages
 import Home from './pages/Home';
@@ -154,8 +155,15 @@ export default function FlashcardsPage() {
   // Loading state handling
   if (initialLoad) {
     return (
-      <div className="w-full h-full flex items-center justify-center">
-        <LoadingSpinner className="w-8 h-8 text-jdblue" />
+      <div className="flex flex-col h-full overflow-hidden">
+        <StudyProvider>
+          <Navbar />
+          <PageContainer noOverflow>
+            <div className="w-full h-full flex items-center justify-center">
+              <LoadingSpinner className="w-8 h-8 text-jdblue" />
+            </div>
+          </PageContainer>
+        </StudyProvider>
       </div>
     );
   }
@@ -169,30 +177,32 @@ export default function FlashcardsPage() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Use the NavbarProvider to control the navbar state */}
       <StudyProvider>
+        {/* Navbar at the top */}
+        <Navbar />
+        
+        {/* Main content with top margin to clear navbar */}
         <div className="flex-1 flex flex-col overflow-auto">
-          {/* Navbar */}
-          <Navbar />
-          
-          {/* Main content */}
-          <div className="flex-1 overflow-auto">
-            <Routes>
-              {routeElements}
-              
-              {/* Additional routes */}
-              <Route path="edit-collection/:id" element={<EditCollection />} />
-              <Route path="manage-cards/:collectionId" element={<ManageCards />} />
-              <Route path="subjects" element={<ManageSubjects />} />
-              <Route path="edit-subject/:id" element={<EditSubject />} />
-              <Route path="create-subject" element={<CreateSubject />} />
-              <Route path="create-flashcard-select" element={<CreateFlashcardSelect />} />
-              <Route path="create-flashcard/:subjectId?" element={<CreateFlashcard />} />
-              <Route path="search" element={<SearchResults />} />
-              
-              {/* Study routes */}
-              <Route path="study" element={<UnifiedStudyMode />} />
-              <Route path="*" element={<Navigate to="/flashcards/collections" />} />
-            </Routes>
-          </div>
+          <PageContainer noOverflow>
+            <div className="flex-1 overflow-auto">
+              <Routes>
+                {routeElements}
+                
+                {/* Additional routes */}
+                <Route path="edit-collection/:id" element={<EditCollection />} />
+                <Route path="manage-cards/:collectionId" element={<ManageCards />} />
+                <Route path="subjects" element={<ManageSubjects />} />
+                <Route path="edit-subject/:id" element={<EditSubject />} />
+                <Route path="create-subject" element={<CreateSubject />} />
+                <Route path="create-flashcard-select" element={<CreateFlashcardSelect />} />
+                <Route path="create-flashcard/:subjectId?" element={<CreateFlashcard />} />
+                <Route path="search" element={<SearchResults />} />
+                
+                {/* Study routes */}
+                <Route path="study" element={<UnifiedStudyMode />} />
+                <Route path="*" element={<Navigate to="/flashcards/collections" />} />
+              </Routes>
+            </div>
+          </PageContainer>
         </div>
       </StudyProvider>
     </div>

@@ -15,6 +15,7 @@ import { UserProfileInfo } from './UserProfileInfo';
 import { useTheme } from '@/lib/theme-provider';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import PageContainer from '@/components/layout/PageContainer';
 
 export function SettingsPage() {
   const { user, loading, signOut } = useAuth();
@@ -91,10 +92,12 @@ export function SettingsPage() {
   // If still loading, show spinner
   if (isLoading || loading) {
     return (
-      <div className="flex flex-col justify-center items-center h-screen bg-white dark:bg-gray-900">
-        <LoadingSpinner className="h-12 w-12 mb-4" />
-        <p className="text-muted-foreground dark:text-gray-400">Loading settings...</p>
-      </div>
+      <PageContainer>
+        <div className="flex flex-col justify-center items-center h-screen bg-white dark:bg-gray-900">
+          <LoadingSpinner className="h-12 w-12 mb-4" />
+          <p className="text-muted-foreground dark:text-gray-400">Loading settings...</p>
+        </div>
+      </PageContainer>
     );
   }
 
@@ -116,8 +119,8 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 min-h-screen w-full overflow-hidden">
-      <div className={`container py-6 max-w-4xl mx-auto ${isMobile ? 'pt-16' : ''}`}>
+    <PageContainer>
+      <div className="bg-white dark:bg-gray-900 py-6">
         <div className="flex items-center justify-between mb-6">
           {/* Only show h1 title on desktop */}
           {!isMobile && <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>}
@@ -249,6 +252,6 @@ export function SettingsPage() {
           
         </Tabs>
       </div>
-    </div>
+    </PageContainer>
   );
 } 

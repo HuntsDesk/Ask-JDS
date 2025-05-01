@@ -15,6 +15,8 @@ export function PersistentLayout() {
   const { isExpanded, setIsExpanded, isMobile } = useContext(SidebarContext);
   const { selectedThreadId, setSelectedThreadId } = useContext(SelectedThreadContext);
   const isDesktop = useMediaQuery('(min-width: 768px)');
+  
+  // Use direct persisted state for sidebar pinning
   const [isPinned, setIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
   
   // Use our custom hook to track the last visited page
@@ -110,7 +112,7 @@ export function PersistentLayout() {
         />
       </div>
 
-      <div className="flex-1 overflow-auto w-full transition-all duration-300" style={{ zIndex: 1 }}>
+      <div className="flex-1 overflow-auto w-full h-full" style={{ zIndex: 1 }}>
         <Outlet />
       </div>
     </div>

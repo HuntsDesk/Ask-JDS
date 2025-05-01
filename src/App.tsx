@@ -6,6 +6,7 @@ import SimplifiedMode from '@/lib/SimplifiedMode';
 import { NavbarProvider } from '@/contexts/NavbarContext';
 import { CloseProvider } from '@/contexts/close-context';
 import { PaywallProvider } from '@/contexts/paywall-context';
+import { LayoutDebugger } from '@/components/LayoutDebugger';
 
 // Direct imports for homepage components
 import { HomePage } from '@/components/HomePage';
@@ -361,6 +362,7 @@ function App() {
                       <AppRoutes />
                       <Toaster />
                       <OfflineIndicator />
+                      <LayoutDebugger />
                     </BrowserRouter>
                   </ErrorBoundary>
                 </SelectedThreadContext.Provider>

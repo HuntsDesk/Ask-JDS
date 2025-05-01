@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { BookOpen } from 'lucide-react';
 import MobileTopBar from './MobileTopBar';
 import MobileBottomNav from './MobileBottomNav';
+import PageContainer from '@/components/layout/PageContainer';
 
 // Log outside of the component to verify this file is being parsed
 // console.log('ROOT LEVEL - CoursesPage.tsx is being loaded');
@@ -144,7 +145,7 @@ export default function CoursesPage() {
   // console.log('DIRECT LOG - Non-featured courses:', courses.filter(c => !c.is_featured));
 
   return (
-    <>
+    <PageContainer>
       <div className="flex md:hidden items-center justify-between h-16 px-4 shadow-sm mb-4">
         <MobileTopBar title="Courses" count={courses.length} />
       </div>
@@ -267,6 +268,6 @@ export default function CoursesPage() {
         </div>
       )}
       <MobileBottomNav />
-    </>
+    </PageContainer>
   );
 } 
