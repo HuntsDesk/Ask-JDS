@@ -119,8 +119,8 @@ export function SettingsPage() {
   };
 
   return (
-    <PageContainer>
-      <div className="bg-white dark:bg-gray-900 py-6">
+    <PageContainer className="pt-4">
+      <div className="bg-white dark:bg-gray-900">
         <div className="flex items-center justify-between mb-6">
           {/* Only show h1 title on desktop */}
           {!isMobile && <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>}
