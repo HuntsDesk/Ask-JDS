@@ -202,7 +202,7 @@ export default function FlashcardsPage() {
         
         {/* Main content with top margin to clear navbar */}
         <div className="flex-1 flex flex-col overflow-auto">
-          <PageContainer noOverflow className="pt-4">
+          <PageContainer noOverflow className="pt-4" flexColumn>
             <div className="flex-1 overflow-auto">
               <Routes>
                 {routeElements}

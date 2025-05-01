@@ -39,6 +39,12 @@ export interface PageContainerProps extends PropsWithChildren {
   showBoundary?: boolean;
   
   /**
+   * Use flex column layout to prevent sidebar overlap.
+   * Recommended for pages that need proper stacking under the sidebar.
+   */
+  flexColumn?: boolean;
+  
+  /**
    * Bare mode - removes all layout constraints (maxWidth, padding, flex, overflow).
    * Use for components that need complete layout control like chat interfaces.
    */
@@ -58,6 +64,7 @@ export default function PageContainer({
   fullHeight = true,
   noTransitions = false,
   showBoundary = false,
+  flexColumn = false,
   bare = false,
   className 
 }: PageContainerProps) {
@@ -81,6 +88,7 @@ export default function PageContainer({
     <div
       className={cn(
         'w-full flex-1',
+        flexColumn && 'flex flex-col',
         !disablePadding && contentPadding,
         !noOverflow && 'overflow-auto',
         fullHeight && 'h-full',

@@ -119,7 +119,7 @@ export function SettingsPage() {
   };
 
   return (
-    <PageContainer className="pt-4">
+    <PageContainer className="pt-4" flexColumn>
       <div className="bg-white dark:bg-gray-900">
         <div className="flex items-center justify-between mb-6">
           {/* Only show h1 title on desktop */}
