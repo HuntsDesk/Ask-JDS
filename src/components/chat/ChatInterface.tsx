@@ -42,19 +42,18 @@ export function ChatInterface({
   isGenerating = false,
   onClosePaywall = () => {}
 }: ChatInterfaceProps) {
+  // DOM refs
   const messageEndRef = useRef<HTMLDivElement>(null);
   const messageTopRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const previousThreadIdRef = useRef<string | null>(null);
+  
+  // Local state
   const [message, setMessage] = useState(preservedMessage || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [showGeneratingStatus, setShowGeneratingStatus] = useState<boolean>(true);
-  const [textareaValue, setTextareaValue] = useState<string>('');
-  const [isSending, setIsSending] = useState(false);
-  const [showScrollButton, setShowScrollButton] = useState(false);
   
   // Combine our local submission state with the external isGenerating prop
   const isShowingResponseIndicator = isSubmitting || isGenerating;
@@ -145,12 +144,6 @@ export function ChatInterface({
     }
   }, [preservedMessage]);
 
-  // Reset textarea when thread changes
-  useEffect(() => {
-    setTextareaValue('');
-    setIsSending(false);
-  }, [threadId]);
-
   // Reset state when thread changes
   useEffect(() => {
     if (threadId !== previousThreadIdRef.current) {
@@ -160,8 +153,6 @@ export function ChatInterface({
       setIsSubmitting(false);
       setSendError(null);
       setIsScrolled(false);
-      setShowGeneratingStatus(true);
-      setShowScrollButton(false);
       
       // Clear the message if it was preserved from a previous thread
       if (!preservedMessage) {
@@ -222,14 +213,6 @@ export function ChatInterface({
   const remainingMessages = Math.max(0, messageLimit - messageCount);
   const isNearLimit = remainingMessages <= 3 && remainingMessages > 0;
 
-  // Get loading message based on loading state
-  const getLoadingMessage = () => {
-    if (loading) {
-      return "Loading messages...";
-    }
-    return "Ready to chat";
-  };
-
   return (
     <div className="flex flex-col h-full min-h-screen chat-interface-root">
       {/* Only show header on mobile */}
@@ -256,75 +239,78 @@ export function ChatInterface({
       <div className={`chat-messages-area flex-1 ${!isDesktop ? 'pt-16' : ''}`}>
         <div 
           ref={messagesContainerRef}
-          className="chat-messages-scroll h-full w-full overflow-y-auto px-2 sm:px-4 py-4"
+          className="chat-messages-scroll h-full w-full overflow-y-auto"
         >
-          {/* Spacer element to ensure messages start below the header */}
-          <div ref={messageTopRef} className="h-6 md:h-4"></div>
-          
-          {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="flex flex-col items-center max-w-md text-center p-4">
-                <LoadingSpinner size="lg" />
-                <p className="mt-2 text-gray-700 dark:text-gray-300">Loading messages...</p>
-                {loadingTimeout && (
-                  <div className="mt-4">
-                    <p className="mb-2 text-gray-600 dark:text-gray-400">
-                      This is taking longer than expected. You can try refreshing.
-                    </p>
-                    <Button onClick={onRefresh} variant="outline">
-                      Refresh
-                    </Button>
-                  </div>
-                )}
+          <div className="px-4 py-4">
+            {/* Spacer element to ensure messages start below the header */}
+            <div ref={messageTopRef} className="h-4"></div>
+            
+            {loading && messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="flex flex-col items-center max-w-md text-center p-4">
+                  <LoadingSpinner size="lg" />
+                  <p className="mt-2 text-gray-700 dark:text-gray-300">Loading messages...</p>
+                  {loadingTimeout && (
+                    <div className="mt-4">
+                      <p className="mb-2 text-gray-600 dark:text-gray-400">
+                        This is taking longer than expected. You can try refreshing.
+                      </p>
+                      <Button onClick={onRefresh} variant="outline">
+                        Refresh
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center p-6">
-              <h2 className="text-2xl font-bold mb-2 text-gray-800 dark:text-white">Welcome to Ask JDS</h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-md">
-                Your trusted legal AI research assistant. Whether you're researching a legal question, 
-                navigating law school, or exploring complex legal topics, Ask JDS is here to provide 
-                clear, reliable, and knowledgeable guidance.
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col space-y-4 pb-2 mt-4">
-              {messages.map((msg, index) => (
-                <ChatMessage 
-                  key={msg.id || `temp-${index}`} 
-                  message={msg}
-                  isLastMessage={index === messages.length - 1}
-                />
-              ))}
-              
-              {isShowingResponseIndicator && (
-                <div className="flex justify-start">
-                  <div className="max-w-[80%] rounded-lg p-3 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 ml-8 rounded-bl-none">
-                    <div className="flex items-center">
-                      <LoadingSpinner size="sm" />
-                      <span className="ml-2">AI is responding...</span>
+            ) : messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center p-6">
+                <h2 className="text-2xl font-bold mb-2 text-gray-800 dark:text-white">Welcome to Ask JDS</h2>
+                <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-md">
+                  Your trusted legal AI research assistant. Whether you're researching a legal question, 
+                  navigating law school, or exploring complex legal topics, Ask JDS is here to provide 
+                  clear, reliable, and knowledgeable guidance.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col space-y-4 mb-6">
+                {messages.map((msg, index) => (
+                  <ChatMessage 
+                    key={msg.id || `temp-${index}`} 
+                    message={msg}
+                    isLastMessage={index === messages.length - 1}
+                  />
+                ))}
+                
+                {isShowingResponseIndicator && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[80%] rounded-lg p-3 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 ml-8 rounded-bl-none">
+                      <div className="flex items-center">
+                        <LoadingSpinner size="sm" />
+                        <span className="ml-2">AI is responding...</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-              
-              <div ref={messageEndRef} className="h-16 md:h-16" />
-            </div>
-          )}
-          
-          {/* Scroll to top button - only visible on mobile when scrolled */}
-          {!isDesktop && isScrolled && messages.length > 0 && (
-            <button
-              onClick={scrollToTop}
-              className="fixed top-[70px] right-3 z-10 bg-white dark:bg-gray-800 p-2 rounded-full shadow-md border border-gray-200 dark:border-gray-700"
-              aria-label="Scroll to top"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-              </svg>
-            </button>
-          )}
+                )}
+                
+                {/* Smaller height with bottom margin instead */}
+                <div ref={messageEndRef} className="h-1" />
+              </div>
+            )}
+          </div>
         </div>
+        
+        {/* Scroll to top button - only visible on mobile when scrolled */}
+        {!isDesktop && isScrolled && messages.length > 0 && (
+          <button
+            onClick={scrollToTop}
+            className="fixed top-[70px] right-3 z-10 bg-white dark:bg-gray-800 p-2 rounded-full shadow-md border border-gray-200 dark:border-gray-700"
+            aria-label="Scroll to top"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+        )}
       </div>
       
       {/* Input container - at the bottom with auto height */}

@@ -1,5 +1,5 @@
 import { ReactNode, useEffect } from 'react';
-import { ChatContainer } from './ChatContainer';
+import ChatContainer from './ChatContainer';
 import { useTheme } from '@/lib/theme-provider';
 
 // Simplified ChatLayout now just handles theme and renders the chat container or children

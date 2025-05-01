@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useContext, useMemo, useCallback } from 'react';
 import { useAuth } from '@/lib/auth';
-import { useThreads } from '@/hooks/use-query-threads';
-import { useMessages } from '@/hooks/use-messages';
+import { useThreads, useThread, useCreateThread, useUpdateThread, useDeleteThread } from '@/hooks/use-query-threads';
+import { useQueryMessages } from '@/hooks/use-query-messages';
 import { ChatInterface } from './ChatInterface';
 import { useToast } from '@/hooks/use-toast';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -10,7 +10,6 @@ import { useTheme } from '@/lib/theme-provider';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import useMediaQuery from '@/hooks/useMediaQuery';
-import { useCreateThread, useUpdateThread, useDeleteThread } from '@/hooks/use-query-threads';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import PageContainer from '@/components/layout/PageContainer';
 import type { Thread } from '@/types';
@@ -40,58 +39,16 @@ export function ChatContainer() {
   const lastInitializedThreadIdRef = useRef<string | null>(null);
   const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
   const messagesTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
-  const prevLoadingRef = useRef<boolean>(false);
-  const prevContentReadyRef = useRef<boolean>(false);
   
-  // State variables - all at the top level
-  const [isLoading, setIsLoading] = useState(true);
+  // Local state variables - now much fewer since React Query manages loading states
   const [activeThread, setActiveThread] = useState<string | null>(null);
-  const [activeThreadTitle, setActiveThreadTitle] = useState<string>('');
-  const [threads, setThreads] = useState<Thread[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [contentReady, setContentReady] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [threadsLoading, setThreadsLoading] = useState(true);
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
-  const [isThreadDeletion, setIsThreadDeletion] = useState(false);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  const [isPinnedSidebar, setIsPinnedSidebar] = useState(false);
-  const [isNavigatingFromSidebar, setIsNavigatingFromSidebar] = useState(false);
   const [preservedMessage, setPreservedMessage] = usePersistedState<string>('preserved-message', '');
+  const [isThreadDeletion, setIsThreadDeletion] = useState(false);
   
-  // Data fetching and mutations
+  // React Query data fetching
   const threadQuery = useThreads();
-  const originalThreads = threadQuery.data || [];
-  const originalThreadsLoading = threadQuery.isLoading || threadQuery.isFetching;
-  
-  const createThreadMutation = useCreateThread();
-  const updateThreadMutation = useUpdateThread();
-  const deleteThreadMutation = useDeleteThread();
-
-  // =========== CALLBACKS - Define all callbacks before using them in hooks ===========
-  
-  // Define callbacks that will be passed to hooks
-  const handleFirstMessage = useCallback((message: string) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.debug('[ChatContainer] First message sent:', message);
-    }
-    // No-op for now, but defining it ensures consistent hook order
-  }, []);
-  
-  const handleThreadTitleUpdate = useCallback(async (title: string) => {
-    try {
-      if (activeThread) {
-        await updateThreadMutation.mutateAsync({ 
-          id: activeThread, 
-          title 
-        });
-      }
-    } catch (error) {
-      console.error('[ChatContainer] Failed to update thread title:', error);
-    }
-  }, [activeThread, updateThreadMutation]);
-
-  // =========== Thread ID and messaging logic ===========
+  const threads = threadQuery.data || [];
+  const threadsLoading = threadQuery.isLoading || threadQuery.isFetching;
   
   // Compute stable thread ID
   const stableThreadId = useMemo(() => {
@@ -109,56 +66,59 @@ export function ChatContainer() {
 
   // Set debounced thread ID to avoid rapid changes
   const debouncedThreadId = useDebouncedValue(stableThreadId, 300);
-
-  // Pass the URL thread ID directly to useMessages
-  const messagesResult = useMessages(
-    urlThreadId,
-    handleFirstMessage,
-    handleThreadTitleUpdate
-  );
   
-  const { 
-    messages: threadMessages,
-    loading: messagesLoading,
+  // React Query hooks for specific thread and its messages
+  const threadResult = useThread(stableThreadId);
+  const currentThread = threadResult.data;
+  const threadLoading = threadResult.isLoading;
+  
+  // Messages from React Query
+  const messagesResult = useQueryMessages(stableThreadId);
+  const {
+    messages,
+    isLoading: messagesLoading,
+    isFetching: messagesFetching,
     isGenerating,
     messageCount,
     messageLimit,
     showPaywall,
     sendMessage: handleSendMessage,
     refreshMessages: handleRefreshMessages,
-    handleClosePaywall: handlePaywallClose,
+    handleClosePaywall,
     preservedMessage: messagePreserved
-  } = messagesResult || {
-    messages: [],
-    loading: false,
-    isGenerating: false,
-    messageCount: 0,
-    messageLimit: 0,
-    showPaywall: false,
-    sendMessage: async (_content: string) => null,
-    refreshMessages: async () => {},
-    handleClosePaywall: () => {},
-    preservedMessage: null
-  };
-
-  // =========== Event handlers ===========
+  } = messagesResult;
   
-  // Set active thread - fixed with proper deps
+  // Mutations
+  const createThreadMutation = useCreateThread();
+  const updateThreadMutation = useUpdateThread();
+  const deleteThreadMutation = useDeleteThread();
+  
+  // Computed loading state - only use isLoading, not isFetching
+  // This prevents flickering during background refreshes
+  const loading = threadsLoading || threadLoading || messagesLoading;
+  
+  // =========== EVENT HANDLERS ===========
+  
+  // Set active thread
   const handleSetActiveThread = useCallback((threadId: string) => {
-    if (threadId && originalThreads.some(t => t.id === threadId)) {
-      setContentReady(false);
-      setLoading(true);
+    if (threadId && threads.some(t => t.id === threadId)) {
       setActiveThread(threadId);
       setSelectedThreadId(threadId);
     }
-  }, [originalThreads, setSelectedThreadId]);
+  }, [threads, setSelectedThreadId]);
 
-  // Create new thread - properly manage dependencies
+  // Create new thread with extra protection against duplicate creation
   const handleNewChat = useCallback(async () => {
+    // Check if we've recently tried to create a thread
+    const attemptingCreation = sessionStorage.getItem('attemptingThreadCreation');
+    if (attemptingCreation) {
+      console.debug('[ChatContainer] Skipping thread creation - already attempting');
+      return;
+    }
+
     try {
-      sessionStorage.removeItem('attemptingThreadCreation');
-      setContentReady(false);
-      setLoading(true);
+      // Set a flag to prevent duplicate creation
+      sessionStorage.setItem('attemptingThreadCreation', 'true');
       
       toast({
         title: "Creating new conversation",
@@ -184,10 +144,15 @@ export function ChatContainer() {
         description: "We couldn't create a new conversation. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      // Clear the creation flag after a delay to prevent immediate recreation
+      setTimeout(() => {
+        sessionStorage.removeItem('attemptingThreadCreation');
+      }, 2000);
     }
   }, [createThreadMutation, navigate, setSelectedThreadId, toast]);
 
-  // Sign out - properly manage dependencies
+  // Sign out
   const handleSignOut = useCallback(async () => {
     try {
       await signOut();
@@ -197,25 +162,22 @@ export function ChatContainer() {
     }
   }, [signOut, navigate]);
 
-  // Delete thread - fixed dependency array
+  // Delete thread
   const handleDeleteThread = useCallback(async (threadId: string) => {
     try {
       setIsThreadDeletion(true);
       
-      const threadIndex = originalThreads.findIndex(t => t.id === threadId);
+      const threadIndex = threads.findIndex(t => t.id === threadId);
       const isActiveThread = activeThread === threadId;
       
       await deleteThreadMutation.mutateAsync(threadId);
       
       if (isActiveThread) {
-        setContentReady(false);
-        setLoading(true);
-        
-        if (originalThreads.length > 1) {
-          const nextThreadIndex = threadIndex > 0 ? threadIndex - 1 : (threadIndex < originalThreads.length - 1 ? threadIndex + 1 : -1);
+        if (threads.length > 1) {
+          const nextThreadIndex = threadIndex > 0 ? threadIndex - 1 : (threadIndex < threads.length - 1 ? threadIndex + 1 : -1);
           
           if (nextThreadIndex >= 0) {
-            const nextThreadId = originalThreads[nextThreadIndex].id;
+            const nextThreadId = threads[nextThreadIndex].id;
             setActiveThread(nextThreadId);
             setSelectedThreadId(nextThreadId);
             navigate(`/chat/${nextThreadId}`, { replace: true });
@@ -234,9 +196,9 @@ export function ChatContainer() {
       setIsThreadDeletion(false);
       console.error('[ChatContainer] Error deleting thread:', error);
     }
-  }, [activeThread, deleteThreadMutation, handleNewChat, navigate, originalThreads, setSelectedThreadId]);
+  }, [activeThread, deleteThreadMutation, handleNewChat, navigate, threads, setSelectedThreadId]);
 
-  // Rename thread - properly manage dependencies
+  // Rename thread
   const handleRenameThread = useCallback(async (threadId: string, newTitle: string) => {
     try {
       await updateThreadMutation.mutateAsync({ id: threadId, title: newTitle });
@@ -245,301 +207,126 @@ export function ChatContainer() {
     }
   }, [updateThreadMutation]);
 
-  // Refresh messages - stability improvement
+  // Refresh messages
   const handleRefresh = useCallback(() => {
-    if (handleRefreshMessages) {
-      handleRefreshMessages();
-    }
+    handleRefreshMessages();
   }, [handleRefreshMessages]);
 
-  // =========== Effects ===========
+  // =========== EFFECTS ===========
   
-  // Ensure dark mode is applied correctly
+  // Handle URL thread ID changes
   useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else if (theme === 'light') {
-      root.classList.remove('dark');
-    } else if (theme === 'system') {
-      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (systemPrefersDark) {
-        root.classList.add('dark');
+    if (urlThreadId && urlThreadId !== activeThread) {
+      console.debug(`[ChatContainer] URL thread ID changed to ${urlThreadId}`);
+      
+      // Check if this thread exists
+      if (threads.some(t => t.id === urlThreadId)) {
+        setActiveThread(urlThreadId);
+        setSelectedThreadId(urlThreadId);
       } else {
-        root.classList.remove('dark');
+        console.debug(`[ChatContainer] Thread ${urlThreadId} not found, redirecting`);
+        
+        // If thread doesn't exist but we have other threads, go to first thread
+        if (threads.length > 0) {
+          const firstThread = threads[0];
+          navigate(`/chat/${firstThread.id}`, { replace: true });
+        } else {
+          // Otherwise create a new thread
+          handleNewChat();
+        }
       }
     }
+  }, [urlThreadId, threads, activeThread, navigate, setSelectedThreadId, handleNewChat]);
+  
+  // Set up initial thread with stronger protection
+  useEffect(() => {
+    // Create a reference to track if this effect has initiated thread creation
+    const effectId = Math.random().toString(36).substring(7);
     
-    // Set up listener for system preference changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (event: MediaQueryListEvent) => {
-      if (theme === 'system') {
-        if (event.matches) {
-          root.classList.add('dark');
+    const ensureActiveThread = async () => {
+      // Skip if we're already handling a thread or another instance is creating
+      if (activeThread || urlThreadId || hasInitializedRef.current || isThreadDeletion) {
+        return;
+      }
+      
+      // Skip if threads are still loading
+      if (threadsLoading) {
+        return;
+      }
+      
+      // Double-check if threads have been loaded and we've initialized
+      if (hasInitializedRef.current) {
+        return;
+      }
+      
+      console.debug(`[ChatContainer:${effectId}] Ensuring active thread`);
+      
+      // Mark initialization early to prevent race conditions
+      hasInitializedRef.current = true;
+      
+      // If we have threads, set the first one as active
+      if (threads.length > 0) {
+        const firstThread = threads[0];
+        console.debug(`[ChatContainer:${effectId}] Setting first thread as active: ${firstThread.id}`);
+        
+        setActiveThread(firstThread.id);
+        setSelectedThreadId(firstThread.id);
+        navigate(`/chat/${firstThread.id}`, { replace: true });
+      } else {
+        // If no threads, create one with protection against duplicates
+        console.debug(`[ChatContainer:${effectId}] No threads found, creating new thread`);
+        
+        // Set a flag in sessionStorage to prevent duplicate creation attempts
+        if (!sessionStorage.getItem('attemptingThreadCreation')) {
+          sessionStorage.setItem('attemptingThreadCreation', 'true');
+          await handleNewChat();
         } else {
-          root.classList.remove('dark');
+          console.debug(`[ChatContainer:${effectId}] Skipping thread creation - already in progress`);
         }
       }
     };
     
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [theme]);
-
-  // Initial loading state - ensure cleanup
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 500);
+    ensureActiveThread();
     
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Check for navigation from sidebar
-  useEffect(() => {
-    const fromSidebar = location.state && (location.state as any).fromSidebar === true;
-    
-    if (fromSidebar) {
-      setIsNavigatingFromSidebar(fromSidebar);
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-  }, [location, navigate]);
-
-  // Initialize active thread when threads load or URL changes
-  useEffect(() => {
-    // Skip if still loading
-    if (originalThreadsLoading) {
-      return;
-    }
-    
-    // Skip if no threads available
-    if (originalThreads.length === 0) {
-      if (activeThread) {
-        setActiveThread(null);
-      }
-      return;
-    }
-    
-    // Skip if already initialized
-    if (hasInitializedRef.current && lastInitializedThreadIdRef.current === urlThreadId) {
-      return;
-    }
-    
-    // Skip if navigation is from sidebar to the same thread
-    if (isNavigatingFromSidebar && activeThread && urlThreadId === activeThread && contentReady) {
-      setLoading(false);
-      return;
-    }
-    
-    // Helper to check if thread exists
-    const threadExists = (id: string | null | undefined) => 
-      id && originalThreads.some(t => t.id === id);
-    
-    // Set active thread based on priority
-    let newActiveThread: string | null = null;
-    
-    // Priority 1: URL parameter
-    if (urlThreadId && threadExists(urlThreadId)) {
-      newActiveThread = urlThreadId;
-    }
-    // Priority 2: Global context
-    else if (selectedThreadId && threadExists(selectedThreadId)) {
-      newActiveThread = selectedThreadId;
-      // Update URL if different
-      if (urlThreadId !== selectedThreadId) {
-        navigate(`/chat/${selectedThreadId}`, { replace: true });
-      }
-    }
-    // Priority 3: Current active thread
-    else if (activeThread && threadExists(activeThread)) {
-      newActiveThread = activeThread;
-      // Update URL if different
-      if (urlThreadId !== activeThread) {
-        navigate(`/chat/${activeThread}`, { replace: true });
-      }
-    }
-    // Priority 4: Default to first thread
-    else if (originalThreads.length > 0) {
-      newActiveThread = originalThreads[0].id;
-      // Update URL if different
-      if (urlThreadId !== newActiveThread) {
-        navigate(`/chat/${newActiveThread}`, { replace: true });
-      }
-    }
-    
-    // Update active thread if different
-    if (newActiveThread !== activeThread) {
-      setActiveThread(newActiveThread);
-    }
-    
-    // Update selected thread context if different
-    if (newActiveThread !== selectedThreadId) {
-      setSelectedThreadId(newActiveThread);
-    }
-    
-    // Mark as initialized
-    hasInitializedRef.current = true;
-    lastInitializedThreadIdRef.current = urlThreadId;
-  }, [originalThreads, originalThreadsLoading, urlThreadId, selectedThreadId, activeThread, navigate, setSelectedThreadId, isNavigatingFromSidebar, contentReady]);
-
-  // Track loading state transitions using refs
-  useEffect(() => {
-    // Only trigger when loading transitions from true to false
-    if (prevLoadingRef.current && !loading) {
-      if (process.env.NODE_ENV === 'development') {
-        console.debug('[ChatContainer] Loading state transitioned from true → false');
-      }
-      // Place any post-load actions here if needed
-    }
-    prevLoadingRef.current = loading;
-  }, [loading]);
-
-  // Track contentReady state transitions using refs
-  useEffect(() => {
-    // Only trigger when contentReady transitions from false to true
-    if (!prevContentReadyRef.current && contentReady) {
-      if (process.env.NODE_ENV === 'development') {
-        console.debug('[ChatContainer] Content ready state transitioned from false → true');
-      }
-      // Place any post-content-ready actions here if needed
-    }
-    prevContentReadyRef.current = contentReady;
-  }, [contentReady]);
-
-  // Track content readiness - fixed dependencies
-  useEffect(() => {
-    const isStillLoading = 
-      originalThreadsLoading || 
-      messagesLoading ||
-      isGenerating;
-      
-    const hasActiveThread = !!urlThreadId;
-    const hasValidContent = threadMessages.length > 0 || (hasActiveThread && !messagesLoading);
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.debug('[ChatContainer] Content ready check:', {
-        isStillLoading,
-        hasActiveThread,
-        hasValidContent,
-        threadMessages: threadMessages.length,
-        originalThreadsLoading,
-        messagesLoading,
-        isGenerating,
-        urlThreadId
-      });
-    }
-    
-    if (!isStillLoading && hasActiveThread && hasValidContent) {
-      if (!contentReady) {
-        if (process.env.NODE_ENV === 'development') {
-          console.debug('[ChatContainer] Setting content as ready');
-        }
-        setContentReady(true);
-        setLoading(false);
-      }
-    } else if (contentReady || !loading) {
-      if (contentReady) {
-        if (process.env.NODE_ENV === 'development') {
-          console.debug('[ChatContainer] Setting content as NOT ready');
-        }
-        setContentReady(false);
-      }
-      if (!loading) {
-        if (process.env.NODE_ENV === 'development') {
-          console.debug('[ChatContainer] Setting loading to true');
-        }
-        setLoading(true);
-      }
-    }
-  }, [
-    originalThreadsLoading, 
-    urlThreadId, 
-    messagesLoading, 
-    isGenerating, 
-    threadMessages, 
-    contentReady, 
-    loading
-  ]);
-
-  // Update threads state when originalThreads changes
-  useEffect(() => {
-    if (!originalThreadsLoading) {
-      setThreads(originalThreads);
-      setThreadsLoading(false);
-    }
-  }, [originalThreads, originalThreadsLoading]);
-
-  // Update active thread when URL changes
-  useEffect(() => {
-    if (urlThreadId && urlThreadId !== activeThread) {
-      // If URL thread ID is different from active thread, update active thread
-      console.log(`[ChatContainer] URL thread ID changed to ${urlThreadId}, updating active thread`);
-      
-      setContentReady(false);
-      setLoading(true);
-      setActiveThread(urlThreadId);
-      setSelectedThreadId(urlThreadId);
-      
-      // We don't need to call refreshMessages here as the useMessages hook 
-      // will handle the refresh when threadId changes
-    }
-  }, [urlThreadId, activeThread, setSelectedThreadId]);
-
-  // =========== Render logic ===========
+    return () => {
+      // Cleanup function - can be used to cancel operations if needed
+    };
+  }, [activeThread, urlThreadId, threads, threadsLoading, navigate, setSelectedThreadId, handleNewChat, isThreadDeletion]);
   
-  // Loading state
-  if (isLoading || originalThreadsLoading) {
+  // =========== RENDER ===========
+  
+  // Handle empty state or loading
+  if (!user) {
     return (
-      <PageContainer bare>
-        <div className="flex-1 flex justify-center items-center h-full py-8">
-          <LoadingSpinner className="w-10 h-10 text-jdblue" />
-        </div>
-      </PageContainer>
-    );
-  }
-  
-  // Welcome state - no thread selected
-  if (!urlThreadId && !selectedThreadId) {
-    return (
-      <PageContainer bare>
-        <div className="flex-1 flex flex-col items-center justify-center h-full max-w-3xl mx-auto px-4 text-center">
-          <h1 className="text-3xl font-bold mb-6 text-jdblue">Welcome to AskJDS</h1>
-          <p className="text-lg mb-8 text-gray-600 dark:text-gray-300">
-            Ask any law school or bar exam related questions. Start a new chat to begin the conversation.
-          </p>
-        </div>
-      </PageContainer>
-    );
-  }
-  
-  // Main chat interface
-  return (
-    <PageContainer bare className="chat-layout-container">
-      {/* 
-        Chat interface needs complete layout control due to its unique scrolling behavior
-        and fixed-position elements. The bare prop removes all layout constraints.
-      */}
-      <div className="flex flex-col h-screen w-full overflow-hidden" ref={chatRef}>
-        <ChatInterface 
-          threadId={urlThreadId || activeThread}
-          messages={threadMessages}
-          loading={loading || !contentReady}
-          loadingTimeout={loadingTimeout}
-          onSend={handleSendMessage}
-          onRefresh={handleRefresh}
-          messageCount={messageCount}
-          messageLimit={messageLimit}
-          preservedMessage={preservedMessage}
-          showPaywall={showPaywall}
-          onToggleSidebar={() => {}}
-          isSidebarOpen={true}
-          isDesktop={isDesktop}
-          isGenerating={isGenerating}
-          onClosePaywall={handlePaywallClose}
-        />
+      <div className="flex items-center justify-center h-screen">
+        <LoadingSpinner size="lg" />
       </div>
+    );
+  }
+  
+  // Final rendering of chat interface
+  return (
+    <PageContainer>
+      <ChatInterface
+        threadId={stableThreadId}
+        messages={messages}
+        loading={loading}
+        loadingTimeout={false}
+        onSend={handleSendMessage}
+        onRefresh={handleRefresh}
+        messageCount={messageCount}
+        messageLimit={messageLimit}
+        preservedMessage={messagePreserved || preservedMessage}
+        showPaywall={showPaywall}
+        onToggleSidebar={() => setIsExpanded(!isExpanded)}
+        isSidebarOpen={isExpanded}
+        isDesktop={isDesktop}
+        isGenerating={isGenerating}
+        onClosePaywall={handleClosePaywall}
+      />
     </PageContainer>
   );
 }
 
+// Default export for lazy loading
 export default ChatContainer; 

@@ -310,68 +310,38 @@ function PageLoader({ message = "Loading..." }: { message?: string }) {
 
 // Wrapper function for the entire app
 function App() {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(true);
+  const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
   
-  // Check for mobile screen size
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-      // Auto-collapse sidebar on mobile
-      if (window.innerWidth < 768) {
-        setIsExpanded(false);
-      }
-    };
-    
-    // Initial check
-    checkMobile();
-    
-    // Add listener for window resize
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  // Development-only debug tools
+  const showLayoutDebugger = process.env.NODE_ENV === 'development' && false; // Set to true to enable debugger
   
   return (
-    <ThemeProvider defaultTheme="system" storageKey="ui-theme">
-      <DomainProvider>
-        <AuthProvider>
-          <PaywallProvider>
-            <CloseProvider>
-              <SidebarContext.Provider value={{ isExpanded, setIsExpanded, isMobile }}>
-                <SelectedThreadContext.Provider value={{ selectedThreadId, setSelectedThreadId }}>
-                  <ErrorBoundary
-                    fallback={
-                      <div className="fixed inset-0 flex items-center justify-center bg-background">
-                        <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full text-center">
-                          <h2 className="text-xl font-bold mb-4">Application Error</h2>
-                          <p className="mb-4">
-                            The application encountered an unexpected error. Please try refreshing the page.
-                          </p>
-                          <Button 
-                            onClick={() => window.location.reload()}
-                            className="w-full bg-orange-600 hover:bg-orange-500"
-                          >
-                            Reload Application
-                          </Button>
-                        </div>
-                      </div>
-                    }
-                  >
-                    <BrowserRouter>
+    <ErrorBoundary>
+      <ThemeProvider defaultTheme="system" storageKey="jds-ui-theme">
+        <DomainProvider>
+          <OfflineIndicator />
+          <BrowserRouter>
+            <PaywallProvider>
+              <NavbarProvider>
+                <CloseProvider>
+                  <SelectedThreadContext.Provider value={{ selectedThreadId, setSelectedThreadId }}>
+                    <SidebarContext.Provider value={{ isExpanded, setIsExpanded, isMobile }}>
                       <AppRoutes />
                       <Toaster />
-                      <OfflineIndicator />
-                      <LayoutDebugger />
-                    </BrowserRouter>
-                  </ErrorBoundary>
-                </SelectedThreadContext.Provider>
-              </SidebarContext.Provider>
-            </CloseProvider>
-          </PaywallProvider>
-        </AuthProvider>
-      </DomainProvider>
-    </ThemeProvider>
+                      {showLayoutDebugger && (
+                        <LayoutDebugger />
+                      )}
+                    </SidebarContext.Provider>
+                  </SelectedThreadContext.Provider>
+                </CloseProvider>
+              </NavbarProvider>
+            </PaywallProvider>
+          </BrowserRouter>
+        </DomainProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
