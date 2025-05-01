@@ -192,7 +192,7 @@ export function ChatInterface({
   };
 
   return (
-    <div className="flex flex-col h-full relative bg-white dark:bg-gray-900">
+    <div className="flex flex-col h-full min-h-screen chat-interface-root">
       {/* Only show header on mobile */}
       {!isDesktop && (
         <header className="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex items-center justify-between">
@@ -213,14 +213,14 @@ export function ChatInterface({
         </header>
       )}
       
-      {/* Message container */}
-      <div className={`flex-1 overflow-hidden relative ${!isDesktop ? 'pt-16' : ''}`}>
+      {/* Main content area - messages */}
+      <div className={`chat-messages-area flex-1 ${!isDesktop ? 'pt-16' : ''}`}>
         <div 
           ref={messagesContainerRef}
-          className="h-full w-full message-container overflow-y-auto px-6 sm:px-8 py-4 pb-6"
+          className="chat-messages-scroll h-full w-full overflow-y-auto px-2 sm:px-4 py-4"
         >
           {/* Spacer element to ensure messages start below the header */}
-          <div ref={messageTopRef} className="h-32 md:h-4"></div>
+          <div ref={messageTopRef} className="h-6 md:h-4"></div>
           
           {loading ? (
             <div className="flex items-center justify-center h-full">
@@ -288,7 +288,7 @@ export function ChatInterface({
         </div>
       </div>
       
-      {/* Input container - fixed at the bottom with solid background */}
+      {/* Input container - at the bottom with auto height */}
       <div className="input-container px-4 py-3 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
         <div className="max-w-4xl mx-auto mb-1">
           {sendError && (

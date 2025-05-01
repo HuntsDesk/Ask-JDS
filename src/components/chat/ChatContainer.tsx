@@ -12,6 +12,7 @@ import { usePersistedState } from '@/hooks/use-persisted-state';
 import useMediaQuery from '@/hooks/useMediaQuery';
 import { useCreateThread, useUpdateThread, useDeleteThread } from '@/hooks/use-query-threads';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import PageContainer from '@/components/layout/PageContainer';
 import type { Thread } from '@/types';
 
 export function ChatContainer() {
@@ -495,44 +496,54 @@ export function ChatContainer() {
   // Loading state
   if (isLoading || originalThreadsLoading) {
     return (
-      <div className="flex-1 flex justify-center items-center h-full py-8">
-        <LoadingSpinner className="w-10 h-10 text-jdblue" />
-      </div>
+      <PageContainer bare>
+        <div className="flex-1 flex justify-center items-center h-full py-8">
+          <LoadingSpinner className="w-10 h-10 text-jdblue" />
+        </div>
+      </PageContainer>
     );
   }
   
   // Welcome state - no thread selected
   if (!urlThreadId && !selectedThreadId) {
     return (
-      <div className="flex flex-col items-center justify-center h-full max-w-3xl mx-auto px-4 text-center">
-        <h1 className="text-3xl font-bold mb-6 text-jdblue">Welcome to AskJDS</h1>
-        <p className="text-lg mb-8 text-gray-600 dark:text-gray-300">
-          Ask any law school or bar exam related questions. Start a new chat to begin the conversation.
-        </p>
-      </div>
+      <PageContainer bare>
+        <div className="flex-1 flex flex-col items-center justify-center h-full max-w-3xl mx-auto px-4 text-center">
+          <h1 className="text-3xl font-bold mb-6 text-jdblue">Welcome to AskJDS</h1>
+          <p className="text-lg mb-8 text-gray-600 dark:text-gray-300">
+            Ask any law school or bar exam related questions. Start a new chat to begin the conversation.
+          </p>
+        </div>
+      </PageContainer>
     );
   }
   
   // Main chat interface
   return (
-    <div className="flex flex-col h-full overflow-hidden" ref={chatRef}>
-      <ChatInterface 
-        threadId={debouncedThreadId || selectedThreadId || urlThreadId}
-        messages={threadMessages}
-        loading={loading || !contentReady}
-        loadingTimeout={loadingTimeout}
-        onSend={handleSendMessage}
-        onRefresh={handleRefresh}
-        messageCount={messageCount}
-        messageLimit={messageLimit}
-        preservedMessage={preservedMessage}
-        showPaywall={showPaywall}
-        onToggleSidebar={() => {}}
-        isSidebarOpen={true}
-        isDesktop={isDesktop}
-        isGenerating={isGenerating}
-      />
-    </div>
+    <PageContainer bare className="chat-layout-container">
+      {/* 
+        Chat interface needs complete layout control due to its unique scrolling behavior
+        and fixed-position elements. The bare prop removes all layout constraints.
+      */}
+      <div className="flex flex-col h-screen w-full overflow-hidden" ref={chatRef}>
+        <ChatInterface 
+          threadId={debouncedThreadId || selectedThreadId || urlThreadId}
+          messages={threadMessages}
+          loading={loading || !contentReady}
+          loadingTimeout={loadingTimeout}
+          onSend={handleSendMessage}
+          onRefresh={handleRefresh}
+          messageCount={messageCount}
+          messageLimit={messageLimit}
+          preservedMessage={preservedMessage}
+          showPaywall={showPaywall}
+          onToggleSidebar={() => {}}
+          isSidebarOpen={true}
+          isDesktop={isDesktop}
+          isGenerating={isGenerating}
+        />
+      </div>
+    </PageContainer>
   );
 }
 

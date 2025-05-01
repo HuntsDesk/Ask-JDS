@@ -510,16 +510,38 @@ body {
   padding-bottom: 0;
 }
 
-/* Input container fixed height */
+/* Fix for chat layout with bare PageContainer */
+.PageContainer-bare {
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.PageContainer-bare > div {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Ensure the input container stays at the bottom */
 .input-container {
-  position: relative;
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
   z-index: 10;
-  background-color: var(--background);
-  flex-shrink: 0;
-  contain: layout;
-  margin-top: 0;
-  border-top-width: 1px;
-  backdrop-filter: blur(10px);
+  background-color: white;
+  border-top: 1px solid #e5e7eb;
+}
+
+.dark .input-container {
+  background-color: #111827;
+  border-color: #374151;
 }
 
 /* Mobile safe area insets for iOS devices */
@@ -832,4 +854,55 @@ div[role="tooltip"],
 [data-radix-popper-content-wrapper] {
   z-index: 99999 !important;
   position: fixed !important;
+}
+
+/* Specific styling for chat layout container */
+.chat-layout-container {
+  position: relative;
+  height: 100vh !important;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-layout-container > div {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Chat interface specific layout */
+.chat-interface-root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background-color: white;
+}
+
+.dark .chat-interface-root {
+  background-color: #111827;
+}
+
+.chat-messages-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.chat-messages-scroll {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 1rem;
+  position: relative;
 }

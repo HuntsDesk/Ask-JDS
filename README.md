@@ -179,23 +179,118 @@ The application uses several layout components for consistency across features:
 
 4. **DashboardLayout**: Used for dashboard pages with specialized navigation.
 
-### Dynamic Padding Handling
+### PageContainer
 
-The PersistentLayout component handles responsive content padding based on sidebar state:
+All pages should wrap their content with the `PageContainer` component, which provides consistent padding and layout based on sidebar state:
 
-```jsx
-// Main content area with dynamic padding
-<div className={`flex-1 overflow-auto w-full ${isDesktop ? (isExpanded ? 'pl-6' : 'pl-4') : 'pl-0'} transition-all duration-300`} style={{ zIndex: 1 }}>
-  <Outlet />
-</div>
+```tsx
+import { PageContainer } from '@/components/layout/PageContainer';
+
+export const MyPage = () => {
+  return (
+    <PageContainer>
+      <h1>My Content</h1>
+      {/* Content automatically gets correct padding */}
+    </PageContainer>
+  );
+};
 ```
 
-This ensures content properly adjusts when the sidebar expands or collapses, maintaining consistent spacing and preventing layout shifts. 
+PageContainer features:
+- Dynamically applies horizontal padding based on sidebar state
+- Supports max-width constraints for optimal readability
+- Handles overflow behavior consistently
+- Provides visual boundaries between sidebar and content (optional)
+- Supports smooth transitions when sidebar state changes
 
-Key points:
-- On desktop, adds left padding when sidebar is expanded (pl-6) or collapsed (pl-4)
-- On mobile, removes padding completely (pl-0)
-- Uses transition effects for smooth visual changes
+#### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `disablePadding` | boolean | false | Disable automatic padding |
+| `noOverflow` | boolean | false | Disable overflow handling |
+| `maxWidth` | 'narrow' \| 'default' \| 'wide' \| string | 'default' | Container max width |
+| `fullHeight` | boolean | true | Make container full height |
+| `noTransitions` | boolean | false | Disable smooth transitions |
+| `showBoundary` | boolean | false | Show visual boundary with sidebar |
+| `bare` | boolean | false | Remove all layout constraints for complete control |
+| `className` | string | undefined | Additional CSS classes |
+
+#### Special Cases
+
+**Chat Page Exception**:
+The chat page has unique layout requirements. Use:
+```tsx
+<PageContainer bare>
+  {/* Chat UI with complete layout control */}
+</PageContainer>
+```
+
+The `bare` prop removes all layout constraints (maxWidth, padding, overflow, flex) for components that need complete control over their layout, like the chat interface with its custom scrolling behavior.
+
+### Layout Hooks
+
+#### useLayoutState
+
+A centralized hook that provides all layout-related values:
+
+```tsx
+const { 
+  isDesktop,     // Is viewport desktop size
+  isPinned,      // Is sidebar pinned
+  setIsPinned,   // Function to pin/unpin sidebar
+  isExpanded,    // Is sidebar expanded
+  isMobile,      // Is viewport mobile size
+  contentPadding, // Tailwind classes for padding
+  contentMargin   // Tailwind classes for margin
+} = useLayoutState();
+```
+
+#### useLayoutPadding
+
+A lightweight hook that returns just padding and margin:
+
+```tsx
+const { contentPadding, contentMargin } = useLayoutPadding();
+```
+
+### Padding Values
+
+The PageContainer dynamically applies horizontal padding based on sidebar state:
+
+- `px-16` when sidebar is pinned and expanded
+- `px-12` when pinned and collapsed
+- `px-6` when not pinned but expanded
+- `px-4` when not pinned and collapsed
+- `px-4` on mobile
+
+### Layout Animations
+
+All layout shifts (like sidebar expanding/collapsing or pinning/unpinning) use smooth transitions:
+
+```css
+transition-all duration-300 ease-in-out
+```
+
+### Debug Tools
+
+During development, you can use the LayoutDebugger to view current layout values:
+
+1. Press `Alt+D` to toggle the debugger
+2. It shows viewport size, sidebar state, and applied padding/margin classes
+
+### Enhancements (Future)
+
+- **Responsive Layout Scaling**: Additional breakpoint-specific adjustments
+- **Layout Preferences**: User settings for preferred layout configuration
+- **Visual Content Boundaries**: Additional visual delineation between sidebar and content
+
+### Page Exceptions
+
+Some pages may require custom layout handling:
+
+- Chat page uses `noOverflow` to handle its own scrolling behavior
+- Pages with complex UI elements may need custom padding
 
 ### Shared Functionality
 
