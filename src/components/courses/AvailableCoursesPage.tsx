@@ -8,6 +8,8 @@ import { BookOpen } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useNavbar } from '@/contexts/NavbarContext';
 import PageContainer from '@/components/layout/PageContainer';
+import { useLayoutState } from '@/hooks/useLayoutState';
+import { cn } from '@/lib/utils';
 
 interface Course {
   id: string;
@@ -39,6 +41,7 @@ export default function AvailableCoursesPage() {
   const [error, setError] = useState<string | null>(null);
   const { updateCount } = useNavbar();
   const [userEnrolledCourseIds, setUserEnrolledCourseIds] = useState<string[]>([]);
+  const { contentPadding } = useLayoutState();
 
   useEffect(() => {
     async function fetchEnrolledCourses() {
@@ -131,7 +134,7 @@ export default function AvailableCoursesPage() {
 
   if (loading) {
     return (
-      <PageContainer className="pt-4">
+      <PageContainer className={cn("pt-4", contentPadding)} disablePadding>
         <div className="flex justify-center items-center min-h-[60vh]">
           <DelayedLoadingSpinner className="w-8 h-8" />
         </div>
@@ -141,7 +144,7 @@ export default function AvailableCoursesPage() {
 
   if (error) {
     return (
-      <PageContainer className="pt-4">
+      <PageContainer className={cn("pt-4", contentPadding)} disablePadding>
         <div className="text-center text-red-500 dark:text-red-400 p-4 rounded-lg bg-red-50 dark:bg-gray-800 border border-red-200 dark:border-red-900">
           {error}
         </div>
@@ -151,7 +154,7 @@ export default function AvailableCoursesPage() {
 
   if (availableCourses.length === 0) {
     return (
-      <PageContainer className="pt-4">
+      <PageContainer className={cn("pt-4", contentPadding)} disablePadding>
         <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
           <BookOpen className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-3" />
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No available courses</h3>
@@ -166,7 +169,7 @@ export default function AvailableCoursesPage() {
   }
 
   return (
-    <PageContainer className="pt-4">
+    <PageContainer className={cn("pt-4", contentPadding)} disablePadding>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {availableCourses.map((course) => (
           <Link
