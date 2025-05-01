@@ -106,6 +106,25 @@ export function ChatInterface({
     }
   }, [loading, messages.length]);
 
+  // Additional effect to force a render update when messages are loaded
+  useEffect(() => {
+    if (messages.length > 0 && !loading) {
+      // Force a re-render by updating a DOM element
+      const container = messagesContainerRef.current;
+      if (container) {
+        // Trigger layout recalculation to force render
+        container.style.display = 'none';
+        // Use requestAnimationFrame to ensure the style change is processed
+        requestAnimationFrame(() => {
+          if (container) {
+            container.style.display = '';
+            scrollToBottom('auto');
+          }
+        });
+      }
+    }
+  }, [messages.length, loading]);
+
   // Function to scroll to the top of the messages
   const scrollToTop = () => {
     if (messageTopRef.current) {
@@ -290,11 +309,13 @@ export function ChatInterface({
           ) : (
             <div className="flex flex-col space-y-2 pb-0 mt-2">
               {messages.map((msg, index) => (
-                <ChatMessage 
-                  key={msg.id || `temp-${index}`} 
-                  message={msg}
-                  isLastMessage={index === messages.length - 1}
-                />
+                <div key={`${msg.id || index}-${msg.created_at || Date.now()}`} className="message-wrapper">
+                  <ChatMessage 
+                    key={msg.id || `temp-${index}`} 
+                    message={msg}
+                    isLastMessage={index === messages.length - 1}
+                  />
+                </div>
               ))}
               
               {isShowingResponseIndicator && (
