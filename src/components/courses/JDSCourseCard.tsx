@@ -123,7 +123,7 @@ export default function JDSCourseCard({
         {/* JD Simplified Favicon */}
         <div className="w-24 h-24 mb-0.5 flex items-center justify-center">
           <img 
-            src="/images/JD Simplified Favicon.svg" 
+            src={image_url || "/images/JD Simplified Favicon.svg"}
             alt="JD Simplified Logo" 
             className={cn(
               "w-full h-full object-contain transition-transform duration-300 dark:filter dark:brightness-0 dark:invert",
@@ -248,7 +248,7 @@ export default function JDSCourseCard({
         ) : (
           <div className="mt-4 flex flex-col gap-2">
             <Link 
-              to={`/courses/${id}`}
+              to={`/course-detail/${id}`}
               className={cn(
                 "block w-full py-2 rounded-md text-center transition-all duration-200",
                 "bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium",

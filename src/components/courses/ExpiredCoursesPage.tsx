@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import JDSCourseCard from './JDSCourseCard';
 import { format, isPast } from 'date-fns';
+import { Link } from 'react-router-dom';
 
 interface CourseEnrollment {
   id: string;
@@ -24,6 +25,7 @@ interface CourseEnrollment {
       modules: number;
       lessons: number;
     };
+    status: string;
   };
 }
 
@@ -59,7 +61,7 @@ export default function ExpiredCoursesPage() {
             id,
             title,
             overview,
-            image_url
+            status
           )
         `)
         .eq('user_id', user?.id);
@@ -131,8 +133,13 @@ export default function ExpiredCoursesPage() {
 
   if (error) {
     return (
-      <div className="text-center text-red-500 dark:text-red-400 p-4 rounded-lg bg-red-50 dark:bg-gray-800 border border-red-200 dark:border-red-900">
-        {error}
+      <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <p className="text-lg text-red-500 dark:text-red-400 mb-4">{error}</p>
+        <Link to="/courses">
+          <Button className="bg-jdorange hover:bg-jdorange/90">
+            Back to Courses
+          </Button>
+        </Link>
       </div>
     );
   }
@@ -184,7 +191,7 @@ export default function ExpiredCoursesPage() {
               description={enrollment.course.description}
               image_url={enrollment.course.image_url}
               _count={enrollment.course._count}
-              status="Active"
+              status={enrollment.course.status}
               expired={true}
             />
           </div>

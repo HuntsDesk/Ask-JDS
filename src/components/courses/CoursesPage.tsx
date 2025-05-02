@@ -36,7 +36,7 @@ export default function CoursesPage() {
       
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-auto">
-        <PageContainer noOverflow className="pt-4" flexColumn>
+        <PageContainer noOverflow className="pt-4" flexColumn disablePadding={false}>
           <div className="flex-1 overflow-auto">
             <Routes>
               {/* Course routes */}

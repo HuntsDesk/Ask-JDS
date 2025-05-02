@@ -55,8 +55,8 @@ export default function CourseNavbar() {
       to={to} 
       className={`flex items-center space-x-1 py-2 px-3 rounded-md ${
         (location.pathname === to || 
-         (to === '.' && location.pathname === '/courses') || 
-         (to === './expired-courses' && location.pathname.includes('/courses/expired-courses')))
+         (to === '/courses' && location.pathname === '/courses') || 
+         (to === '/courses/expired-courses' && location.pathname.includes('/courses/expired-courses')))
           ? 'text-[#F37022]' 
           : 'text-gray-600 dark:text-gray-300'
       } ${className}`}
@@ -110,13 +110,13 @@ export default function CourseNavbar() {
                   Courses
                 </div>
                 <NavLink 
-                  to="." 
+                  to="/courses" 
                   icon={<Library className="h-5 w-5" />} 
                   text="Dashboard" 
                   className="text-base md:mr-2 lg:mr-3 xl:mr-4"
                 />
                 <NavLink 
-                  to="./expired-courses" 
+                  to="/courses/expired-courses" 
                   icon={<Clock className="h-5 w-5" />} 
                   text="Expired Courses" 
                   className="text-base"
@@ -150,7 +150,7 @@ export default function CourseNavbar() {
         <div className="md:hidden fixed top-16 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50 shadow-lg">
           <div className="p-4 space-y-2">
             <Link
-              to="."
+              to="/courses"
               className={cn(
                 "flex items-center space-x-3 p-3 rounded-md",
                 isPathActive('/courses') && !location.pathname.includes('/courses/') 
@@ -164,7 +164,7 @@ export default function CourseNavbar() {
             </Link>
             
             <Link
-              to="./expired-courses"
+              to="/courses/expired-courses"
               className={cn(
                 "flex items-center space-x-3 p-3 rounded-md",
                 isPathActive('/courses/expired-courses')
