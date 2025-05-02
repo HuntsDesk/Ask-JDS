@@ -420,128 +420,134 @@ export function SubscriptionSettings() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-4xl">
       {/* Subscription Section */}
-      <div className="space-y-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Subscription</h2>
-        <p className="text-gray-500 dark:text-gray-400">
-          You are currently on the {isFreeTier() ? 'free tier' : 'premium plan'}
-        </p>
+      <Card className="border dark:border-gray-700 shadow-sm dark:bg-gray-800">
+        <CardHeader>
+          <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">Subscription</CardTitle>
+          <CardDescription className="text-gray-500 dark:text-gray-300">
+            You are currently on the {isFreeTier() ? 'free tier' : 'premium plan'}
+          </CardDescription>
+        </CardHeader>
         
-        {/* Current Plan */}
-        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Current Plan</h3>
-          <p className="text-lg font-semibold dark:text-white">
-            {isFreeTier() ? 'Free Tier' : 'Premium Subscription'}
-          </p>
-          {!isFreeTier() && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Active until: {formatSubscriptionEndDate()}
+        <CardContent className="space-y-6">
+          <div className="bg-gray-50 dark:bg-gray-700/80 rounded-lg p-6 border border-gray-100 dark:border-gray-600">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Current Plan</h3>
+            <p className="text-base text-gray-700 dark:text-gray-300 mb-1">
+              {isFreeTier() ? 'Free Tier' : 'Premium Subscription'}
             </p>
-          )}
-        </div>
-      </div>
-      
-      <Separator className="my-6" />
-      
-      {/* Message Usage */}
-      <div className="space-y-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Message Usage</h2>
-        <div className="flex items-center justify-between">
-          <p className="text-lg font-medium dark:text-white">{messageCount} messages this month</p>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={refreshMessageCount} 
-            disabled={isActionLoading}
-            className="flex items-center gap-1"
-          >
-            {isActionLoading ? <LoadingSpinner className="w-4 h-4" /> : <RefreshCw className="w-4 h-4" />}
-            <span>Refresh</span>
-          </Button>
-        </div>
-        
-        <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded">
-          <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-[#F37022]" 
-              style={{ 
-                width: `${Math.min(100, (messageCount / (isFreeTier() ? FREE_TIER_LIMIT : Infinity)) * 100)}%` 
-              }}
-            />
-          </div>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            {isFreeTier() 
-              ? `${messageCount}/${FREE_TIER_LIMIT} monthly limit` 
-              : 'Unlimited messages with your premium subscription'}
-          </p>
-        </div>
-      </div>
-      
-      <Separator className="my-6" />
-      
-      {/* Upgrade Section */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Upgrade Your Plan</h2>
-        
-        <p className="text-gray-600 dark:text-gray-300">
-          {isFreeTier() 
-            ? `Upgrade to Premium for unlimited messages and priority support.` 
-            : `Manage your premium subscription or payment method.`}
-        </p>
-        
-        <Button
-          onClick={isFreeTier() ? handleSubscribe : handleManageSubscription}
-          disabled={isActionLoading}
-          className="w-full sm:w-auto mt-2 bg-[#F37022] hover:bg-[#E36012] text-white"
-        >
-          {isActionLoading ? (
-            <LoadingSpinner className="w-4 h-4 mr-2" />
-          ) : (
-            <CreditCard className="w-4 h-4 mr-2" />
-          )}
-          {isFreeTier() ? `Upgrade to Premium (${SUBSCRIPTION_PRICE}/month)` : 'Manage Subscription'}
-        </Button>
-      </div>
-      
-      {/* Developer Tools Section - Styling with a subtle background to set it apart */}
-      <div className="mt-8 pt-6 border-t dark:border-gray-700">
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
-              Developer Tools
-              <Badge className="ml-2 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 font-normal" variant="outline">
-                Dev Only
-              </Badge>
-            </h2>
+            {!isFreeTier() && (
+              <p className="text-sm text-gray-500 dark:text-gray-300">
+                Active until: {formatSubscriptionEndDate()}
+              </p>
+            )}
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-            <Button onClick={refreshMessageCount} variant="outline" size="sm" className="flex items-center">
+          {/* Upgrade Section - moved here */}
+          <div className="pt-2">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Upgrade Your Plan</h3>
+            <p className="text-base text-gray-700 dark:text-gray-300 mb-4">
+              {isFreeTier() 
+                ? `Get unlimited messages and priority support` 
+                : `Manage your premium subscription or payment method`}
+            </p>
+            
+            <Button
+              onClick={isFreeTier() ? handleSubscribe : handleManageSubscription}
+              disabled={isActionLoading}
+              className="w-full sm:w-auto bg-[#F37022] hover:bg-[#E36012] text-white"
+            >
+              {isActionLoading ? (
+                <LoadingSpinner className="w-4 h-4 mr-2" />
+              ) : (
+                <CreditCard className="w-4 h-4 mr-2" />
+              )}
+              {isFreeTier() ? `Upgrade to Premium (${SUBSCRIPTION_PRICE}/month)` : 'Manage Subscription'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Message Usage */}
+      <Card className="border dark:border-gray-700 shadow-sm dark:bg-gray-800">
+        <CardHeader>
+          <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">Message Usage</CardTitle>
+          <CardDescription className="text-gray-500 dark:text-gray-300">
+            Track your monthly message usage
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-base text-gray-700 dark:text-gray-300">{messageCount} messages this month</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={refreshMessageCount} 
+              disabled={isActionLoading}
+              className="flex items-center gap-1 dark:border-gray-600 dark:hover:bg-gray-700"
+            >
+              {isActionLoading ? <LoadingSpinner className="w-4 h-4" /> : <RefreshCw className="w-4 h-4" />}
+              <span>Refresh</span>
+            </Button>
+          </div>
+          
+          <div className="bg-gray-50 dark:bg-gray-700/80 p-4 rounded-lg border border-gray-100 dark:border-gray-600">
+            <div className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-[#F37022]" 
+                style={{ 
+                  width: `${Math.min(100, (messageCount / (isFreeTier() ? FREE_TIER_LIMIT : Infinity)) * 100)}%` 
+                }}
+              />
+            </div>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-300">
+              {isFreeTier() 
+                ? `${messageCount}/${FREE_TIER_LIMIT} monthly limit` 
+                : 'Unlimited messages with your premium subscription'}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Developer Tools Section */}
+      <Card className="border dark:border-gray-700 shadow-sm dark:bg-gray-800">
+        <CardHeader>
+          <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
+            Developer Tools
+            <Badge className="ml-2 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 font-normal" variant="outline">
+              Dev Only
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <Button onClick={refreshMessageCount} variant="outline" size="sm" className="flex items-center dark:border-gray-600 dark:hover:bg-gray-700">
               <RefreshCw className="w-4 h-4 mr-1" /> Refresh Count
             </Button>
-            <Button onClick={incrementCount} variant="outline" size="sm" className="flex items-center">
+            <Button onClick={incrementCount} variant="outline" size="sm" className="flex items-center dark:border-gray-600 dark:hover:bg-gray-700">
               <span className="mr-1">+</span> Increment Count
             </Button>
-            <Button onClick={resetMessageCount} variant="outline" size="sm" className="flex items-center">
+            <Button onClick={resetMessageCount} variant="outline" size="sm" className="flex items-center dark:border-gray-600 dark:hover:bg-gray-700">
               <span className="mr-1">↺</span> Reset Count
             </Button>
-            <Button onClick={runDatabaseTest} variant="outline" size="sm" className="flex items-center">
+            <Button onClick={runDatabaseTest} variant="outline" size="sm" className="flex items-center dark:border-gray-600 dark:hover:bg-gray-700">
               <span className="mr-1">⚙</span> Test DB Access
             </Button>
           </div>
           
           {diagnosticResult && (
-            <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-700 rounded overflow-auto text-xs">
+            <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-700 rounded overflow-auto text-xs text-gray-900 dark:text-gray-300">
               <pre>{diagnosticResult}</pre>
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
       
       {/* Optional - additional upgrade button at the bottom for quick access */}
       {isFreeTier() && (
-        <div className="mt-4">
+        <div className="mt-4 text-center">
           <Button
             onClick={handleSubscribe}
             variant="default"
