@@ -57,9 +57,9 @@ export default function SettingsNavbar() {
       to={to} 
       className={`flex items-center space-x-1 py-2 px-3 rounded-md ${
         (location.pathname === to || 
-         (to === '.' && location.pathname === '/settings') || 
-         (to === './account' && location.pathname.includes('/settings/account')) ||
-         (to === './appearance' && location.pathname.includes('/settings/appearance')))
+         (to === '/settings' && location.pathname === '/settings') || 
+         (to === '/settings/account' && location.pathname.includes('/settings/account')) ||
+         (to === '/settings/appearance' && location.pathname.includes('/settings/appearance')))
           ? 'text-[#F37022]' 
           : 'text-gray-600 dark:text-gray-300'
       } ${className}`}
@@ -113,19 +113,19 @@ export default function SettingsNavbar() {
                   Settings
                 </div>
                 <NavLink 
-                  to="." 
+                  to="/settings" 
                   icon={<CreditCard className="h-5 w-5" />} 
                   text="Subscription" 
                   className="text-base md:mr-2 lg:mr-3 xl:mr-4"
                 />
                 <NavLink 
-                  to="./account" 
+                  to="/settings/account" 
                   icon={<User className="h-5 w-5" />} 
                   text="Account" 
                   className="text-base md:mr-2 lg:mr-3 xl:mr-4"
                 />
                 <NavLink 
-                  to="./appearance" 
+                  to="/settings/appearance" 
                   icon={<Palette className="h-5 w-5" />} 
                   text="Appearance" 
                   className="text-base"
@@ -159,7 +159,7 @@ export default function SettingsNavbar() {
         <div className="md:hidden fixed top-16 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50 shadow-lg">
           <div className="p-4 space-y-2">
             <Link
-              to="."
+              to="/settings"
               className={cn(
                 "flex items-center space-x-3 p-3 rounded-md",
                 isPathActive('/settings') && !location.pathname.includes('/settings/') 
@@ -173,7 +173,7 @@ export default function SettingsNavbar() {
             </Link>
             
             <Link
-              to="./account"
+              to="/settings/account"
               className={cn(
                 "flex items-center space-x-3 p-3 rounded-md",
                 isPathActive('/settings/account')
@@ -187,7 +187,7 @@ export default function SettingsNavbar() {
             </Link>
             
             <Link
-              to="./appearance"
+              to="/settings/appearance"
               className={cn(
                 "flex items-center space-x-3 p-3 rounded-md",
                 isPathActive('/settings/appearance')
