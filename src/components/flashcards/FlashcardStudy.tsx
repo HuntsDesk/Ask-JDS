@@ -150,8 +150,7 @@ export default function FlashcardStudy() {
             answer,
             is_public_sample,
             created_at,
-            created_by,
-            collection_id
+            created_by
           )
         `)
         .eq('collection_id', collectionId);
