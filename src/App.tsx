@@ -245,7 +245,7 @@ function AppRoutes() {
         </ProtectedRoute>
       }>
         <Route path="/chat/:threadId?" element={<ChatContainer />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings/*" element={<SettingsPage />} />
         <Route path="/flashcards/*" element={
           <Suspense fallback={<PageLoader message="Loading flashcards..." />}>
             <NavbarProvider>
