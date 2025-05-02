@@ -154,12 +154,13 @@ export default function AllCoursesPage() {
             course_id,
             enrolled_at,
             expires_at,
-            course:courses(
+            course:courses!inner(
               id,
               title,
               overview,
               status,
-              is_featured
+              is_featured,
+              image_url
             )
           `)
           .eq('user_id', user.id);
@@ -198,11 +199,14 @@ export default function AllCoursesPage() {
             return total + (module.lessons ? module.lessons.length : 0);
           }, 0);
           
+          // Handle course as an array from Supabase but convert to a single object
+          const courseData = Array.isArray(enrollment.course) ? enrollment.course[0] : enrollment.course;
+          
           return {
             ...enrollment,
             course: {
-              ...enrollment.course,
-              description: enrollment.course.overview || '',
+              ...courseData,
+              description: courseData.overview || '',
               _count: {
                 modules: moduleCount,
                 lessons: lessonCount
@@ -217,7 +221,7 @@ export default function AllCoursesPage() {
         });
         
         // Show all active enrollments
-        setMyActiveCourses(sortedEnrollments);
+        setMyActiveCourses(sortedEnrollments as CourseEnrollment[]);
       } catch (error) {
         console.error('Error fetching user enrollments:', error);
       } finally {
