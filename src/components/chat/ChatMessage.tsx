@@ -13,6 +13,21 @@ export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
   const isSystem = message.role === 'system';
   const [copied, setCopied] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [messageReady, setMessageReady] = useState(false);
+  
+  // Preload theme status before first render
+  useEffect(() => {
+    // Check if document has dark mode class immediately
+    const isDark = document.documentElement.classList.contains('dark');
+    setIsDarkMode(isDark);
+    
+    // Set a very short timeout to ensure theme is applied before showing message
+    const timer = setTimeout(() => {
+      setMessageReady(true);
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }, []);
   
   // Check for dark mode on mount and when theme changes
   useEffect(() => {
@@ -21,8 +36,6 @@ export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
       const isDark = document.documentElement.classList.contains('dark');
       setIsDarkMode(isDark);
     };
-    
-    checkDarkMode();
     
     // Set up an observer to detect theme changes
     const observer = new MutationObserver(checkDarkMode);
@@ -74,25 +87,23 @@ export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
         borderBottomRightRadius: 0 
       };
     } else {
-      // Assistant message changes based on theme
-      return isDarkMode
-        ? { 
-            backgroundColor: 'rgb(55, 65, 81)', // dark gray (bg-gray-800)
-            color: 'rgb(229, 231, 235)',        // light gray (text-gray-200)
-            borderBottomLeftRadius: 0 
-          }
-        : { 
-            backgroundColor: 'rgb(243, 244, 246)', // light gray (bg-gray-100)
-            color: 'rgb(31, 41, 55)',              // dark gray (text-gray-800)
-            borderBottomLeftRadius: 0 
-          };
+      // Use CSS variables that change with theme instead of hardcoded colors
+      return {
+        backgroundColor: 'var(--message-bg)',
+        color: 'var(--message-text)',
+        borderBottomLeftRadius: 0 
+      };
     }
   };
   
   return (
     <div 
-      className={`mb-4 ${isUserMessage ? 'flex justify-end' : 'flex justify-start'} w-full`}
-      style={{ contain: 'content' }}
+      className={`mb-4 ${isUserMessage ? 'flex justify-end' : 'flex justify-start'} w-full theme-aware-message`}
+      style={{ 
+        contain: 'content',
+        opacity: messageReady ? 1 : 0, 
+        transition: 'opacity 150ms ease-in'
+      }}
     >
       <div 
         className={`flex flex-col max-w-[80%] min-w-[100px] ${
