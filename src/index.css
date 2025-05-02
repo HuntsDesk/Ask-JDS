@@ -198,6 +198,10 @@ body {
     --radius: 0.75rem;
     --sidebar-width: 280px;
     --sidebar-collapsed-width: 70px;
+    --jdorange: #F37022;
+    --jdorange-dark: #E36012;
+    --jdblue: #00178E;
+    --jdblue-dark: #00126F;
   }
 
   .dark {

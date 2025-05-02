@@ -8,6 +8,7 @@ import { BookOpen } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useNavbar } from '@/contexts/NavbarContext';
 import PageContainer from '@/components/layout/PageContainer';
+import JDSCourseCard from './JDSCourseCard';
 
 interface Course {
   id: string;
@@ -148,7 +149,7 @@ export default function MyCoursesPage() {
           <BookOpen className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-3" />
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No enrolled courses</h3>
           <p className="text-gray-500 dark:text-gray-400 mb-4">You haven't enrolled in any courses yet.</p>
-          <Link to="/courses/available-courses">
+          <Link to="../available-courses">
             <Button className="bg-[#F37022] hover:bg-[#E36012] text-white">Browse Available Courses</Button>
           </Link>
         </div>
@@ -158,56 +159,18 @@ export default function MyCoursesPage() {
 
   return (
     <PageContainer className="pt-4" flexColumn>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {courses.map((course) => (
-          <Link
+          <JDSCourseCard
             key={course.id}
-            to={`/course/${course.id}`}
-            className="group"
-          >
-            <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 border border-gray-200 dark:border-gray-700 h-full flex flex-col relative">
-              {/* Badge display for days remaining */}
-              {course.expiresIn !== undefined && (
-                <span className="absolute top-2 right-2 bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                  {course.expiresIn > 1 ? `${course.expiresIn} days left` : "1 day left"}
-                </span>
-              )}
-
-              <div className="relative h-48 bg-gray-100 dark:bg-gray-700">
-                {course.image_url ? (
-                  <img
-                    src={course.image_url}
-                    alt={course.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-orange-100 to-yellow-100 dark:from-orange-900/30 dark:to-yellow-900/30">
-                    <BookOpen className="h-16 w-16 text-[#F37022] dark:text-orange-400" />
-                  </div>
-                )}
-              </div>
-              <div className="p-5 flex-1 flex flex-col">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 group-hover:text-[#F37022] dark:group-hover:text-orange-400 transition-colors">
-                  {course.title}
-                </h3>
-                
-                {/* Description with fixed height */}
-                <div className="min-h-[90px] mb-4">
-                  <p className="text-gray-600 dark:text-gray-300 line-clamp-3 text-sm">
-                    {course.description.length > 100
-                      ? `${course.description.substring(0, 100)}...`
-                      : course.description}
-                  </p>
-                </div>
-                
-                <div className="mt-auto">
-                  <Button className="w-full bg-[#F37022] hover:bg-[#E36012] text-white">
-                    Continue Learning
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </Link>
+            id={course.id}
+            title={course.title}
+            description={course.description}
+            image_url={course.image_url}
+            is_featured={course.is_featured}
+            status={course.status}
+            _count={{ modules: 0, lessons: 0 }} // You may want to fetch actual module/lesson counts
+          />
         ))}
       </div>
     </PageContainer>

@@ -427,7 +427,7 @@ export function Sidebar({
               <img 
                 src="/images/JD Simplified Favicon.svg" 
                 alt="JDS" 
-                className="h-10 transition-all dark:invert" 
+                className="h-12 transition-all dark:invert" 
               />
             )}
           </div>

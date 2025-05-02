@@ -1,6 +1,7 @@
 import React, { useEffect, useState, Suspense, lazy, createContext, useContext } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { Toaster } from '@/components/ui/toaster';
+import { Toaster as HotToaster } from 'react-hot-toast';
 import { DomainProvider, useDomain } from '@/lib/domain-context';
 import SimplifiedMode from '@/lib/SimplifiedMode';
 import { NavbarProvider } from '@/contexts/NavbarContext';
@@ -252,7 +253,11 @@ function AppRoutes() {
             </NavbarProvider>
           </Suspense>
         } />
-        <Route path="/courses" element={<JDSDashboardWrapper />} />
+        <Route path="/courses/*" element={
+          <Suspense fallback={<PageLoader message="Loading courses..." />}>
+            <CoursesPage />
+          </Suspense>
+        } />
         <Route path="/courses/:id" element={
           <Suspense fallback={<PageLoader message="Loading course details..." />}>
             <PublicCourseDetail />
@@ -361,6 +366,7 @@ function App() {
                     <BrowserRouter>
                       <AppRoutes />
                       <Toaster />
+                      <HotToaster position="top-right" />
                       <OfflineIndicator />
                       <LayoutDebugger />
                     </BrowserRouter>
