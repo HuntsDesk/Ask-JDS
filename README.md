@@ -702,6 +702,13 @@ This is particularly important for junction tables or any table with composite u
 #### Failed to update mastery status on flashcards
 If you encounter "Failed to update mastery status" errors when toggling flashcard mastery, ensure the upsert operation specifies the composite unique constraint of `user_id,flashcard_id` in the `onConflict` parameter.
 
+#### RLS policy restrictions
+If you encounter "violates row-level security policy" errors, check that your operation is allowed by the RLS policies:
+
+- **flashcard_collections_junction**: Users can associate flashcards with collections they own OR with official collections
+- **flashcard_progress**: Users can only manage their own progress records
+- **collections**: Users can only modify non-official collections they own
+
 ## Console Commands
 
 These commands can be executed in the browser's developer console during development:
