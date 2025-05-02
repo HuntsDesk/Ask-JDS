@@ -107,16 +107,18 @@ export default function FlashcardStudy() {
       
       // Get collection details
       const { data: collectionData, error: collectionError } = await supabase
-        .from('flashcard_collections')
+        .from('collections')
         .select(`
           id,
           title,
           description,
           is_official,
           user_id,
-          subject:subject_id (
-            id,
-            name
+          collection_subjects (
+            subject:subject_id (
+              id,
+              name
+            )
           )
         `)
         .eq('id', collectionId)
@@ -128,25 +130,40 @@ export default function FlashcardStudy() {
       const isOfficial = collectionData.is_official || false;
       setIsPremiumContent(isOfficial);
       
+      // Get subject information - simplified version for component data structure
+      const subject = collectionData.collection_subjects?.[0]?.subject || { id: null, name: 'Unknown Subject' };
+      
+      // Format the collection with the subject
+      const formattedCollection = {
+        ...collectionData,
+        collection_subjects: undefined, // Remove the junction table data
+        subject // Flatten the subject data
+      };
+      
       // Get flashcards for this collection
       const { data: cardsData, error: cardsError } = await supabase
-        .from('flashcards')
+        .from('flashcard_collections_junction')
         .select(`
-          *,
-          collection:collection_id (
+          flashcard:flashcard_id (
             id,
-            title,
-            is_official,
-            user_id
+            question,
+            answer,
+            is_public_sample,
+            created_at,
+            created_by,
+            collection_id
           )
         `)
-        .eq('collection_id', collectionId)
-        .order('is_public_sample', { ascending: false })
-        .order('created_at');
+        .eq('collection_id', collectionId);
       
       if (cardsError) throw cardsError;
       
-      if (!cardsData || cardsData.length === 0) {
+      // Extract the actual flashcard data
+      const flashcardData = cardsData
+        .map(junction => junction.flashcard)
+        .filter(card => card !== null); // Filter out any null entries
+      
+      if (!flashcardData || flashcardData.length === 0) {
         setFlashcards([]);
       } else {
         // Get user progress for these cards
@@ -155,7 +172,7 @@ export default function FlashcardStudy() {
             .from('flashcard_progress')
             .select('*')
             .eq('user_id', user.id)
-            .in('flashcard_id', cardsData.map(c => c.id));
+            .in('flashcard_id', flashcardData.map(c => c.id));
 
           if (progressError) {
             console.error('Error fetching flashcard progress:', progressError);
@@ -167,17 +184,17 @@ export default function FlashcardStudy() {
             }, {});
             
             // Merge progress into card data
-            cardsData.forEach(card => {
+            flashcardData.forEach(card => {
               card.progress = progressMap[card.id] || null;
             });
           }
         }
         
         // Use the memoized shuffle function
-        setFlashcards(shuffleCards(cardsData));
+        setFlashcards(shuffleCards(flashcardData));
       }
       
-      setCollection(collectionData);
+      setCollection(formattedCollection);
     } catch (err: any) {
       console.error('Error loading flashcards:', err);
       setError(err.message);
