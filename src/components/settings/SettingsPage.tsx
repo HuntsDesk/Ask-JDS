@@ -36,7 +36,7 @@ export function SettingsPage() {
       
       {/* Main content */}
       <div className="flex-1 overflow-auto w-full">
-        <PageContainer disablePadding={false} className="pt-4 pb-12" maxWidth="full">
+        <PageContainer disablePadding={false} className="pt-4 pb-12 mx-auto" maxWidth="default">
           <Routes>
             {/* Settings routes */}
             <Route path="/" element={<SuspenseSubscription />} />
