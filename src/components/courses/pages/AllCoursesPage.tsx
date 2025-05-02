@@ -121,9 +121,8 @@ export default function AllCoursesPage() {
           };
         });
         
-        // Show up to 3 available courses on the dashboard
-        const limitedCourses = processedCourses.slice(0, 3);
-        setAvailableCourses(limitedCourses);
+        // Show all available courses
+        setAvailableCourses(processedCourses);
       } catch (error) {
         console.error('Error fetching courses:', error);
         setError('Failed to load courses. Please try again later.');
@@ -159,7 +158,6 @@ export default function AllCoursesPage() {
               id,
               title,
               overview,
-              image_url,
               status,
               is_featured
             )
@@ -218,9 +216,8 @@ export default function AllCoursesPage() {
           return new Date(b.enrolled_at).getTime() - new Date(a.enrolled_at).getTime();
         });
         
-        // Limit to 3 courses for the dashboard view
-        const limitedEnrollments = sortedEnrollments.slice(0, 3);
-        setMyActiveCourses(limitedEnrollments);
+        // Show all active enrollments
+        setMyActiveCourses(sortedEnrollments);
       } catch (error) {
         console.error('Error fetching user enrollments:', error);
       } finally {
@@ -252,18 +249,11 @@ export default function AllCoursesPage() {
 
   return (
     <div className="px-4 py-6 space-y-12">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 hidden md:block">Course Dashboard</h1>
       
       {/* My Courses Section */}
       <section>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">My Courses</h2>
-          {myActiveCourses.length > 0 && (
-            <Link to="./my-courses" className="text-[#F37022] hover:text-[#E36012] flex items-center text-sm font-medium">
-              <span>View all</span>
-              <ArrowRight className="ml-1 h-4 w-4" />
-            </Link>
-          )}
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">My Courses</h2>
         </div>
         
         {myActiveCourses.length === 0 ? (
@@ -299,13 +289,7 @@ export default function AllCoursesPage() {
       {/* Available Courses Section */}
       <section>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">Available Courses</h2>
-          {availableCourses.length > 0 && (
-            <Link to="./available-courses" className="text-[#F37022] hover:text-[#E36012] flex items-center text-sm font-medium">
-              <span>View all</span>
-              <ArrowRight className="ml-1 h-4 w-4" />
-            </Link>
-          )}
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Available Courses</h2>
         </div>
         
         {availableCourses.length === 0 ? (

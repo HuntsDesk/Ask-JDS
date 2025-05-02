@@ -258,14 +258,14 @@ function AppRoutes() {
             <CoursesPage />
           </Suspense>
         } />
-        <Route path="/courses/:id" element={
-          <Suspense fallback={<PageLoader message="Loading course details..." />}>
-            <PublicCourseDetail />
-          </Suspense>
-        } />
         <Route path="/course/:courseId/*" element={
           <Suspense fallback={<PageLoader message="Loading course content..." />}>
             <CourseContent />
+          </Suspense>
+        } />
+        <Route path="/course-detail/:id" element={
+          <Suspense fallback={<PageLoader message="Loading course details..." />}>
+            <PublicCourseDetail />
           </Suspense>
         } />
         <Route path="/subscription/success" element={

@@ -35,19 +35,17 @@ export function SettingsPage() {
       <SettingsNavbar />
       
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-auto">
-        <PageContainer disablePadding={false} noOverflow className="pt-4" flexColumn>
-          <div className="flex-1 overflow-auto pb-8">
-            <Routes>
-              {/* Settings routes */}
-              <Route path="/" element={<SuspenseSubscription />} />
-              <Route path="account" element={<SuspenseAccount />} />
-              <Route path="appearance" element={<SuspenseAppearance />} />
-              
-              {/* Fallback route */}
-              <Route path="*" element={<Navigate to="/settings" replace />} />
-            </Routes>
-          </div>
+      <div className="flex-1 overflow-auto w-full">
+        <PageContainer disablePadding={false} className="pt-4 pb-12" maxWidth="full">
+          <Routes>
+            {/* Settings routes */}
+            <Route path="/" element={<SuspenseSubscription />} />
+            <Route path="account" element={<SuspenseAccount />} />
+            <Route path="appearance" element={<SuspenseAppearance />} />
+            
+            {/* Fallback route */}
+            <Route path="*" element={<Navigate to="/settings" replace />} />
+          </Routes>
         </PageContainer>
       </div>
     </div>

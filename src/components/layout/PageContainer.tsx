@@ -96,7 +96,7 @@ export default function PageContainer({
         showBoundary && isPinned && isExpanded && 'border-l border-slate-200 dark:border-slate-700',
         className
       )}
-      style={{ maxWidth: maxWidthValue }}
+      style={maxWidth === 'full' ? undefined : { maxWidth: maxWidthValue }}
     >
       {children}
     </div>

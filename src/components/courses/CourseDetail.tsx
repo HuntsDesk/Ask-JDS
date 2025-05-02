@@ -121,7 +121,7 @@ export default function CourseDetail() {
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <p className="text-red-500 mb-4">{error || 'Course not found'}</p>
         <Link to="/courses">
-          <Button>Back to Courses</Button>
+          <Button className="bg-jdorange hover:bg-jdorange/90">Back to Courses</Button>
         </Link>
       </div>
     );
