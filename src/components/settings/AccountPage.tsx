@@ -1,34 +1,41 @@
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { UserProfileForm } from './UserProfileForm';
 import { UserProfileInfo } from './UserProfileInfo';
 
 export default function AccountPage() {
   return (
-    <div className="space-y-4">
-      <Card className="bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
-        <CardHeader className="border-b dark:border-gray-700">
-          <CardTitle className="text-gray-900 dark:text-white">Profile Information</CardTitle>
-          <CardDescription className="text-gray-500 dark:text-gray-300">
-            Update your personal information
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <UserProfileForm />
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Account Settings</h1>
+        <p className="text-gray-500 dark:text-gray-300">
+          Manage your profile and account preferences
+        </p>
+      </div>
       
-      <Card className="bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
-        <CardHeader className="border-b dark:border-gray-700">
-          <CardTitle className="text-gray-900 dark:text-white">Account Statistics</CardTitle>
-          <CardDescription className="text-gray-500 dark:text-gray-300">
-            View your usage statistics
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
+      {/* Profile Information Section */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Profile Information</h2>
+        <p className="text-gray-500 dark:text-gray-300">
+          Update your personal information
+        </p>
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
+          <UserProfileForm />
+        </div>
+      </div>
+      
+      <Separator className="my-6" />
+      
+      {/* Account Statistics Section */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Account Statistics</h2>
+        <p className="text-gray-500 dark:text-gray-300">
+          View your usage statistics
+        </p>
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
           <UserProfileInfo />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 } 

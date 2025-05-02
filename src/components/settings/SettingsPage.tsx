@@ -37,7 +37,7 @@ export function SettingsPage() {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-auto">
         <PageContainer noOverflow className="pt-4" flexColumn>
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto pb-8">
             <Routes>
               {/* Settings routes */}
               <Route path="/" element={<SuspenseSubscription />} />
