@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
-import { Menu, X, BookOpen, Library, Archive } from 'lucide-react';
+import { Menu, X, BookOpen, Library, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SidebarContext } from '@/App';
 import { useLayoutState } from '@/hooks/useLayoutState';
@@ -38,12 +38,10 @@ export default function CourseNavbar() {
   
   // Set document title based on current route
   useEffect(() => {
-    if (location.pathname.includes('/courses/my-courses')) {
-      document.title = 'My Courses - Ask JDS';
-    } else if (location.pathname.includes('/courses/available-courses')) {
-      document.title = 'Available Courses - Ask JDS';
+    if (location.pathname.includes('/courses/expired-courses')) {
+      document.title = 'Expired Courses - Ask JDS';
     } else {
-      document.title = 'Courses - Ask JDS';
+      document.title = 'Courses Dashboard - Ask JDS';
     }
   }, [location]);
   
@@ -58,8 +56,7 @@ export default function CourseNavbar() {
       className={`flex items-center space-x-1 py-2 px-3 rounded-md ${
         (location.pathname === to || 
          (to === '.' && location.pathname === '/courses') || 
-         (to === './my-courses' && location.pathname.includes('/courses/my-courses')) ||
-         (to === './available-courses' && location.pathname.includes('/courses/available-courses')))
+         (to === './expired-courses' && location.pathname.includes('/courses/expired-courses')))
           ? 'text-[#F37022]' 
           : 'text-gray-600 dark:text-gray-300'
       } ${className}`}
@@ -115,19 +112,13 @@ export default function CourseNavbar() {
                 <NavLink 
                   to="." 
                   icon={<Library className="h-5 w-5" />} 
-                  text="All Courses" 
+                  text="Dashboard" 
                   className="text-base md:mr-2 lg:mr-3 xl:mr-4"
                 />
                 <NavLink 
-                  to="./my-courses" 
-                  icon={<BookOpen className="h-5 w-5" />} 
-                  text="My Courses" 
-                  className="text-base md:mr-2 lg:mr-3 xl:mr-4"
-                />
-                <NavLink 
-                  to="./available-courses" 
-                  icon={<Archive className="h-5 w-5" />} 
-                  text="Available Courses" 
+                  to="./expired-courses" 
+                  icon={<Clock className="h-5 w-5" />} 
+                  text="Expired Courses" 
                   className="text-base"
                 />
               </div>
@@ -169,35 +160,21 @@ export default function CourseNavbar() {
               onClick={() => setIsMenuOpen(false)}
             >
               <Library className="h-5 w-5" />
-              <span className="font-medium">All Courses</span>
+              <span className="font-medium">Dashboard</span>
             </Link>
             
             <Link
-              to="./my-courses"
+              to="./expired-courses"
               className={cn(
                 "flex items-center space-x-3 p-3 rounded-md",
-                isPathActive('/courses/my-courses')
+                isPathActive('/courses/expired-courses')
                   ? "bg-gray-100 dark:bg-gray-700 text-[#F37022]"
                   : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               )}
               onClick={() => setIsMenuOpen(false)}
             >
-              <BookOpen className="h-5 w-5" />
-              <span className="font-medium">My Courses</span>
-            </Link>
-            
-            <Link
-              to="./available-courses"
-              className={cn(
-                "flex items-center space-x-3 p-3 rounded-md",
-                isPathActive('/courses/available-courses')
-                  ? "bg-gray-100 dark:bg-gray-700 text-[#F37022]"
-                  : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-              )}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <Archive className="h-5 w-5" />
-              <span className="font-medium">Available Courses</span>
+              <Clock className="h-5 w-5" />
+              <span className="font-medium">Expired Courses</span>
             </Link>
           </div>
         </div>

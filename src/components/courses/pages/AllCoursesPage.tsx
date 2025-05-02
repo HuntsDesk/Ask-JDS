@@ -2,8 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { supabase } from '@/lib/supabase';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, ArrowRight } from 'lucide-react';
 import JDSCourseCard from '../JDSCourseCard';
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/lib/auth';
+import { isPast } from 'date-fns';
 
 interface Course {
   id: string;
@@ -21,15 +24,28 @@ interface Course {
   };
 }
 
+interface CourseEnrollment {
+  id: string;
+  user_id: string;
+  course_id: string;
+  enrolled_at: string;
+  expires_at: string;
+  course: Course;
+}
+
 export default function AllCoursesPage() {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
+  const [myActiveCourses, setMyActiveCourses] = useState<CourseEnrollment[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(true);
+  const [loadingEnrollments, setLoadingEnrollments] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetch available courses
   useEffect(() => {
-    async function fetchCourses() {
+    async function fetchAvailableCourses() {
       try {
-        console.log('Starting to fetch courses...');
+        setLoadingCourses(true);
         
         // This query will return all courses the user has permission to view
         const { data, error } = await supabase
@@ -41,8 +57,6 @@ export default function AllCoursesPage() {
           setError('Failed to load courses. Please try again later.');
           return;
         }
-
-        console.log('Fetched courses:', data);
         
         // Filter out any archived courses
         const filteredCourses = data?.filter(course => 
@@ -107,19 +121,120 @@ export default function AllCoursesPage() {
           };
         });
         
-        setCourses(processedCourses);
+        // Show up to 3 available courses on the dashboard
+        const limitedCourses = processedCourses.slice(0, 3);
+        setAvailableCourses(limitedCourses);
       } catch (error) {
         console.error('Error fetching courses:', error);
         setError('Failed to load courses. Please try again later.');
       } finally {
-        setLoading(false);
+        setLoadingCourses(false);
       }
     }
 
-    fetchCourses();
+    fetchAvailableCourses();
   }, []);
 
-  if (loading) {
+  // Fetch enrollments for current user
+  useEffect(() => {
+    async function fetchUserEnrollments() {
+      if (!user) {
+        setLoadingEnrollments(false);
+        return;
+      }
+
+      try {
+        setLoadingEnrollments(true);
+        
+        // Get enrollments with course details
+        const { data: enrollmentsData, error: enrollmentsError } = await supabase
+          .from('course_enrollments')
+          .select(`
+            id,
+            user_id,
+            course_id,
+            enrolled_at,
+            expires_at,
+            course:courses(
+              id,
+              title,
+              overview,
+              image_url,
+              status,
+              is_featured
+            )
+          `)
+          .eq('user_id', user.id);
+        
+        if (enrollmentsError) {
+          console.error('Error fetching enrollments:', enrollmentsError);
+          return;
+        }
+        
+        // Filter for active (non-expired) enrollments
+        const activeEnrollments = (enrollmentsData || []).filter(enrollment => {
+          return !enrollment.expires_at || !isPast(new Date(enrollment.expires_at));
+        });
+
+        // Get module and lesson counts
+        const { data: modulesData, error: modulesError } = await supabase
+          .from('modules')
+          .select(`
+            id,
+            course_id,
+            lessons(id)
+          `);
+        
+        if (modulesError) {
+          console.error('Error fetching modules:', modulesError);
+        }
+        
+        // Process the enrollments to include course details
+        const processedEnrollments = activeEnrollments.map(enrollment => {
+          const courseModules = modulesData?.filter(
+            module => module.course_id === enrollment.course_id
+          ) || [];
+          
+          const moduleCount = courseModules.length;
+          const lessonCount = courseModules.reduce((total, module) => {
+            return total + (module.lessons ? module.lessons.length : 0);
+          }, 0);
+          
+          return {
+            ...enrollment,
+            course: {
+              ...enrollment.course,
+              description: enrollment.course.overview || '',
+              _count: {
+                modules: moduleCount,
+                lessons: lessonCount
+              }
+            }
+          };
+        });
+        
+        // Sort by newest first
+        const sortedEnrollments = processedEnrollments.sort((a, b) => {
+          return new Date(b.enrolled_at).getTime() - new Date(a.enrolled_at).getTime();
+        });
+        
+        // Limit to 3 courses for the dashboard view
+        const limitedEnrollments = sortedEnrollments.slice(0, 3);
+        setMyActiveCourses(limitedEnrollments);
+      } catch (error) {
+        console.error('Error fetching user enrollments:', error);
+      } finally {
+        setLoadingEnrollments(false);
+      }
+    }
+
+    fetchUserEnrollments();
+  }, [user]);
+
+  // Combined loading state
+  const isLoading = loadingCourses || loadingEnrollments;
+
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">
         <LoadingSpinner className="w-8 h-8" />
@@ -135,33 +250,87 @@ export default function AllCoursesPage() {
     );
   }
 
-  if (courses.length === 0) {
-    return (
-      <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-        <BookOpen className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-3" />
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No courses available</h3>
-        <p className="text-gray-500 dark:text-gray-400">Check back later for new courses.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="px-4 py-6">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 hidden md:block">All Courses</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {courses.map((course) => (
-          <JDSCourseCard
-            key={course.id}
-            id={course.id}
-            title={course.title}
-            description={course.description}
-            image_url={course.image_url}
-            is_featured={course.is_featured}
-            status={course.status}
-            _count={course._count}
-          />
-        ))}
-      </div>
+    <div className="px-4 py-6 space-y-12">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 hidden md:block">Course Dashboard</h1>
+      
+      {/* My Courses Section */}
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">My Courses</h2>
+          {myActiveCourses.length > 0 && (
+            <Link to="./my-courses" className="text-[#F37022] hover:text-[#E36012] flex items-center text-sm font-medium">
+              <span>View all</span>
+              <ArrowRight className="ml-1 h-4 w-4" />
+            </Link>
+          )}
+        </div>
+        
+        {myActiveCourses.length === 0 ? (
+          <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <BookOpen className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-3" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No active courses</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-4">You're not enrolled in any active courses.</p>
+            <Link to="./available-courses">
+              <Button variant="default" className="bg-[#F37022] hover:bg-[#E36012]">
+                Browse Available Courses
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {myActiveCourses.map((enrollment) => (
+              <JDSCourseCard
+                key={enrollment.id}
+                id={enrollment.course.id}
+                title={enrollment.course.title}
+                description={enrollment.course.description}
+                image_url={enrollment.course.image_url}
+                is_featured={enrollment.course.is_featured}
+                status={enrollment.course.status}
+                _count={enrollment.course._count}
+                enrolled={true}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+      
+      {/* Available Courses Section */}
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">Available Courses</h2>
+          {availableCourses.length > 0 && (
+            <Link to="./available-courses" className="text-[#F37022] hover:text-[#E36012] flex items-center text-sm font-medium">
+              <span>View all</span>
+              <ArrowRight className="ml-1 h-4 w-4" />
+            </Link>
+          )}
+        </div>
+        
+        {availableCourses.length === 0 ? (
+          <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <BookOpen className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-3" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No courses available</h3>
+            <p className="text-gray-500 dark:text-gray-400">Check back later for new courses.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {availableCourses.map((course) => (
+              <JDSCourseCard
+                key={course.id}
+                id={course.id}
+                title={course.title}
+                description={course.description}
+                image_url={course.image_url}
+                is_featured={course.is_featured}
+                status={course.status}
+                _count={course._count}
+              />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 } 

@@ -20,6 +20,8 @@ interface CourseCardProps {
     modules: number;
     lessons: number;
   };
+  expired?: boolean;
+  enrolled?: boolean;
 }
 
 export default function JDSCourseCard({
@@ -29,7 +31,9 @@ export default function JDSCourseCard({
   image_url,
   is_featured = false,
   status = 'Published',
-  _count = { modules: 0, lessons: 0 }
+  _count = { modules: 0, lessons: 0 },
+  expired = false,
+  enrolled = false
 }: CourseCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -191,47 +195,85 @@ export default function JDSCourseCard({
               Draft
             </span>
           )}
+          
+          {enrolled && (
+            <span className="bg-gradient-to-r from-green-500 to-green-600 text-white px-3 py-1 rounded-full text-xs font-medium shadow-sm">
+              Enrolled
+            </span>
+          )}
         </div>
         
         {status?.toLowerCase() === 'coming soon' ? (
           <div className="text-center mt-2 text-gray-500 dark:text-gray-400 italic text-sm">
             This course will be available soon
           </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
+        ) : expired ? (
+          <div className="mt-4 flex flex-col gap-2">
+            <div className="text-center text-red-500 dark:text-red-400 font-medium text-sm">
+              Access expired
+            </div>
+            <button
+              onClick={handleRent}
+              disabled={isLoading}
+              className={cn(
+                "w-full py-2 rounded-md text-center transition-all duration-200",
+                "bg-jdorange hover:bg-orange-600 text-white font-medium",
+                "dark:bg-jdorange/90 dark:hover:bg-jdorange",
+                "disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+              )}
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center">
+                  <Clock className="animate-spin h-4 w-4 mr-2" />
+                  Processing...
+                </span>
+              ) : (
+                <>Renew Access</>
+              )}
+            </button>
+          </div>
+        ) : enrolled ? (
+          <div className="mt-4">
             <Link 
               to={`/course/${id}`}
-              className="px-4 py-2 text-center border border-jdblue dark:border-blue-300 text-jdblue dark:text-blue-300 rounded-lg font-medium hover:bg-jdblue hover:text-white dark:hover:bg-blue-600 transition-all duration-300"
+              className={cn(
+                "block w-full py-2 rounded-md text-center transition-all duration-200",
+                "bg-jdblue hover:bg-blue-800 text-white font-medium",
+                "dark:bg-jdblue/90 dark:hover:bg-jdblue"
+              )}
             >
-              Details
+              Continue Learning
             </Link>
-            <button 
-              className={`px-4 py-2 rounded-lg font-medium flex items-center justify-center shadow-sm transition-all duration-300 ${
-                status?.toLowerCase() === 'draft'
-                  ? 'bg-gray-400 hover:bg-gray-500 text-white cursor-not-allowed opacity-80' 
-                  : 'bg-gradient-to-r from-jdorange to-jdorange-dark text-white hover:opacity-90'
-              }`}
-              disabled={status?.toLowerCase() === 'draft' || isLoading}
-              onClick={status?.toLowerCase() !== 'draft' ? handleRent : undefined}
+          </div>
+        ) : (
+          <div className="mt-4 flex flex-col gap-2">
+            <Link 
+              to={`/courses/${id}`}
+              className={cn(
+                "block w-full py-2 rounded-md text-center transition-all duration-200",
+                "bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium",
+                "dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
+              )}
             >
-              {status?.toLowerCase() === 'draft' ? (
-                <>
-                  <Clock className="h-4 w-4 mr-2" />
-                  Coming Soon
-                </>
-              ) : isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Processing
-                </>
+              View Details
+            </Link>
+            <button
+              onClick={handleRent}
+              disabled={isLoading}
+              className={cn(
+                "w-full py-2 rounded-md text-center transition-all duration-200",
+                "bg-jdorange hover:bg-orange-600 text-white font-medium",
+                "dark:bg-jdorange/90 dark:hover:bg-jdorange",
+                "disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+              )}
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center">
+                  <Clock className="animate-spin h-4 w-4 mr-2" />
+                  Processing...
+                </span>
               ) : (
-                <>
-                  <Ticket className="h-4 w-4 mr-2" />
-                  Rent
-                </>
+                <>Get Access <Ticket className="inline h-4 w-4 ml-1" /></>
               )}
             </button>
           </div>
