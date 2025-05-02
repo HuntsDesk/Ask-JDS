@@ -9,6 +9,8 @@ import useToast from '@/hooks/useFlashcardToast';
 import Toast from './Toast';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavbar } from '@/contexts/NavbarContext';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { SkeletonSubjectGrid } from './SkeletonSubject';
 
 interface Subject {
   id: string;
@@ -25,33 +27,27 @@ export default function FlashcardSubjects() {
   const navigate = useNavigate();
   const { toast, showToast, hideToast } = useToast();
   const { updateCount } = useNavbar();
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
   const [filter, setFilter] = useState<SubjectFilter>('all');
+  const queryClient = useQueryClient();
 
-  // Filter subjects based on the selected filter
-  const filteredSubjects = subjects.filter(subject => {
-    if (filter === 'all') return true;
-    if (filter === 'official') return subject.is_official;
-    if (filter === 'my') return !subject.is_official;
-    return true;
-  });
+  // Define query keys
+  const subjectKeys = {
+    all: ['subjects'] as const,
+    list: () => [...subjectKeys.all, 'list'] as const,
+    withCounts: () => [...subjectKeys.list(), 'withCounts'] as const,
+  };
 
-  useEffect(() => {
-    loadSubjects();
-  }, []);
-
-  // Update filtered subjects count when filter changes
-  useEffect(() => {
-    updateCount(filteredSubjects.length);
-  }, [filteredSubjects.length, updateCount]);
-
-  async function loadSubjects() {
-    try {
-      setLoading(true);
-      
+  // Use React Query to fetch subjects
+  const { 
+    data: subjects = [], 
+    isLoading,
+    isError,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: subjectKeys.withCounts(),
+    queryFn: async () => {
       // Get all subjects
       const { data, error } = await supabase
         .from('subjects')
@@ -78,13 +74,24 @@ export default function FlashcardSubjects() {
         })
       );
       
-      setSubjects(subjectsWithCounts);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }
+      return subjectsWithCounts;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false
+  });
+
+  // Filter subjects based on the selected filter
+  const filteredSubjects = subjects.filter(subject => {
+    if (filter === 'all') return true;
+    if (filter === 'official') return subject.is_official;
+    if (filter === 'my') return !subject.is_official;
+    return true;
+  });
+
+  // Update filtered subjects count when filter changes
+  useEffect(() => {
+    updateCount(filteredSubjects.length);
+  }, [filteredSubjects.length, updateCount]);
 
   const handleAddSubject = () => {
     navigate('/flashcards/create-subject');
@@ -111,11 +118,12 @@ export default function FlashcardSubjects() {
       
       if (error) throw error;
       
-      setSubjects(subjects.filter(s => s.id !== subjectToDelete.id));
+      // Invalidate the subjects query to trigger a refetch
+      queryClient.invalidateQueries({ queryKey: subjectKeys.all });
+      
       setSubjectToDelete(null);
       showToast('Subject deleted successfully', 'success');
     } catch (err: any) {
-      setError(err.message);
       showToast(`Error: ${err.message}`, 'error');
     }
   };
@@ -128,16 +136,55 @@ export default function FlashcardSubjects() {
     setFilter(value as 'all' | 'official' | 'my');
   };
 
-  if (loading) {
-    return <LoadingSpinner />;
+  if (isLoading) {
+    return (
+      <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
+        {/* Desktop layout */}
+        <div className="hidden md:block mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Subjects</h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Loading subjects...
+              </p>
+            </div>
+            
+            <div className="w-[340px]">
+              <Tabs value={filter} onValueChange={handleFilterChange}>
+                <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+                  <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+                  <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+                  <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Subjects</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile layout - only filter tabs */}
+        <div className="md:hidden mb-6">
+          <Tabs value={filter} onValueChange={handleFilterChange}>
+            <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+              <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+              <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+              <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Subjects</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        
+        <SkeletonSubjectGrid count={6} />
+      </div>
+    );
   }
 
-  if (error) {
+  if (isError && error instanceof Error) {
     return (
+      <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
       <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-md flex items-start">
         <div>
           <h3 className="font-medium mb-1">Error</h3>
-          <p>{error}</p>
+            <p>{error.message}</p>
+          </div>
         </div>
       </div>
     );

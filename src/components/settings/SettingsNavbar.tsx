@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
-import { Menu, X, BookOpen, Library, Archive } from 'lucide-react';
+import { Menu, X, Settings, User, Palette, CreditCard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SidebarContext } from '@/App';
 import { useLayoutState } from '@/hooks/useLayoutState';
 
-export default function CourseNavbar() {
+export default function SettingsNavbar() {
   const { user } = useAuth();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -16,15 +16,15 @@ export default function CourseNavbar() {
   
   // Determine which tab is active
   const isPathActive = (path: string) => {
-    if (path === '/courses' && location.pathname === '/courses') {
+    if (path === '/settings' && location.pathname === '/settings') {
       return true;
     }
-    if (path !== '/courses' && location.pathname.includes(path)) {
+    if (path !== '/settings' && location.pathname.includes(path)) {
       return true;
     }
     return false;
   };
-  
+
   // Check if device is mobile
   useEffect(() => {
     const checkMobile = () => {
@@ -38,12 +38,12 @@ export default function CourseNavbar() {
   
   // Set document title based on current route
   useEffect(() => {
-    if (location.pathname.includes('/courses/my-courses')) {
-      document.title = 'My Courses - Ask JDS';
-    } else if (location.pathname.includes('/courses/available-courses')) {
-      document.title = 'Available Courses - Ask JDS';
+    if (location.pathname.includes('/settings/account')) {
+      document.title = 'Account Settings - Ask JDS';
+    } else if (location.pathname.includes('/settings/appearance')) {
+      document.title = 'Appearance Settings - Ask JDS';
     } else {
-      document.title = 'Courses - Ask JDS';
+      document.title = 'Subscription Settings - Ask JDS';
     }
   }, [location]);
   
@@ -57,9 +57,9 @@ export default function CourseNavbar() {
       to={to} 
       className={`flex items-center space-x-1 py-2 px-3 rounded-md ${
         (location.pathname === to || 
-         (to === '.' && location.pathname === '/courses') || 
-         (to === './my-courses' && location.pathname.includes('/courses/my-courses')) ||
-         (to === './available-courses' && location.pathname.includes('/courses/available-courses')))
+         (to === '.' && location.pathname === '/settings') || 
+         (to === './account' && location.pathname.includes('/settings/account')) ||
+         (to === './appearance' && location.pathname.includes('/settings/appearance')))
           ? 'text-[#F37022]' 
           : 'text-gray-600 dark:text-gray-300'
       } ${className}`}
@@ -93,7 +93,7 @@ export default function CourseNavbar() {
               
               <div className="flex flex-col flex-grow">
                 <h1 className="text-lg font-semibold text-center dark:text-white">
-                  Courses
+                  Settings
                 </h1>
               </div>
               <button
@@ -109,25 +109,25 @@ export default function CourseNavbar() {
               {/* Navigation links */}
               <div className="md:flex md:items-center md:space-x-2 lg:space-x-4 xl:space-x-5">
                 <div className="flex items-center text-xl font-semibold mr-4 text-gray-800 dark:text-white pl-2">
-                  <BookOpen className="h-6 w-6 mr-2 text-[#F37022]" />
-                  Courses
+                  <Settings className="h-6 w-6 mr-2 text-[#F37022]" />
+                  Settings
                 </div>
                 <NavLink 
                   to="." 
-                  icon={<Library className="h-5 w-5" />} 
-                  text="All Courses" 
+                  icon={<CreditCard className="h-5 w-5" />} 
+                  text="Subscription" 
                   className="text-base md:mr-2 lg:mr-3 xl:mr-4"
                 />
                 <NavLink 
-                  to="./my-courses" 
-                  icon={<BookOpen className="h-5 w-5" />} 
-                  text="My Courses" 
+                  to="./account" 
+                  icon={<User className="h-5 w-5" />} 
+                  text="Account" 
                   className="text-base md:mr-2 lg:mr-3 xl:mr-4"
                 />
                 <NavLink 
-                  to="./available-courses" 
-                  icon={<Archive className="h-5 w-5" />} 
-                  text="Available Courses" 
+                  to="./appearance" 
+                  icon={<Palette className="h-5 w-5" />} 
+                  text="Appearance" 
                   className="text-base"
                 />
               </div>
@@ -162,42 +162,42 @@ export default function CourseNavbar() {
               to="."
               className={cn(
                 "flex items-center space-x-3 p-3 rounded-md",
-                isPathActive('/courses') && !location.pathname.includes('/courses/') 
+                isPathActive('/settings') && !location.pathname.includes('/settings/') 
                   ? "bg-gray-100 dark:bg-gray-700 text-[#F37022]"
                   : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               )}
               onClick={() => setIsMenuOpen(false)}
             >
-              <Library className="h-5 w-5" />
-              <span className="font-medium">All Courses</span>
+              <CreditCard className="h-5 w-5" />
+              <span className="font-medium">Subscription</span>
             </Link>
             
             <Link
-              to="./my-courses"
+              to="./account"
               className={cn(
                 "flex items-center space-x-3 p-3 rounded-md",
-                isPathActive('/courses/my-courses')
+                isPathActive('/settings/account')
                   ? "bg-gray-100 dark:bg-gray-700 text-[#F37022]"
                   : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               )}
               onClick={() => setIsMenuOpen(false)}
             >
-              <BookOpen className="h-5 w-5" />
-              <span className="font-medium">My Courses</span>
+              <User className="h-5 w-5" />
+              <span className="font-medium">Account</span>
             </Link>
             
             <Link
-              to="./available-courses"
+              to="./appearance"
               className={cn(
                 "flex items-center space-x-3 p-3 rounded-md",
-                isPathActive('/courses/available-courses')
+                isPathActive('/settings/appearance')
                   ? "bg-gray-100 dark:bg-gray-700 text-[#F37022]"
                   : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
               )}
               onClick={() => setIsMenuOpen(false)}
             >
-              <Archive className="h-5 w-5" />
-              <span className="font-medium">Available Courses</span>
+              <Palette className="h-5 w-5" />
+              <span className="font-medium">Appearance</span>
             </Link>
           </div>
         </div>
