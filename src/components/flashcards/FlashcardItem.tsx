@@ -36,10 +36,18 @@ const FlashcardItem = React.memo(({
   // Determine if answer should be hidden (premium content + locked)
   const shouldHideAnswer = isLocked;
   
+  // Debug mastered status
+  console.log(`Card ${id} - isMastered:`, isMastered);
+  
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col h-full ${isMastered ? "border-l-4 border-green-500" : ""}`}>
-      {/* Premium banner - show only if locked */}
-      {isPremium && isLocked && (
+    <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col h-full">
+      {/* Mastered indicator - absolute positioned div instead of border */}
+      {isMastered && (
+        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-green-500"></div>
+      )}
+      
+      {/* Premium banner - show for all premium content */}
+      {isPremium && (
         <div className="bg-[#F37022] text-white px-4 py-1 text-sm font-medium">
           PREMIUM CONTENT
         </div>
@@ -85,7 +93,8 @@ const FlashcardItem = React.memo(({
         <div className="flex flex-wrap sm:flex-nowrap justify-between items-center gap-y-3">
           {/* Left side icons */}
           <div className="flex gap-4">
-            {!isPremium && (
+            {/* Only show edit/delete buttons for non-premium content or unlocked premium content */}
+            {!isLocked && (
               <>
                 <button
                   onClick={onEdit}
@@ -122,7 +131,7 @@ const FlashcardItem = React.memo(({
               )}
             </button>
             
-            {/* Premium indicator for subscribed users */}
+            {/* Premium indicator for premium content */}
             {isPremium && !isLocked && (
               <div className="relative group ml-2">
                 <span className="text-[#F37022] font-semibold text-xs bg-[#F37022]/10 px-2 py-1 rounded-full flex items-center">
@@ -138,8 +147,8 @@ const FlashcardItem = React.memo(({
             {/* Lock indicator for locked content */}
             {isLocked && (
               <div className="relative group ml-2">
-                <span className="text-[#F37022] font-semibold text-xs bg-[#F37022]/10 px-2 py-1 rounded-full flex items-center">
-                  <Lock className="h-3 w-3 mr-1" />
+                <span className="flex items-center justify-center p-2 text-[#F37022] font-medium bg-[#F37022]/10 dark:bg-[#F37022]/20 border border-[#F37022]/30 dark:border-[#F37022]/30 rounded-md focus:outline-none w-10 h-10">
+                  <Lock className="h-5 w-5" />
                 </span>
                 <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
                   Locked Content
