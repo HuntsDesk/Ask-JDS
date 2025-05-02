@@ -1,5 +1,4 @@
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useTheme } from '@/lib/theme-provider';
@@ -9,22 +8,25 @@ export default function AppearancePage() {
   const { theme, setTheme } = useTheme();
   
   return (
-    <div className="space-y-4">
-      <Card className="bg-white dark:bg-gray-800 border dark:border-gray-700 shadow-sm">
-        <CardHeader className="border-b dark:border-gray-700">
-          <CardTitle className="text-gray-900 dark:text-white">Theme Settings</CardTitle>
-          <CardDescription className="text-gray-500 dark:text-gray-300">
-            Customize the application appearance
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
+    <div className="space-y-6">
+      <div className="mb-2">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Appearance Settings</h1>
+        <p className="text-gray-500 dark:text-gray-300">
+          Customize the application appearance
+        </p>
+      </div>
+      
+      {/* Theme Settings Section */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Theme Settings</h2>
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6">
           <div className="space-y-4">
             <div>
               <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-white">Color Theme</h3>
               <RadioGroup 
                 value={theme} 
                 onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'system')}
-                className="flex flex-col space-y-3"
+                className="flex flex-col space-y-4"
               >
                 <div className="flex items-center space-x-3">
                   <RadioGroupItem 
@@ -62,13 +64,13 @@ export default function AppearancePage() {
               </RadioGroup>
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
                 System theme will automatically switch between light and dark themes based on your system preferences.
               </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 } 
