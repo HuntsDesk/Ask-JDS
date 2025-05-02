@@ -717,10 +717,10 @@ export default function AllFlashcards() {
       return;
     }
     
-    // Navigate to study mode for this card's collection
+    // Navigate to unified study mode with this card's collection
     const collectionId = card.collection?.id;
     if (collectionId) {
-      navigate(`/flashcards/study/${collectionId}?card=${card.id}`);
+      navigate(`/flashcards/study?collection=${collectionId}&card=${card.id}`);
     } else {
       // If no collection, show an error
       showToast(
