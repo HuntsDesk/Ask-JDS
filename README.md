@@ -680,6 +680,28 @@ Avoid rapid config changes (.env, tsconfig.json, package-lock.json) to prevent o
 
 For persistent issues, check the Vite logs for more detailed information.
 
+### Common Issues
+
+#### Supabase upsert conflicts
+When using Supabase's `.upsert()` method with tables that have unique constraints, always specify the `onConflict` parameter to handle potential conflicts. For example:
+
+```typescript
+await supabase
+  .from('table_name')
+  .upsert(
+    { data_to_upsert },
+    { 
+      onConflict: 'column1,column2', // Specify columns in the unique constraint
+      ignoreDuplicates: false 
+    }
+  )
+```
+
+This is particularly important for junction tables or any table with composite unique constraints.
+
+#### Failed to update mastery status on flashcards
+If you encounter "Failed to update mastery status" errors when toggling flashcard mastery, ensure the upsert operation specifies the composite unique constraint of `user_id,flashcard_id` in the `onConflict` parameter.
+
 ## Console Commands
 
 These commands can be executed in the browser's developer console during development:
@@ -942,6 +964,16 @@ The Flashcards module provides study tools with the following features:
 - `FlashcardItem`: Individual flashcard component with mastery toggle
 - `Card`: Reusable card component for collections and subjects
 - `SkeletonFlashcard`: Loading placeholder components
+
+#### Premium Content Protection
+- Premium flashcards are marked with a "PREMIUM CONTENT" banner
+- Non-subscribers cannot see answers to premium flashcards
+- Premium content has restricted editing capabilities (cannot be modified or deleted by users)
+- Content ownership is properly respected (users can always edit/view their own content)
+- Subscription status is checked both on the server and locally via localStorage
+- Error handling defaults to denying access to premium content for security
+- Timeouts in subscription status checks default to no access (rather than allowing access)
+- The hasActiveSubscription function defaults to false in error cases to prevent unauthorized access
 
 #### Performance Optimizations
 - Parallel data fetching for collections, subjects, and relationships
