@@ -495,6 +495,122 @@ Course access is determined by the `has_course_access` function which checks:
 
 Chat access is limited based on the user's subscription tier and monthly message count tracked in the `message_counts` table.
 
+## Course Enrollment System
+
+### System Overview
+
+Users can either purchase individual courses or subscribe to a plan that provides full access. The system uses Stripe for payments, Supabase for backend logic, and a dual-mode access model backed by SQL functions and policies.
+
+### User Tiers
+
+#### Free Tier
+- Price: $0/month  
+- Features:
+  - 10 AI chat messages per month
+  - Sample flashcards only
+  - No course access
+
+#### Premium Tier
+- Price: $10/month  
+- Features:
+  - Unlimited AI chat messages
+  - Full access to premium flashcards
+  - No course access
+
+#### Per-Course Purchase
+- Price: Varies (stored in `courses.price`)
+- Access Duration: Usually 30 days (`courses.days_of_access`)
+- Features:
+  - Access to that course's videos, materials, and lessons only
+
+#### Unlimited Tier
+- Price: $30/month  
+- Features:
+  - Unlimited AI chat
+  - Premium flashcards
+  - Full access to all courses
+
+_Note: Legacy AskJDS-only subscriptions are deprecated and replaced by Premium or Unlimited tiers._
+
+### Access Control Logic
+
+Access to course content is granted when:
+1. The course is free (`price = 0`)
+2. The user has an active `course_enrollments` record with a valid `expires_at`
+3. The user has an active Unlimited subscription in `user_subscriptions` table with `price_id` matching `price_unlimited_monthly` or `price_unlimited_annual`
+
+SQL helper:
+
+```sql
+-- Access checker
+SELECT * FROM has_course_access('user_id', 'course_id');
+```
+
+### Database Structure
+
+#### Tables
+- `courses`
+- `course_enrollments`
+- `user_subscriptions`
+- `message_counts`
+- `analytics_events`
+
+#### Key Functions
+- `has_course_access(user_id, course_id)`
+- `create_course_enrollment(p_user_id, p_course_id, p_days_of_access)`
+
+#### RLS Policies
+- Users can read/update their own enrollments
+- Only service role can INSERT
+- Admins can access all data
+
+### Stripe Integration
+
+#### Products
+1. Course Product (one-time)
+2. Unlimited Subscription (recurring)
+3. Premium Subscription (recurring)
+
+#### Checkout Flows
+- `createCourseCheckout()`
+- `createCourseRenewalCheckout()`
+- `createUnlimitedSubscriptionCheckout()`
+
+All Stripe metadata includes user_id, course_id, and isRenewal flags.
+
+### Webhook Logic
+
+Edge function stripe-webhook handles:
+- `checkout.session.completed`: Creates course enrollment or subscription
+- `customer.subscription.updated`: Updates billing period
+- `customer.subscription.deleted`: Sets subscription as inactive
+- Adds analytics events after each event
+
+### Frontend Components
+- `CourseCard`: Shows price or access button
+- `CourseDetail`: Shows purchase options or start learning
+- `SubscriptionStatus`: Displays active plan, renewals, upgrades
+- `CourseSampleVideos`: Tabs for 1-3 sample Gumlet videos
+
+### Analytics & Notifications
+
+#### Events Tracked
+- course_view, course_purchase, subscription_start, lesson_complete
+
+#### Email Notifications
+- Sent 7 and 1 day before expiration (via Edge Function)
+- Flags stored in notification_7day_sent and notification_1day_sent
+
+### Testing & Security
+
+#### Stripe Cards
+- 4242 4242 4242 4242: Success
+- 4000 0000 0000 9995: Insufficient funds
+
+#### CSRF & Input Validation
+- All POST routes validated via Zod
+- CSRF token required in all Stripe API calls
+
 ## Development Guidelines
 
 ### React Hooks Coding Standard
