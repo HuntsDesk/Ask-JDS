@@ -680,6 +680,42 @@ Avoid rapid config changes (.env, tsconfig.json, package-lock.json) to prevent o
 
 For persistent issues, check the Vite logs for more detailed information.
 
+## Console Commands
+
+These commands can be executed in the browser's developer console during development:
+
+### Subscription Testing
+```javascript
+// Enable premium subscription for testing
+localStorage.setItem('forceSubscription', 'true')
+
+// Disable forced subscription
+localStorage.removeItem('forceSubscription')
+```
+
+### Domain Switching
+```javascript
+// Force admin domain view
+localStorage.setItem('current_domain', 'admin')
+
+// Force JD Simplified domain view
+localStorage.setItem('current_domain', 'jdsimplified')
+
+// Force Ask JDS domain view
+localStorage.setItem('current_domain', 'askjds')
+```
+
+### Theme Testing
+```javascript
+// Force light theme
+localStorage.setItem('theme', 'light')
+
+// Force dark theme
+localStorage.setItem('theme', 'dark')
+```
+
+Note: These commands only work in development mode and are intended for testing purposes only.
+
 ## Security & Best Practices
 
 ### Supabase RLS Policies
