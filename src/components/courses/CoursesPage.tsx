@@ -35,19 +35,17 @@ export default function CoursesPage() {
       <CourseNavbar />
       
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-auto">
-        <PageContainer noOverflow className="pt-4" flexColumn disablePadding={false}>
-          <div className="flex-1 overflow-auto">
-            <Routes>
-              {/* Course routes */}
-              <Route path="/" element={<SuspenseDashboard />} />
-              <Route path="expired-courses" element={<SuspenseExpiredCourses />} />
-              <Route path="available-courses" element={<SuspenseAvailableCourses />} />
-              
-              {/* Fallback route */}
-              <Route path="*" element={<Navigate to="." replace />} />
-            </Routes>
-          </div>
+      <div className="flex-1 overflow-auto w-full">
+        <PageContainer disablePadding={false} className="pt-4 pb-12 mx-auto" maxWidth="default">
+          <Routes>
+            {/* Course routes */}
+            <Route path="/" element={<SuspenseDashboard />} />
+            <Route path="expired-courses" element={<SuspenseExpiredCourses />} />
+            <Route path="available-courses" element={<SuspenseAvailableCourses />} />
+            
+            {/* Fallback route */}
+            <Route path="*" element={<Navigate to="." replace />} />
+          </Routes>
         </PageContainer>
       </div>
     </div>
