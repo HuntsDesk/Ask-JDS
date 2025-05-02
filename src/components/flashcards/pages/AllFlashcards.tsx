@@ -164,6 +164,17 @@ export default function AllFlashcards() {
   const { updateTotalCardCount } = useNavbar();
   const [masteringCardId, setMasteringCardId] = useState<string | null>(null);
 
+  // DEV ONLY: Check for forced subscription
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const forceSubscription = localStorage.getItem('forceSubscription');
+      if (forceSubscription === 'true') {
+        console.log('DEV OVERRIDE: Forcing subscription to true in AllFlashcards component');
+        setHasSubscription(true);
+      }
+    }
+  }, []);
+
   // Persisted user preferences
   const [showMastered, setShowMastered] = usePersistedState<boolean>('flashcards-show-mastered', true);
   const [selectedSubjectIds, setSelectedSubjectIds] = usePersistedState<string[]>('flashcards-filter-subjects', []);
@@ -191,6 +202,15 @@ export default function AllFlashcards() {
 
   // Ensure subscription status is refreshed when user changes
   useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const forceSubscription = localStorage.getItem('forceSubscription');
+      if (forceSubscription === 'true') {
+        console.log('DEV OVERRIDE: Forcing subscription to true in useEffect user change handler');
+        setHasSubscription(true);
+        return; // Skip the rest of the effect
+      }
+    }
+
     if (user) {
       // Invalidate subscription query when user changes
       queryClient.invalidateQueries(['user', user.id, 'subscription']);
@@ -471,13 +491,29 @@ export default function AllFlashcards() {
     // Check for is_official with strict equality
     const isOfficial = cardCollectionData.is_official === true;
     
+    // DEV ONLY: Check for forced subscription
+    if (process.env.NODE_ENV === 'development') {
+      const forceSubscription = localStorage.getItem('forceSubscription');
+      if (forceSubscription === 'true') {
+        // In development, with force flag, content is never premium (always accessible)
+        return false;
+      }
+    }
+    
     // User's own content is never premium to them (regardless of filter)
     if (isCreatedByUser || isUserCollection || filter === 'my') {
       return false;
     }
     
     // Official content requires subscription
-    return isOfficial && !hasSubscription;
+    const isPremium = isOfficial && !hasSubscription;
+    
+    // Log premium cards for debugging
+    if (isPremium && card.id) {
+      console.log(`Premium card detected: ${card.id}, official=${isOfficial}, hasSubscription=${hasSubscription}`);
+    }
+    
+    return isPremium;
   }, [user?.id, filter, hasSubscription]);
   
   // Track if we've logged premium card info (to reduce console spam)
