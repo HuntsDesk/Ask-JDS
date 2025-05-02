@@ -217,7 +217,11 @@ export default function CreateSet() {
       }
       
       showToast('Flashcard collection created successfully!', 'success');
-      navigate(`/flashcards/study/${collection.id}`);
+      
+      // Navigate to the new collection
+      if (newCollection) {
+        navigate(`/flashcards/study?collection=${collection.id}`);
+      }
       
     } catch (err: any) {
       setError(err.message);

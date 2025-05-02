@@ -131,6 +131,16 @@ export default function AddCard() {
       console.log('User ID attached to card:', user?.id);
       console.log('Added to collection using junction table');
       
+      // Skip if we're still creating more cards
+      if (mode === 'addAnother') {
+        // Reset form and show success message
+        resetForm();
+        setIsSubmitting(false);
+        showToast('Flashcard added successfully!', 'success');
+      } else {
+        // Navigate to study mode after successful save
+        navigate(`/flashcards/study?collection=${id}`);
+      }
     } catch (err: any) {
       setError(err.message);
       showToast(`Error: ${err.message}`, 'error');
@@ -142,7 +152,7 @@ export default function AddCard() {
   const handleSaveAndExit = async () => {
     // Don't save if fields are empty
     if (!question.trim() || !answer.trim()) {
-      navigate(`/flashcards/study/${id}`);
+      navigate(`/flashcards/study?collection=${id}`);
       return;
     }
     
@@ -192,7 +202,7 @@ export default function AddCard() {
       showToast('Card added successfully', 'success');
       
       // Navigate to study mode after successful save
-      navigate(`/flashcards/study/${id}`);
+      navigate(`/flashcards/study?collection=${id}`);
     } catch (err: any) {
       setError(err.message);
       showToast(`Error: ${err.message}`, 'error');
