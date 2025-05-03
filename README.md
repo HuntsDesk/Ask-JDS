@@ -1011,6 +1011,11 @@ The study mode now supports direct navigation to specific flashcards:
 - Tile buttons in study mode need adjustment for proper rendering
 - Optimizations needed for handling large collections
 
+#### Future Enhancements
+- Consolidate `FlashcardItem` and `EnhancedFlashcardItem` into a single unified flashcard component to ensure consistent behavior across all views
+- Improve performance for large collections with virtualized rendering
+- Add search functionality within study mode
+
 To create a new flashcard collection:
 1. Navigate to `/flashcards/collections`
 2. Click "Add Collection"

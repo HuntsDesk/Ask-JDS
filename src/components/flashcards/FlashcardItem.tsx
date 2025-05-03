@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Check, FileEdit, Trash2, BookOpen, Award, Lock, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -9,6 +9,7 @@ interface FlashcardItemProps {
   collectionTitle: string;
   isPremium: boolean;
   isLocked: boolean;
+  isReadOnly: boolean;
   isMastered: boolean;
   isToggling: boolean;
   onView: () => void;
@@ -25,6 +26,7 @@ const FlashcardItem = React.memo(({
   collectionTitle,
   isPremium,
   isLocked,
+  isReadOnly,
   isMastered,
   isToggling,
   onView,
@@ -33,8 +35,36 @@ const FlashcardItem = React.memo(({
   onToggleMastered,
   onUnlock
 }: FlashcardItemProps) => {
+  // Check for development forced subscription
+  const [devForceSubscription, setDevForceSubscription] = useState(false);
+  
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const forceSubscription = localStorage.getItem('forceSubscription');
+      if (forceSubscription === 'true') {
+        console.log('DEV OVERRIDE: Forcing subscription in FlashcardItem');
+        setDevForceSubscription(true);
+      }
+      
+      // Listen for changes to localStorage
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'forceSubscription') {
+          setDevForceSubscription(e.newValue === 'true');
+        }
+      };
+      
+      window.addEventListener('storage', handleStorageChange);
+      return () => window.removeEventListener('storage', handleStorageChange);
+    }
+  }, []);
+  
   // Determine if answer should be hidden (premium content + locked)
-  const shouldHideAnswer = isLocked;
+  // In development with forceSubscription, never hide the answer
+  const shouldHideAnswer = isLocked && !devForceSubscription;
+  
+  // In development with forceSubscription, we unlock premium content, but official cards
+  // should still be read-only (no edit/delete) regardless of subscription status
+  const shouldShowEditDelete = !isReadOnly && (!isLocked || devForceSubscription);
   
   // Debug mastered status
   console.log(`Card ${id} - isMastered:`, isMastered);
@@ -46,8 +76,8 @@ const FlashcardItem = React.memo(({
         <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-green-500"></div>
       )}
       
-      {/* Premium banner - show for all premium content */}
-      {isPremium && (
+      {/* Premium content banner - show for all premium/official content */}
+      {(isPremium || isReadOnly) && !devForceSubscription && (
         <div className="bg-[#F37022] text-white px-4 py-1 text-sm font-medium">
           PREMIUM CONTENT
         </div>
@@ -94,7 +124,7 @@ const FlashcardItem = React.memo(({
           {/* Left side icons */}
           <div className="flex gap-4">
             {/* Only show edit/delete buttons for non-premium content or unlocked premium content */}
-            {!isLocked && (
+            {shouldShowEditDelete && (
               <>
                 <button
                   onClick={onEdit}
@@ -132,7 +162,7 @@ const FlashcardItem = React.memo(({
             </button>
             
             {/* Premium indicator for premium content */}
-            {isPremium && !isLocked && (
+            {isPremium && !isLocked && !devForceSubscription && (
               <div className="relative group ml-2">
                 <span className="text-[#F37022] font-semibold text-xs bg-[#F37022]/10 px-2 py-1 rounded-full flex items-center">
                   <Award className="h-3 w-3 mr-1" />
@@ -145,7 +175,7 @@ const FlashcardItem = React.memo(({
             )}
             
             {/* Lock indicator for locked content */}
-            {isLocked && (
+            {isLocked && !devForceSubscription && (
               <div className="relative group ml-2">
                 <span className="flex items-center justify-center p-2 text-[#F37022] font-medium bg-[#F37022]/10 dark:bg-[#F37022]/20 border border-[#F37022]/30 dark:border-[#F37022]/30 rounded-md focus:outline-none w-10 h-10">
                   <Lock className="h-5 w-5" />
@@ -159,7 +189,7 @@ const FlashcardItem = React.memo(({
           
           {/* Right side Study Now button */}
           <button
-            onClick={isLocked ? onUnlock : onView}
+            onClick={isLocked && !devForceSubscription ? onUnlock : onView}
             className="bg-[#F37022]/10 text-[#F37022] px-4 py-2 rounded-md hover:bg-[#F37022]/20 dark:bg-[#F37022]/20 dark:hover:bg-[#F37022]/30 sm:ml-4 whitespace-nowrap"
           >
             Study

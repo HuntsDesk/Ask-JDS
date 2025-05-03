@@ -179,4 +179,15 @@ export function processRelationshipData({
     collectionMap,
     examTypeMap
   };
+}
+
+/**
+ * Determines if a flashcard should be read-only for regular users.
+ * Only admins can edit official flashcards.
+ * 
+ * @param flashcard The flashcard object to check
+ * @returns True if the flashcard should be read-only, false otherwise
+ */
+export function isFlashcardReadOnly(flashcard: any): boolean {
+  return flashcard.is_official === true;
 } 

@@ -20,82 +20,7 @@ import { useNavbar } from '@/contexts/NavbarContext';
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { SkeletonFlashcardGrid } from '../SkeletonFlashcard';
-
-// Try to import functions from flashcard-utils
-let enrichFlashcardWithRelationships;
-let processRelationshipData;
-
-try {
-  // Don't use require in browser environment
-  // Import dynamically using dynamic import syntax instead of require
-  enrichFlashcardWithRelationships = (flashcard, relationshipData) => {
-    if (!relationshipData) return flashcard;
-    
-    // Basic implementation that attaches collection info for premium detection
-    return {
-      ...flashcard,
-      relationships: {
-        collections: relationshipData.flashcardCollections[flashcard.id] || [],
-        subjects: relationshipData.flashcardSubjects[flashcard.id] || [],
-        examTypes: relationshipData.flashcardExamTypes[flashcard.id] || []
-      }
-    };
-  };
-  
-  processRelationshipData = (data) => {
-    const flashcardCollections = {};
-    const flashcardSubjects = {};
-    const flashcardExamTypes = {};
-    const collectionSubjects = {};
-    
-    // Process collection relationships
-    (data.flashcardCollections || []).forEach(relation => {
-      if (!flashcardCollections[relation.flashcard_id]) {
-        flashcardCollections[relation.flashcard_id] = [];
-      }
-      
-      const collection = data.collections.find(c => c.id === relation.collection_id);
-      if (collection) {
-        flashcardCollections[relation.flashcard_id].push(collection);
-      }
-    });
-    
-    // Build subject maps
-    const subjectMap = {};
-    data.subjects.forEach(subject => {
-      subjectMap[subject.id] = subject;
-    });
-    
-    // Build collection maps
-    const collectionMap = {};
-    data.collections.forEach(collection => {
-      collectionMap[collection.id] = collection;
-    });
-    
-    return {
-      flashcardCollections,
-      flashcardSubjects,
-      flashcardExamTypes,
-      collectionSubjects,
-      subjectMap,
-      collectionMap,
-      examTypeMap: {}
-    };
-  };
-} catch (e) {
-  console.error("Failed to import flashcard-utils:", e);
-  // Fallback implementation if the import fails
-  enrichFlashcardWithRelationships = (flashcard, _relationshipData) => flashcard;
-  processRelationshipData = (data) => ({
-    flashcardCollections: {},
-    flashcardSubjects: {},
-    flashcardExamTypes: {},
-    collectionSubjects: {},
-    subjectMap: {},
-    collectionMap: {},
-    examTypeMap: {}
-  });
-}
+import { enrichFlashcardWithRelationships, processRelationshipData, isFlashcardReadOnly } from '@/utils/flashcard-utils';
 
 // Debug flag - set to false to disable most console logs
 // Set to localStorage.getItem('enableFlashcardDebug') === 'true' to control via localStorage
@@ -558,12 +483,20 @@ export default function AllFlashcards() {
   
   // Helper function to determine if a card is editable
   const isCardEditable = useCallback((card: Flashcard) => {
+    // First check if it's an official card - those are never editable by regular users
+    if (isFlashcardReadOnly(card)) {
+      return false;
+    }
     // Only allow editing of user's own cards
     return card.created_by === user?.id;
   }, [user?.id]);
   
   // Helper function to determine if a card is deletable
   const isCardDeletable = useCallback((card: Flashcard) => {
+    // First check if it's an official card - those are never deletable by regular users
+    if (isFlashcardReadOnly(card)) {
+      return false;
+    }
     // Only allow deletion of user's own cards
     return card.created_by === user?.id;
   }, [user?.id]);
@@ -702,18 +635,17 @@ export default function AllFlashcards() {
 
   // Handler to edit a card
   const handleEditCard = (card: Flashcard) => {
-    // Premium content that doesn't belong to the user cannot be edited
-    const isPremium = isCardPremium(card);
-    if (isPremium) {
+    // Check if card is read-only (official)
+    if (isFlashcardReadOnly(card)) {
       showToast(
-        "Premium content cannot be edited",
+        "Official content cannot be edited",
         "error"
       );
       return;
     }
     
     // Only allow editing of user's own cards
-    if (!isCardEditable(card)) {
+    if (card.created_by !== user?.id) {
       showToast(
         "You can only edit your own flashcards",
         "error"
@@ -726,6 +658,20 @@ export default function AllFlashcards() {
 
   // Handler to view a card
   const handleViewCard = (card: Flashcard) => {
+    // Check if we're in development mode with forced subscription
+    if (process.env.NODE_ENV === 'development') {
+      const forceSubscription = localStorage.getItem('forceSubscription');
+      if (forceSubscription === 'true') {
+        console.log('DEV OVERRIDE: Bypassing premium check in handleViewCard due to forceSubscription');
+        // Navigate directly without showing paywall
+        const collectionId = card.collection?.id;
+        if (collectionId) {
+          navigate(`/flashcards/study?collection=${collectionId}&card=${card.id}`);
+          return;
+        }
+      }
+    }
+    
     // If premium card and user doesn't have subscription, show paywall
     const isPremium = isCardPremium(card);
     if (isPremium && !hasSubscription) {
@@ -782,11 +728,10 @@ export default function AllFlashcards() {
 
   // Handler for delete button click
   const handleDeleteClick = (card: Flashcard) => {
-    // Check if card is premium and user doesn't have subscription
-    const isPremium = isCardPremium(card);
-    if (isPremium) {
+    // Check if card is read-only (official)
+    if (isFlashcardReadOnly(card)) {
       showToast(
-        "Premium content cannot be deleted",
+        "Official content cannot be deleted",
         "error"
       );
       return;
@@ -1083,7 +1028,7 @@ export default function AllFlashcards() {
             selectedSubjectIds.length > 0 || selectedCollectionIds.length > 0 
               ? "Try adjusting your filters to see more flashcards."
               : filter === 'my'
-                ? "You haven't created any flashcards yet. Create your first flashcard using the Add Card button."
+                ? "You haven't created any flashcards yet. Create your first flashcard using the New Flashcard button."
                 : "No flashcards found. Try changing your filters or create a new flashcard."
           }
           icon={<BookOpen className="w-12 h-12 text-gray-400" />}
@@ -1101,7 +1046,9 @@ export default function AllFlashcards() {
           {filteredCards.map((card) => {
             const isMastered = masteryStatus[card.id];
             const isPremium = isCardPremium(card);
-            const isLocked = isPremium;
+            const isReadOnly = isFlashcardReadOnly(card);
+            // FIXED: Also consider official cards as locked to prevent showing edit/delete buttons
+            const isLocked = isPremium || isReadOnly;
             
             return (
               <FlashcardItem
@@ -1112,6 +1059,7 @@ export default function AllFlashcards() {
                 collectionTitle={card.collection?.title || "No Collection"}
                 isPremium={isPremium}
                 isLocked={isLocked}
+                isReadOnly={isReadOnly}
                 isMastered={isMastered}
                 isToggling={masteringCardId === card.id}
                 onView={() => handleViewCard(card)}

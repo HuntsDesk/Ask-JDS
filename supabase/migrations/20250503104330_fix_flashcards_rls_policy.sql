@@ -7,12 +7,14 @@ DROP POLICY IF EXISTS "Users can update flashcards" ON "flashcards";
 -- Create a new restricted update policy
 CREATE POLICY "Users can update their own flashcards" ON "flashcards"
 FOR UPDATE
+TO authenticated
 USING (auth.uid() = created_by)
 WITH CHECK (auth.uid() = created_by);
 
 -- Create admin update policy
 CREATE POLICY "Admins can update any flashcard" ON "flashcards"
 FOR UPDATE
+TO authenticated
 USING (EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.is_admin = true))
 WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.is_admin = true));
 
@@ -24,7 +26,8 @@ DROP POLICY IF EXISTS "Users can view other users public flashcards" ON "flashca
 DROP POLICY IF EXISTS "Anyone can view public sample flashcards" ON "flashcards";
 CREATE POLICY "Anyone can view public sample flashcards" ON "flashcards"
 FOR SELECT
-USING (is_public_sample = true);
+TO anon, authenticated
+USING (is_official = true AND is_public_sample = true);
 
 -- Ensure the correct policies exist to restrict visibility
 -- 1. Users can see their own flashcards
