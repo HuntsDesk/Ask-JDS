@@ -351,6 +351,20 @@ export default function AllFlashcards() {
         // For all cards, fetch with their collections
         console.log('Fetching all flashcards with their collections');
         
+        // Create the filter condition safely
+        let filterCondition = 'is_official.eq.true,is_public_sample.eq.true';
+        if (user?.id) {
+          filterCondition = `created_by.eq.${user.id},${filterCondition}`;
+          console.log(`Filter condition includes user ID ${user.id}`);
+        } else {
+          console.log('No user ID available, only showing official and public flashcards');
+        }
+        
+        console.log(`Using filter condition: ${filterCondition}`);
+        
+        // PRIVACY FIX: The previous implementation was fetching ALL flashcards without filtering,
+        // which allowed users to see other users' private flashcards. This fix ensures users
+        // can only see their own flashcards, plus official or public sample cards.
         const { data, error } = await supabase
           .from('flashcards')
           .select(`
@@ -363,7 +377,9 @@ export default function AllFlashcards() {
                 user_id
               )
             )
-          `);
+          `)
+          // Only show the user's own flashcards or official/public ones
+          .or(filterCondition);
           
         if (error) {
           console.error('Error fetching all flashcards:', error);
