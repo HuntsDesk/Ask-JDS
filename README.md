@@ -964,14 +964,23 @@ The Flashcards module provides study tools with the following features:
 - Mastery tracking with visual indicators
 - Premium content access control
 - Responsive grid layouts for all screen sizes
+- Direct navigation to specific flashcards in study mode
 
 #### Component Structure
 - `FlashcardsPage`: Main container for all flashcard-related routes
-- `FlashcardCollections`: Displays collections with card counts and mastery stats
+- `FlashcardsCollections`: Displays collections with card counts and mastery stats
 - `AllFlashcards`: Shows all flashcards with filtering options
 - `FlashcardItem`: Individual flashcard component with mastery toggle
 - `Card`: Reusable card component for collections and subjects
 - `SkeletonFlashcard`: Loading placeholder components
+- `UnifiedStudyMode`: Advanced study interface with direct card navigation
+
+#### Direct Card Navigation
+The study mode now supports direct navigation to specific flashcards:
+- When clicking the study button on a card tile, that specific card is shown first
+- URL parameters allow directly linking to specific cards: `/flashcards/study?collection={id}&card={cardId}`
+- A direct search mechanism ensures the target card is found regardless of filter settings
+- Cards can be directly accessed even if they're mastered or in complex filter situations
 
 #### Premium Content Protection
 - Premium flashcards are marked with a "PREMIUM CONTENT" banner

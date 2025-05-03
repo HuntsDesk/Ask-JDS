@@ -156,7 +156,7 @@ export default function Card({
           </div>
           
           <Link
-            to={link || (collectionId ? `/flashcards/study/${collectionId}` : '#')}
+            to={link || (collectionId ? `/flashcards/study?collection=${collectionId}` : '#')}
             className="bg-[#F37022]/10 text-[#F37022] px-3 py-1 md:px-4 md:py-2 text-sm rounded-md hover:bg-[#F37022]/20 dark:bg-[#F37022]/20 dark:hover:bg-[#F37022]/30"
           >
             Study
