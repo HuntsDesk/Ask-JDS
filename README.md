@@ -992,6 +992,12 @@ The study mode now supports direct navigation to specific flashcards:
 - Timeouts in subscription status checks default to no access (rather than allowing access)
 - The hasActiveSubscription function defaults to false in error cases to prevent unauthorized access
 
+#### Privacy Controls
+- Users can only see flashcards they created, official flashcards, or public sample flashcards
+- RLS policies enforce access control at the database level
+- Additional application-level filtering ensures privacy even with complex queries
+- All listings and search results are properly filtered for privacy
+
 #### Performance Optimizations
 - Parallel data fetching for collections, subjects, and relationships
 - Efficient relationship data processing with lookup maps
