@@ -221,14 +221,31 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         console.log(`UnifiedStudyMode: Loaded ${examTypesData?.length || 0} exam types`);
         
         // Load flashcards with their relationships
+        console.log("UnifiedStudyMode: Loading flashcards with relationships");
+        
+        // Create the filter condition safely
+        let filterCondition = 'is_official.eq.true,is_public_sample.eq.true';
+        if (user?.id) {
+          filterCondition = `created_by.eq.${user.id},${filterCondition}`;
+          console.log(`UnifiedStudyMode: Filter condition includes user ID ${user.id}`);
+        } else {
+          console.log('UnifiedStudyMode: No user ID available, only showing official and public flashcards');
+        }
+        
+        console.log(`UnifiedStudyMode: Using filter condition: ${filterCondition}`);
+        
+        // PRIVACY FIX: Only fetch flashcards the user is allowed to see
         const { data: flashcardsData, error: flashcardsError } = await supabase
           .from('flashcards')
-          .select(`*`);
+          .select(`*`)
+          .or(filterCondition);
           
         if (flashcardsError) {
           console.error("UnifiedStudyMode: Error loading flashcards:", flashcardsError);
           throw flashcardsError;
         }
+        
+        console.log(`UnifiedStudyMode: Loaded ${flashcardsData?.length || 0} flashcards`);
         
         // Get junction table data to link flashcards to collections
         const { data: flashcardCollections, error: fcError } = await supabase

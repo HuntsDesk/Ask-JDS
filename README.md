@@ -995,8 +995,10 @@ The study mode now supports direct navigation to specific flashcards:
 #### Privacy Controls
 - Users can only see flashcards they created, official flashcards, or public sample flashcards
 - RLS policies enforce access control at the database level
-- Additional application-level filtering ensures privacy even with complex queries
-- All listings and search results are properly filtered for privacy
+- Client-side filtering provides additional security layers
+- UPDATE permissions restricted to only allow users to update their own flashcards
+- Database indexes optimize RLS policy performance 
+- Consistent privacy controls applied across all application components
 
 #### Performance Optimizations
 - Parallel data fetching for collections, subjects, and relationships
