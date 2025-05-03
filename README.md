@@ -723,6 +723,12 @@ localStorage.setItem('forceSubscription', 'true')
 localStorage.removeItem('forceSubscription')
 ```
 
+The `forceSubscription` flag has these effects in development mode:
+- Allows viewing of premium content (answers are visible)
+- Removes premium content banners
+- Bypasses the paywall for viewing restricted content
+- BUT still prevents editing/deleting official flashcards (isReadOnly protection)
+
 ### Domain Switching
 ```javascript
 // Force admin domain view
