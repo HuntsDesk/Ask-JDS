@@ -326,9 +326,24 @@ async function loadUnifiedData(userId?: string | null): Promise<LoadStudyDataRes
     if (examTypesError) throw examTypesError;
     
     // Get all flashcards
+    console.log('StudyDataLoader: Loading flashcards for unified view');
+    
+    // Create the filter condition safely
+    let filterCondition = 'is_official.eq.true,is_public_sample.eq.true';
+    if (userId) {
+      filterCondition = `created_by.eq.${userId},${filterCondition}`;
+      console.log(`StudyDataLoader: Filter condition includes user ID ${userId}`);
+    } else {
+      console.log('StudyDataLoader: No user ID available, only showing official and public flashcards');
+    }
+    
+    console.log(`StudyDataLoader: Using filter condition: ${filterCondition}`);
+    
+    // PRIVACY FIX: Only fetch flashcards the user is allowed to see
     const { data: cardsData, error: cardsError } = await supabase
       .from('flashcards')
-      .select('*');
+      .select('*')
+      .or(filterCondition);
       
     if (cardsError) throw cardsError;
     
