@@ -139,7 +139,7 @@ export default function AddCard() {
         showToast('Flashcard added successfully!', 'success');
       } else {
         // Navigate to study mode after successful save
-        navigate(`/flashcards/study?collection=${id}`);
+        navigate(`/flashcards/study?collection=${id}&card=${flashcardId}`);
       }
     } catch (err: any) {
       setError(err.message);
@@ -202,7 +202,7 @@ export default function AddCard() {
       showToast('Card added successfully', 'success');
       
       // Navigate to study mode after successful save
-      navigate(`/flashcards/study?collection=${id}`);
+      navigate(`/flashcards/study?collection=${id}&card=${flashcardId}`);
     } catch (err: any) {
       setError(err.message);
       showToast(`Error: ${err.message}`, 'error');

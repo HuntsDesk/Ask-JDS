@@ -218,8 +218,11 @@ export default function CreateSet() {
       
       showToast('Flashcard collection created successfully!', 'success');
       
-      // Navigate to the new collection
-      if (newCollection) {
+      // Navigate to the new collection with the first card selected
+      // Include the first flashcard ID if available
+      if (insertedCards && insertedCards.length > 0) {
+        navigate(`/flashcards/study?collection=${collection.id}&card=${insertedCards[0].id}`);
+      } else {
         navigate(`/flashcards/study?collection=${collection.id}`);
       }
       
