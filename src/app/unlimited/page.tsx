@@ -1,17 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { createClient } from '@supabase/supabase-js';
-import { Button, Card, CardContent } from '@/components/ui';
-import { useUserContext } from '@/context/UserContext';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { CardContent } from '@/components/ui/card';
+import { useAuth } from '@/lib/auth';
 import { trackEvent, AnalyticsEventType } from '@/lib/flotiq/analytics';
-
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from '@/lib/supabase';
 
 const UnlimitedPage: React.FC = () => {
-  const { user } = useUserContext();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [hasSubscription, setHasSubscription] = useState<boolean>(false);

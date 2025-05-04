@@ -1,4 +1,4 @@
-import JDSDashboard from '../../../jdsimplified/src/pages/Dashboard';
+import JDSDashboard from '@/pages/Dashboard';
 import { useEffect } from 'react';
 
 export function JDSDashboardWrapper() {

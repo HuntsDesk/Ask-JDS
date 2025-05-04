@@ -348,7 +348,7 @@ export default function SearchResults() {
                   <div key={collection.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                     <div className="p-4">
                       <Link 
-                        to={`/flashcards/study/${collection.id}`}
+                        to={`/flashcards/study?collection=${collection.id}`}
                         className="text-lg font-medium text-[#F37022] hover:underline"
                       >
                         {collection.title}
@@ -415,7 +415,7 @@ export default function SearchResults() {
                       <div className="flex justify-between mb-2">
                         <div>
                           <Link 
-                            to={`/flashcards/study/${card.collection_id}`}
+                            to={`/flashcards/study?collection=${card.collection_id}`}
                             className="text-sm font-medium text-[#F37022] hover:underline"
                           >
                             {card.collection.title}

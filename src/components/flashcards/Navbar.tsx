@@ -5,6 +5,8 @@ import SearchBar from './SearchBar';
 import useFlashcardAuth from '@/hooks/useFlashcardAuth';
 import { useNavbar } from '@/contexts/NavbarContext';
 import { SidebarContext } from '@/App';
+import { useLayoutState } from '@/hooks/useLayoutState';
+import { cn } from '@/lib/utils';
 
 export default function Navbar() {
   const { user } = useFlashcardAuth();
@@ -13,6 +15,7 @@ export default function Navbar() {
   const [isMobile, setIsMobile] = useState(false);
   const { itemCount, totalCollectionCount, totalCardCount } = useNavbar();
   const { isExpanded, setIsExpanded } = useContext(SidebarContext);
+  const { isDesktop, isPinned, contentMargin } = useLayoutState();
 
   // Check if device is mobile
   useEffect(() => {
@@ -145,7 +148,11 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 fixed top-0 z-20 w-full md:w-[calc(100%-var(--sidebar-collapsed-width))] md:left-[var(--sidebar-collapsed-width)] transition-all duration-300 ease-in-out" style={isExpanded ? {width: 'calc(100% - var(--sidebar-width))', left: 'var(--sidebar-width)'} : {}}>
+      <nav className={cn(
+        "bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 sticky top-0 z-20 w-full transition-all duration-300 ease-in-out",
+        // Apply the proper left padding when the sidebar is collapsed and pinned
+        isDesktop && isPinned && !isExpanded && contentMargin
+      )}>
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Mobile header */}

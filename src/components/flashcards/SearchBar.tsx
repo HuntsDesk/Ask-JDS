@@ -142,13 +142,13 @@ export default function SearchBar() {
     
     switch (result.type) {
       case 'collection':
-        navigate(`/flashcards/study/${result.id}`);
+        navigate(`/flashcards/study?collection=${result.id}`);
         break;
       case 'subject':
         navigate(`/flashcards/subjects/${result.id}`);
         break;
       case 'card':
-        navigate(`/flashcards/study/${result.collection_id}`);
+        navigate(`/flashcards/study?collection=${result.collection_id}`);
         break;
     }
   };

@@ -6,8 +6,8 @@ export const queryClient = new QueryClient({
     queries: {
       // Default stale time of 5 minutes
       staleTime: 5 * 60 * 1000,
-      // Cache time of 10 minutes
-      cacheTime: 10 * 60 * 1000,
+      // Cache time of 15 minutes
+      gcTime: 15 * 60 * 1000,
       // Retry failed queries 1 time
       retry: 1,
       // Retry delay (increases with each retry)
@@ -16,6 +16,8 @@ export const queryClient = new QueryClient({
       refetchOnWindowFocus: process.env.NODE_ENV === 'production',
       // Prefetch data
       refetchOnMount: true,
+      // Support for Suspense mode (disabled by default, components can opt-in)
+      suspense: false,
     },
   },
 }); 

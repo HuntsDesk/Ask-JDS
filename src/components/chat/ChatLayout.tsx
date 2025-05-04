@@ -15,18 +15,31 @@ const ChatLayout = ({
   // Ensure dark mode class is applied at layout level
   useEffect(() => {
     const root = window.document.documentElement;
+    
+    // Temporarily add a class to prevent theme flashing
+    root.classList.add('theme-changing');
+    
     if (theme === 'dark') {
       root.classList.add('dark');
+      root.classList.remove('light');
     } else if (theme === 'light') {
       root.classList.remove('dark');
+      root.classList.add('light');
     } else if (theme === 'system') {
       const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       if (systemPrefersDark) {
         root.classList.add('dark');
+        root.classList.remove('light');
       } else {
         root.classList.remove('dark');
+        root.classList.add('light');
       }
     }
+    
+    // Remove the temporary class after a short delay
+    setTimeout(() => {
+      root.classList.remove('theme-changing');
+    }, 50);
   }, [theme]);
 
   return (

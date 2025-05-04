@@ -33,6 +33,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger, TooltipPortal
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { useTheme } from '@/lib/theme-provider';
 import { useDomain } from '@/lib/domain-context';
+import { useLayoutState } from '@/hooks/useLayoutState';
 
 interface SidebarProps {
   setActiveTab: (tab: string) => void;
@@ -78,12 +79,12 @@ export function Sidebar({
   const { isExpanded, setIsExpanded, isMobile } = useContext(SidebarContext);
   const { theme } = useTheme();
   const { isJDSimplified } = useDomain();
-
-  // Replace regular state with persisted state - renamed to avoid collision with prop
-  const [localIsPinned, setIsPinned] = usePersistedState<boolean>('sidebar-is-pinned', false);
   
-  // Use the prop value if provided, otherwise use local state
-  const effectiveIsPinned = isPinnedProp !== undefined ? isPinnedProp : localIsPinned;
+  // Use the layout state hook to get access to the pin state
+  const { isPinned, setIsPinned } = useLayoutState();
+  
+  // Use the prop value if provided, otherwise use the state from useLayoutState
+  const effectiveIsPinned = isPinnedProp !== undefined ? isPinnedProp : isPinned;
 
   // Check current active section based on URL
   const isInChat = location.pathname.startsWith('/chat');
@@ -119,6 +120,8 @@ export function Sidebar({
   
   const togglePin = () => {
     const newPinState = !effectiveIsPinned;
+    
+    // Update our state hook
     setIsPinned(newPinState);
     
     // Set the recently toggled flag
@@ -292,9 +295,9 @@ export function Sidebar({
     }
   }, [selectedThreadId, currentSession]);
 
-  // Modify the handleThreadClick function to close the sidebar on mobile after clicking
+  // Modify the handleThreadClick function to ensure proper thread selection and navigation
   const handleThreadClick = (threadId: string) => {
-    console.log('Clicked on thread:', threadId);
+    console.log('Sidebar: Clicked on thread:', threadId);
     
     // Set current thread ID context
     setSelectedThreadId(threadId);
@@ -302,9 +305,8 @@ export function Sidebar({
     // Set the active tab for parent component
     setActiveTab(threadId);
     
-    // Handle navigation
-    // Use immediate navigation without setTimeout to avoid race conditions
-    navigate(`/chat/${threadId}`);
+    // Handle navigation - Use replace: true to force URL update without adding to history stack
+    navigate(`/chat/${threadId}`, { replace: true, state: { fromSidebar: true } });
     
     // If on mobile, collapse the sidebar
     if (isMobile) {
@@ -390,7 +392,7 @@ export function Sidebar({
       >
         <div className="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
           <div className={cn(
-            "flex items-center justify-center py-4", // Increased padding
+            "flex items-center justify-center py-4", // Reduced vertical padding
             isDesktopExpanded ? "px-4" : "px-2"
           )}>
             {/* Close button for mobile */}
@@ -413,19 +415,19 @@ export function Sidebar({
                 <img 
                   src="/images/JDSimplified_Logo.png" 
                   alt="JD Simplified Logo" 
-                  className="h-10 transition-all dark:hidden" 
+                  className="h-12 transition-all dark:hidden" 
                 />
                 <img 
                   src="/images/JDSimplified_Logo_wht.png" 
                   alt="JD Simplified Logo" 
-                  className="h-10 transition-all hidden dark:block" 
+                  className="h-12 transition-all hidden dark:block" 
                 />
               </>
             ) : (
               <img 
                 src="/images/JD Simplified Favicon.svg" 
                 alt="JDS" 
-                className="h-8 transition-all dark:invert" 
+                className="h-12 transition-all dark:invert" 
               />
             )}
           </div>

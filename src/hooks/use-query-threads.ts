@@ -29,12 +29,12 @@ export function useThreads() {
       if (error) throw error;
       return data as Thread[];
     },
-    // Only fetch if we have a user
-    enabled: !!userId,
+      // Only fetch if we have a user
+      enabled: !!userId,
     // Use placeholderData instead of keepPreviousData in v5
     placeholderData: keepData => keepData as Thread[] | undefined,
-    // Cache for 2 minutes
-    staleTime: 2 * 60 * 1000,
+      // Cache for 2 minutes
+      staleTime: 2 * 60 * 1000,
     // Important: Don't refetch on window focus to prevent flashing
     refetchOnWindowFocus: false,
     // Reduce unnecessary network requests
@@ -58,8 +58,8 @@ export function useThread(id: string | null) {
       if (error) throw error;
       return data as Thread;
     },
-    // Don't fetch if no ID is provided
-    enabled: !!id,
+      // Don't fetch if no ID is provided
+      enabled: !!id,
     // Use placeholderData instead of keepPreviousData in v5
     placeholderData: keepData => keepData as Thread | null | undefined,
     // Cache for 2 minutes
@@ -83,10 +83,10 @@ export function useMessages(threadId: string | null) {
       if (error) throw error;
       return data as Message[];
     },
-    // Don't fetch if no thread ID is provided
-    enabled: !!threadId,
-    // Refetch messages periodically 
-    refetchInterval: 10000, // Every 10 seconds
+      // Don't fetch if no thread ID is provided
+      enabled: !!threadId,
+      // Refetch messages periodically 
+      refetchInterval: 10000, // Every 10 seconds
     // Use placeholderData instead of keepPreviousData in v5
     placeholderData: keepData => keepData as Message[] | undefined,
   });
@@ -115,14 +115,14 @@ export function useCreateThread() {
       if (error) throw error;
       return data as Thread;
     },
-    // When mutation succeeds, update the threads list
-    onSuccess: (newThread) => {
-      // Get the current threads from the cache
-      const previousThreads = queryClient.getQueryData<Thread[]>(threadKeys.all) || [];
-      
-      // Update the cache with the new thread
-      queryClient.setQueryData(threadKeys.all, [newThread, ...previousThreads]);
-    },
+      // When mutation succeeds, update the threads list
+      onSuccess: (newThread) => {
+        // Get the current threads from the cache
+        const previousThreads = queryClient.getQueryData<Thread[]>(threadKeys.all) || [];
+        
+        // Update the cache with the new thread
+        queryClient.setQueryData(threadKeys.all, [newThread, ...previousThreads]);
+      },
   });
 }
 
@@ -146,7 +146,7 @@ export function useUpdateThread() {
     onSuccess: (updatedThread) => {
       // Update in the threads list
       const previousThreads = queryClient.getQueryData<Thread[]>(threadKeys.all) || [];
-      queryClient.setQueryData(
+        queryClient.setQueryData(
         threadKeys.all, 
         previousThreads.map(thread => 
           thread.id === updatedThread.id ? updatedThread : thread
@@ -183,10 +183,10 @@ export function useDeleteThread() {
       );
       
       // Invalidate the individual thread
-      queryClient.removeQueries(threadKeys.thread(deletedId));
+      queryClient.removeQueries({ queryKey: threadKeys.thread(deletedId) });
       
       // Invalidate messages for this thread
-      queryClient.removeQueries(threadKeys.messages(deletedId));
-    },
+      queryClient.removeQueries({ queryKey: threadKeys.messages(deletedId) });
+      },
   });
 } 

@@ -71,6 +71,13 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     const searchParams = new URLSearchParams(location.search);
     const subjectParam = searchParams.get('subject');
     const collectionParam = searchParams.get('collection');
+    const cardParam = searchParams.get('card');
+    
+    console.log('UnifiedStudyMode: URL Parameters detected:', {
+      subject: subjectParam,
+      collection: collectionParam,
+      card: cardParam
+    });
     
     // Determine the mode
     let studyMode: 'unified' | 'subject' | 'collection' = 'unified';
@@ -127,7 +134,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       collections: [],
       difficultyLevels: [],
       showCommonPitfalls: false,
-      showMastered: true // Default to showing all cards
+      showMastered: cardParam ? true : false // Always show mastered cards if a specific card was requested
     };
     
     if (studyMode === 'subject' && studyId) {
@@ -141,6 +148,12 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     // Completely replace the filters rather than merging
     setFilters(initialFilters);
     console.log(`UnifiedStudyMode: Initial filters set:`, initialFilters);
+    
+    // Store the card ID in sessionStorage - will be handled by our direct search mechanism
+    if (cardParam) {
+      console.log(`UnifiedStudyMode: Found card ID in query params: ${cardParam}`);
+      sessionStorage.setItem('initialCardId', cardParam);
+    }
     
   }, [propMode, propId, subjectId, collectionId, routeMode, routeId, location.pathname, location.search]);
 
@@ -208,14 +221,31 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         console.log(`UnifiedStudyMode: Loaded ${examTypesData?.length || 0} exam types`);
         
         // Load flashcards with their relationships
+        console.log("UnifiedStudyMode: Loading flashcards with relationships");
+        
+        // Create the filter condition safely
+        let filterCondition = 'is_official.eq.true,is_public_sample.eq.true';
+        if (user?.id) {
+          filterCondition = `created_by.eq.${user.id},${filterCondition}`;
+          console.log(`UnifiedStudyMode: Filter condition includes user ID ${user.id}`);
+        } else {
+          console.log('UnifiedStudyMode: No user ID available, only showing official and public flashcards');
+        }
+        
+        console.log(`UnifiedStudyMode: Using filter condition: ${filterCondition}`);
+        
+        // PRIVACY FIX: Only fetch flashcards the user is allowed to see
         const { data: flashcardsData, error: flashcardsError } = await supabase
           .from('flashcards')
-          .select(`*`);
+          .select(`*`)
+          .or(filterCondition);
           
         if (flashcardsError) {
           console.error("UnifiedStudyMode: Error loading flashcards:", flashcardsError);
           throw flashcardsError;
         }
+        
+        console.log(`UnifiedStudyMode: Loaded ${flashcardsData?.length || 0} flashcards`);
         
         // Get junction table data to link flashcards to collections
         const { data: flashcardCollections, error: fcError } = await supabase
@@ -500,9 +530,6 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         throw error;
       }
       
-      // Show toast notification
-      showToast('Card marked as mastered', 'success');
-      
       // Update local state
       const newCards = cards.map(card => 
         card.id === currentCard.id ? { ...card, is_mastered: true } : card
@@ -556,9 +583,6 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       if (error) {
         throw error;
       }
-      
-      // Show toast notification
-      showToast('Card unmarked as mastered', 'success');
       
       // Update local state
       const newCards = cards.map(card => 
@@ -617,6 +641,93 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     setFilters(newFilters);
     console.log("UnifiedStudyMode: Filters reset to:", newFilters);
   };
+
+  // Add a direct search for card by ID
+  const findCardDirectly = (cardId: string) => {
+    console.log(`UnifiedStudyMode: DIRECT SEARCH - Looking for card: ${cardId}`);
+    
+    // First check in the filtered list
+    let cardIndex = filteredCards.findIndex(card => card.id === cardId);
+    
+    if (cardIndex !== -1) {
+      console.log(`UnifiedStudyMode: DIRECT SEARCH - Card found in filtered list at index ${cardIndex}`);
+      return cardIndex;
+    }
+    
+    // If not found in filtered list, we need to modify our filters to include it
+    const cardData = cards.find(card => card.id === cardId);
+    if (!cardData) {
+      console.log(`UnifiedStudyMode: DIRECT SEARCH - Card not found in any list`);
+      return -1;
+    }
+    
+    // Find the collections this card belongs to
+    if (!cardData.collections || cardData.collections.length === 0) {
+      console.log(`UnifiedStudyMode: DIRECT SEARCH - Card has no collections assigned`);
+      return -1;
+    }
+    
+    // Get the first collection ID
+    const collectionId = cardData.collections[0].id;
+    console.log(`UnifiedStudyMode: DIRECT SEARCH - Card belongs to collection ${collectionId}`);
+    
+    // Update filters to include all cards from this collection and show mastered cards
+    setFilters({
+      ...filters,
+      collections: [collectionId],
+      showMastered: true // Show all cards including mastered
+    });
+    
+    // This will trigger a refilter, so return -1 for now
+    console.log(`UnifiedStudyMode: DIRECT SEARCH - Updated filters, wait for refiltering`);
+    return -1;
+  };
+
+  // Add URL parameter handler
+  useEffect(() => {
+    // Skip if loading or no cards
+    if (loading || cards.length === 0) {
+      return;
+    }
+    
+    // Check URL for card ID
+    const searchParams = new URLSearchParams(location.search);
+    const cardParam = searchParams.get('card');
+    
+    if (cardParam) {
+      console.log(`UnifiedStudyMode: URL has card parameter: ${cardParam}`);
+      
+      // Direct search for the card
+      const cardIndex = findCardDirectly(cardParam);
+      
+      if (cardIndex !== -1) {
+        console.log(`UnifiedStudyMode: Setting initial card index to ${cardIndex} from URL param`);
+        setCurrentIndex(cardIndex);
+      }
+    }
+  }, [loading, cards, location.search, filteredCards]);
+
+  // Existing useEffect for sessionStorage - ensure this runs after the URL param handler
+  useEffect(() => {
+    // Only run when cards are loaded and we have filtered cards
+    if (loading || filteredCards.length === 0) return;
+    
+    // Check if we need to show a specific card
+    const initialCardId = sessionStorage.getItem('initialCardId');
+    if (initialCardId) {
+      console.log(`UnifiedStudyMode: Looking for initial card in session storage: ${initialCardId}`);
+      
+      // Direct search
+      const cardIndex = findCardDirectly(initialCardId);
+      
+      if (cardIndex !== -1) {
+        // Card found directly
+        console.log(`UnifiedStudyMode: Setting card index to ${cardIndex} from session storage`);
+        setCurrentIndex(cardIndex);
+        sessionStorage.removeItem('initialCardId');
+      }
+    }
+  }, [filteredCards, loading, cards]);
 
   // Render function
   if (loading) {
@@ -926,7 +1037,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                 </div>
               ) : (
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                  {showAnswer ? currentCard.answer : currentCard.question}
+                  {showAnswer ? currentCard?.answer : currentCard?.question}
                 </h2>
               )}
             </div>
@@ -955,7 +1066,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           </button>
 
           <div className="flex items-center gap-3" style={{ pointerEvents: 'auto', position: 'relative', zIndex: 50 }}>
-            {!currentCard.is_mastered && (
+            {currentCard && !currentCard.is_mastered && (
               <button
                 onClick={(e) => {
                   e.preventDefault();
@@ -970,7 +1081,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
               </button>
             )}
             
-            {currentCard.is_mastered && (
+            {currentCard && currentCard.is_mastered && (
               <button
                 onClick={(e) => {
                   e.preventDefault();

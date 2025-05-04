@@ -35,6 +35,10 @@ const lifetimeMessageCountCache = new Map<string, { count: number, timestamp: nu
 // Flag to track if we've already logged database errors
 let hasLoggedDatabaseErrors = false;
 
+// Add a module-level variable to track if we've logged subscription checks
+let hasLoggedSubscriptionCheck = false;
+let lastSubscriptionStatus: boolean | null = null;
+
 /**
  * Helper function to check if a database error is due to missing tables
  */
@@ -735,6 +739,10 @@ export async function hasActiveSubscription(userId?: string): Promise<boolean> {
       console.log('DEV: Forcing subscription to true via localStorage flag');
       return true;
     }
+    if (forceSubscription === 'false') {
+      console.log('DEV: Forcing subscription to false via localStorage flag');
+      return false;
+    }
   }
 
   // First ensure we have a valid session
@@ -744,74 +752,44 @@ export async function hasActiveSubscription(userId?: string): Promise<boolean> {
     // In case of auth issues, trigger a sign-out/redirect in the next tick
     setTimeout(() => {
       if (typeof window !== 'undefined') {
-        // Store a message to display after redirect
-        sessionStorage.setItem('auth_redirect_reason', 'session_expired');
-        // Redirect to the auth page
         window.location.href = '/auth';
       }
     }, 0);
-    
-    // Default to true to avoid blocking UI during redirect
-    return true;
+    return false;
   }
 
-  // Create a promise that resolves after a timeout
-  const timeoutPromise = new Promise<boolean>((resolve) => {
-    setTimeout(() => {
-      console.warn('hasActiveSubscription timeout - defaulting to true for user experience');
-      resolve(true); // Default to true on timeout to allow access
-    }, 5000); // 5 second timeout
-  });
-  
-  // Create the main subscription check promise
-  const subscriptionCheckPromise = (async () => {
-    try {
-      // If no userId provided, get the current user
-      if (!userId) {
-        const { data: { user } } = await supabase.auth.getUser();
-        userId = user?.id;
-        
-        if (!userId) {
-          console.warn('No userId provided for active subscription check');
-          return false;
-        }
-      }
-      
+  // No need to check subscription if no user ID provided
+  if (!userId) {
+    console.log('hasActiveSubscription: No user ID provided, returning false');
+    return false;
+  }
+
+  try {
+    // Only log this once per session to reduce spam
+    if (!hasLoggedSubscriptionCheck) {
       console.log(`Checking if user has active subscription for ${userId}`);
-      const subscription = await getUserSubscription(userId);
-      
-      if (!subscription) {
-        console.log(`No subscription found for user ${userId}, user is on free tier`);
-        return false;
-      }
-      
-      // Check if the subscription status is active or trialing
-      const activeStatuses = ['active', 'trialing'];
-      const isActive = activeStatuses.includes(subscription.status);
-      
-      console.log(`Subscription for user ${userId} has status: ${subscription.status}, isActive: ${isActive}`);
-      
-      // Check if the subscription is set to cancel at period end
-      if (subscription.cancelAtPeriodEnd) {
-        const periodEndDate = new Date(subscription.periodEnd);
-        const now = new Date();
-        const isStillActive = periodEndDate > now;
-        
-        console.log(`Subscription is set to cancel at period end (${periodEndDate.toISOString()}). Currently ${isStillActive ? 'still active' : 'inactive'}`);
-        
-        return isActive && isStillActive;
-      }
-      
-      return isActive;
-    } catch (error) {
-      console.error('Error checking subscription status:', error);
-      // Default to true on error to allow access rather than blocking
-      return true;
+      hasLoggedSubscriptionCheck = true;
     }
-  })();
-  
-  // Race the subscription check against the timeout
-  return Promise.race([subscriptionCheckPromise, timeoutPromise]);
+    
+    // Get the user's subscription information
+    const subscription = await getUserSubscription(userId);
+    
+    // Determine if the subscription is active based on its status and expiry
+    const isActive = (subscription?.status === 'active' || subscription?.status === 'trialing')
+                       && new Date(subscription?.periodEnd || 0) > new Date();
+    
+    // Log subscription status only when it changes to reduce spam
+    if (lastSubscriptionStatus === null || lastSubscriptionStatus !== isActive) {
+      console.log(`Subscription for user ${userId} has status: ${subscription?.status}, isActive: ${isActive}`);
+      lastSubscriptionStatus = isActive;
+    }
+    
+    return isActive;
+    
+  } catch (error) {
+    console.error('Error checking subscription status:', error);
+    return false; // Default to false on error for better security
+  }
 }
 
 /**

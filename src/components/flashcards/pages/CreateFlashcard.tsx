@@ -286,11 +286,11 @@ export default function CreateFlashcard() {
   if (collections.length === 0) {
     return (
       <div className="max-w-3xl mx-auto text-center py-12">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Create a Flashcard</h1>
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <Library className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-700 mb-4">No Collections Available</h2>
-          <p className="text-gray-600 mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Create a Flashcard</h1>
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
+          <Library className="h-16 w-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">No Collections Available</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
             You need to create a collection before you can add flashcards.
           </p>
           <Link
@@ -320,32 +320,32 @@ export default function CreateFlashcard() {
           <ChevronLeft className="h-5 w-5" />
           Back to Flashcards
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900 mt-4">Create New Flashcard</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mt-4">Create New Flashcard</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
           <div className="space-y-4">
             {/* Question and Answer first */}
             <div>
-              <label htmlFor="question" className="block text-sm font-medium text-gray-700 mb-1">Question</label>
+              <label htmlFor="question" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Question</label>
               <input
                 id="question"
                 type="text"
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
                 required
               />
             </div>
 
             <div>
-              <label htmlFor="answer" className="block text-sm font-medium text-gray-700 mb-1">Answer</label>
+              <label htmlFor="answer" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Answer</label>
               <textarea
                 id="answer"
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
                 rows={5}
                 required
               />
@@ -354,7 +354,7 @@ export default function CreateFlashcard() {
             {/* Collections selection */}
             <div className="mb-4">
               <div className="flex justify-between items-center mb-1">
-                <label htmlFor="collection" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="collection" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Collections
                 </label>
                 <Link
@@ -368,7 +368,7 @@ export default function CreateFlashcard() {
                 id="collection"
                 value=""
                 onChange={handleCollectionChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
               >
                 <option value="">Select collections...</option>
                 {collections.map(collection => (
@@ -382,12 +382,12 @@ export default function CreateFlashcard() {
                   {selectedCollectionIds.map(id => {
                     const collection = collections.find(c => c.id === id);
                     return (
-                      <div key={id} className="bg-gray-100 px-3 py-1 rounded-md flex items-center">
-                        <span className="text-sm">{collection?.title}</span>
+                      <div key={id} className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-md flex items-center">
+                        <span className="text-sm text-gray-800 dark:text-gray-200">{collection?.title}</span>
                         <button 
                           type="button" 
                           onClick={() => removeCollection(id)}
-                          className="ml-2 text-gray-500 hover:text-gray-700"
+                          className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -396,7 +396,7 @@ export default function CreateFlashcard() {
                   })}
                 </div>
               )}
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Select one or more collections for this flashcard.
               </p>
             </div>
@@ -404,7 +404,7 @@ export default function CreateFlashcard() {
             {/* Subjects selection */}
             <div className="mb-4">
               <div className="flex justify-between items-center mb-1">
-                <label htmlFor="subject" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Subjects (Optional)
                 </label>
                 <Link
@@ -418,7 +418,7 @@ export default function CreateFlashcard() {
                 id="subject"
                 value=""
                 onChange={handleSubjectChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
               >
                 <option value="">Select subjects...</option>
                 {subjects.map(subject => (
@@ -432,12 +432,12 @@ export default function CreateFlashcard() {
                   {selectedSubjectIds.map(id => {
                     const subject = subjects.find(s => s.id === id);
                     return (
-                      <div key={id} className="bg-gray-100 px-3 py-1 rounded-md flex items-center">
-                        <span className="text-sm">{subject?.name}</span>
+                      <div key={id} className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-md flex items-center">
+                        <span className="text-sm text-gray-800 dark:text-gray-200">{subject?.name}</span>
                         <button 
                           type="button" 
                           onClick={() => removeSubject(id)}
-                          className="ml-2 text-gray-500 hover:text-gray-700"
+                          className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -446,7 +446,7 @@ export default function CreateFlashcard() {
                   })}
                 </div>
               )}
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Select one or more subjects to categorize this flashcard.
               </p>
             </div>
@@ -468,7 +468,7 @@ export default function CreateFlashcard() {
               type="button"
               onClick={handleSaveAndExit}
               disabled={saving}
-              className="flex items-center gap-2 bg-gray-100 text-gray-800 px-6 py-2 rounded-md hover:bg-gray-200 disabled:opacity-50"
+              className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-6 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
             >
               <ArrowLeft className="h-5 w-5" />
               Save & Go Back

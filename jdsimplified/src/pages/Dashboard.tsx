@@ -12,7 +12,7 @@ import { Input } from '../../src/components/ui/input';
 import { Card } from '../../src/components/ui/card';
 import { Progress } from '../../src/components/ui/progress';
 import { Badge } from '../../src/components/ui/badge';
-import { supabase } from '../../src/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { LoadingSpinner } from '../components/course/LoadingSpinner';
 import CourseCard from '../components/CourseCard';

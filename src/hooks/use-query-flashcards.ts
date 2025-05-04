@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 
@@ -14,12 +14,16 @@ export const flashcardKeys = {
 };
 
 // Hook to fetch all collections
-export function useFlashcardCollections(options = {}) {
-  return useQuery(
-    flashcardKeys.collections(),
-    async () => {
-      // First get all collections
-      const { data: collectionsData, error: collectionsError } = await supabase
+export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all', subjectIds: string[] = [], options = {}) {
+  const { user } = useAuth();
+  
+  return useInfiniteQuery({
+    queryKey: [...flashcardKeys.collections(), filter, subjectIds],
+    queryFn: async ({ pageParam = 0 }) => {
+      console.log("useFlashcardCollections: Fetching collections with filter:", filter, "and subjects:", subjectIds, "pageParam:", pageParam);
+      
+      // First build the base query
+      let query = supabase
         .from('collections')
         .select(`
           id,
@@ -31,39 +35,214 @@ export function useFlashcardCollections(options = {}) {
         `)
         .order('created_at', { ascending: false });
       
+      // Apply offset-based pagination (instead of cursor-based)
+      // Each page is 21 items (7 rows of 3)
+      const pageSize = 21;
+      const offset = typeof pageParam === 'number' ? pageParam * pageSize : 0;
+      query = query.range(offset, offset + pageSize - 1);
+      console.log(`Using offset pagination: offset=${offset}, limit=${pageSize}`);
+      
+      // Apply tab filters
+      if (filter === 'official') {
+        query = query.eq('is_official', true);
+      } else if (filter === 'my' && user) {
+        query = query.eq('user_id', user.id);
+      }
+      
+      // Apply subject filter if present
+      let filteredCollectionIds: string[] = [];
+      
+      if (subjectIds.length > 0) {
+        // Get collection IDs that match these subjects
+        const { data: collectionSubjects, error: junctionError } = await supabase
+          .from('collection_subjects')
+          .select('collection_id')
+          .in('subject_id', subjectIds);
+        
+        if (junctionError) throw junctionError;
+        
+        if (collectionSubjects && collectionSubjects.length > 0) {
+          filteredCollectionIds = Array.from(new Set(collectionSubjects.map(cs => cs.collection_id)));
+          
+          // Apply filter
+          query = query.in('id', filteredCollectionIds);
+        } else {
+          // No collections match these subjects
+          return {
+            collections: [],
+            totalCount: 0,
+            subjectMap: {},
+            cardCounts: {},
+            masteryData: {},
+            nextCursor: null
+          };
+        }
+      }
+      
+      // Get total count with filters applied (but no pagination)
+      // Create a separate query for counting (can't use clone())
+      let countQuery = supabase
+        .from('collections')
+        .select('*', { count: 'exact', head: true })
+        .order('created_at', { ascending: false });
+        
+      // Apply the same filters as the main query
+      if (filter === 'official') {
+        countQuery = countQuery.eq('is_official', true);
+      } else if (filter === 'my' && user) {
+        countQuery = countQuery.eq('user_id', user.id);
+      }
+      
+      // Apply subject filter if present
+      if (subjectIds.length > 0 && filteredCollectionIds.length > 0) {
+        countQuery = countQuery.in('id', filteredCollectionIds);
+      }
+      
+      const { count, error: countError } = await countQuery;
+      
+      if (countError) throw countError;
+      
+      // Fetch the actual collections with pagination
+      const { data: collectionsData, error: collectionsError } = await query;
+      console.log("useFlashcardCollections: Fetched collections:", collectionsData?.length || 0);
+      
       if (collectionsError) throw collectionsError;
       
-      // For each collection, get its associated subjects through the junction table
-      const collections = await Promise.all((collectionsData || []).map(async (collection) => {
-        const { data: subjectData, error: subjectError } = await supabase
-          .from('collection_subjects')
-          .select(`
-            subject_id,
-            subjects:subject_id(id, name)
-          `)
-          .eq('collection_id', collection.id);
-        
+      if (!collectionsData || collectionsData.length === 0) {
         return {
-          ...collection,
-          subjects: subjectError ? [] : subjectData?.map(s => s.subjects) || []
+          collections: [],
+          totalCount: count || 0,
+          subjectMap: {},
+          cardCounts: {},
+          masteryData: {},
+          nextCursor: null
         };
-      }));
+      }
       
-      return collections;
+      // Extract all collection IDs for batch queries
+      const fetchedCollectionIds = collectionsData.map(collection => collection.id);
+      
+      // Calculate if there are more pages
+      const hasNextPage = offset + collectionsData.length < (count || 0);
+      console.log(`hasNextPage=${hasNextPage}, offset=${offset}, fetched=${collectionsData.length}, total=${count}`);
+      
+      // Get next page number
+      const nextCursor = hasNextPage ? (pageParam as number) + 1 : null;
+      
+      // BATCH QUERY: Get all subject relationships for these collections at once
+      const { data: allCollectionSubjects, error: allSubjectsError } = await supabase
+        .from('collection_subjects')
+        .select('collection_id, subject_id')
+        .in('collection_id', fetchedCollectionIds);
+        
+      if (allSubjectsError) throw allSubjectsError;
+      
+      // Get all unique subject IDs to fetch subject details
+      const uniqueSubjectIds = Array.from(new Set((allCollectionSubjects || []).map(cs => cs.subject_id)));
+      
+      // BATCH QUERY: Get subject details
+      const { data: subjectDetails, error: subjectDetailsError } = await supabase
+        .from('subjects')
+        .select('id, name')
+        .in('id', uniqueSubjectIds);
+        
+      if (subjectDetailsError) throw subjectDetailsError;
+      
+      // Create subject lookup map
+      const subjectMap: Record<string, { id: string; name: string }> = {};
+      (subjectDetails || []).forEach(subject => {
+        subjectMap[subject.id] = subject;
+      });
+      
+      // BATCH QUERY: Get card counts for all collections at once
+      const { data: cardCounts, error: countQueryError } = await supabase
+        .from('flashcard_collections_junction')
+        .select('collection_id, flashcard_id')
+        .in('collection_id', fetchedCollectionIds);
+        
+      if (countQueryError) throw countQueryError;
+      
+      console.log("useFlashcardCollections: Card junction data:", cardCounts?.length || 0, "entries");
+      
+      // Process card counts
+      const cardCountMap: Record<string, number> = {};
+      (cardCounts || []).forEach(junction => {
+        if (!cardCountMap[junction.collection_id]) {
+          cardCountMap[junction.collection_id] = 0;
+        }
+        cardCountMap[junction.collection_id]++;
+      });
+      
+      console.log("useFlashcardCollections: Processed card counts:", cardCountMap);
+      
+      // BATCH QUERY: Get user progress data if user is logged in
+      let masteryData: Record<string, { total: number; mastered: number }> = {};
+      
+      if (user) {
+        // Get all flashcard IDs first
+        const flashcardIds = Array.from(new Set((cardCounts || []).map(j => j.flashcard_id)));
+        
+        if (flashcardIds.length > 0) {
+          console.log("useFlashcardCollections: Fetching progress for", flashcardIds.length, "flashcards");
+          
+          const { data: progressData, error: progressError } = await supabase
+            .from('flashcard_progress')
+            .select('flashcard_id, is_mastered')
+            .eq('user_id', user.id)
+            .in('flashcard_id', flashcardIds);
+            
+          if (progressError) throw progressError;
+          
+          console.log("useFlashcardCollections: Got progress data for", progressData?.length || 0, "flashcards");
+          
+          // Create a map of flashcard ID to mastery level
+          const progressMap: Record<string, boolean> = {};
+          (progressData || []).forEach(progress => {
+            progressMap[progress.flashcard_id] = progress.is_mastered;
+          });
+          
+          // Now map the progress data back to collections
+          (cardCounts || []).forEach(junction => {
+            if (!masteryData[junction.collection_id]) {
+              masteryData[junction.collection_id] = { total: 0, mastered: 0 };
+            }
+            
+            masteryData[junction.collection_id].total++;
+            
+            // Check if this card is mastered
+            if (progressMap[junction.flashcard_id]) {
+              masteryData[junction.collection_id].mastered++;
+            }
+          });
+          
+          console.log("useFlashcardCollections: Processed mastery data:", masteryData);
+        }
+      }
+      
+      // Return everything needed for rendering, including the cursor for next page
+      return {
+        collections: collectionsData,
+        totalCount: count || 0,
+        subjectMap,
+        subjectRelationships: allCollectionSubjects || [],
+        cardCounts: cardCountMap,
+        masteryData,
+        nextCursor
+      };
     },
-    {
-      // Default options can be overridden
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      ...options,
-    }
-  );
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    // Default options can be overridden
+    staleTime: 30 * 60 * 1000, // 30 minutes
+    ...options,
+  });
 }
 
 // Hook to fetch a specific collection with its subjects
 export function useFlashcardCollection(id: string, options = {}) {
-  return useQuery(
-    flashcardKeys.collection(id),
-    async () => {
+  return useQuery({
+    queryKey: flashcardKeys.collection(id),
+    queryFn: async () => {
       // Fetch collection details
       const { data: collection, error: collectionError } = await supabase
         .from('collections')
@@ -98,19 +277,17 @@ export function useFlashcardCollection(id: string, options = {}) {
         subjects: subjectData?.map(s => s.subjects) || []
       };
     },
-    {
-      // Don't fetch if no ID is provided
-      enabled: !!id,
-      ...options,
-    }
-  );
+    // Don't fetch if no ID is provided
+    enabled: !!id,
+    ...options,
+  });
 }
 
 // Hook to fetch cards for a collection
 export function useFlashcards(collectionId: string, options = {}) {
-  return useQuery(
-    flashcardKeys.cards(collectionId),
-    async () => {
+  return useQuery({
+    queryKey: flashcardKeys.cards(collectionId),
+    queryFn: async () => {
       // Query the junction table to get flashcard IDs for this collection
       const { data: junctionData, error: junctionError } = await supabase
         .from('flashcard_collections_junction')
@@ -174,19 +351,17 @@ export function useFlashcards(collectionId: string, options = {}) {
       
       return processedCards;
     },
-    {
-      // Don't fetch if no collection ID is provided
-      enabled: !!collectionId,
-      ...options,
-    }
-  );
+    // Don't fetch if no collection ID is provided
+    enabled: !!collectionId,
+    ...options,
+  });
 }
 
 // Hook to fetch all subjects
 export function useSubjects(options = {}) {
-  return useQuery(
-    flashcardKeys.subjects(),
-    async () => {
+  return useQuery({
+    queryKey: flashcardKeys.subjects(),
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('subjects')
         .select('id, name')
@@ -195,18 +370,16 @@ export function useSubjects(options = {}) {
       if (error) throw error;
       return data || [];
     },
-    {
-      staleTime: 10 * 60 * 1000, // 10 minutes
-      ...options,
-    }
-  );
+    staleTime: 30 * 60 * 1000, // 30 minutes
+    ...options,
+  });
 }
 
 // Hook to fetch all exam types
 export function useExamTypes(options = {}) {
-  return useQuery(
-    flashcardKeys.examTypes(),
-    async () => {
+  return useQuery({
+    queryKey: flashcardKeys.examTypes(),
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('exam_types')
         .select('id, name, description')
@@ -215,20 +388,18 @@ export function useExamTypes(options = {}) {
       if (error) throw error;
       return data || [];
     },
-    {
-      staleTime: 10 * 60 * 1000, // 10 minutes
-      ...options,
-    }
-  );
+    staleTime: 30 * 60 * 1000, // 30 minutes
+    ...options,
+  });
 }
 
 // Hook to fetch cards with user progress
 export function useFlashcardsWithProgress(collectionId: string, options = {}) {
   const { user } = useAuth();
   
-  return useQuery(
-    [...flashcardKeys.cards(collectionId), 'withProgress', user?.id],
-    async () => {
+  return useQuery({
+    queryKey: [...flashcardKeys.cards(collectionId), 'withProgress', user?.id],
+    queryFn: async () => {
       if (!user) {
         throw new Error('User must be authenticated to fetch flashcard progress');
       }
@@ -320,11 +491,9 @@ export function useFlashcardsWithProgress(collectionId: string, options = {}) {
       
       return processedCards;
     },
-    {
-      enabled: !!collectionId && !!user?.id,
-      ...options,
-    }
-  );
+    enabled: !!collectionId && !!user?.id,
+    ...options,
+  });
 }
 
 // Mutation to toggle a card's mastered status in the progress table
@@ -332,8 +501,8 @@ export function useToggleCardMastered() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   
-  return useMutation(
-    async ({ cardId, isMastered }: { cardId: string; isMastered: boolean }) => {
+  return useMutation({
+    mutationFn: async ({ cardId, isMastered }: { cardId: string; isMastered: boolean }) => {
       if (!user) {
         throw new Error('User must be authenticated to update flashcard progress');
       }
@@ -382,33 +551,45 @@ export function useToggleCardMastered() {
         return data;
       }
     },
-    {
-      // When mutation succeeds, invalidate queries
-      onSuccess: (updatedProgress) => {
-        if (user) {
-          // Get collections for this flashcard to invalidate collection-specific queries
-          supabase
-            .from('flashcard_collections_junction')
-            .select('collection_id')
-            .eq('flashcard_id', updatedProgress.flashcard_id)
-            .then(({ data }) => {
-              if (data && data.length > 0) {
-                // Invalidate queries for each collection this flashcard belongs to
-                data.forEach(item => {
-                  queryClient.invalidateQueries(flashcardKeys.cards(item.collection_id));
-                  queryClient.invalidateQueries([...flashcardKeys.cards(item.collection_id), 'withProgress', user.id]);
+    // When mutation succeeds, invalidate queries
+    onSuccess: (updatedProgress) => {
+      if (user) {
+        // Get collections for this flashcard and invalidate related queries
+        (async () => {
+          try {
+            // Get collections for this flashcard
+            const { data, error } = await supabase
+              .from('flashcard_collections_junction')
+              .select('collection_id')
+              .eq('flashcard_id', updatedProgress.flashcard_id);
+            
+            if (error) throw error;
+            
+            if (data && data.length > 0) {
+              // Invalidate queries for each collection this flashcard belongs to
+              data.forEach(item => {
+                queryClient.invalidateQueries({ 
+                  queryKey: flashcardKeys.cards(item.collection_id) 
                 });
-              }
-              // Also invalidate all flashcard queries
-              queryClient.invalidateQueries(flashcardKeys.all);
-            })
-            .catch(err => {
-              console.error('Error invalidating queries:', err);
-              // Fallback to invalidating all flashcard queries
-              queryClient.invalidateQueries(flashcardKeys.all);
+                queryClient.invalidateQueries({ 
+                  queryKey: [...flashcardKeys.cards(item.collection_id), 'withProgress', user.id] 
+                });
+              });
+            }
+            
+            // Also invalidate all flashcard queries
+            queryClient.invalidateQueries({ 
+              queryKey: flashcardKeys.all 
             });
-        }
+          } catch (err) {
+            console.error('Error invalidating queries:', err);
+            // Fallback to invalidating all flashcard queries
+            queryClient.invalidateQueries({ 
+              queryKey: flashcardKeys.all 
+            });
+          }
+        })();
       }
     }
-  );
+  });
 } 
