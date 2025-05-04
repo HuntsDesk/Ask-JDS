@@ -93,9 +93,33 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
 
   // Check if user is already authenticated
   useEffect(() => {
+    // Create a mechanism to detect navigation loops
+    const prevRedirectAttempts = parseInt(sessionStorage.getItem('auth_redirect_attempts') || '0');
+    
     if (user) {
+      console.log('User already authenticated, checking redirect loop counter:', prevRedirectAttempts);
+      
+      // If we've already tried to redirect too many times, don't continue the cycle
+      if (prevRedirectAttempts > 3) {
+        console.warn('Too many redirect attempts detected (', prevRedirectAttempts, ') - breaking potential infinite loop');
+        sessionStorage.removeItem('auth_redirect_attempts');
+        // Force a complete page reload to reset all state
+        window.location.href = '/chat';
+        return;
+      }
+      
+      // Otherwise proceed with normal navigation
       console.log('User already authenticated, navigating to /chat', user);
+      
+      // Increment redirect counter
+      sessionStorage.setItem('auth_redirect_attempts', (prevRedirectAttempts + 1).toString());
+      
       navigate('/chat', { replace: true });
+    } else {
+      // If no user, reset the counter
+      if (prevRedirectAttempts > 0) {
+        sessionStorage.removeItem('auth_redirect_attempts');
+      }
     }
   }, [user, navigate]);
 
