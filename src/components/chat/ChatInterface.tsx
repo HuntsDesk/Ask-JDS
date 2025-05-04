@@ -293,7 +293,7 @@ export function ChatInterface({
     }
     
     return (
-      <div className="flex flex-col space-y-1 pb-0 mt-2">
+      <div className="flex flex-col space-y-1 pb-0 mt-2 md:mb-1 mb-4">
         {allMessages.map((msg) => (
           <div 
             key={msg.id} 
@@ -317,7 +317,7 @@ export function ChatInterface({
           </div>
         )}
         
-        <div ref={messageEndRef} />
+        <div ref={messageEndRef} className="h-4 pb-2" />
       </div>
     );
   };
@@ -365,7 +365,7 @@ export function ChatInterface({
       <div className={`chat-messages-area flex-1 ${!isDesktop ? 'pt-16' : ''}`}>
         <div 
           ref={messagesContainerRef}
-          className="chat-messages-scroll h-full w-full overflow-y-auto px-2 sm:px-4 py-2"
+          className="chat-messages-scroll h-full w-full overflow-y-auto px-2 sm:px-4 py-2 pb-2"
         >
           <div ref={messageTopRef} className="h-6 md:h-4"></div>
           
@@ -385,10 +385,10 @@ export function ChatInterface({
         </div>
       </div>
       
-      <div className="input-container px-4 py-2 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
-        <div className="max-w-4xl mx-auto mb-1">
+      <div className="input-container px-4 py-1 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
+        <div className="max-w-4xl mx-auto mb-0">
           {sendError && (
-            <div className="mb-2 p-2 text-sm rounded bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">
+            <div className="mb-1 p-2 text-sm rounded bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">
               {sendError}
             </div>
           )}

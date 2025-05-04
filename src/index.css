@@ -621,6 +621,29 @@ body {
     display: block;
   }
   
+  /* Ensure chat messages are not hidden behind the input container */
+  .chat-messages-scroll {
+    padding-bottom: 30px !important;
+  }
+  
+  /* Add specific styling to ensure timestamps are visible */
+  .message-wrapper:last-child {
+    margin-bottom: 12px !important;
+  }
+  
+  /* Add extra spacing for the message end reference */
+  div[ref="messageEndRef"] {
+    height: 10px !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 10px !important;
+    display: block !important;
+  }
+  
+  /* Add space at the end of the message list */
+  .flex.flex-col.space-y-1.pb-0.mt-2 {
+    padding-bottom: 15px !important;
+  }
+  
   /* Ensure the chat container handles the fixed input properly */
   .chat-container {
     padding-bottom: 0;
@@ -925,4 +948,17 @@ div[role="tooltip"],
 /* Prevent transitions while theme is changing */
 .theme-changing * {
   transition: none !important;
+}
+
+/* Make sure timestamps are visible and have enough space */
+.message-timestamp {
+  margin-bottom: 4px !important;
+  padding-bottom: 2px !important;
+  position: relative;
+  z-index: 5;
+}
+
+/* Ensure last message timestamp has extra space */
+.message-wrapper:last-child .message-timestamp {
+  margin-bottom: 8px !important;
 }

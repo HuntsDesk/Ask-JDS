@@ -127,9 +127,9 @@ export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
         
         {/* Message timestamp with copy button */}
         <div 
-          className={`flex items-center text-xs mt-0.5 ${
+          className={`flex items-center text-xs mt-1 ${
             isUserMessage ? 'justify-end mr-1' : 'ml-1'
-          } text-gray-500 dark:text-gray-400`}
+          } text-gray-500 dark:text-gray-400 message-timestamp`}
         >
           {/* Copy button next to timestamp */}
           <button
