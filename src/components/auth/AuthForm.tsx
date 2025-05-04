@@ -132,7 +132,24 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
 
     try {
       console.log('Calling signIn with email:', email);
-      const { error } = await signIn(email, password);
+      
+      // Improved error handling to deal with unexpected return values
+      let signInResult;
+      try {
+        signInResult = await signIn(email, password);
+        console.log('SignIn result:', signInResult);
+      } catch (signInError) {
+        console.error('Exception during signIn call:', signInError);
+        throw new Error('Authentication service error. Please try again.');
+      }
+      
+      // Handle case where signInResult is undefined or doesn't have the expected structure
+      if (!signInResult) {
+        console.error('SignIn returned undefined result');
+        throw new Error('Authentication failed. Please try again.');
+      }
+      
+      const { error } = signInResult;
       console.log('SignIn response error:', error);
       
       if (error) throw error;
@@ -149,9 +166,33 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       
     } catch (error) {
       console.error('Sign in error:', error);
+      
+      // More descriptive user-facing error messages based on the error type
+      let errorMessage = 'Failed to sign in. Please check your credentials and try again.';
+      
+      if (error instanceof TypeError) {
+        // Special handling for the TypeError which was our original issue
+        console.error('TypeError in authentication process - likely an API integration issue');
+        errorMessage = 'Authentication system error. Our team has been notified.';
+      } else if (error instanceof Error) {
+        // If it's a specific authentication error, show that message
+        errorMessage = error.message;
+        
+        // Check for specific Supabase error patterns
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Invalid email or password. Please try again.';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Please verify your email before signing in.';
+        } else if (error.message.includes('rate limit')) {
+          errorMessage = 'Too many sign-in attempts. Please try again later.';
+        } else if (error.message.includes('network')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        }
+      }
+      
       toast({
-        title: 'Error',
-        description: 'Failed to sign in. Please check your credentials and try again.',
+        title: 'Sign-in Error',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -166,7 +207,24 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
 
     try {
       console.log('Calling signUp with email:', email);
-      const { error } = await signUp(email, password);
+      
+      // Improved error handling to deal with unexpected return values
+      let signUpResult;
+      try {
+        signUpResult = await signUp(email, password);
+        console.log('SignUp result:', signUpResult);
+      } catch (signUpError) {
+        console.error('Exception during signUp call:', signUpError);
+        throw new Error('Registration service error. Please try again.');
+      }
+      
+      // Handle case where signUpResult is undefined or doesn't have the expected structure
+      if (!signUpResult) {
+        console.error('SignUp returned undefined result');
+        throw new Error('Registration failed. Please try again.');
+      }
+      
+      const { error } = signUpResult;
       console.log('SignUp response error:', error);
       
       if (error) throw error;
@@ -179,9 +237,33 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       setActiveTab('signin');
     } catch (error) {
       console.error('Sign up error:', error);
+      
+      // More descriptive user-facing error messages based on the error type
+      let errorMessage = 'Failed to create account. Please try again.';
+      
+      if (error instanceof TypeError) {
+        // Special handling for the TypeError which was our original issue
+        console.error('TypeError in registration process - likely an API integration issue');
+        errorMessage = 'Registration system error. Our team has been notified.';
+      } else if (error instanceof Error) {
+        // If it's a specific authentication error, show that message
+        errorMessage = error.message;
+        
+        // Check for specific Supabase error patterns
+        if (error.message.includes('already registered')) {
+          errorMessage = 'This email is already registered. Please sign in instead.';
+        } else if (error.message.includes('password')) {
+          errorMessage = 'Password does not meet requirements. Please use a stronger password.';
+        } else if (error.message.includes('rate limit')) {
+          errorMessage = 'Too many sign-up attempts. Please try again later.';
+        } else if (error.message.includes('network')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        }
+      }
+      
       toast({
-        title: 'Error',
-        description: 'Failed to create account. Please try again.',
+        title: 'Sign-up Error',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
