@@ -1139,6 +1139,14 @@ Access control is determined by:
 
 ## Recent Updates
 
+### Authentication System Fixes (2023-05-07)
+
+Fixed critical issues with the authentication system:
+- Implemented missing auth method implementations for signIn, signUp, and other authentication functions
+- Added robust error handling for all authentication flows
+- Improved user-facing error messages for better guidance during auth failures
+- Fixed the TypeError that occurred during sign-in and sign-up attempts
+
 ### Authentication and Chat Loading Improvements (2023-05-06)
 
 We've implemented a robust solution to address authentication and chat loading issues, using a Finite State Machine (FSM) approach:
@@ -1152,7 +1160,6 @@ We've implemented a robust solution to address authentication and chat loading i
 - Implemented a dedicated `useChatFSM` hook to manage chat loading states through well-defined transitions
 - Created a proper loading sequence: auth → threads → messages
 - Added advanced error handling with retry functionality
-- Implemented developer tooling for debugging complex loading states
 
 #### 3. UI Improvements
 - Fixed dark mode compatibility issues on the welcome page
