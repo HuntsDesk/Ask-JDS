@@ -1136,3 +1136,26 @@ When browsing flashcards, premium content is handled in two ways:
 Access control is determined by:
 - `isCardPremium`: Checks if content should be treated as premium based on ownership and subscription status
 - `isFlashcardReadOnly`: Determines if a flashcard should be editable, protecting official content
+
+## Recent Updates
+
+### Authentication and Chat Loading Improvements (2023-05-06)
+
+We've implemented a robust solution to address authentication and chat loading issues, using a Finite State Machine (FSM) approach:
+
+#### 1. Authentication State Management
+- Added proper tracking of authentication resolution state with the `isAuthResolved` flag
+- Ensured ProtectedRoute components wait for auth to fully resolve before making routing decisions
+- Fixed race conditions in authentication flow that were causing navigation loops
+
+#### 2. Chat State Management
+- Implemented a dedicated `useChatFSM` hook to manage chat loading states through well-defined transitions
+- Created a proper loading sequence: auth → threads → messages
+- Added advanced error handling with retry functionality
+- Implemented developer tooling for debugging complex loading states
+
+#### 3. UI Improvements
+- Fixed dark mode compatibility issues on the welcome page
+- Enhanced loading state visibility and feedback
+
+These changes ensure a more reliable user experience with fewer loading interruptions and better state consistency across the application.
