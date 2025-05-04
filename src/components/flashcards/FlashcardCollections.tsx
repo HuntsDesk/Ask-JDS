@@ -400,7 +400,7 @@ export default function FlashcardCollections() {
   // Render the component
   if (isLoading && collections.length === 0) {
     return (
-      <div className="max-w-7xl mx-auto px-4 pb-10">
+      <div className="max-w-6xl mx-auto px-4 pb-10">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Collections</h1>
@@ -435,20 +435,20 @@ export default function FlashcardCollections() {
 
   if (isError && error instanceof Error) {
     return (
-      <div className="max-w-7xl mx-auto px-4 pb-10">
+      <div className="max-w-6xl mx-auto px-4 pb-10">
         <ErrorMessage message={error.message} />
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 pb-10">
+    <div className="max-w-6xl mx-auto px-4 pb-10">
       <DeleteConfirmation
         isOpen={!!collectionToDelete}
         onClose={() => setCollectionToDelete(null)}
         onConfirm={handleDeleteCollection}
         title="Delete Collection"
-        message="Are you sure you want to delete this collection? This action cannot be undone."
+        message="Are you sure you want to delete this collection? All flashcards in this collection will be removed from it, but they will not be deleted."
         itemName={collectionToDelete?.title}
       />
 
