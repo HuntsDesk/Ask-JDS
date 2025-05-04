@@ -159,14 +159,14 @@ export default function AllCoursesPage() {
               title,
               overview,
               status,
-              is_featured,
-              image_url
+              is_featured
             )
           `)
           .eq('user_id', user.id);
         
         if (enrollmentsError) {
           console.error('Error fetching enrollments:', enrollmentsError);
+          setError('Error fetching your enrolled courses.');
           return;
         }
         

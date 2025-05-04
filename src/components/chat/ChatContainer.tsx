@@ -15,6 +15,7 @@ import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import PageContainer from '@/components/layout/PageContainer';
 import type { Thread } from '@/types';
 import { useChatFSM, ChatFSMVisualizer } from '@/hooks/use-chat-fsm';
+import { cn } from '@/lib/utils';
 
 export function ChatContainer() {
   // =========== HOOKS - All called unconditionally at the top ===========
@@ -242,6 +243,28 @@ export function ChatContainer() {
     }
   }, [isAuthResolved, user, originalThreadsLoading, originalThreads, urlThreadId, chatFSM]);
   
+  // Redirect to most recent thread if at /chat root
+  useEffect(() => {
+    // Only proceed if we have auth and threads loaded
+    if (isAuthResolved && user && !originalThreadsLoading && originalThreads.length > 0 && !urlThreadId) {
+      // Get most recent thread (they're already sorted by created_at desc)
+      const mostRecentThread = originalThreads[0];
+      if (mostRecentThread && mostRecentThread.id && location.pathname === '/chat') {
+        console.log('ChatContainer: Redirecting to most recent thread:', mostRecentThread.id);
+        
+        // Set the active thread and selected thread ID before navigation
+        setActiveThread(mostRecentThread.id);
+        setSelectedThreadId(mostRecentThread.id);
+        
+        // Use navigate with replace to avoid creating a history entry
+        navigate(`/chat/${mostRecentThread.id}`, { 
+          replace: true,
+          state: {} // Clear any state to ensure clean navigation
+        });
+      }
+    }
+  }, [isAuthResolved, user, originalThreadsLoading, originalThreads, urlThreadId, navigate, location.pathname, setSelectedThreadId]);
+  
   // Track message loading and update FSM state
   useEffect(() => {
     if (!isAuthResolved || !user || !urlThreadId) {
@@ -349,7 +372,27 @@ export function ChatContainer() {
   if (chatFSM.state.status === 'ready' && !urlThreadId) {
     return (
       <PageContainer bare>
-        <div className="flex-1 flex flex-col items-center justify-center h-full max-w-3xl mx-auto px-4 text-center">
+        {/* Add mobile header with hamburger menu for mobile users */}
+        {isMobile && (
+          <header className="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex items-center justify-between">
+            <button
+              onClick={() => setIsExpanded(true)}
+              className="p-2 rounded-md bg-[#f37022] text-white hover:bg-[#e36012] flex items-center justify-center"
+              aria-label="Open sidebar"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+              </svg>
+            </button>
+            <h1 className="text-xl font-semibold text-gray-800 dark:text-white">Ask JDS</h1>
+            <div className="w-9"></div> {/* Spacer for alignment */}
+          </header>
+        )}
+        <div className={cn(
+          "flex-1 flex flex-col items-center justify-center h-full max-w-3xl mx-auto px-4 text-center",
+          // Add padding-top when mobile header is shown
+          isMobile && "pt-16"
+        )}>
           <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Welcome to AskJDS</h1>
           <p className="text-lg mb-8 text-gray-600 dark:text-gray-300">
             Ask any law school or bar exam related questions. Start a new chat to begin the conversation.

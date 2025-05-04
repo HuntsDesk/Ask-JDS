@@ -256,12 +256,7 @@ export function ChatInterface({
       <div className="flex flex-col items-center justify-center h-full text-center p-6">
         <h2 className="text-2xl font-bold mb-2 text-gray-800 dark:text-white">Welcome to Ask JDS</h2>
         <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-md">
-          Your trusted legal AI research assistant. Whether you're researching a legal question, 
-          navigating law school, or exploring complex legal topics, Ask JDS is here to provide 
-          clear, reliable, and knowledgeable guidance.
-        </p>
-        <p className="text-gray-500 dark:text-gray-500 text-sm mt-4">
-          Type your question below to get started
+          Ask any law school or bar exam related questions. Start a new chat to begin the conversation.
         </p>
       </div>
     );
