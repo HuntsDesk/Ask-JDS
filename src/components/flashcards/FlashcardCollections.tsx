@@ -201,66 +201,32 @@ export default function FlashcardCollections() {
     }
   }, [searchParams]);
   
-  // Load more collections when user scrolls to bottom
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const lastCardRef = useCallback((node: HTMLDivElement | null) => {
-    if (isLoading || isFetchingNextPage) {
-      console.log('Skipping observer setup - loading in progress:', isLoading, isFetchingNextPage);
-      return;
-    }
-    
-    if (!hasNextPage && collections.length >= totalCount) {
-      console.log('Skipping observer setup - all collections loaded');
-      return;
-    }
-    
-    // Disconnect previous observer
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
-    
-    // Create new observer
-    observerRef.current = new IntersectionObserver(entries => {
-      if (entries[0]?.isIntersecting) {
-        if (hasNextPage || collections.length < totalCount) {
-          console.log('Last card intersecting, fetching next page');
+  // NEW: Replace the complex ref callback with a simple useRef for infinite scroll
+  const observerTarget = useRef(null);
+  
+  // NEW: Implement the observer in a useEffect, similar to AllFlashcards
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          console.log('Loading more collections...');
           fetchNextPage();
         }
-      }
-    }, {
-      rootMargin: '300px', // Increased margin to trigger earlier
-      threshold: 0.1
-    });
+      },
+      { threshold: 0.1 }
+    );
     
-    // Observe the last card
-    if (node) {
-      console.log('Setting up observer on last card');
-      observerRef.current.observe(node);
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
     }
-  }, [isLoading, isFetchingNextPage, hasNextPage, collections.length, totalCount, fetchNextPage]);
-
-  // Cleanup observer on unmount
-  useEffect(() => {
+    
     return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
       }
     };
-  }, []);
-
-  // Force a refetch if we're missing data but hasNextPage is false
-  useEffect(() => {
-    if (collections.length > 0 && totalCount > collections.length && !hasNextPage && !isLoading && !isFetchingNextPage) {
-      console.log(`Collections loaded: ${collections.length}/${totalCount}. HasNextPage: ${hasNextPage}`);
-      console.warn("Warning: hasNextPage is false but we haven't loaded all collections yet");
-      
-      // Force a refetch if we have less than 50% of the total
-      if (collections.length < totalCount * 0.5) {
-        console.log(`Forcing next page fetch - only have ${collections.length}/${totalCount} collections`);
-        fetchNextPage();
-      }
-    }
-  }, [collections.length, totalCount, hasNextPage, isLoading, isFetchingNextPage, fetchNextPage]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   // Handle collection deletion
   async function handleDeleteCollection() {
@@ -604,19 +570,10 @@ export default function FlashcardCollections() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {processedCollections.map((collection, index) => {
-            // Add ref to last item for infinite scroll
-            const isLastItem = index === processedCollections.length - 1;
-            
-            if (isLastItem) {
-              console.log(`Rendering last item (index ${index}) with id ${collection.id}`);
-            }
-            
             return (
               <div 
                 key={collection.id} 
-                ref={isLastItem ? lastCardRef : null}
-                className={`${isLastItem ? 'last-card' : ''}`}
-                data-testid={isLastItem ? 'last-collection-card' : undefined}
+                className=""
               >
                 <Card
                   id={collection.id}
@@ -636,13 +593,17 @@ export default function FlashcardCollections() {
         </div>
       )}
 
-      {/* Loading indicator for pagination */}
-      {(isLoading || isFetchingNextPage) && collections.length > 0 && (
-        <div className="flex flex-col items-center my-8 gap-2">
-          <LoadingSpinner className="w-8 h-8 text-jdblue" />
-          <span className="text-gray-600 dark:text-gray-400">
-            Loading collections... ({collections.length}/{totalCount})
-          </span>
+      {/* NEW: Observer element for infinite scroll with loading indicator */}
+      {hasNextPage && (
+        <div 
+          ref={observerTarget} 
+          className="flex justify-center my-8"
+        >
+          {isFetchingNextPage ? (
+            <LoadingSpinner className="w-8 h-8 text-jdblue" />
+          ) : (
+            <div className="h-10"></div> /* Spacer for observer */
+          )}
         </div>
       )}
     </div>
