@@ -3,6 +3,7 @@ import { Check, FileEdit, Trash2, BookOpen, Layers, Award, Lock } from 'lucide-r
 import { Link } from 'react-router-dom';
 import Tooltip from './Tooltip';
 import { formatDate } from '@/lib/utils';
+import { isFlashcardReadOnly } from '@/utils/flashcard-utils';
 
 // Create a custom Premium "P" icon component
 const PremiumIcon = () => (
@@ -89,7 +90,7 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
   
   // Premium content rules - Force protection based on our double-check
   const shouldHideAnswer = isDefinitelyPremium && !hasSubscription;
-  const shouldHideEditDelete = isDefinitelyPremium;
+  const shouldHideEditDelete = isFlashcardReadOnly(flashcard);
   
   return (
     <div 
@@ -229,7 +230,7 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
               </button>
             </Tooltip>
             
-            {!flashcard.is_official && onEdit && (
+            {!shouldHideEditDelete && onEdit && (
               <Tooltip text="Edit Card" position="top">
                 <button 
                   onClick={(e) => {
@@ -243,7 +244,7 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
               </Tooltip>
             )}
             
-            {!flashcard.is_official && onDelete && (
+            {!shouldHideEditDelete && onDelete && (
               <Tooltip text="Delete Card" position="top">
                 <button 
                   onClick={(e) => {

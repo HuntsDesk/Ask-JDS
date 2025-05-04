@@ -501,7 +501,7 @@ export default function FlashcardCollections() {
                     cardCount={collection.card_count || 0}
                     masteredCount={collection.mastered_count}
                     subjects={collection.subjects}
-                    link={`/flashcards/study/${collection.id}`}
+                    link={`/flashcards/study?collection=${collection.id}`}
                     collectionId={collection.id}
                     onDelete={collection.user_id === user?.id ? () => setCollectionToDelete(collection) : undefined}
                   />

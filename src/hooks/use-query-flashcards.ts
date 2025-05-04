@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 
@@ -17,10 +17,10 @@ export const flashcardKeys = {
 export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all', subjectIds: string[] = [], options = {}) {
   const { user } = useAuth();
   
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: [...flashcardKeys.collections(), filter, subjectIds],
-    queryFn: async () => {
-      console.log("useFlashcardCollections: Fetching collections with filter:", filter, "and subjects:", subjectIds);
+    queryFn: async ({ pageParam }) => {
+      console.log("useFlashcardCollections: Fetching collections with filter:", filter, "and subjects:", subjectIds, "pageParam:", pageParam);
       
       // First build the base query
       let query = supabase
@@ -34,6 +34,11 @@ export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all
           user_id
         `)
         .order('created_at', { ascending: false });
+      
+      // Apply cursor-based pagination if pageParam exists
+      if (pageParam) {
+        query = query.lt('created_at', pageParam);
+      }
       
       // Apply tab filters
       if (filter === 'official') {
@@ -66,17 +71,36 @@ export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all
             totalCount: 0,
             subjectMap: {},
             cardCounts: {},
-            masteryData: {}
+            masteryData: {},
+            nextCursor: null
           };
         }
       }
       
-      // Get total count with filters applied
-      const { count, error: countError } = await query.select('*', { count: 'exact', head: true });
+      // Get total count with filters applied (but no pagination)
+      // Create a separate query for counting (can't use clone())
+      let countQuery = supabase
+        .from('collections')
+        .select('*', { count: 'exact', head: true })
+        .order('created_at', { ascending: false });
+        
+      // Apply the same filters as the main query
+      if (filter === 'official') {
+        countQuery = countQuery.eq('is_official', true);
+      } else if (filter === 'my' && user) {
+        countQuery = countQuery.eq('user_id', user.id);
+      }
+      
+      // Apply subject filter if present
+      if (subjectIds.length > 0 && filteredCollectionIds.length > 0) {
+        countQuery = countQuery.in('id', filteredCollectionIds);
+      }
+      
+      const { count, error: countError } = await countQuery;
       
       if (countError) throw countError;
       
-      // Fetch the actual collections with pagination - can be extended later
+      // Fetch the actual collections with pagination - limited to 20 per page
       const { data: collectionsData, error: collectionsError } = await query.limit(20);
       console.log("useFlashcardCollections: Fetched collections:", collectionsData?.length || 0);
       
@@ -85,15 +109,21 @@ export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all
       if (!collectionsData || collectionsData.length === 0) {
         return {
           collections: [],
-          totalCount: 0,
+          totalCount: count || 0,
           subjectMap: {},
           cardCounts: {},
-          masteryData: {}
+          masteryData: {},
+          nextCursor: null
         };
       }
       
       // Extract all collection IDs for batch queries
       const fetchedCollectionIds = collectionsData.map(collection => collection.id);
+      
+      // Get the next cursor (last item's created_at timestamp)
+      const nextCursor = collectionsData.length === 20 
+        ? collectionsData[collectionsData.length - 1].created_at 
+        : null;
       
       // BATCH QUERY: Get all subject relationships for these collections at once
       const { data: allCollectionSubjects, error: allSubjectsError } = await supabase
@@ -185,19 +215,22 @@ export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all
         }
       }
       
-      // Return everything needed for rendering
+      // Return everything needed for rendering, including the cursor for next page
       return {
         collections: collectionsData,
         totalCount: count || 0,
         subjectMap,
         subjectRelationships: allCollectionSubjects || [],
         cardCounts: cardCountMap,
-        masteryData
+        masteryData,
+        nextCursor
       };
     },
-      // Default options can be overridden
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      ...options,
+    initialPageParam: null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    // Default options can be overridden
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    ...options,
   });
 }
 
