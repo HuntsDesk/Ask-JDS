@@ -98,7 +98,7 @@ export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
   
   return (
     <div 
-      className={`mb-4 ${isUserMessage ? 'flex justify-end' : 'flex justify-start'} w-full theme-aware-message`}
+      className={`mb-1 ${isUserMessage ? 'flex justify-end' : 'flex justify-start'} w-full theme-aware-message`}
       style={{ 
         contain: 'content',
         opacity: messageReady ? 1 : 0, 
@@ -111,14 +111,14 @@ export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
         }`}
       >
         <div 
-          className="rounded-lg p-3 overflow-hidden"
+          className="rounded-lg py-2 px-3 overflow-hidden"
           style={getBubbleStyle()}
           data-user-message={isUserMessage.toString()}
           data-theme-dark={isDarkMode.toString()}
         >
-          <div className="prose dark:prose-invert max-w-none text-sm md:text-base break-words">
+          <div className="prose dark:prose-invert max-w-none text-xs md:text-sm break-words leading-tight">
             <ReactMarkdown 
-              className="[&>p]:mb-4 [&>p:last-child]:mb-0 [&>ul]:mt-4 [&>ul]:mb-4 [&>ul:last-child]:mb-0 [&>ul]:list-disc [&>ul]:list-outside [&>ul]:pl-6 [&>ol]:list-decimal [&>ol]:list-outside [&>ol]:pl-6 [&>li]:ml-2"
+              className="[&>p]:mb-1 [&>p:last-child]:mb-0 [&>ul]:mt-1 [&>ul]:mb-1 [&>ul:last-child]:mb-0 [&>ul]:list-disc [&>ul]:list-outside [&>ul]:pl-6 [&>ol]:list-decimal [&>ol]:list-outside [&>ol]:pl-6 [&>li]:ml-2 [&>li]:mb-0.5"
             >
               {message.content}
             </ReactMarkdown>
@@ -127,7 +127,7 @@ export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
         
         {/* Message timestamp with copy button */}
         <div 
-          className={`flex items-center text-xs mt-1 ${
+          className={`flex items-center text-xs mt-0.5 ${
             isUserMessage ? 'justify-end mr-1' : 'ml-1'
           } text-gray-500 dark:text-gray-400`}
         >

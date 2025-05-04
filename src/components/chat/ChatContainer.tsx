@@ -44,6 +44,8 @@ export function ChatContainer() {
   const hasInitializedRef = useRef(false);
   const lastInitializedThreadIdRef = useRef<string | null>(null);
   const isNavigatingFromSidebar = useRef(false);
+  // Reference to focus function that will be set by ChatInterface
+  const focusInputRef = useRef<() => void>(() => {});
   
   // State variables
   const [activeThread, setActiveThread] = useState<string | null>(null);
@@ -146,6 +148,11 @@ export function ChatContainer() {
     }
   }, [originalThreads, setSelectedThreadId, chatFSM]);
 
+  // Create a function to set the focus reference from ChatInterface
+  const setFocusInputRef = useCallback((focusFn: () => void) => {
+    focusInputRef.current = focusFn;
+  }, []);
+
   // Create new thread - properly manage dependencies
   const handleNewChat = useCallback(async () => {
     try {
@@ -165,6 +172,11 @@ export function ChatContainer() {
         setActiveThread(thread.id);
         setSelectedThreadId(thread.id);
         navigate(`/chat/${thread.id}`, { replace: true });
+        
+        // Focus the textarea using the ref function after a short delay
+        setTimeout(() => {
+          focusInputRef.current();
+        }, 100);
       } else {
         toast({
           title: "Error creating conversation",
@@ -274,7 +286,11 @@ export function ChatContainer() {
     
     if ((messagesLoading || isGenerating) && (chatFSM.state.status !== 'loading' || chatFSM.state.phase !== 'messages')) {
       console.log('ChatContainer: Messages loading or generating in progress');
-      chatFSM.startLoading('messages');
+      
+      // Only trigger full loading state for initial load, not during message generation
+      if (messagesLoading && threadMessages.length === 0) {
+        chatFSM.startLoading('messages');
+      }
     } else if (!messagesLoading && !isGenerating && chatFSM.state.status === 'loading' && chatFSM.state.phase === 'messages') {
       // Messages loaded, can transition to ready
       console.log('ChatContainer: Messages loaded, setting FSM to ready state');
@@ -452,7 +468,8 @@ export function ChatContainer() {
         <ChatInterface 
           threadId={urlThreadId || activeThread}
           messages={threadMessages}
-          loading={chatFSM.state.status === 'loading'}
+          // Only pass loading=true for initial message loading, not during message generation
+          loading={chatFSM.state.status === 'loading' && threadMessages.length === 0}
           loadingTimeout={chatFSM.state.status === 'loading' && chatFSM.state.previousStatus === 'ready'}
           onSend={handleSendMessage}
           onRefresh={handleRefreshMessages}
@@ -465,6 +482,7 @@ export function ChatContainer() {
           isDesktop={isDesktop}
           isGenerating={isGenerating}
           onClosePaywall={handlePaywallClose}
+          setFocusInputRef={setFocusInputRef}
         />
       </div>
       {devTools}

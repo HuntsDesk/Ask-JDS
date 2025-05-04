@@ -570,10 +570,11 @@ export function Sidebar({
                                   transform: 'translateY(-50%)',
                                   whiteSpace: 'nowrap',
                                   overflow: 'hidden',
-                                  textOverflow: 'ellipsis'
+                                  textOverflow: 'ellipsis',
+                                  width: 'calc(100% - 40px)' /* Ensure width is calculated correctly */
                                 }}
                                 className={cn(
-                                  "text-sm",
+                                  "text-sm truncate",
                                   (selectedThreadId === session.id) && "font-medium text-[#F37022] dark:text-orange-300"
                                 )}
                               >
