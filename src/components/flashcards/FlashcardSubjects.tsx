@@ -122,7 +122,6 @@ export default function FlashcardSubjects() {
       queryClient.invalidateQueries({ queryKey: subjectKeys.all });
       
       setSubjectToDelete(null);
-      showToast('Subject deleted successfully', 'success');
     } catch (err: any) {
       showToast(`Error: ${err.message}`, 'error');
     }
