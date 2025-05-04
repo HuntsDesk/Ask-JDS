@@ -261,21 +261,26 @@ export default function AllFlashcards() {
         // For official cards, we need to query using the junction table to get official collections
         console.log('Fetching official flashcards (from official collections)');
         
-        // Count query for pagination
+        // Count query for pagination - ensure correct join condition
         const { count, error: countError } = await supabase
           .from('flashcards')
           .select('*', { count: 'exact', head: true })
-          .eq('flashcard_collections_junction.collection.is_official', true);
+          .or('is_official.eq.true,flashcard_collections_junction.collection.is_official.eq.true');
           
-        if (countError) throw countError;
+        if (countError) {
+          console.error('Error in official cards count query:', countError);
+          throw countError;
+        }
         
-        // Data query with pagination
+        console.log(`Official cards count: ${count || 0}`);
+        
+        // Data query with pagination - use same approach as 'all' filter but with is_official=true condition
         const { data, error } = await supabase
           .from('flashcards')
           .select(`
             *,
-            flashcard_collections_junction!inner (
-              collection:collection_id!inner (
+            flashcard_collections_junction (
+              collection:collection_id (
                 id, 
                 title, 
                 is_official, 
@@ -283,7 +288,7 @@ export default function AllFlashcards() {
               )
             )
           `)
-          .eq('flashcard_collections_junction.collection.is_official', true)
+          .or('is_official.eq.true,flashcard_collections_junction.collection.is_official.eq.true')
           .range(offset, offset + pageSize - 1)
           .order('created_at', { ascending: false });
           
@@ -307,6 +312,8 @@ export default function AllFlashcards() {
         if (processedData.length > 0) {
           console.log('First official card sample:', processedData[0]);
           console.log('Official collection data:', processedData[0]?.collection);
+        } else {
+          console.log('No official flashcards found. Check SQL query or database content.');
         }
         
         // Determine if there are more pages
@@ -934,7 +941,7 @@ export default function AllFlashcards() {
   // Show skeleton loaders during initial data loading
   if (flashcardsLoading && !initialLoadComplete) {
   return (
-      <div className="w-full max-w-7xl mx-auto px-4 pb-20 md:pb-10">
+      <div className="w-full max-w-6xl mx-auto px-4 pb-20 md:pb-10">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
@@ -959,7 +966,7 @@ export default function AllFlashcards() {
 
   if (isFlashcardsError && flashcardsError instanceof Error) {
     return (
-      <div className="w-full max-w-7xl mx-auto px-4 pb-20 md:pb-10">
+      <div className="w-full max-w-6xl mx-auto px-4 pb-20 md:pb-10">
         <ErrorMessage 
           title="Could not load flashcards" 
           message={flashcardsError.message} 
@@ -969,7 +976,7 @@ export default function AllFlashcards() {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 pb-20 md:pb-10">
+    <div className="w-full max-w-6xl mx-auto px-4 pb-20 md:pb-10">
         <DeleteConfirmation
           isOpen={!!cardToDelete}
           onClose={() => setCardToDelete(null)}

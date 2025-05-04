@@ -85,7 +85,7 @@ const FlashcardItem = React.memo(({
       
       <div className="p-6 flex-grow">
         <div className="mb-3">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-1">
+          <h3 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-1">
             {question}
           </h3>
         </div>
@@ -119,10 +119,9 @@ const FlashcardItem = React.memo(({
       </div>
       
       {/* Footer with icons and Study button */}
-      <div className="px-4 sm:px-6 pb-4 sm:pb-6 mt-auto">
-        <div className="flex flex-wrap sm:flex-nowrap justify-between items-center gap-y-3">
-          {/* Left side icons */}
-          <div className="flex gap-4">
+      <div className="p-4 md:p-6 pt-3 pb-3 mt-auto bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex justify-between items-center">
+          <div className="flex gap-1 md:gap-2 items-center">
             {/* Only show edit/delete buttons for non-premium content or unlocked premium content */}
             {shouldShowEditDelete && (
               <>
@@ -131,58 +130,45 @@ const FlashcardItem = React.memo(({
                   className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
                   title="Edit card"
                 >
-                  <FileEdit className="h-5 w-5" />
+                  <FileEdit className="h-4 md:h-5 w-4 md:w-5" />
                 </button>
                 <button
                   onClick={onDelete}
                   className="text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
                   title="Delete card"
                 >
-                  <Trash2 className="h-5 w-5" />
+                  <Trash2 className="h-4 md:h-5 w-4 md:w-5" />
                 </button>
               </>
             )}
             <button
               onClick={onToggleMastered}
-              className={`flex items-center justify-center p-2 text-sm font-medium ${
+              className={`flex items-center justify-center ${
                 isMastered 
-                  ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 focus:ring-green-500' 
-                  : 'text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-700 focus:ring-gray-400'
-              } border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 w-10 h-10 ${
-                isToggling ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+                  ? 'text-green-600 dark:text-green-400' 
+                  : 'text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]'
+              } ${isToggling ? 'opacity-50 cursor-not-allowed' : ''}`}
               title={isMastered ? "Mark as not mastered" : "Mark as mastered"}
               disabled={isToggling}
             >
               {isToggling ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 className="h-4 md:h-5 w-4 md:w-5 animate-spin" />
               ) : (
-                <Check className="h-5 w-5" />
+                <Check className="h-4 md:h-5 w-4 md:w-5" />
               )}
             </button>
             
             {/* Premium indicator for premium content */}
             {isPremium && !isLocked && !devForceSubscription && (
-              <div className="relative group ml-2">
-                <span className="text-[#F37022] font-semibold text-xs bg-[#F37022]/10 px-2 py-1 rounded-full flex items-center">
-                  <Award className="h-3 w-3 mr-1" />
-                  P
-                </span>
-                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
-                  Premium Content
-                </div>
+              <div className="text-[#F37022]">
+                <Lock className="h-4 md:h-5 w-4 md:w-5" />
               </div>
             )}
             
             {/* Lock indicator for locked content */}
             {isLocked && !devForceSubscription && (
-              <div className="relative group ml-2">
-                <span className="flex items-center justify-center p-2 text-[#F37022] font-medium bg-[#F37022]/10 dark:bg-[#F37022]/20 border border-[#F37022]/30 dark:border-[#F37022]/30 rounded-md focus:outline-none w-10 h-10">
-                  <Lock className="h-5 w-5" />
-                </span>
-                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
-                  Locked Content
-                </div>
+              <div className="text-[#F37022]">
+                <Lock className="h-4 md:h-5 w-4 md:w-5" />
               </div>
             )}
           </div>
@@ -190,7 +176,7 @@ const FlashcardItem = React.memo(({
           {/* Right side Study Now button */}
           <button
             onClick={isLocked && !devForceSubscription ? onUnlock : onView}
-            className="bg-[#F37022]/10 text-[#F37022] px-4 py-2 rounded-md hover:bg-[#F37022]/20 dark:bg-[#F37022]/20 dark:hover:bg-[#F37022]/30 sm:ml-4 whitespace-nowrap"
+            className="bg-[#F37022]/10 text-[#F37022] px-3 py-1 md:px-4 md:py-2 text-sm rounded-md hover:bg-[#F37022]/20 dark:bg-[#F37022]/20 dark:hover:bg-[#F37022]/30"
           >
             Study
           </button>

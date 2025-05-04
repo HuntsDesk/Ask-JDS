@@ -961,95 +961,113 @@ Reference documentation for specific technical implementations:
 - [Supabase JS Upgrade Checklist](readme/supabase-js-upgrade-checklist.md) - Implementation checklist for the Supabase JS upgrade
 - [Supabase Client Pattern](readme/supabase-client-pattern.md) - Standardized pattern for using the Supabase client throughout the codebase
 
-### Flashcards Module
+## Flashcards Module
 
-The Flashcards module provides study tools with the following features:
+The Flashcards module provides a comprehensive study tool with the following features:
+
 - Collections of flashcards organized by subject
-- Infinite scroll for efficient loading of large collection sets
-- Progressive loading with skeleton UI for improved UX
-- React Query integration for efficient data fetching and caching
+- Subjects for categorizing and navigating content
+- Advanced pagination with infinite scroll for large datasets
 - Mastery tracking with visual indicators
-- Premium content access control
-- Responsive grid layouts for all screen sizes
-- Direct navigation to specific flashcards in study mode
+- Premium content access controls
+- Responsive layouts optimized for all screen sizes
 
-#### Component Structure
-- `FlashcardsPage`: Main container for all flashcard-related routes
-- `FlashcardsCollections`: Displays collections with card counts and mastery stats
-- `AllFlashcards`: Shows all flashcards with filtering options
-- `FlashcardItem`: Individual flashcard component with mastery toggle
-- `Card`: Reusable card component for collections and subjects
-- `SkeletonFlashcard`: Loading placeholder components
-- `UnifiedStudyMode`: Advanced study interface with direct card navigation
+### Component Structure
 
-#### Infinite Scroll Implementation
-The flashcard collections page uses an optimized infinite scroll system:
+The flashcards module uses the following main components:
 
-- **Technology**: Uses Intersection Observer API to detect when the user scrolls to the bottom of the page
-- **Implementation**: A `lastCardRef` callback attaches to the last collection card to detect visibility 
-- **Pagination**: Uses offset-based pagination with React Query's `useInfiniteQuery` hook
-- **Page Size**: Dynamically loads 21 items per page (7 rows of 3 in desktop view)
-- **Performance**: Prefetches data with 300px margin before reaching the bottom of visible content
-- **State Management**: Leverages React Query's built-in states for loading, fetching, and pagination
-- **Error Handling**: Includes recovery logic to force re-fetch if data is incomplete
-- **URL Parameters**: Preserves filter settings in URL without causing full page refreshes
+- **FlashcardsPage**: Container for all flashcard-related routes
+- **FlashcardCollections**: Displays collections with card counts and mastery stats
+- **FlashcardSubjects**: Subject browser and filter interface
+- **AllFlashcards**: Browse all flashcards with filtering options
+- **CreateSet**: Create new flashcard collections
+- **CreateFlashcard**: Create individual flashcards
+- **UnifiedStudyMode**: Combined study interface for reviewing cards
 
-**Key benefits over previous implementation:**
-- Efficiently loads only the data needed for the current view
-- Maintains performance with large datasets (90+ collections)
-- Preserves scroll position during filtering operations
-- Shows loading indicators only for newly fetched data, not entire page
-- Better handles race conditions and state management
-- Improved user experience through seamless scrolling
+### Infinite Scroll Implementation
 
-#### Direct Card Navigation
-The study mode now supports direct navigation to specific flashcards:
-- When clicking the study button on a card tile, that specific card is shown first
-- URL parameters allow directly linking to specific cards: `/flashcards/study?collection={id}&card={cardId}`
-- A direct search mechanism ensures the target card is found regardless of filter settings
-- Cards can be directly accessed even if they're mastered or in complex filter situations
+The flashcards module uses offset-based pagination with React Query's `useInfiniteQuery` for efficient data loading:
 
-#### Premium Content Protection
-- Premium flashcards are marked with a "PREMIUM CONTENT" banner
-- Non-subscribers cannot see answers to premium flashcards
-- Premium content has restricted editing capabilities (cannot be modified or deleted by users)
-- Content ownership is properly respected (users can always edit/view their own content)
-- Subscription status is checked both on the server and locally via localStorage
-- Error handling defaults to denying access to premium content for security
-- Timeouts in subscription status checks default to no access (rather than allowing access)
-- The hasActiveSubscription function defaults to false in error cases to prevent unauthorized access
+```typescript
+// Query implementation with pagination
+const { 
+  data,
+  fetchNextPage,
+  hasNextPage,
+  isFetchingNextPage
+} = useInfiniteQuery({
+  queryKey: [...queryKeys, filter, subjectIds],
+  queryFn: async ({ pageParam = 0 }) => {
+    // Calculate pagination parameters
+    const pageSize = 21;  // Number of items per page
+    const offset = pageParam * pageSize;
+    
+    // Supabase query with range-based pagination
+    const { data, count } = await supabase
+      .from('table')
+      .select('*', { count: 'exact' })
+      // Apply filters
+      .range(offset, offset + pageSize - 1);
+      
+    // Check if more pages exist
+    const hasNextPage = offset + data.length < count;
+    const nextCursor = hasNextPage ? pageParam + 1 : null;
+    
+    return {
+      items: data,
+      nextCursor,
+      totalCount: count
+    };
+  },
+  getNextPageParam: (lastPage) => lastPage.nextCursor,
+  staleTime: 30 * 60 * 1000, // 30 minute cache
+});
+```
 
-#### Privacy Controls
-- Users can only see flashcards they created, official flashcards, or public sample flashcards
-- RLS policies enforce access control at the database level
-- Client-side filtering provides additional security layers
-- UPDATE permissions restricted to only allow users to update their own flashcards
-- Database indexes optimize RLS policy performance 
-- Consistent privacy controls applied across all application components
+The UI implementation uses an Intersection Observer to trigger pagination:
 
-#### Performance Optimizations
-- Parallel data fetching for collections, subjects, and relationships
-- Efficient relationship data processing with lookup maps
-- Progressive content rendering with skeleton UI
-- Memoization of filtered and processed data
-- React Query for caching and background updates
-- Intersection Observer for efficient infinite scrolling
+```tsx
+// DOM reference for intersection observer
+const observerTarget = useRef(null);
 
-#### Known Issues
-- Tile buttons in study mode need adjustment for proper rendering
-- Optimizations needed for handling large collections
+// Setup observer when component mounts
+useEffect(() => {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting && hasNextPage) {
+        fetchNextPage();
+      }
+    },
+    { threshold: 0.1 }
+  );
+  
+  if (observerTarget.current) {
+    observer.observe(observerTarget.current);
+  }
+  
+  return () => observer.disconnect();
+}, [fetchNextPage, hasNextPage]);
 
-#### Future Enhancements
-- Consolidate `FlashcardItem` and `EnhancedFlashcardItem` into a single unified flashcard component to ensure consistent behavior across all views
-- Improve performance for large collections with virtualized rendering
-- Add search functionality within study mode
+// Render the observer target at the bottom of the list
+return (
+  <>
+    {/* Content items */}
+    {hasNextPage && (
+      <div ref={observerTarget} className="h-10 flex justify-center">
+        {isFetchingNextPage && <LoadingSpinner />}
+      </div>
+    )}
+  </>
+);
+```
 
-To create a new flashcard collection:
-1. Navigate to `/flashcards/collections`
-2. Click "Add Collection"
-3. Fill in the details and assign subjects
+### Caching Strategy
 
-To study flashcards:
-1. Select a collection
-2. Click "Study" to enter study mode
-3. Toggle mastery status with the checkmark button
+The flashcards module uses an optimized caching strategy:
+
+- **Stale Time**: 30 minutes for collections, subjects, and exam types
+- **Pagination**: Only fetches visible data, keeps previous pages in memory
+- **Invalidation**: Selective cache invalidation on mutations (create/update/delete)
+- **Prefetching**: Related data is prefetched in parallel queries
+
+This approach provides the best balance between performance and memory usage for large datasets.
