@@ -19,15 +19,36 @@ export function AuthPage() {
   // Check if user is already authenticated, but don't block rendering
   useEffect(() => {
     const checkAuth = async () => {
+      // Create a mechanism to detect navigation loops
+      const prevRedirectAttempts = parseInt(sessionStorage.getItem('auth_redirect_attempts') || '0');
+      
       // Don't set isAuthenticating to true to avoid showing the banner
-      console.log('AuthPage: Auth state check', { user, loading, authInitialized });
+      console.log('AuthPage: Auth state check', { user, loading, authInitialized, redirectAttempts: prevRedirectAttempts });
       
       if (user) {
+        // If we've already tried to redirect too many times, don't continue the cycle
+        if (prevRedirectAttempts > 3) {
+          console.warn('AuthPage: Too many redirect attempts detected (', prevRedirectAttempts, ') - breaking potential infinite loop');
+          sessionStorage.removeItem('auth_redirect_attempts');
+          // Force a complete page reload to reset all state
+          window.location.reload();
+          return;
+        }
+        
         // Get the last visited page, or default to /chat
         const lastVisitedPage = localStorage.getItem(LAST_PAGE_KEY) || DEFAULT_REDIRECT;
         console.log('AuthPage: User already authenticated, navigating to', lastVisitedPage);
+        
+        // Increment redirect counter
+        sessionStorage.setItem('auth_redirect_attempts', (prevRedirectAttempts + 1).toString());
+        
         navigate(lastVisitedPage, { replace: true });
         return;
+      }
+      
+      // If no user, reset the counter
+      if (prevRedirectAttempts > 0) {
+        sessionStorage.removeItem('auth_redirect_attempts');
       }
       
       // If auth is initialized and we're not loading, but still don't have a user,
@@ -46,6 +67,8 @@ export function AuthPage() {
             console.log('AuthPage: Session found manually, navigating to last page');
             // Get the last visited page or default to /chat
             const lastVisitedPage = localStorage.getItem(LAST_PAGE_KEY) || DEFAULT_REDIRECT;
+            // Increment redirect counter before reload
+            sessionStorage.setItem('auth_redirect_attempts', '1');
             // Force a page reload to ensure all authentication states are properly initialized
             window.location.href = lastVisitedPage;
           } else {
