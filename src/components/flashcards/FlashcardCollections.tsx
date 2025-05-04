@@ -16,8 +16,9 @@ import Tooltip from '@/components/flashcards/Tooltip';
 import { useFlashcardCollections, useSubjects } from '@/hooks/use-query-flashcards';
 import { SkeletonFlashcardGrid } from './SkeletonFlashcard';
 import { Button } from '@/components/ui/button';
+import { useQueryClient } from '@tanstack/react-query';
 
-// Import the skeleton component for collections
+// Define skeleton components
 const SkeletonCollectionCard = ({ className = '' }) => (
   <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col animate-pulse ${className}`}>
     <div className="p-6">
@@ -56,6 +57,11 @@ const SkeletonCollectionGrid = ({ count = 6 }) => (
   </div>
 );
 
+// Define collection keys for query invalidation
+const collectionKeys = {
+  all: ['collections'] as const
+};
+
 interface FlashcardCollection {
   id: string;
   title: string;
@@ -81,6 +87,7 @@ export default function FlashcardCollections() {
   const { toast, showToast, hideToast } = useToast();
   const { user } = useFlashcardAuth();
   const { updateTotalCollectionCount, updateCount } = useNavbar();
+  const queryClient = useQueryClient();
   
   // UI State
   const [collectionToDelete, setCollectionToDelete] = useState<FlashcardCollection | null>(null);
@@ -279,17 +286,17 @@ export default function FlashcardCollections() {
         .from('collections')
         .delete()
         .eq('id', collectionToDelete.id)
-        .eq('user_id', user.id); // Safety check
+        .eq('user_id', user.id)
+        .eq('is_official', false);
       
       if (error) throw error;
       
-      showToast('Collection deleted successfully', 'success');
-      setCollectionToDelete(null);
+      // Invalidate the collections query to trigger a refetch
+      queryClient.invalidateQueries({ queryKey: collectionKeys.all });
       
-      // Invalidate the query to refresh the data
-      // This will happen automatically in React Query
+      setCollectionToDelete(null);
     } catch (err: any) {
-      showToast(`Error deleting collection: ${err.message}`, 'error');
+      showToast(`Error: ${err.message}`, 'error');
     }
   }
 

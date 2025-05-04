@@ -859,12 +859,6 @@ export default function AllFlashcards() {
       // Invalidate relevant queries
       queryClient.invalidateQueries(flashcardKeys.cards());
       
-      // Show success message
-      showToast(
-        "Flashcard deleted successfully",
-        "success"
-      );
-      
       // Clear the card to delete
       setCardToDelete(null);
     } catch (err) {
