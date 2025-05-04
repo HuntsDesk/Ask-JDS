@@ -787,6 +787,38 @@ if (isAuthResolved && !user && !isCheckingSession && !didCheckSessionRef.current
 }
 ```
 
+### Chat FSM Infinite Update Loop
+
+If you encounter a "Maximum update depth exceeded" error in the chat component:
+
+1. **Common Causes:**
+   - Calling state updater functions unconditionally in useEffect hooks
+   - Missing proper state checks before updating FSM state
+   - Multiple components triggering the same state transitions
+
+2. **Solutions:**
+   - Add state guards before calling `startLoading()` or `setReady()` functions
+   - Check that you're not already in the target state before transitioning
+   - Include proper dependency arrays in useEffect hooks
+   - See the implementation in ChatContainer.tsx for examples
+
+3. **Example Fix:**
+```tsx
+// Bad - causes infinite updates
+useEffect(() => {
+  if (isLoading) {
+    chatFSM.startLoading('messages');
+  }
+}, [isLoading, chatFSM]);
+
+// Good - prevents infinite updates with state guard
+useEffect(() => {
+  if (isLoading && chatFSM.state.status !== 'loading') {
+    chatFSM.startLoading('messages');
+  }
+}, [isLoading, chatFSM]);
+```
+
 ## Console Commands
 
 These commands can be executed in the browser's developer console during development:

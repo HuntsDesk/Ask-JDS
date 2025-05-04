@@ -196,10 +196,10 @@ export function ChatContainer() {
   useEffect(() => {
     console.log('ChatContainer: Auth state update', { isAuthResolved, user: !!user });
     
-    if (!isAuthResolved) {
+    if (!isAuthResolved && chatFSM.state.status !== 'loading') {
       console.log('ChatContainer: Auth not resolved, FSM in auth loading state');
       chatFSM.startLoading('auth');
-    } else if (isAuthResolved && !user) {
+    } else if (isAuthResolved && !user && chatFSM.state.status !== 'idle') {
       // No user after auth resolution means we should redirect
       // (handled by ProtectedRoute)
       console.log('ChatContainer: Auth resolved, no user, FSM resetting');
@@ -221,10 +221,10 @@ export function ChatContainer() {
       return;
     }
     
-    if (originalThreadsLoading) {
+    if (originalThreadsLoading && chatFSM.state.status !== 'loading') {
       console.log('ChatContainer: Threads loading in progress');
       chatFSM.startLoading('threads');
-    } else if (chatFSM.state.status === 'loading' && chatFSM.state.phase === 'threads') {
+    } else if (!originalThreadsLoading && chatFSM.state.status === 'loading' && chatFSM.state.phase === 'threads') {
       // If we have threads or this is a different page (no thread ID expected)
       console.log('ChatContainer: Threads loaded, threads count:', originalThreads.length);
       
@@ -249,10 +249,10 @@ export function ChatContainer() {
       return;
     }
     
-    if (messagesLoading || isGenerating) {
+    if ((messagesLoading || isGenerating) && (chatFSM.state.status !== 'loading' || chatFSM.state.phase !== 'messages')) {
       console.log('ChatContainer: Messages loading or generating in progress');
       chatFSM.startLoading('messages');
-    } else if (chatFSM.state.status === 'loading' && chatFSM.state.phase === 'messages') {
+    } else if (!messagesLoading && !isGenerating && chatFSM.state.status === 'loading' && chatFSM.state.phase === 'messages') {
       // Messages loaded, can transition to ready
       console.log('ChatContainer: Messages loaded, setting FSM to ready state');
       chatFSM.setReady(threadMessages.length === 0, urlThreadId);
