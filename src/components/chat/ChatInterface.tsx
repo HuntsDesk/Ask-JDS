@@ -78,12 +78,31 @@ export function ChatInterface({
     }
   };
   
-  // Scroll to bottom when messages change
+  // Scroll to bottom when messages change or during AI response generation
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 || isGenerating) {
       scrollToBottom();
     }
-  }, [messages]);
+  }, [messages, isGenerating]);
+  
+  // Additional scroll listener to ensure we stay at the bottom during generation
+  useEffect(() => {
+    if (isGenerating) {
+      // Set up an interval to keep scrolling to bottom during generation
+      const scrollInterval = setInterval(() => {
+        scrollToBottom('auto');
+      }, 500);
+      
+      return () => clearInterval(scrollInterval);
+    }
+  }, [isGenerating]);
+  
+  // Scroll to bottom when the user sends a message (after handleSubmit)
+  useEffect(() => {
+    if (isSubmitting) {
+      scrollToBottom('auto');
+    }
+  }, [isSubmitting]);
   
   // Handle initial load and thread switching
   useEffect(() => {
@@ -137,13 +156,6 @@ export function ChatInterface({
     }
   }, [messages.length, loading]);
 
-  // Function to scroll to the top of the messages
-  const scrollToTop = () => {
-    if (messageTopRef.current) {
-      messageTopRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-  
   // Track scrolling to show/hide scroll to top button
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -181,6 +193,13 @@ export function ChatInterface({
     if (threadId !== previousThreadIdRef.current) {
       setMessage('');
       previousThreadIdRef.current = threadId;
+      
+      // Auto-focus the textarea when a new thread is created
+      if (textareaRef.current) {
+        setTimeout(() => {
+          textareaRef.current?.focus();
+        }, 100); // Small delay to ensure the DOM is ready
+      }
     }
   }, [threadId]);
 
@@ -207,6 +226,13 @@ export function ChatInterface({
     
     // Clear the input field immediately
     setMessage('');
+    
+    // Focus back on the textarea immediately
+    if (textareaRef.current) {
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 50);
+    }
     
     try {
       // Send message
@@ -300,6 +326,13 @@ export function ChatInterface({
     );
   };
 
+  // Function to scroll to the top of the messages
+  const scrollToTop = () => {
+    if (messageTopRef.current) {
+      messageTopRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   // Welcome state - no thread selected
   if (threadId === null) {
     return (
@@ -371,7 +404,14 @@ export function ChatInterface({
             </div>
           )}
           
-          <form className="flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+          <form 
+            className="flex items-end gap-2" 
+            onSubmit={(e) => { 
+              e.preventDefault(); 
+              handleSubmit(); 
+              return false; // Explicitly return false to ensure no form submission
+            }}
+          >
             <textarea
               ref={textareaRef}
               value={message}
@@ -383,7 +423,8 @@ export function ChatInterface({
               disabled={isSubmitting || isGenerating || loading || !threadId}
             />
             <button
-              type="submit"
+              type="button" // Change from submit to button type
+              onClick={handleSubmit}
               className="px-4 py-3 bg-[#F37022] text-white rounded-lg hover:bg-[#E36012] min-h-[56px] flex items-center justify-center"
               disabled={isSubmitting || isGenerating || loading || message.trim() === '' || !threadId}
             >
