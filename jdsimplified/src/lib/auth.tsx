@@ -1,6 +1,6 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
+import { User } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
 // Types
 type AuthContextType = {
@@ -11,28 +11,6 @@ type AuthContextType = {
   signOut: () => Promise<{ error: Error | null }>;
   authInitialized: boolean;
 };
-
-// Get environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-// Check if the environment variables are defined and log them for debugging
-console.log('Supabase config in auth.tsx:', {
-  SUPABASE_URL: supabaseUrl ? 'defined' : 'undefined',
-  SUPABASE_ANON_KEY: supabaseAnonKey ? 'defined (length: ' + supabaseAnonKey.length + ')' : 'undefined'
-});
-
-// Create supabase client with hardcoded values if env variables are not available
-// This ensures the app doesn't crash during development or if env variables aren't loaded
-const url = supabaseUrl || 'https://prbbuxgirnecbkpdpgcb.supabase.co';
-const key = supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByYmJ1eGdpcm5lY2JrcGRwZ2NiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk0NjY1NTAsImV4cCI6MjA1NTA0MjU1MH0.tUE2nfjVbY2NCr0duUyhC5Rx-fe5TMBeCoWlkzAxxds';
-
-const supabase = createClient(url, key, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  }
-});
 
 // Create auth context
 export const AuthContext = createContext<AuthContextType>({

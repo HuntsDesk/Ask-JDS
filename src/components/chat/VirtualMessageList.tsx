@@ -19,11 +19,20 @@ const MessageItem = ({ index, style, data }: MessageItemProps) => {
   const { messages, setSize, containerWidth } = data;
   const message = messages[index];
   const messageRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
   
   // Process message content to remove trailing newlines
   const processedContent = message.content
     .replace(/\r\n?/g, '\n') // Normalize line endings
     .replace(/\n+$/, ''); // Remove trailing newlines
+  
+  // Add a short delay before showing the message to ensure theme is applied
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
   
   // Use effect to measure and update the message height after render
   useEffect(() => {
@@ -56,7 +65,9 @@ const MessageItem = ({ index, style, data }: MessageItemProps) => {
       height: 'auto',
       width: containerWidth - 8, // Leave a small gap for scrollbar
       paddingRight: 4, // Minimal padding
-      paddingLeft: 12  // Increased left padding to avoid sidebar overlap
+      paddingLeft: 12,  // Increased left padding to avoid sidebar overlap
+      opacity: isVisible ? 1 : 0,
+      transition: 'opacity 150ms ease-in'
     }}>
       <div 
         ref={messageRef}

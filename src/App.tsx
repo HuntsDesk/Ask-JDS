@@ -1,11 +1,13 @@
 import React, { useEffect, useState, Suspense, lazy, createContext, useContext } from 'react';
-import { AuthProvider, useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 import { Toaster } from '@/components/ui/toaster';
+import { Toaster as HotToaster } from 'react-hot-toast';
 import { DomainProvider, useDomain } from '@/lib/domain-context';
 import SimplifiedMode from '@/lib/SimplifiedMode';
 import { NavbarProvider } from '@/contexts/NavbarContext';
 import { CloseProvider } from '@/contexts/close-context';
 import { PaywallProvider } from '@/contexts/paywall-context';
+import { LayoutDebugger } from '@/components/LayoutDebugger';
 
 // Direct imports for homepage components
 import { HomePage } from '@/components/HomePage';
@@ -19,6 +21,9 @@ import { AskJDSNavbar } from '@/components/askjds/AskJDSNavbar';
 import { PersistentLayout } from '@/components/layout/PersistentLayout';
 
 // Lazy load large components
+// Note: The React.StrictMode in main.tsx causes components to mount twice in development
+// This is normal and helps catch side effect bugs. It does NOT indicate duplicate components in production.
+// IMPORTANT: AuthProvider is already present at the app root level. DO NOT add additional AuthProviders in route components.
 const ChatLayout = lazy(() => import('@/components/chat/ChatLayout').then(module => ({ default: module.ChatLayout })));
 const AuthPage = lazy(() => import('@/components/auth/AuthPage').then(module => ({ default: module.AuthPage })));
 const FlashcardsPage = lazy(() => import('@/components/flashcards/FlashcardsPage'));
@@ -32,10 +37,10 @@ const SubscriptionSuccess = lazy(() => import('@/components/SubscriptionSuccess'
 const ChatContainer = lazy(() => import('@/components/chat/ChatContainer').then(module => ({ default: module.default })));
 
 // Import Dashboard directly to avoid lazy loading issues
-import JDSDashboard from '../jdsimplified/src/pages/Dashboard';
+import JDSDashboard from '@/pages/Dashboard';
 
 // Import directly for debugging purposes
-// import JDSDashboardDirect from '../jdsimplified/src/pages/Dashboard';
+// import JDSDashboardDirect from '@/pages/Dashboard';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
@@ -54,7 +59,6 @@ import { queryClient } from '@/lib/query-client';
 import { ThemeProvider } from '@/lib/theme-provider';
 
 // Import the AuthenticatedLayout component
-import AuthenticatedLayout from '../jdsimplified/src/components/AuthenticatedLayout';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { CourseLayout } from './components/layout/CourseLayout';
 
@@ -201,9 +205,7 @@ function AppRoutes() {
           } 
         />
         <Route path="/auth" element={
-          <AuthProvider>
-            <AuthPage />
-          </AuthProvider>
+          <AuthPage />
         } />
         <Route path="admin" element={<AdminDashboard />} />
         <Route path="admin/users" element={<AdminUsers />} />
@@ -232,9 +234,7 @@ function AppRoutes() {
       <Route path="/login" element={<SimpleRedirect to="/auth" />} />
       
       <Route path="/auth" element={
-        <AuthProvider>
-          <AuthPage />
-        </AuthProvider>
+        <AuthPage />
       } />
       
       {/* Protected routes wrapped in PersistentLayout */}
@@ -244,7 +244,7 @@ function AppRoutes() {
         </ProtectedRoute>
       }>
         <Route path="/chat/:threadId?" element={<ChatContainer />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings/*" element={<SettingsPage />} />
         <Route path="/flashcards/*" element={
           <Suspense fallback={<PageLoader message="Loading flashcards..." />}>
             <NavbarProvider>
@@ -252,15 +252,19 @@ function AppRoutes() {
             </NavbarProvider>
           </Suspense>
         } />
-        <Route path="/courses" element={<JDSDashboardWrapper />} />
-        <Route path="/courses/:id" element={
-          <Suspense fallback={<PageLoader message="Loading course details..." />}>
-            <PublicCourseDetail />
+        <Route path="/courses/*" element={
+          <Suspense fallback={<PageLoader message="Loading courses..." />}>
+            <CoursesPage />
           </Suspense>
         } />
         <Route path="/course/:courseId/*" element={
           <Suspense fallback={<PageLoader message="Loading course content..." />}>
             <CourseContent />
+          </Suspense>
+        } />
+        <Route path="/course-detail/:id" element={
+          <Suspense fallback={<PageLoader message="Loading course details..." />}>
+            <PublicCourseDetail />
           </Suspense>
         } />
         <Route path="/subscription/success" element={
@@ -332,43 +336,62 @@ function App() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
   
+  useEffect(() => {
+    // Clean up potential auth-related localStorage items that might cause issues
+    const keysToReset = [
+      'protected_redirect_attempts',
+      'auth_redirect_attempts'
+    ];
+    
+    keysToReset.forEach(key => {
+      try {
+        if (sessionStorage.getItem(key)) {
+          console.log(`Cleaning up ${key} from sessionStorage`);
+          sessionStorage.removeItem(key);
+        }
+      } catch (e) {
+        console.warn(`Error cleaning up ${key}:`, e);
+      }
+    });
+  }, []);
+  
   return (
     <ThemeProvider defaultTheme="system" storageKey="ui-theme">
       <DomainProvider>
-        <AuthProvider>
-          <PaywallProvider>
-            <CloseProvider>
-              <SidebarContext.Provider value={{ isExpanded, setIsExpanded, isMobile }}>
-                <SelectedThreadContext.Provider value={{ selectedThreadId, setSelectedThreadId }}>
-                  <ErrorBoundary
-                    fallback={
-                      <div className="fixed inset-0 flex items-center justify-center bg-background">
-                        <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full text-center">
-                          <h2 className="text-xl font-bold mb-4">Application Error</h2>
-                          <p className="mb-4">
-                            The application encountered an unexpected error. Please try refreshing the page.
-                          </p>
-                          <Button 
-                            onClick={() => window.location.reload()}
-                            className="w-full bg-orange-600 hover:bg-orange-500"
-                          >
-                            Reload Application
-                          </Button>
-                        </div>
+        <PaywallProvider>
+          <CloseProvider>
+            <SidebarContext.Provider value={{ isExpanded, setIsExpanded, isMobile }}>
+              <SelectedThreadContext.Provider value={{ selectedThreadId, setSelectedThreadId }}>
+                <ErrorBoundary
+                  fallback={
+                    <div className="fixed inset-0 flex items-center justify-center bg-background">
+                      <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full text-center">
+                        <h2 className="text-xl font-bold mb-4">Application Error</h2>
+                        <p className="mb-4">
+                          The application encountered an unexpected error. Please try refreshing the page.
+                        </p>
+                        <Button 
+                          onClick={() => window.location.reload()}
+                          className="w-full bg-orange-600 hover:bg-orange-500"
+                        >
+                          Reload Application
+                        </Button>
                       </div>
-                    }
-                  >
-                    <BrowserRouter>
-                      <AppRoutes />
-                      <Toaster />
-                      <OfflineIndicator />
-                    </BrowserRouter>
-                  </ErrorBoundary>
-                </SelectedThreadContext.Provider>
-              </SidebarContext.Provider>
-            </CloseProvider>
-          </PaywallProvider>
-        </AuthProvider>
+                    </div>
+                  }
+                >
+                  <BrowserRouter>
+                    <AppRoutes />
+                    <Toaster />
+                    <HotToaster position="top-right" />
+                    <OfflineIndicator />
+                    <LayoutDebugger />
+                  </BrowserRouter>
+                </ErrorBoundary>
+              </SelectedThreadContext.Provider>
+            </SidebarContext.Provider>
+          </CloseProvider>
+        </PaywallProvider>
       </DomainProvider>
     </ThemeProvider>
   );

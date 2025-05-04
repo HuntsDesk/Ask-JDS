@@ -6,6 +6,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Loader2, Info } from 'lucide-react';
 import { Message } from '@/types';
 import { ChatMessage } from './ChatMessage';
+import PageContainer from '@/components/layout/PageContainer';
 
 interface ChatInterfaceProps {
   threadId: string | null;
@@ -22,13 +23,14 @@ interface ChatInterfaceProps {
   isSidebarOpen?: boolean;
   isDesktop: boolean;
   isGenerating?: boolean;
+  onClosePaywall?: () => void;
 }
 
 export function ChatInterface({
   threadId,
-  messages,
-  loading,
-  loadingTimeout,
+  messages = [],
+  loading = false,
+  loadingTimeout = false,
   onSend,
   onRefresh,
   messageCount = 0,
@@ -38,26 +40,102 @@ export function ChatInterface({
   onToggleSidebar,
   isSidebarOpen,
   isDesktop,
-  isGenerating = false
+  isGenerating = false,
+  onClosePaywall = () => {}
 }: ChatInterfaceProps) {
   const messageEndRef = useRef<HTMLDivElement>(null);
   const messageTopRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const previousThreadIdRef = useRef<string | null>(null);
   const [message, setMessage] = useState(preservedMessage || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
-  
+  const [showGeneratingStatus, setShowGeneratingStatus] = useState<boolean>(true);
+  const [showRetryButton, setShowRetryButton] = useState<boolean>(false);
+
   // Combine our local submission state with the external isGenerating prop
   const isShowingResponseIndicator = isSubmitting || isGenerating;
   
+  // Determine if we've been loading for too long - show retry button
   useEffect(() => {
-    // Scroll to bottom when messages change
+    if (loading) {
+      const timeoutId = setTimeout(() => {
+        setShowRetryButton(true);
+      }, 10000); // 10 seconds
+      
+      return () => clearTimeout(timeoutId);
+    } else {
+      setShowRetryButton(false);
+    }
+  }, [loading]);
+  
+  // Scroll to bottom helper function
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     if (messageEndRef.current) {
-      messageEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      messageEndRef.current.scrollIntoView({ behavior });
+    }
+  };
+  
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToBottom();
     }
   }, [messages]);
+  
+  // Handle initial load and thread switching
+  useEffect(() => {
+    // If thread ID changes, scroll to bottom
+    if (threadId && threadId !== previousThreadIdRef.current) {
+      // Use a slight delay to ensure the messages are rendered
+      const timeoutId = setTimeout(() => {
+        if (messages.length > 0 && !loading) {
+          // Use 'auto' for thread switching to avoid animation
+          scrollToBottom('auto');
+        }
+      }, 100);
+      
+      // Update the previous thread ID
+      previousThreadIdRef.current = threadId;
+      
+      // Clean up timeout
+      return () => clearTimeout(timeoutId);
+    }
+  }, [threadId, messages.length, loading]);
+  
+  // Additional scroll to bottom on initial content load
+  useEffect(() => {
+    // Trigger when loading changes from true to false
+    if (!loading && messages.length > 0) {
+      // Use a slight delay to ensure the messages are rendered
+      const timeoutId = setTimeout(() => {
+        scrollToBottom('auto');
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [loading, messages.length]);
+
+  // Additional effect to force a render update when messages are loaded
+  useEffect(() => {
+    if (messages.length > 0 && !loading) {
+      // Force a re-render by updating a DOM element
+      const container = messagesContainerRef.current;
+      if (container) {
+        // Trigger layout recalculation to force render
+        container.style.display = 'none';
+        // Use requestAnimationFrame to ensure the style change is processed
+        requestAnimationFrame(() => {
+          if (container) {
+            container.style.display = '';
+            scrollToBottom('auto');
+          }
+        });
+      }
+    }
+  }, [messages.length, loading]);
 
   // Function to scroll to the top of the messages
   const scrollToTop = () => {
@@ -97,6 +175,14 @@ export function ChatInterface({
       setMessage(preservedMessage);
     }
   }, [preservedMessage]);
+
+  // Reset textarea when thread changes
+  useEffect(() => {
+    if (threadId !== previousThreadIdRef.current) {
+      setMessage('');
+      previousThreadIdRef.current = threadId;
+    }
+  }, [threadId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
@@ -142,16 +228,99 @@ export function ChatInterface({
   const remainingMessages = Math.max(0, messageLimit - messageCount);
   const isNearLimit = remainingMessages <= 3 && remainingMessages > 0;
 
-  // Get loading message based on loading state
-  const getLoadingMessage = () => {
-    if (loading) {
-      return "Loading messages...";
-    }
-    return "Ready to chat";
+  // Render loading state with more helpful info
+  const renderLoadingState = () => {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center max-w-md text-center p-4">
+          <LoadingSpinner size="lg" />
+          <p className="mt-4 text-gray-700 dark:text-gray-300">Loading messages...</p>
+          {(loadingTimeout || showRetryButton) && (
+            <div className="mt-4">
+              <p className="mb-2 text-gray-600 dark:text-gray-400">
+                This is taking longer than expected. You can try refreshing.
+              </p>
+              <Button onClick={onRefresh} variant="outline">
+                Refresh
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
+  // Render empty state (no messages) with better styling
+  const renderEmptyState = () => {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-6">
+        <h2 className="text-2xl font-bold mb-2 text-gray-800 dark:text-white">Welcome to Ask JDS</h2>
+        <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-md">
+          Your trusted legal AI research assistant. Whether you're researching a legal question, 
+          navigating law school, or exploring complex legal topics, Ask JDS is here to provide 
+          clear, reliable, and knowledgeable guidance.
+        </p>
+        <p className="text-gray-500 dark:text-gray-500 text-sm mt-4">
+          Type your question below to get started
+        </p>
+      </div>
+    );
+  };
+
+  // Render messages with proper handling for empty states and loading
+  const renderMessages = () => {
+    if (loading) {
+      return renderLoadingState();
+    }
+    
+    if (messages.length === 0) {
+      return renderEmptyState();
+    }
+    
+    return (
+      <div className="flex flex-col space-y-2 pb-0 mt-2">
+        {messages.map((msg, index) => (
+          <div key={`${msg.id || index}-${msg.created_at || Date.now()}`} className="message-wrapper">
+            <ChatMessage 
+              key={msg.id || `temp-${index}`} 
+              message={msg}
+              isLastMessage={index === messages.length - 1}
+            />
+          </div>
+        ))}
+        
+        {isShowingResponseIndicator && (
+          <div className="flex justify-start">
+            <div className="max-w-[80%] rounded-lg p-3 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 ml-8 rounded-bl-none">
+              <div className="flex items-center">
+                <LoadingSpinner size="sm" />
+                <span className="ml-2">AI is responding...</span>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div ref={messageEndRef} />
+      </div>
+    );
+  };
+
+  // Welcome state - no thread selected
+  if (threadId === null) {
+    return (
+      <PageContainer bare>
+        <div className="flex-1 flex flex-col items-center justify-center h-full max-w-3xl mx-auto px-4 text-center">
+          <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Welcome to AskJDS</h1>
+          <p className="text-lg mb-8 text-gray-600 dark:text-gray-300">
+            Ask any law school or bar exam related questions. Start a new chat to begin the conversation.
+          </p>
+        </div>
+      </PageContainer>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full relative bg-white dark:bg-gray-900">
+    <div className="flex flex-col h-full min-h-screen chat-interface-root">
       {/* Only show header on mobile */}
       {!isDesktop && (
         <header className="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex items-center justify-between">
@@ -172,65 +341,16 @@ export function ChatInterface({
         </header>
       )}
       
-      {/* Message container */}
-      <div className={`flex-1 overflow-hidden relative ${!isDesktop ? 'pt-16' : ''}`}>
+      {/* Main content area - messages */}
+      <div className={`chat-messages-area flex-1 ${!isDesktop ? 'pt-16' : ''}`}>
         <div 
           ref={messagesContainerRef}
-          className="h-full w-full message-container overflow-y-auto px-6 sm:px-8 py-4 pb-6"
+          className="chat-messages-scroll h-full w-full overflow-y-auto px-2 sm:px-4 py-2"
         >
           {/* Spacer element to ensure messages start below the header */}
-          <div ref={messageTopRef} className="h-32 md:h-4"></div>
+          <div ref={messageTopRef} className="h-6 md:h-4"></div>
           
-          {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="flex flex-col items-center max-w-md text-center p-4">
-                <LoadingSpinner size="lg" />
-                <p className="mt-2 text-gray-700 dark:text-gray-300">Loading messages...</p>
-                {loadingTimeout && (
-                  <div className="mt-4">
-                    <p className="mb-2 text-gray-600 dark:text-gray-400">
-                      This is taking longer than expected. You can try refreshing.
-                    </p>
-                    <Button onClick={onRefresh} variant="outline">
-                      Refresh
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center p-6">
-              <h2 className="text-2xl font-bold mb-2 text-gray-800 dark:text-white">Welcome to Ask JDS</h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-md">
-                Your trusted legal AI research assistant. Whether you're researching a legal question, 
-                navigating law school, or exploring complex legal topics, Ask JDS is here to provide 
-                clear, reliable, and knowledgeable guidance.
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col space-y-4 pb-2 mt-4">
-              {messages.map((msg, index) => (
-                <ChatMessage 
-                  key={msg.id || `temp-${index}`} 
-                  message={msg}
-                  isLastMessage={index === messages.length - 1}
-                />
-              ))}
-              
-              {isShowingResponseIndicator && (
-                <div className="flex justify-start">
-                  <div className="max-w-[80%] rounded-lg p-3 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 ml-8 rounded-bl-none">
-                    <div className="flex items-center">
-                      <LoadingSpinner size="sm" />
-                      <span className="ml-2">AI is responding...</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              <div ref={messageEndRef} className="h-16 md:h-16" />
-            </div>
-          )}
+          {renderMessages()}
           
           {/* Scroll to top button - only visible on mobile when scrolled */}
           {!isDesktop && isScrolled && messages.length > 0 && (
@@ -247,11 +367,11 @@ export function ChatInterface({
         </div>
       </div>
       
-      {/* Input container - fixed at the bottom with solid background */}
-      <div className="input-container px-4 py-3 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
+      {/* Input container - at the bottom with auto height */}
+      <div className="input-container px-4 py-2 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
         <div className="max-w-4xl mx-auto mb-1">
           {sendError && (
-            <div className="mb-2 p-2 text-sm rounded bg-red-50 text-red-600">
+            <div className="mb-2 p-2 text-sm rounded bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">
               {sendError}
             </div>
           )}
@@ -281,7 +401,7 @@ export function ChatInterface({
           </form>
           
           {isNearLimit && (
-            <div className="mt-2 p-2 rounded bg-amber-50 text-amber-700">
+            <div className="mt-2 p-2 rounded bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
               <p className="text-sm flex items-center">
                 <Info className="h-4 w-4 mr-2 flex-shrink-0" />
                 You have {remainingMessages} message{remainingMessages !== 1 ? 's' : ''} left before hitting your daily limit.

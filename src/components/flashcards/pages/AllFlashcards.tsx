@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { FileText, Check, EyeOff, Eye, Trash2, Filter, BookOpen, FileEdit, Lock, FilterX, X } from 'lucide-react';
+import { FileText, Check, EyeOff, Eye, Trash2, Filter, BookOpen, FileEdit, Lock, FilterX, X, Loader2, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import useAuth from '@/hooks/useFlashcardAuth';
 import useToast from '@/hooks/useFlashcardToast';
@@ -14,11 +14,13 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { hasActiveSubscription } from '@/lib/subscription';
 import { Button } from '@/components/ui/button';
 import { FlashcardPaywall } from '../../FlashcardPaywall';
-import { useCachedData, clearCache, invalidateCache } from '@/hooks/use-cached-data';
 import { useFlashcardRelationships } from '@/hooks/useFlashcardRelationships';
 import FlashcardItem from '../FlashcardItem';
 import { useNavbar } from '@/contexts/NavbarContext';
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { SkeletonFlashcardGrid } from '../SkeletonFlashcard';
+import { enrichFlashcardWithRelationships, processRelationshipData, isFlashcardReadOnly } from '@/utils/flashcard-utils';
 
 // Debug flag - set to false to disable most console logs
 // Set to localStorage.getItem('enableFlashcardDebug') === 'true' to control via localStorage
@@ -34,6 +36,18 @@ const debugLog = (message: string, data?: any) => {
       console.log(message);
     }
   }
+};
+
+// Define query keys for React Query
+const flashcardKeys = {
+  all: ['flashcards'] as const,
+  cards: () => [...flashcardKeys.all, 'cards'] as const,
+  basic: () => [...flashcardKeys.cards(), 'basic'] as const,
+  filtered: (filter: string, page = 0) => [...flashcardKeys.basic(), filter, page] as const,
+  relationships: () => [...flashcardKeys.all, 'relationships'] as const,
+  subjects: () => [...flashcardKeys.all, 'subjects'] as const,
+  collections: () => [...flashcardKeys.all, 'collections'] as const,
+  progress: (userId: string) => [...flashcardKeys.all, 'progress', userId] as const,
 };
 
 interface Collection {
@@ -65,36 +79,77 @@ export default function AllFlashcards() {
   const { user } = useAuth();
   const { toast, showToast, hideToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [allCards, setAllCards] = useState<Flashcard[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'official' | 'my'>('all');
+  const queryClient = useQueryClient();
+  
+  // UI state
   const [cardToDelete, setCardToDelete] = useState<Flashcard | null>(null);
   const [hasSubscription, setHasSubscription] = useState<boolean>(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const { updateTotalCardCount } = useNavbar();
   const [masteringCardId, setMasteringCardId] = useState<string | null>(null);
+  const [pageSize] = useState(30); // Number of cards to fetch per page
 
-  // Replace regular state with persisted state
+  // DEV ONLY: Check for forced subscription
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const forceSubscription = localStorage.getItem('forceSubscription');
+      if (forceSubscription === 'true') {
+        console.log('DEV OVERRIDE: Forcing subscription to true in AllFlashcards component');
+        setHasSubscription(true);
+      }
+    }
+  }, []);
+
+  // Persisted user preferences
   const [showMastered, setShowMastered] = usePersistedState<boolean>('flashcards-show-mastered', true);
   const [selectedSubjectIds, setSelectedSubjectIds] = usePersistedState<string[]>('flashcards-filter-subjects', []);
   const [selectedCollectionIds, setSelectedCollectionIds] = usePersistedState<string[]>('flashcards-filter-collections', []);
   const [showFilters, setShowFilters] = usePersistedState<boolean>('flashcards-show-filters', false);
 
-  // Use the relationship hook to efficiently load and cache all relationships
-  const {
-    relationshipData,
-    loading: relationshipsLoading,
-    error: relationshipsError,
-    refetch: refetchRelationships,
-    enrichFlashcard
-  } = useFlashcardRelationships();
+  // Filter state
+  const [filter, setFilter] = useState<'all' | 'official' | 'my'>('all');
 
-  // Use cached data for subjects and collections
-  const [subjects, subjectsLoading] = useCachedData<{id: string, name: string}[]>(
-    'flashcard-subjects',
-    async () => {
+  // Fetch subscription status
+  const { data: subscriptionStatus = false, isLoading: subscriptionLoading } = useQuery({
+    queryKey: ['user', user?.id, 'subscription'],
+    queryFn: async () => {
+      if (!user) return false;
+      return hasActiveSubscription(user.id);
+    },
+    enabled: !!user,
+    staleTime: 60 * 1000, // Reduce to 1 minute
+    refetchOnMount: 'always', // Always fetch fresh data on component mount
+    refetchOnWindowFocus: true, // Refetch when window regains focus
+    onSuccess: (data) => {
+      setHasSubscription(data);
+    }
+  });
+
+  // Ensure subscription status is refreshed when user changes
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const forceSubscription = localStorage.getItem('forceSubscription');
+      if (forceSubscription === 'true') {
+        console.log('DEV OVERRIDE: Forcing subscription to true in useEffect user change handler');
+        setHasSubscription(true);
+        return; // Skip the rest of the effect
+      }
+    }
+
+    if (user) {
+      // Invalidate subscription query when user changes
+      queryClient.invalidateQueries(['user', user.id, 'subscription']);
+    } else {
+      // Reset subscription status when no user
+      setHasSubscription(false);
+    }
+  }, [user, queryClient]);
+
+  // Fetch subjects for filtering
+  const { data: subjects = [] } = useQuery({
+    queryKey: flashcardKeys.subjects(),
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('subjects')
         .select('id, name')
@@ -103,12 +158,13 @@ export default function AllFlashcards() {
       if (error) throw error;
       return data || [];
     },
-    { expiration: 30 * 60 * 1000 } // 30 minutes cache
-  );
+    staleTime: 30 * 60 * 1000 // 30 minutes
+  });
 
-  const [collections, collectionsLoading] = useCachedData<Collection[]>(
-    'flashcard-collections',
-    async () => {
+  // Fetch collections for filtering
+  const { data: collections = [] } = useQuery({
+    queryKey: flashcardKeys.collections(),
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('collections')
         .select('id, title')
@@ -117,82 +173,368 @@ export default function AllFlashcards() {
       if (error) throw error;
       return data || [];
     },
-    { expiration: 15 * 60 * 1000 } // 15 minutes cache
-  );
+    staleTime: 15 * 60 * 1000 // 15 minutes
+  });
 
-  // Cache flashcards based on the current filter
-  // Memoize the cache key to ensure stability
-  const flashcardsCacheKey = useMemo(() => (
-    `flashcards-${filter}-${user?.id || 'anonymous'}`
-  ), [filter, user?.id]);
-  
-  const [flashcardsData, flashcardsLoading, flashcardsError, refetchFlashcards] = useCachedData<any[]>(
-    flashcardsCacheKey,
-    async () => {
+  // Primary flashcards query - basic data only
+  const { 
+    data: flashcardsData,
+    isLoading: flashcardsLoading,
+    isError: isFlashcardsError,
+    error: flashcardsError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: flashcardKeys.filtered(filter),
+    queryFn: async ({ pageParam = 0 }) => {
+      console.log('Executing main flashcards query with filter:', filter, 'page:', pageParam);
+      
+      // Calculate offset for pagination
+      const offset = pageParam * pageSize;
+      console.log(`Using offset pagination: offset=${offset}, limit=${pageSize}`);
+      
+      // We need to fetch flashcards with their collections through the junction table
       if (filter === 'my' && user) {
-        // Get user's flashcards
-        const { data, error } = await supabase
+        // Get user's own flashcards
+        console.log('Fetching user-created flashcards for user ID:', user.id);
+        
+        // Count query for pagination
+        const { count, error: countError } = await supabase
           .from('flashcards')
-          .select('*')
+          .select('*', { count: 'exact', head: true })
           .eq('created_by', user.id);
           
-        if (error) throw error;
-        return data || [];
-      } else if (filter === 'official') {
-        // Get official flashcards
-        // First get all official collection IDs
-        const { data: officialCollections, error: ocError } = await supabase
-          .from('collections')
-          .select('id')
-          .eq('is_official', true);
-          
-        if (ocError) throw ocError;
+        if (countError) throw countError;
         
-        if (!officialCollections || officialCollections.length === 0) {
-          return [];
-        }
-        
-        const officialCollectionIds = officialCollections.map(c => c.id);
-        
-        // Get flashcard IDs from junction table
-        const { data: flashcardJunctions, error: fjError } = await supabase
-          .from('flashcard_collections_junction')
-          .select('flashcard_id')
-          .in('collection_id', officialCollectionIds);
-          
-        if (fjError) throw fjError;
-        
-        if (!flashcardJunctions || flashcardJunctions.length === 0) {
-          return [];
-        }
-        
-        const flashcardIds = flashcardJunctions.map(fj => fj.flashcard_id);
-        
-        // Get the flashcards
-      const { data, error } = await supabase
-          .from('flashcards')
-          .select('*')
-          .in('id', flashcardIds);
-          
-        if (error) throw error;
-        return data || [];
-      } else {
-        // Get all flashcards
+        // Data query with pagination
         const { data, error } = await supabase
           .from('flashcards')
-          .select('*');
+          .select(`
+            *,
+            flashcard_collections_junction (
+              collection:collection_id (
+                id, 
+                title, 
+                is_official, 
+                user_id
+              )
+            )
+          `)
+          .eq('created_by', user.id)
+          .range(offset, offset + pageSize - 1)
+          .order('created_at', { ascending: false });
           
-        if (error) throw error;
-        return data || [];
+        if (error) {
+          console.error('Error fetching user flashcards:', error);
+          throw error;
+        }
+        
+        // Process the junction table data to put collection directly on the flashcard
+        const processedData = data?.map(card => {
+          if (card.flashcard_collections_junction && card.flashcard_collections_junction.length > 0) {
+            return {
+              ...card,
+              collection: card.flashcard_collections_junction[0].collection
+            };
+          }
+          return card;
+        }) || [];
+        
+        console.log(`Fetched ${processedData.length} user flashcards (page ${pageParam + 1})`);
+        if (processedData.length > 0) {
+          console.log('First card sample:', processedData[0]);
+          console.log('Collection data:', processedData[0]?.collection);
+        }
+        
+        // Determine if there are more pages
+        const hasNextPage = offset + processedData.length < (count || 0);
+        const nextCursor = hasNextPage ? pageParam + 1 : null;
+        
+        return {
+          flashcards: processedData,
+          nextCursor,
+          totalCount: count || 0
+        };
+        
+      } else if (filter === 'official') {
+        // For official cards, we need to query using the junction table to get official collections
+        console.log('Fetching official flashcards (from official collections)');
+        
+        // Count query for pagination - ensure correct join condition
+        const { count, error: countError } = await supabase
+          .from('flashcards')
+          .select('*', { count: 'exact', head: true })
+          .or('is_official.eq.true');
+          
+        if (countError) {
+          console.error('Error in official cards count query:', countError);
+          throw countError;
+        }
+        
+        console.log(`Official cards count: ${count || 0}`);
+        
+        // Enhanced - first try the direct query using a different approach
+        let data, error;
+        try {
+          // First query directly for official flashcards
+          const result = await supabase
+            .from('flashcards')
+            .select(`
+              *,
+              flashcard_collections_junction (
+                collection:collection_id (
+                  id, 
+                  title, 
+                  is_official, 
+                  user_id
+                )
+              )
+            `)
+            .eq('is_official', true)
+            .range(offset, offset + pageSize - 1)
+            .order('created_at', { ascending: false });
+            
+            data = result.data;
+            error = result.error;
+            
+            console.log(`Found ${data?.length || 0} directly marked official flashcards`);
+            
+            // If we don't have enough cards, try to get cards from official collections
+            if (!error && (!data || data.length < pageSize)) {
+              console.log('Looking for additional cards in official collections');
+              const additionalResult = await supabase
+                .from('flashcards')
+                .select(`
+                  *,
+                  flashcard_collections_junction (
+                    collection:collection_id (
+                      id, 
+                      title, 
+                      is_official, 
+                      user_id
+                    )
+                  )
+                `)
+                .not('id', 'in', `(${(data || []).map(c => c.id).join(',')})`)
+                .eq('flashcard_collections_junction.collection.is_official', true)
+                .range(0, pageSize - (data?.length || 0) - 1)
+                .order('created_at', { ascending: false });
+                
+                console.log(`Found ${additionalResult.data?.length || 0} additional cards in official collections`);
+                
+                // Combine the results
+                if (additionalResult.data && additionalResult.data.length > 0) {
+                  data = [...(data || []), ...(additionalResult.data || [])];
+                }
+              }
+            } catch (queryError) {
+              console.error('Error in complex official cards query:', queryError);
+              
+              // Fallback to the original query if the enhanced approach fails
+              const result = await supabase
+                .from('flashcards')
+                .select(`
+                  *,
+                  flashcard_collections_junction (
+                    collection:collection_id (
+                      id, 
+                      title, 
+                      is_official, 
+                      user_id
+                    )
+                  )
+                `)
+                .or('is_official.eq.true')
+                .range(offset, offset + pageSize - 1)
+                .order('created_at', { ascending: false });
+                
+                data = result.data;
+                error = result.error;
+            }
+            
+            if (error) {
+              console.error('Error fetching official flashcards:', error);
+              throw error;
+            }
+            
+            // Process the junction table data to put collection directly on the flashcard
+            const processedData = data?.map(card => {
+              if (card.flashcard_collections_junction && card.flashcard_collections_junction.length > 0) {
+                return {
+                  ...card,
+                  collection: card.flashcard_collections_junction[0].collection
+                };
+              }
+              return card;
+            }) || [];
+            
+            console.log(`Fetched ${processedData.length} official flashcards (page ${pageParam + 1})`);
+            if (processedData.length > 0) {
+              console.log('First official card sample:', processedData[0]);
+              console.log('Official collection data:', processedData[0]?.collection);
+            } else {
+              console.log('No official flashcards found. Check SQL query or database content.');
+            }
+            
+            // Determine if there are more pages
+            const hasNextPage = offset + processedData.length < (count || 0);
+            const nextCursor = hasNextPage ? pageParam + 1 : null;
+            
+            return {
+              flashcards: processedData,
+              nextCursor,
+              totalCount: count || 0
+            };
+        
+      } else {
+        // For all cards, fetch with their collections
+        console.log('Fetching all flashcards with their collections');
+        
+        // Create the filter condition safely
+        let filterCondition = 'is_official.eq.true,is_public_sample.eq.true';
+        if (user?.id) {
+          filterCondition = `created_by.eq.${user.id},${filterCondition}`;
+          console.log(`Filter condition includes user ID ${user.id}`);
+        } else {
+          console.log('No user ID available, only showing official and public flashcards');
+        }
+        
+        console.log(`Using filter condition: ${filterCondition}`);
+        
+        // Count query for pagination
+        const { count, error: countError } = await supabase
+          .from('flashcards')
+          .select('*', { count: 'exact', head: true })
+          .or(filterCondition);
+          
+        if (countError) throw countError;
+        
+        // Data query with pagination
+        const { data, error } = await supabase
+          .from('flashcards')
+          .select(`
+            *,
+            flashcard_collections_junction (
+              collection:collection_id (
+                id, 
+                title, 
+                is_official, 
+                user_id
+              )
+            )
+          `)
+          // Only show the user's own flashcards or official/public ones
+          .or(filterCondition)
+          .range(offset, offset + pageSize - 1)
+          .order('created_at', { ascending: false });
+          
+        if (error) {
+          console.error('Error fetching all flashcards:', error);
+          throw error;
+        }
+        
+        // Process the junction table data to put collection directly on the flashcard
+        const processedData = data?.map(card => {
+          if (card.flashcard_collections_junction && card.flashcard_collections_junction.length > 0) {
+            return {
+              ...card,
+              collection: card.flashcard_collections_junction[0].collection
+            };
+          }
+          return card;
+        }) || [];
+        
+        console.log(`Fetched ${processedData.length} flashcards in total (page ${pageParam + 1})`);
+        if (processedData.length > 0) {
+          console.log('First card sample:', processedData[0]);
+          console.log('Collection data:', processedData[0]?.collection);
+        }
+        
+        // Determine if there are more pages
+        const hasNextPage = offset + processedData.length < (count || 0);
+        const nextCursor = hasNextPage ? pageParam + 1 : null;
+        
+        return {
+          flashcards: processedData,
+          nextCursor,
+          totalCount: count || 0
+        };
       }
     },
-    { expiration: 5 * 60 * 1000 } // 5 minutes cache
-  );
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  });
 
-  // Cache mastery status
-  const [masteryStatus, masteryLoading, masteryError, refetchMastery] = useCachedData<Record<string, boolean>>(
-    `flashcard-mastery-${user?.id || 'anonymous'}`,
-    async () => {
+  // Handle initialization when data is loaded (replacing onSuccess)
+  useEffect(() => {
+    if (flashcardsData?.pages && flashcardsData.pages.length > 0 && !initialLoadComplete) {
+      setInitialLoadComplete(true);
+    }
+  }, [flashcardsData, initialLoadComplete]);
+
+  // Secondary query for relationships (won't block UI rendering)
+  const { 
+    data: relationshipsData,
+    isLoading: relationshipsLoading 
+  } = useQuery({
+    queryKey: flashcardKeys.relationships(),
+    queryFn: async () => {
+      console.log("Fetching relationship data");
+      
+      // Step 1: Fetch base data for lookups
+      const [
+        { data: subjects = [], error: subjectsError },
+        { data: collections = [], error: collectionsError },
+        { data: examTypes = [], error: examTypesError }
+      ] = await Promise.all([
+        supabase.from('subjects').select('id, name').order('name'),
+        supabase.from('collections').select('id, title, is_official, user_id').order('title'),
+        supabase.from('exam_types').select('id, name').order('name')
+      ]);
+          
+      if (subjectsError) throw subjectsError;
+      if (collectionsError) throw collectionsError;
+      if (examTypesError) throw examTypesError;
+      
+      // Step 2: Fetch all junction table data in parallel
+      const [
+        { data: flashcardCollections = [], error: fcError },
+        { data: flashcardSubjects = [], error: fsError },
+        { data: flashcardExamTypes = [], error: feError },
+        { data: collectionSubjects = [], error: csError }
+      ] = await Promise.all([
+        supabase.from('flashcard_collections_junction').select('flashcard_id, collection_id'),
+        supabase.from('flashcard_subjects').select('flashcard_id, subject_id'),
+        supabase.from('flashcard_exam_types').select('flashcard_id, exam_type_id'),
+        supabase.from('collection_subjects').select('collection_id, subject_id')
+      ]);
+      
+      if (fcError) throw fcError;
+      if (fsError) throw fsError;
+      if (feError) throw feError;
+      if (csError) throw csError;
+      
+      // Process the data using our utility function
+      return processRelationshipData({
+        subjects,
+        collections,
+        examTypes,
+        flashcardCollections,
+        flashcardSubjects,
+        flashcardExamTypes,
+        collectionSubjects
+      });
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false
+  });
+
+  // Fetch mastery status for user
+  const { data: masteryStatus = {} } = useQuery({
+    queryKey: flashcardKeys.progress(user?.id || 'anonymous'),
+    queryFn: async () => {
       if (!user) return {}; 
       
       const { data, error } = await supabase
@@ -202,580 +544,400 @@ export default function AllFlashcards() {
         
       if (error) throw error;
       
-      // Convert to a map for easy lookup
-      const masteryMap: Record<string, boolean> = {};
-      (data || []).forEach(item => {
-        masteryMap[item.flashcard_id] = item.is_mastered;
+      // Convert to an object for easy lookup
+      const progressMap: Record<string, boolean> = {};
+      (data || []).forEach(progress => {
+        progressMap[progress.flashcard_id] = progress.is_mastered;
       });
       
-      return masteryMap;
+      return progressMap;
     },
-    { expiration: 5 * 60 * 1000 } // 5 minutes cache
-  );
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000 // 5 minutes
+  });
 
-  // Create a memoized function for processing cards to avoid recreating it on every render
-  const processCards = useMemo(() => {
-    return (cards: any[]) => {
-      if (!cards || !cards.length) return [];
-      
-      return cards.map(card => {
-        // Add mastery status
-        const enrichedCard = {
-          ...card,
-          is_mastered: masteryStatus?.[card.id] || false
-        };
-        
-        // Add relationships (collections, subjects, exam types)
-        return enrichFlashcard(enrichedCard);
-      });
-    };
-  }, [masteryStatus, enrichFlashcard]);
+  // Helper function to determine if a card is premium
+  const isCardPremium = useCallback((card: Flashcard) => {
+    // Get a safer reference to the collection data
+    const cardCollectionData = card.collection || {};
+    
+    // Determine ownership
+    const isCreatedByUser = card.created_by === user?.id;
+    const isUserCollection = cardCollectionData.user_id === user?.id;
+    
+    // Check for is_official with strict equality
+    const isOfficial = cardCollectionData.is_official === true;
+    
+    // DEV ONLY: Check for forced subscription
+    if (process.env.NODE_ENV === 'development') {
+      const forceSubscription = localStorage.getItem('forceSubscription');
+      if (forceSubscription === 'true') {
+        // In development, with force flag, content is never premium (always accessible)
+        return false;
+      }
+    }
+    
+    // User's own content is never premium to them (regardless of filter)
+    if (isCreatedByUser || isUserCollection || filter === 'my') {
+      return false;
+    }
+    
+    // Official content requires subscription
+    const isPremium = isOfficial && !hasSubscription;
+    
+    // Log premium cards for debugging
+    if (isPremium && card.id) {
+      console.log(`Premium card detected: ${card.id}, official=${isOfficial}, hasSubscription=${hasSubscription}`);
+    }
+    
+    return isPremium;
+  }, [user?.id, filter, hasSubscription]);
   
-  // Modified effect to prevent infinite loops
+  // Track if we've logged premium card info (to reduce console spam)
+  const [loggedPremiumCard, setLoggedPremiumCard] = useState(false);
+  const [checkedForOfficialCards, setCheckedForOfficialCards] = useState(false);
+
+  // Fix the useEffect for checking official cards
   useEffect(() => {
-    // Skip if any data is still loading
-    if (flashcardsLoading || relationshipsLoading || masteryLoading) {
-      // Only show loading on initial load
-      if (!initialLoadComplete) {
-        setLoading(true);
+    // Only run this once to avoid excessive logging
+    if (flashcardsData?.pages && flashcardsData.pages.length > 0 && !flashcardsLoading && !checkedForOfficialCards) {
+      setCheckedForOfficialCards(true);
+      
+      console.log('Checking for official cards...');
+      // Process and count official cards from all pages
+      const officialCards = flashcardsData.pages.flatMap(page => {
+        return page.flashcards.filter(card => {
+          return card.collection && card.collection.is_official === true;
+        });
+      });
+      
+      // Get total count from the first page (all pages should have the same totalCount)
+      const totalCount = flashcardsData.pages[0]?.totalCount || 0;
+      console.log(`Found ${officialCards.length} official cards out of ${totalCount} total`);
+      
+      if (officialCards.length > 0 && !loggedPremiumCard) {
+        // Check if the user already has some premium access
+        return;
       }
-      return;
     }
-    
-    // Skip if we don't have flashcard data
-    if (!flashcardsData) {
-      setAllCards([]);
-      setLoading(false);
-      return;
+  }, [flashcardsData, flashcardsLoading, checkedForOfficialCards, loggedPremiumCard]);
+  
+  // Helper function to determine if a card is editable
+  const isCardEditable = useCallback((card: Flashcard) => {
+    // First check if it's an official card - those are never editable by regular users
+    if (isFlashcardReadOnly(card)) {
+      return false;
     }
+    // Only allow editing of user's own cards
+    return card.created_by === user?.id;
+  }, [user?.id]);
+  
+  // Helper function to determine if a card is deletable
+  const isCardDeletable = useCallback((card: Flashcard) => {
+    // First check if it's an official card - those are never deletable by regular users
+    if (isFlashcardReadOnly(card)) {
+      return false;
+    }
+    // Only allow deletion of user's own cards
+    return card.created_by === user?.id;
+  }, [user?.id]);
+  
+  // Process cards from all pages into a flat array
+  const processedCards = useMemo(() => {
+    if (!flashcardsData?.pages) return [];
     
-    try {
-      // Use our memoized function to process cards
-      const processedCards = processCards(flashcardsData);
-      setAllCards(processedCards);
-      setInitialLoadComplete(true);
-
-      // Load URL parameters if this is the initial load
-      if (!initialLoadComplete) {
-        const filterParam = searchParams.get('filter');
-        if (filterParam && ['all', 'official', 'my'].includes(filterParam)) {
-          setFilter(filterParam as 'all' | 'official' | 'my');
+    // Flatten the pages array into a single array
+    const allCards = flashcardsData.pages.flatMap(page => page.flashcards || []);
+    
+    // Apply mastery data to cards
+    return allCards.map(card => {
+      const isMastered = masteryStatus?.[card.id] ?? false;
+      return {
+        ...card,
+        is_mastered: isMastered,
+        // Add empty relationships as placeholder
+        relationships: {
+          collections: [],
+          subjects: [],
+          examTypes: []
         }
-        
-        const subjectParams = searchParams.getAll('subject');
-        if (subjectParams.length > 0) {
-          setSelectedSubjectIds(subjectParams);
-        }
-        
-        const collectionParams = searchParams.getAll('collection');
-        if (collectionParams.length > 0) {
-          setSelectedCollectionIds(collectionParams);
-        }
-      }
-    } catch (err: any) {
-      console.error('Error processing cards:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [flashcardsData, flashcardsLoading, relationshipsLoading, masteryLoading, processCards, searchParams]);
-
-  // Remove the separate URL parameter loading effect since we've moved it into the data loading effect
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    
-    // Update filter parameter
-    if (filter !== 'all') {
-      params.set('filter', filter);
-    } else {
-      params.delete('filter');
-    }
-    
-    // Update subject parameters
-    params.delete('subject');
-    selectedSubjectIds.forEach(id => {
-      params.append('subject', id);
+      };
     });
+  }, [flashcardsData, masteryStatus]);
+  
+  // Enrich cards with relationships once they're loaded
+  const enrichedCards = useMemo(() => {
+    if (!relationshipsData) return processedCards;
     
-    // Update collection parameters
-    params.delete('collection');
-    selectedCollectionIds.forEach(id => {
-      params.append('collection', id);
-    });
-    
-    setSearchParams(params);
-  }, [filter, selectedSubjectIds, selectedCollectionIds]);
+    return processedCards.map(card => 
+      enrichFlashcardWithRelationships(card, relationshipsData)
+    );
+  }, [processedCards, relationshipsData]);
 
-  const checkSubscription = async () => {
-    if (user) {
-      try {
-        // Check for forceSubscription in development
-        if (process.env.NODE_ENV === 'development' && 
-            localStorage.getItem('forceSubscription') === 'true') {
-          setHasSubscription(true);
-          return;
-        }
+  // Filter the cards based on user preferences
+  const filteredCards = useMemo(() => {
+    let filtered = enrichedCards;
+    
+    // Apply subject filter
+    if (selectedSubjectIds.length > 0) {
+      filtered = filtered.filter(card => {
+        // Check if card has any of the selected subjects
+        const cardSubjects = card.relationships?.subjects || [];
+        if (cardSubjects.length === 0) return false;
         
-        const hasAccess = await hasActiveSubscription(user.id);
-        setHasSubscription(hasAccess);
-        debugLog("Subscription status updated:", hasAccess);
-      } catch (error) {
-        console.error("Error checking subscription:", error);
-        setHasSubscription(false);
-      }
-    } else {
-      setHasSubscription(false);
+        return cardSubjects.some(subject => 
+          selectedSubjectIds.includes(subject.id)
+        );
+      });
     }
+    
+    // Apply collection filter
+    if (selectedCollectionIds.length > 0) {
+      filtered = filtered.filter(card => {
+        // Check if card is in any of the selected collections
+        const cardCollections = card.relationships?.collections || [];
+        if (cardCollections.length === 0) return false;
+        
+        return cardCollections.some(collection => 
+          selectedCollectionIds.includes(collection.id)
+        );
+      });
+    }
+    
+    // Apply mastered filter
+    if (!showMastered) {
+      filtered = filtered.filter(card => !card.is_mastered);
+    }
+    
+    // Sort: public samples first, then by position or created_at
+    return filtered.sort((a, b) => {
+      // Public samples first
+      if (a.is_public_sample && !b.is_public_sample) return -1;
+      if (!a.is_public_sample && b.is_public_sample) return 1;
+      
+      // Then use existing order (position, created_at, etc.)
+      return 0;
+    });
+  }, [enrichedCards, selectedSubjectIds, selectedCollectionIds, showMastered]);
+
+  // Action to toggle mastery status - UPDATED to use object syntax for useMutation
+  const toggleMasteredMutation = useMutation({
+    mutationFn: async ({ cardId, isMastered }: { cardId: string, isMastered: boolean }) => {
+      if (!user) throw new Error('User must be logged in to update mastery status');
+      
+      // Update or insert progress record
+      const { data, error } = await supabase
+        .from('flashcard_progress')
+        .upsert({
+          user_id: user.id,
+          flashcard_id: cardId,
+          is_mastered: isMastered,
+          last_reviewed: new Date().toISOString()
+        },
+        {
+          onConflict: 'user_id,flashcard_id',
+          ignoreDuplicates: false
+        })
+        .select();
+      
+      if (error) throw error;
+      return data;
+    },
+    onMutate: ({ cardId }) => {
+      setMasteringCardId(cardId);
+    },
+    onSuccess: (_, { cardId, isMastered }) => {
+      // Update the cache
+      queryClient.setQueryData(
+        flashcardKeys.progress(user?.id || 'anonymous'),
+        (old: Record<string, boolean> = {}) => ({
+          ...old,
+          [cardId]: isMastered
+        })
+      );
+      
+      // Show success message
+      showToast(
+        isMastered ? "Card marked as mastered!" : "Card marked as not mastered", 
+        "success"
+      );
+      
+      setMasteringCardId(null);
+      
+      // Invalidate the progress query to ensure consistency
+      queryClient.invalidateQueries({ queryKey: flashcardKeys.progress(user?.id || 'anonymous') });
+    },
+    onError: (err) => {
+      console.error("Error toggling mastered status:", err);
+      setMasteringCardId(null);
+      showToast("Failed to update mastery status", "error");
+    }
+  });
+
+  // Toggle mastered status handler
+  const toggleMastered = async (card: Flashcard) => {
+    const isMastered = masteryStatus[card.id];
+    await toggleMasteredMutation.mutate({ 
+      cardId: card.id, 
+      isMastered: !isMastered 
+    });
   };
 
-  // Memoize the filtered collections list
-  const filteredCollections = useMemo(() => {
-    if (selectedCollectionIds.length === 0) {
-      return collections;
+  // Handler to edit a card
+  const handleEditCard = (card: Flashcard) => {
+    // Check if card is read-only (official)
+    if (isFlashcardReadOnly(card)) {
+      showToast(
+        "Official content cannot be edited",
+        "error"
+      );
+      return;
     }
     
-    // We need to check the collection_subjects junction table
-    // Since this is a client-side filter only, we'll skip the filtering
-    // and handle subject filtering elsewhere in the component
-    return collections;
-  }, [collections, selectedCollectionIds]);
-
-  const handleEditCard = (card: Flashcard) => {
+    // Only allow editing of user's own cards
+    if (card.created_by !== user?.id) {
+      showToast(
+        "You can only edit your own flashcards",
+        "error"
+      );
+      return;
+    }
+    
     navigate(`/flashcards/edit-card/${card.id}`);
   };
 
-  // Add a handler for the Study Now button
+  // Handler to view a card
   const handleViewCard = (card: Flashcard) => {
-    // Check all possible places where collection ID might be stored
-    const collectionId = card.collection_id || card.collection?.id;
-    
-    if (collectionId) {
-      navigate(`/flashcards/study?collection=${collectionId}`);
-    } else {
-      // If we still can't find a collection ID, show error
-      console.error('No collection found for card:', card);
-      showToast('Cannot study this card - no collection found', 'error');
-    }
-  };
-
-  const toggleMastered = async (card: Flashcard) => {
-    try {
-      // Prevent multiple clicks on the same card
-      if (masteringCardId === card.id) return;
-      
-      // Set loading state for this specific card
-      setMasteringCardId(card.id);
-      
-      const newMasteredState = !card.is_mastered;
-      let updateSuccessful = false;
-      
-      // Update in database
-      if (user) {
-        // First check if a record already exists for this flashcard and user
-        const { data: existingRecord, error: fetchError } = await supabase
-          .from('flashcard_progress')
-          .select('*')
-          .eq('flashcard_id', card.id)
-          .eq('user_id', user.id)
-          .maybeSingle();
-        
-        if (fetchError) throw fetchError;
-        
-        let error;
-        
-        if (existingRecord) {
-          // Update the existing record
-          const { error: updateError } = await supabase
-            .from('flashcard_progress')
-            .update({ is_mastered: newMasteredState })
-            .eq('flashcard_id', card.id)
-            .eq('user_id', user.id);
-          
-          error = updateError;
-        } else {
-          // Insert a new record
-          const { error: insertError } = await supabase
-            .from('flashcard_progress')
-            .insert({
-              flashcard_id: card.id,
-              user_id: user.id,
-              is_mastered: newMasteredState
-            });
-          
-          error = insertError;
+    // Check if we're in development mode with forced subscription
+    if (process.env.NODE_ENV === 'development') {
+      const forceSubscription = localStorage.getItem('forceSubscription');
+      if (forceSubscription === 'true') {
+        console.log('DEV OVERRIDE: Bypassing premium check in handleViewCard due to forceSubscription');
+        // Navigate directly without showing paywall
+        const collectionId = card.collection?.id;
+        if (collectionId) {
+          navigate(`/flashcards/study?collection=${collectionId}&card=${card.id}`);
+          return;
         }
-        
-        if (error) throw error;
-        updateSuccessful = true;
       }
-      
-      // Only update local state if server update was successful
-      if (updateSuccessful) {
-        // Use functional update to avoid race conditions with multiple card updates
-        setAllCards(prevCards => 
-          prevCards.map(c => 
-            c.id === card.id ? { ...c, is_mastered: newMasteredState } : c
-          )
-        );
-        
-        // Invalidate mastery cache
-        invalidateCache([`flashcard-mastery-${user?.id || 'anonymous'}`]);
-        
-        showToast(
-          card.is_mastered ? 'Card unmarked as mastered' : 'Card marked as mastered', 
-          'success'
-        );
-      }
-    } catch (err: any) {
-      console.error('Error toggling mastered state:', err);
-      showToast(`Error updating card status. Please try again.`, 'error');
-      
-      // Refresh cards to ensure UI is in sync
-      refetchFlashcards();
-      refetchMastery();
-    } finally {
-      setMasteringCardId(null);
+    }
+    
+    // If premium card and user doesn't have subscription, show paywall
+    const isPremium = isCardPremium(card);
+    if (isPremium && !hasSubscription) {
+      setShowPaywall(true);
+      return;
+    }
+    
+    // Navigate to unified study mode with this card's collection
+    const collectionId = card.collection?.id;
+    if (collectionId) {
+      navigate(`/flashcards/study?collection=${collectionId}&card=${card.id}`);
+    } else {
+      // If no collection, show an error
+      showToast(
+        "Card cannot be viewed without a collection",
+        "error"
+      );
     }
   };
-
+        
+  // Delete card handler
   const deleteCard = async () => {
-    if (!cardToDelete) return;
+    if (!cardToDelete || !user) return;
     
     try {
+      // Delete the card
       const { error } = await supabase
         .from('flashcards')
         .delete()
-        .eq('id', cardToDelete.id);
+        .eq('id', cardToDelete.id)
+        .eq('created_by', user.id); // Safety check
       
       if (error) throw error;
       
-      // Update local state
-      setAllCards(allCards.filter(c => c.id !== cardToDelete.id));
+      // Invalidate relevant queries
+      queryClient.invalidateQueries(flashcardKeys.cards());
       
-      // Invalidate caches that might contain this card
-      invalidateCache([
-        `flashcards-all-${user?.id || 'anonymous'}`,
-        `flashcards-my-${user?.id || 'anonymous'}`,
-        `flashcards-official-${user?.id || 'anonymous'}`,
-        'flashcard-relationships'
-      ]);
-      
-      showToast('Card deleted successfully', 'success');
-    } catch (err: any) {
-      showToast(`Error: ${err.message}`, 'error');
-    } finally {
+      // Clear the card to delete
       setCardToDelete(null);
+    } catch (err) {
+      console.error("Error deleting flashcard:", err);
+      showToast(
+        "Failed to delete flashcard",
+        "error"
+      );
     }
   };
 
+  // Handler for delete button click
+  const handleDeleteClick = (card: Flashcard) => {
+    // Check if card is read-only (official)
+    if (isFlashcardReadOnly(card)) {
+      showToast(
+        "Official content cannot be deleted",
+        "error"
+      );
+      return;
+    }
+    
+    // Only allow deletion of user's own cards
+    if (card.created_by !== user?.id) {
+      showToast(
+        "You can only delete your own flashcards",
+        "error"
+      );
+      return;
+    }
+    
+    // Set the card to delete
+    setCardToDelete(card);
+  };
+
+  // Handler for filter change
   const handleFilterChange = (newFilterValue: string) => {
-    debugLog('Filter changed to:', newFilterValue);
-    const newFilter = newFilterValue as 'all' | 'official' | 'my';
-    
-    // Update the filter state
-    setFilter(newFilter);
-    
-    // Update URL params
-    searchParams.set('filter', newFilter);
-    setSearchParams(searchParams);
+    setFilter(newFilterValue as 'all' | 'official' | 'my');
   };
 
-  // Force premium content protection for testing - DISABLED
-  const forcePremiumTest = false;
-
-  // Check if a card is premium content
-  const isCardPremium = useCallback((card: Flashcard) => {
-    // Force subscription if localStorage flag is set
-    const forceSubscription = process.env.NODE_ENV === 'development' && 
-                             localStorage.getItem('forceSubscription') === 'true';
-    
-    // User's own cards are NEVER premium, regardless of other settings
-    if (user && card.collection?.user_id === user.id) {
-      return false;
-    }
-    
-    // User created cards are NEVER premium
-    if (user && (card.created_by === user.id || String(card.created_by) === String(user.id))) {
-      return false;
-    }
-    
-    // Cards shown in the "My" filter tab should never be premium
-    if (filter === 'my') {
-      return false;
-    }
-    
-    // Public sample cards are always free
-    if (card.is_public_sample) {
-      return false;
-    }
-      
-    // Only official collections can have premium cards
-    // If forceSubscription is true, treat as if user has subscription
-    return card.collection?.is_official === true && !forceSubscription && !hasSubscription;
-  }, [filter, user, hasSubscription]);
-
-  // Add new function to check if card is editable
-  const isCardEditable = useCallback((card: Flashcard) => {
-    // Official cards are never editable unless user is admin
-    if (card.collection?.is_official) {
-      return user?.user_metadata?.admin === true;
-    }
-    
-    // User's own cards are always editable
-    if (user && (
-      card.collection?.user_id === user.id ||
-      card.created_by === user.id ||
-      String(card.created_by) === String(user.id)
-    )) {
-      return true;
-    }
-    
-    return false;
-  }, [user]);
-
-  // Add new function to check if card is deletable
-  const isCardDeletable = useCallback((card: Flashcard) => {
-    // Same rules as editable
-    return isCardEditable(card);
-  }, [isCardEditable]);
-
-  // Add new subject filter handlers
+  // Handler for subject filter
   const handleSubjectFilter = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    if (value && !selectedSubjectIds.includes(value)) {
-      setSelectedSubjectIds(prev => {
-        const newSubjects = [...prev, value];
-        // Update URL parameters
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete('subject'); // Remove all existing subject parameters
-        newSubjects.forEach(id => {
-          params.append('subject', id);
-        });
-        setSearchParams(params);
-        return newSubjects;
-      });
+    const subjectId = e.target.value;
+    if (!subjectId) return;
+
+    // Add to selected subjects if not already included
+    if (!selectedSubjectIds.includes(subjectId)) {
+      setSelectedSubjectIds([...selectedSubjectIds, subjectId]);
     }
+    
+    // Reset the select element
+    e.target.value = '';
   };
 
+  // Handler to remove a subject filter
   const removeSubject = (id: string) => {
-    setSelectedSubjectIds(prev => {
-      const newSubjects = prev.filter(subId => subId !== id);
-      // Update URL parameters
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete('subject'); // Remove all existing subject parameters
-      newSubjects.forEach(subId => {
-        params.append('subject', subId);
-      });
-      setSearchParams(params);
-      return newSubjects;
-    });
+    setSelectedSubjectIds(selectedSubjectIds.filter(subjectId => subjectId !== id));
   };
 
-  // Add collection filter handlers
+  // Handler for collection filter
   const handleCollectionFilter = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    if (value && !selectedCollectionIds.includes(value)) {
-      setSelectedCollectionIds(prev => {
-        const newCollections = [...prev, value];
-        // Update URL parameters
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete('collection'); // Remove all existing collection parameters
-        newCollections.forEach(id => {
-          params.append('collection', id);
-        });
-        setSearchParams(params);
-        return newCollections;
-      });
+    const collectionId = e.target.value;
+    if (!collectionId) return;
+    
+    // Add to selected collections if not already included
+    if (!selectedCollectionIds.includes(collectionId)) {
+      setSelectedCollectionIds([...selectedCollectionIds, collectionId]);
     }
+    
+    // Reset the select element
+    e.target.value = '';
   };
 
+  // Handler to remove a collection filter
   const removeCollection = (id: string) => {
-    setSelectedCollectionIds(prev => {
-      const newCollections = prev.filter(collId => collId !== id);
-      // Update URL parameters
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete('collection'); // Remove all existing collection parameters
-      newCollections.forEach(collId => {
-        params.append('collection', collId);
-      });
-      setSearchParams(params);
-      return newCollections;
-    });
+    setSelectedCollectionIds(selectedCollectionIds.filter(collectionId => collectionId !== id));
   };
 
-  // Add effect to check subscription when user changes
-  useEffect(() => {
-    checkSubscription();
-  }, [user]);
-
-  // Update the filtering logic to handle multiple collections
-  const filteredCards = useMemo(() => {
-    // Only log at a high level rather than per-card
-    debugLog('Filtering cards:', {
-      totalCards: allCards.length,
-      filter,
-      subjects: selectedSubjectIds,
-      collections: selectedCollectionIds,
-      showMastered
-    });
-
-    // First apply basic filters that apply to all tabs
-    let filtered = allCards.filter(card => {
-      // Filter by mastered status
-      if (!showMastered && card.is_mastered) {
-        return false;
-      }
-      
-      // If no filters are selected, show all cards
-      if (selectedSubjectIds.length === 0 && selectedCollectionIds.length === 0) {
-        return true;
-      }
-
-      // Check for subject matches
-      const hasMatchingSubject = selectedSubjectIds.length === 0 || (
-        // Check direct subject on the card's collection
-        (card.collection?.subject?.id && selectedSubjectIds.includes(card.collection.subject.id))
-      );
-
-      // Check for collection matches
-      const hasMatchingCollection = selectedCollectionIds.length === 0 || (
-        // Check both possible locations for collection ID
-        (card.collection_id && selectedCollectionIds.includes(card.collection_id)) ||
-        (card.collection?.id && selectedCollectionIds.includes(card.collection.id))
-      );
-
-      // If both filters are active, card must match at least one
-      if (selectedSubjectIds.length > 0 && selectedCollectionIds.length > 0) {
-        return hasMatchingSubject || hasMatchingCollection;
-      }
-      
-      // If only subject filter is active, must match subject
-      if (selectedSubjectIds.length > 0) {
-        return hasMatchingSubject;
-      }
-      
-      // If only collection filter is active, must match collection
-      if (selectedCollectionIds.length > 0) {
-        return hasMatchingCollection;
-      }
-      
-      return true;
-    });
-    
-    // Now apply the tab-specific filtering
-    if (filter === 'official') {
-      filtered = filtered.filter(card => {
-        const isPremium = isCardPremium(card);
-        const isOfficial = card.collection?.is_official === true;
-        const isUserOwned = user && card.collection?.user_id === user.id;
-        const isUserCreated = user && (
-          card.created_by === user.id || 
-          String(card.created_by) === String(user.id)
-        );
-        
-        // If user has a subscription, show all official cards
-        if (hasSubscription) {
-          return isOfficial && !isUserOwned && !isUserCreated;
-        }
-        
-        // Otherwise, only show premium official cards
-        return isPremium && isOfficial && !isUserOwned && !isUserCreated;
-      });
-    } else if (filter === 'my' && user) {
-      filtered = filtered.filter(card => {
-        const isUserOwned = user && card.collection?.user_id === user.id;
-        const isUserCreated = user && (
-          card.created_by === user.id || 
-          String(card.created_by) === String(user.id)
-        );
-        
-        return isUserOwned || isUserCreated;
-      });
-    }
-    
-    // For non-subscribers, prioritize public sample cards at the top of the list
-    if (!hasSubscription) {
-      filtered.sort((a, b) => {
-        // First by public sample status (true first)
-        if (a.is_public_sample && !b.is_public_sample) return -1;
-        if (!a.is_public_sample && b.is_public_sample) return 1;
-        
-        // Then use existing order (position, created_at, etc.)
-        return 0;
-      });
-    }
-    
-    return filtered;
-  }, [allCards, filter, selectedSubjectIds, selectedCollectionIds, showMastered, isCardPremium, user, hasSubscription]);
-
-  // Replace debug effects with a ref-based logger to prevent re-renders
-  const prevFilterStateRef = useRef({ 
-    filter, 
-    allCardsLength: allCards.length, 
-    filteredCardsLength: 0,
-    showMastered
-  });
-  
-  // Use a single effect for all logging to reduce render cycles
-  useEffect(() => {
-    // Skip during loading or if debug is disabled
-    if (loading || !DEBUG_LOGGING) return;
-    
-    // Save current filtered length
-    const currentFilteredLength = filteredCards.length;
-    prevFilterStateRef.current.filteredCardsLength = currentFilteredLength;
-    
-    // Log filter state changes when they actually change
-    if (
-      prevFilterStateRef.current.filter !== filter ||
-      prevFilterStateRef.current.allCardsLength !== allCards.length ||
-      prevFilterStateRef.current.filteredCardsLength !== currentFilteredLength
-    ) {
-      debugLog('Filter state changed:', { 
-        filter,
-        totalCards: allCards.length,
-        filteredCards: currentFilteredLength
-      });
-    }
-    
-    // Log show mastered changes
-    if (prevFilterStateRef.current.showMastered !== showMastered) {
-      debugLog(`Filter applied: showMastered=${showMastered}, found ${currentFilteredLength} matching cards`);
-    }
-    
-    // Update the previous state reference
-    prevFilterStateRef.current = {
-      filter,
-      allCardsLength: allCards.length,
-      filteredCardsLength: currentFilteredLength,
-      showMastered
-    };
-  }, [filter, allCards.length, filteredCards.length, showMastered, loading]);
-
-  // Keep the simplified schema check effect
-  useEffect(() => {
-    // Only run this check once on initial component mount
-    if (user && !initialLoadComplete) {
-      supabase
-        .from('flashcards')
-        .select('*')
-        .limit(1)
-        .then(({ data }) => {
-          if (data && data.length > 0) {
-            setInitialLoadComplete(true);
-          }
-        });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  // Update the card count in the navbar when filtered cards change
-  useEffect(() => {
-    if (!loading) {
-      updateTotalCardCount(filteredCards.length);
-    }
-  }, [filteredCards.length, updateTotalCardCount, loading]);
-
+  // Handlers for paywall
   const handleShowPaywall = () => {
     setShowPaywall(true);
   };
@@ -784,33 +946,92 @@ export default function AllFlashcards() {
     setShowPaywall(false);
   };
 
-  // Add back the handleToggleMastered function
+  // Toggle showing mastered cards
   const handleToggleMastered = () => {
     setShowMastered(!showMastered);
   };
 
-  if (loading) {
-    return <LoadingSpinner />;
+  // Update card count in navbar
+  useEffect(() => {
+    if (!flashcardsLoading && filteredCards.length >= 0) {
+      updateTotalCardCount(filteredCards.length);
+    }
+  }, [filteredCards.length, updateTotalCardCount, flashcardsLoading]);
+
+  // Calculate loading states
+  const isInitialLoading = flashcardsLoading && !initialLoadComplete;
+  const isRefining = initialLoadComplete && relationshipsLoading;
+
+  // Implement infinite scrolling
+  const observerTarget = useRef(null);
+  
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          console.log('Loading more flashcards...');
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+    
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
+  // Render our enriched data
+  if (showPaywall) {
+    return <FlashcardPaywall onClose={handleClosePaywall} />;
   }
 
-  if (error) {
-    return <ErrorMessage message={error} />;
+  // Show skeleton loaders during initial data loading
+  if (flashcardsLoading && !initialLoadComplete) {
+  return (
+      <div className="w-full max-w-6xl mx-auto px-4 pb-20 md:pb-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
+            <p className="text-gray-600 dark:text-gray-400">Loading flashcards...</p>
+          </div>
+          
+          <div className="mt-4 sm:mt-0">
+            <Tabs value={filter} onValueChange={handleFilterChange} className="w-[340px]">
+              <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+                <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+                <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+                <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Cards</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </div>
+        
+        <SkeletonFlashcardGrid />
+      </div>
+    );
+  }
+
+  if (isFlashcardsError && flashcardsError instanceof Error) {
+    return (
+      <div className="w-full max-w-6xl mx-auto px-4 pb-20 md:pb-10">
+        <ErrorMessage 
+          title="Could not load flashcards" 
+          message={flashcardsError.message} 
+        />
+      </div>
+    );
   }
 
   return (
-    <TooltipProvider>
-      <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
-        {/* Toast notification */}
-        {toast && (
-          <Toast 
-            message={toast.message} 
-            type={toast.type} 
-            onClose={hideToast} 
-          />
-        )}
-        
-        {/* Delete Confirmation Modal */}
-        {cardToDelete && (
+    <div className="w-full max-w-6xl mx-auto px-4 pb-20 md:pb-10">
         <DeleteConfirmation
           isOpen={!!cardToDelete}
           onClose={() => setCardToDelete(null)}
@@ -819,250 +1040,230 @@ export default function AllFlashcards() {
           message="Are you sure you want to delete this flashcard? This action cannot be undone."
           itemName={cardToDelete?.question}
         />
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+        />
         )}
         
-        {/* Paywall Modal */}
-        {showPaywall && (
-          <FlashcardPaywall onCancel={handleClosePaywall} />
-        )}
-        
-        {/* Desktop header with title and count - hidden on mobile */}
-        <div className="hidden md:flex items-center justify-between mb-6">
-          <div className="flex items-center gap-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                {filteredCards.length} {filteredCards.length === 1 ? 'card' : 'cards'}
+      <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-col">
+              <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">Flashcards</h1>
+              <p className="text-gray-600 dark:text-gray-300">
+                {flashcardsData?.pages?.[0]?.totalCount || 0} {(flashcardsData?.pages?.[0]?.totalCount || 0) === 1 ? 'card' : 'cards'}
               </p>
             </div>
             
-            {/* Filter controls - desktop */}
-            <div className="flex items-center gap-3">
-              <Tooltip text={showFilters ? "Hide filters" : "Show filters"} position="top">
-                <button
+            <div className="flex items-center gap-4">
+              <div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-1 border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
                   onClick={() => setShowFilters(!showFilters)}
-                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022] dark:focus:ring-offset-gray-800"
                 >
-                  {showFilters ? <FilterX className="mr-2 h-4 w-4" /> : <Filter className="mr-2 h-4 w-4" />}
-                  {showFilters ? 'Hide Filters' : 'Show Filters'}
-                </button>
-              </Tooltip>
-              <Tooltip text={showMastered ? "Hide mastered cards" : "Show all cards"} position="top">
-                <button
+                  {showFilters ? <FilterX className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
+                  {showFilters ? 'Hide Filters' : 'Filter'}
+                </Button>
+              </div>
+
+              <div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-1 border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
                   onClick={handleToggleMastered}
-                  className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022] dark:focus:ring-offset-gray-800"
-                  aria-label={showMastered ? "Hide mastered cards" : "Show all cards"}
                 >
-                  {showMastered ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
-                  {showMastered ? "Hide Mastered" : "Show All"}
-                </button>
-              </Tooltip>
+                  {showMastered ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showMastered ? 'Hide Mastered' : 'Show Mastered'}
+                </Button>
+              </div>
+              
+              <div>
+                <Tabs value={filter} onValueChange={handleFilterChange} className="w-[340px]">
+                  <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+                    <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+                    <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+                    <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Cards</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
             </div>
-          </div>
-
-          <div className="w-[340px]">
-              <Tabs value={filter} onValueChange={handleFilterChange}>
-                <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
-                  <TabsTrigger 
-                    value="all"
-                    className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
-                  >
-                    All
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="official"
-                    className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
-                  >
-                    Premium
-                  </TabsTrigger>
-                  <TabsTrigger 
-                    value="my"
-                    className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
-                  >
-                    My Cards
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-          </div>
-        </div>
-
-        {/* Mobile layout - only filter tabs */}
-        <div className="md:hidden mb-6">
-          <Tabs value={filter} onValueChange={handleFilterChange}>
-            <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
-              <TabsTrigger 
-                value="all"
-                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
-              >
-                All
-              </TabsTrigger>
-              <TabsTrigger 
-                value="official"
-                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
-              >
-                Premium
-              </TabsTrigger>
-              <TabsTrigger 
-                value="my"
-                className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400"
-              >
-                My Cards
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
-        {/* Mobile filter controls */}
-        <div className="md:hidden flex items-center justify-between mb-4">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022] dark:focus:ring-offset-gray-800"
-          >
-            {showFilters ? <FilterX className="mr-2 h-4 w-4" /> : <Filter className="mr-2 h-4 w-4" />}
-            {showFilters ? 'Hide Filters' : 'Show Filters'}
-          </button>
-
-          <button
-            onClick={handleToggleMastered}
-            className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#F37022] dark:focus:ring-offset-gray-800"
-            aria-label={showMastered ? "Hide mastered cards" : "Show all cards"}
-          >
-            {showMastered ? <EyeOff className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />}
-            {showMastered ? "Hide Mastered" : "Show All"}
-          </button>
         </div>
 
         {/* Filters */}
         {showFilters && (
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md mb-6 dark:border dark:border-gray-700">
-            <div className="grid md:grid-cols-2 gap-4">
+        <div className="mb-6 p-4 border dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800/70">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Subject filter */}
               <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label htmlFor="subject-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Filter by Subject
-                  </label>
-                </div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subject</label>
+              <div className="flex flex-col gap-2">
                 <select
-                  id="subject-filter"
-                  value=""
+                  className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                   onChange={handleSubjectFilter}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022] dark:bg-gray-700 dark:text-gray-200"
+                  value=""
                 >
-                  <option value="">Select subjects...</option>
+                  <option value="" disabled>Select a subject</option>
                   {subjects.map(subject => (
                     <option key={subject.id} value={subject.id}>
                       {subject.name}
                     </option>
                   ))}
                 </select>
+
                 {selectedSubjectIds.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {selectedSubjectIds.map(id => {
-                      const subject = subjects.find(s => s.id === id);
-                      return subject && (
-                        <div key={id} className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-md flex items-center">
-                          <span className="text-sm dark:text-gray-200">{subject.name}</span>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {selectedSubjectIds.map(subjectId => {
+                      const subject = subjects.find(s => s.id === subjectId);
+                      if (!subject) return null;
+                      return (
+                        <span 
+                          key={subjectId}
+                          className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded-md text-sm flex items-center text-gray-800 dark:text-gray-200"
+                        >
+                          {subject.name}
                           <button 
-                            type="button" 
-                            onClick={() => removeSubject(id)}
-                            className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            className="ml-2 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
+                            onClick={() => removeSubject(subjectId)}
                           >
                             <X className="h-3 w-3" />
                           </button>
-                        </div>
+                        </span>
                       );
                     })}
                   </div>
                 )}
               </div>
+              </div>
               
+            {/* Collection filter */}
               <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label htmlFor="collection-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Filter by Collection
-                  </label>
-                </div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Collection</label>
+              <div className="flex flex-col gap-2">
                 <select
-                  id="collection-filter"
-                  value=""
+                  className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
                   onChange={handleCollectionFilter}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022] dark:bg-gray-700 dark:text-gray-200"
+                  value=""
                 >
-                  <option value="">Select collections...</option>
+                  <option value="" disabled>Select a collection</option>
                   {collections.map(collection => (
                     <option key={collection.id} value={collection.id}>
                       {collection.title}
                     </option>
                   ))}
                 </select>
+
                 {selectedCollectionIds.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {selectedCollectionIds.map(id => {
-                      const collection = collections.find(c => c.id === id);
-                      return collection && (
-                        <div key={id} className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-md flex items-center">
-                          <span className="text-sm dark:text-gray-200">{collection.title}</span>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {selectedCollectionIds.map(collectionId => {
+                      const collection = collections.find(c => c.id === collectionId);
+                      if (!collection) return null;
+                      return (
+                        <span 
+                          key={collectionId}
+                          className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded-md text-sm flex items-center text-gray-800 dark:text-gray-200"
+                        >
+                          {collection.title}
                           <button 
-                            type="button" 
-                            onClick={() => removeCollection(id)}
-                            className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            className="ml-2 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
+                            onClick={() => removeCollection(collectionId)}
                           >
                             <X className="h-3 w-3" />
                           </button>
-                        </div>
+                        </span>
                       );
                     })}
                   </div>
                 )}
               </div>
+              </div>
             </div>
           </div>
         )}
         
-        {/* Filters and cards display */}
+      {flashcardsLoading && initialLoadComplete && (
+        <div className="flex justify-center my-8">
+          <LoadingSpinner className="w-8 h-8 text-jdblue" />
+        </div>
+      )}
+
+      {!flashcardsLoading && filteredCards.length === 0 && (
+                <EmptyState 
+          title="No flashcards found"
+          description={
+            selectedSubjectIds.length > 0 || selectedCollectionIds.length > 0 
+              ? "Try adjusting your filters to see more flashcards."
+              : filter === 'my'
+                ? "You haven't created any flashcards yet. Create your first flashcard using the New Flashcard button."
+                : "No flashcards found. Try changing your filters or create a new flashcard."
+          }
+          icon={<BookOpen className="w-12 h-12 text-gray-400" />}
+          action={
+            <Button onClick={() => navigate('/flashcards/create-flashcard-select')}>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Flashcard
+            </Button>
+          }
+        />
+      )}
+
+      {filteredCards.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {!loading && filteredCards.length === 0 ? (
-            <div className="col-span-1 md:col-span-2 lg:col-span-3">
-              {filter === 'my' ? (
-                <EmptyState 
-                  icon={<FileText size={48} />}
-                  title="No Flashcards Found" 
-                  description="You haven't created any flashcards yet or they're being filtered out. Try creating your first flashcard or checking your filter settings."
-                  actionText="Create a Flashcard"
-                  actionLink="/flashcards/create-flashcard-select"
-                />
-              ) : (
-                <EmptyState 
-                  icon={<FileText size={48} />}
-                  title="No Flashcards Found" 
-                  description="No flashcards match your current filters. Try adjusting your filter settings."
-                  actionText={filter === 'official' && !hasActiveSubscription ? 
-                    "Get Premium for Official Flashcards" : "Create a Flashcard"}
-                  actionLink={filter === 'official' && !hasActiveSubscription ? 
-                    undefined : "/flashcards/create-flashcard-select"}
-                  onActionClick={filter === 'official' && !hasActiveSubscription ? 
-                    handleShowPaywall : undefined}
-                />
-              )}
-            </div>
-          ) : (
-            filteredCards.map((card) => (
+          {filteredCards.map((card) => {
+            const isMastered = masteryStatus[card.id];
+            const isPremium = isCardPremium(card);
+            const isReadOnly = isFlashcardReadOnly(card);
+            // FIXED: Also consider official cards as locked to prevent showing edit/delete buttons
+            const isLocked = isPremium || isReadOnly;
+            
+            return (
               <FlashcardItem
                 key={card.id}
-                flashcard={card}
-                onToggleMastered={toggleMastered}
-                onEdit={isCardEditable(card) ? handleEditCard : undefined}
-                onDelete={isCardDeletable(card) ? setCardToDelete : undefined}
-                onView={handleViewCard}
-                isPremium={isCardPremium(card)}
-                hasSubscription={hasSubscription}
-                onShowPaywall={handleShowPaywall}
-                isMastering={masteringCardId === card.id}
+                id={card.id}
+                question={card.question}
+                answer={isPremium ? "Premium content requires a subscription." : card.answer}
+                collectionTitle={card.collection?.title || "No Collection"}
+                isPremium={isPremium}
+                isLocked={isLocked}
+                isReadOnly={isReadOnly}
+                isMastered={isMastered}
+                isToggling={masteringCardId === card.id}
+                onView={() => handleViewCard(card)}
+                onEdit={() => handleEditCard(card)}
+                onDelete={() => handleDeleteClick(card)}
+                onToggleMastered={() => toggleMastered(card)}
+                onUnlock={handleShowPaywall}
               />
-            ))
+            );
+          })}
+        </div>
+      )}
+
+      {relationshipsLoading && filteredCards.length > 0 && (
+        <div className="flex justify-center my-8">
+          <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+            Loading additional card details...
+          </p>
+        </div>
+      )}
+
+      {/* Loading indicator for infinite scroll */}
+      {hasNextPage && (
+        <div 
+          ref={observerTarget} 
+          className="flex justify-center my-8"
+        >
+          {isFetchingNextPage ? (
+            <LoadingSpinner className="w-8 h-8 text-jdblue" />
+          ) : (
+            <div className="h-10"></div> /* Spacer for observer */
           )}
         </div>
+      )}
       </div>
-    </TooltipProvider>
   );
 } 
