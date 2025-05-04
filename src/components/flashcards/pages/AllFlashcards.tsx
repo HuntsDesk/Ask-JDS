@@ -265,7 +265,7 @@ export default function AllFlashcards() {
         const { count, error: countError } = await supabase
           .from('flashcards')
           .select('*', { count: 'exact', head: true })
-          .or('is_official.eq.true,collection.is_official.eq.true');
+          .or('is_official.eq.true');
           
         if (countError) {
           console.error('Error in official cards count query:', countError);
@@ -345,7 +345,7 @@ export default function AllFlashcards() {
                     )
                   )
                 `)
-                .or('is_official.eq.true,flashcard_collections_junction.collection.is_official.eq.true')
+                .or('is_official.eq.true')
                 .range(offset, offset + pageSize - 1)
                 .order('created_at', { ascending: false });
                 
@@ -1059,9 +1059,7 @@ export default function AllFlashcards() {
             <div className="flex flex-col">
               <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">Flashcards</h1>
               <p className="text-gray-600 dark:text-gray-300">
-                {flashcardsData?.pages?.[0]?.totalCount || 0} {(flashcardsData?.pages?.[0]?.totalCount || 0) === 1 ? 'card' : 'cards'} 
-                {filteredCards.length !== (flashcardsData?.pages?.[0]?.totalCount || 0) && 
-                  ` (${filteredCards.length} ${filteredCards.length === 1 ? 'shown' : 'shown'})`}
+                {flashcardsData?.pages?.[0]?.totalCount || 0} {(flashcardsData?.pages?.[0]?.totalCount || 0) === 1 ? 'card' : 'cards'}
               </p>
             </div>
             
