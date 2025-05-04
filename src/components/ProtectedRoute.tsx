@@ -3,7 +3,7 @@ import { useAuth } from '@/lib/auth';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useEffect, useState, Suspense, useRef } from 'react';
 
-// 7. Handle auth state properly
+// Handle auth state properly
 interface ProtectedRouteProps {
   children: React.ReactNode;
   redirectTo?: string;
@@ -13,73 +13,26 @@ export function ProtectedRoute({
   children, 
   redirectTo = "/auth" 
 }: ProtectedRouteProps) {
-  const { user, loading, authInitialized } = useAuth();
+  // Get auth state including the isAuthResolved flag
+  const { user, loading, isAuthResolved } = useAuth();
   const [loadingTimeout, setLoadingTimeout] = useState(false);
-  const [fallbackChecked, setFallbackChecked] = useState(false);
-  const [fallbackAuth, setFallbackAuth] = useState<boolean | null>(null);
   const isMountedRef = useRef(true);
 
   // For debugging only
   useEffect(() => {
-    console.log('ProtectedRoute - Auth state:', { user, loading, authInitialized, loadingTimeout });
+    console.log('ProtectedRoute - Auth state:', { user, loading, isAuthResolved, loadingTimeout });
     
     return () => {
       isMountedRef.current = false;
     };
-  }, [user, loading, authInitialized, loadingTimeout]);
-
-  // Try to recover from localStorage if auth is taking too long
-  useEffect(() => {
-    if (!user && !fallbackChecked && (loading || loadingTimeout)) {
-      const checkLocalStorage = async () => {
-        try {
-          const authStorage = localStorage.getItem('ask-jds-auth-storage');
-          const userId = localStorage.getItem('auth-user-id');
-          
-          if (authStorage && userId) {
-            const authData = JSON.parse(authStorage);
-            if (authData?.access_token && authData?.expires_at) {
-              // Check if token is still valid
-              const expiresAt = new Date(authData.expires_at);
-              if (expiresAt > new Date()) {
-                console.log('ProtectedRoute: Found valid session in localStorage');
-                if (isMountedRef.current) {
-                  setFallbackAuth(true);
-                }
-              } else {
-                console.log('ProtectedRoute: Found expired session in localStorage');
-                if (isMountedRef.current) {
-                  setFallbackAuth(false);
-                }
-              }
-            }
-          } else {
-            if (isMountedRef.current) {
-              setFallbackAuth(false);
-            }
-          }
-        } catch (e) {
-          console.error('Error checking localStorage for session:', e);
-          if (isMountedRef.current) {
-            setFallbackAuth(false);
-          }
-        }
-        
-        if (isMountedRef.current) {
-          setFallbackChecked(true);
-        }
-      };
-      
-      checkLocalStorage();
-    }
-  }, [user, loading, loadingTimeout, fallbackChecked]);
+  }, [user, loading, isAuthResolved, loadingTimeout]);
 
   // Add a safety timeout for loading
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | null = null;
     
-    // If still loading after a delay, show timeout message
-    if ((loading || !authInitialized) && !loadingTimeout) {
+    // If auth hasn't resolved after a delay, show timeout message
+    if (!isAuthResolved && !loadingTimeout) {
       console.log('ProtectedRoute: Setting loading safety timeout');
       timeoutId = setTimeout(() => {
         if (isMountedRef.current) {
@@ -95,10 +48,33 @@ export function ProtectedRoute({
         clearTimeout(timeoutId);
       }
     };
-  }, [loading, authInitialized, loadingTimeout]);
+  }, [isAuthResolved, loadingTimeout]);
 
-  // If authenticated through either method, render the content
-  if (user || fallbackAuth === true) {
+  // CRITICAL: Show loading state when authentication is still being checked
+  // We must not redirect until isAuthResolved = true, regardless of user status
+  if (!isAuthResolved) {
+    console.log('ProtectedRoute: Auth not yet resolved, showing loading state');
+    return (
+      <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900">
+        <div className="flex flex-col items-center">
+          <LoadingSpinner size="lg" />
+          <p className="mt-4 text-gray-500 dark:text-gray-400">
+            {loadingTimeout 
+              ? "Taking longer than expected..." 
+              : "Checking authorization..."}
+          </p>
+          {loadingTimeout && (
+            <p className="mt-2 text-sm text-gray-400 dark:text-gray-500 max-w-md text-center">
+              This is taking longer than usual. If this persists, try refreshing the page.
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // If authenticated, render the content
+  if (user) {
     console.log("ProtectedRoute - User authenticated, rendering content");
     
     // Wrap children in Suspense boundary to handle lazy-loaded components
@@ -114,19 +90,7 @@ export function ProtectedRoute({
     </Suspense>;
   }
 
-  // Show loading state when authentication is being checked
-  if ((loading || !authInitialized) && !loadingTimeout && fallbackAuth !== false) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900">
-        <div className="flex flex-col items-center">
-          <LoadingSpinner size="lg" />
-          <p className="mt-4 text-gray-500 dark:text-gray-400">Checking authorization...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // If authentication failed or user is not logged in, redirect
-  console.log("ProtectedRoute - No user, redirecting to", redirectTo);
+  // If we get here, authentication is resolved and user is not logged in
+  console.log("ProtectedRoute - Auth resolved, no user found, redirecting to", redirectTo);
   return <Navigate to={redirectTo} />;
 } 

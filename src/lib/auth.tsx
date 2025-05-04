@@ -28,7 +28,9 @@ function setGlobalAuthInstance(instance: any) {
 let authInstance = getGlobalAuthInstance() || {
   user: null,
   loading: true,
-  authInitialized: false
+  authInitialized: false,
+  isAuthResolved: false,
+  status: 'loading'
 };
 
 // Static state to track initialization
@@ -120,6 +122,7 @@ export async function initializeAuth() {
             authInstance.status = 'authenticated';
             authInstance.initialized = true;
             authInstance.loading = false;
+            authInstance.isAuthResolved = true;
             setGlobalAuthInstance(authInstance);
             
             // Cancel any in-progress session fetch to prevent race conditions
@@ -143,6 +146,7 @@ export async function initializeAuth() {
           authInstance.status = 'unauthenticated';
           authInstance.initialized = true;
           authInstance.loading = false;
+          authInstance.isAuthResolved = true;
           setGlobalAuthInstance(authInstance);
         } else if (event === 'USER_UPDATED') {
           console.log('User updated, refreshing user data');
@@ -170,6 +174,7 @@ export async function initializeAuth() {
               authInstance.status = 'authenticated';
               authInstance.initialized = true;
               authInstance.loading = false;
+              authInstance.isAuthResolved = true;
               setGlobalAuthInstance(authInstance);
               
               // Refresh user data
@@ -180,6 +185,7 @@ export async function initializeAuth() {
               authInstance.status = 'unauthenticated';
               authInstance.initialized = true;
               authInstance.loading = false;
+              authInstance.isAuthResolved = true;
               setGlobalAuthInstance(authInstance);
             }
           } else {
@@ -238,6 +244,7 @@ export async function initializeAuth() {
           authInstance.status = 'authenticated';
           authInstance.initialized = true;
           authInstance.loading = false;
+          authInstance.isAuthResolved = true;
           setGlobalAuthInstance(authInstance);
           
           // Store session information in a more reliable way
@@ -260,6 +267,7 @@ export async function initializeAuth() {
           authInstance.status = 'unauthenticated';
           authInstance.initialized = true;
           authInstance.loading = false;
+          authInstance.isAuthResolved = true;
           setGlobalAuthInstance(authInstance);
         }
       } catch (error) {
@@ -299,6 +307,7 @@ export async function initializeAuth() {
                 authInstance.status = 'authenticated';
                 authInstance.initialized = true;
                 authInstance.loading = false;
+                authInstance.isAuthResolved = true;
                 setGlobalAuthInstance(authInstance);
                 
                 recoveredFromStorage = true;
@@ -316,6 +325,7 @@ export async function initializeAuth() {
           authInstance.status = 'unauthenticated';
           authInstance.initialized = true;
           authInstance.loading = false;
+          authInstance.isAuthResolved = true;
           setGlobalAuthInstance(authInstance);
         }
       }
@@ -331,6 +341,7 @@ export async function initializeAuth() {
       authInstance.status = 'unauthenticated';
       authInstance.initialized = true;
       authInstance.loading = false;
+      authInstance.isAuthResolved = true;
       setGlobalAuthInstance(authInstance);
       
       authInitialized = true;
@@ -556,89 +567,83 @@ export function handleSessionExpiration(preservedMessage?: string) {
 }
 
 function AuthProviderComponent({ children }: { children: React.ReactNode }) {
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [user, setUser] = useState<User | null>(authInstance.user);
-  const [loading, setLoading] = useState(authInstance.loading);
-  const [authInitialized, setAuthInitialized] = useState(authInstance.authInitialized);
+  console.log('AuthProvider mounted, initializing auth');
   
-  // Reference to track component mount status
-  const isMountedRef = useRef(true);
-  
-  // Update local state when auth state changes
-  const updateStateFromAuthInstance = useCallback(() => {
-    if (!isMountedRef.current) return;
-    
-    if (authInstance.user !== user) {
-      setUser(authInstance.user);
-    }
-    if (authInstance.loading !== loading) {
-      setLoading(authInstance.loading);
-    }
-    if (authInstance.authInitialized !== authInitialized) {
-      setAuthInitialized(authInstance.authInitialized);
-    }
-  }, [user, loading, authInitialized]);
-  
-  // Trigger auth initialization when the component mounts
+  const [auth, setAuth] = useState<AuthContextType>({
+    user: authInstance.user,
+    loading: authInstance.loading !== false,
+    authInitialized: false,
+    isAuthResolved: false,
+    signIn: async () => {},
+    signUp: async () => {},
+    signOut: async () => {},
+    resetPassword: async () => {},
+    updatePassword: async () => {},
+    resendOtp: async () => {},
+    verifyOtp: async () => false,
+    refreshUser: async () => null,
+  });
+
+  const cancelRef = useRef<() => void>(() => {});
+  const isProviderMounted = useRef(true);
+
   useEffect(() => {
-    console.log('AuthProvider mounted, initializing auth');
-    isMountedRef.current = true;
+    isProviderMounted.current = true;
     
-    // Check if auth is already initialized
-    if (authInitialized || authInstance.authInitialized) {
-      console.log('Auth already initialized, updating state');
-      updateStateFromAuthInstance();
-      setIsInitialized(true);
-      return;
-    }
-    
-    // Start initialization immediately to reduce race condition window
-    const initialize = async () => {
-      if (!isMountedRef.current) return;
+    // On cleanup, set our flag to false to prevent state updates after unmount
+    return () => {
+      isProviderMounted.current = false;
+      console.log('AuthProvider unmounted');
       
+      // Cancel any in-progress operations
+      if (typeof cancelRef.current === 'function') {
+        cancelRef.current();
+      }
+    };
+  }, []);
+
+  // Initialize auth on mount
+  useEffect(() => {
+    const initialize = async () => {
       try {
         await initializeAuth();
         
-        if (!isMountedRef.current) return;
-        
-        setIsInitialized(true);
-        
-        // Update component state from singleton
-        updateStateFromAuthInstance();
+        // Only update state if the provider is still mounted
+        if (isProviderMounted.current) {
+          setAuth(prevAuth => ({
+            ...prevAuth,
+            user: authInstance.user,
+            loading: false,
+            authInitialized: true,
+            isAuthResolved: true,
+          }));
+        }
       } catch (error) {
-        if (!isMountedRef.current) return;
+        console.error('Error initializing auth:', error);
         
-        console.error('Error during auth initialization:', error);
-        setIsInitialized(true);
-        setLoading(false);
-        setAuthInitialized(true);
+        // Even on error, we've resolved the auth state
+        if (isProviderMounted.current) {
+          setAuth(prevAuth => ({
+            ...prevAuth,
+            loading: false,
+            isAuthResolved: true,
+          }));
+        }
       }
     };
-    
-    void initialize();
-    
-    // Subscribe to auth changes - use a more efficient approach
-    const authSubscription = supabase.auth.onAuthStateChange(() => {
-      // Only update when auth instance changes
-      updateStateFromAuthInstance();
-    });
-    
-    return () => {
-      console.log('AuthProvider unmounted');
-      isMountedRef.current = false;
-      authSubscription.data.subscription.unsubscribe();
-    };
-  }, [updateStateFromAuthInstance]);
-  
+
+    initialize();
+  }, []);
+
   // Add visibilitychange event listener to check token when user returns to tab
   useEffect(() => {
-    if (!user) return; // Skip if no user
+    if (!auth.user) return; // Skip if no user
     
     const checkSessionOnVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && user && isMountedRef.current) {
+      if (document.visibilityState === 'visible' && auth.user && isProviderMounted.current) {
         console.log('Tab became visible, checking session validity');
         validateSessionToken().then(isValid => {
-          if (!isValid && isMountedRef.current) {
+          if (!isValid && isProviderMounted.current) {
             console.log('Session invalid after visibility change, handling expiration');
             handleSessionExpiration();
           }
@@ -648,10 +653,10 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
     
     // Set up periodic validation (every 30 mins)
     const periodicValidationInterval = setInterval(() => {
-      if (user && isMountedRef.current) {
+      if (auth.user && isProviderMounted.current) {
         console.log('Performing periodic session validation');
         validateSessionToken().then(isValid => {
-          if (!isValid && isMountedRef.current) {
+          if (!isValid && isProviderMounted.current) {
             console.log('Session invalid during periodic check, handling expiration');
             handleSessionExpiration();
           }
@@ -665,262 +670,16 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
       document.removeEventListener('visibilitychange', checkSessionOnVisibilityChange);
       clearInterval(periodicValidationInterval);
     };
-  }, [user]);
+  }, [auth.user]);
   
   // Create the auth context value
-  const authContextValue: AuthContextType = {
-    user,
-    loading,
-    authInitialized,
-    signIn: async (email: string, password: string) => {
-      try {
-        console.log('Auth provider: signIn called for', email);
-        setLoading(true);
-        
-        // Update singleton
-        authInstance.loading = true;
-        setGlobalAuthInstance(authInstance);
-        
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        
-        if (error) {
-          console.error('Sign in error from Supabase:', error);
-          console.error('Error details:', error.message, error.status);
-          setLoading(false);
-          
-          // Update singleton
-          authInstance.loading = false;
-          setGlobalAuthInstance(authInstance);
-          
-          return { error };
-        }
-        
-        console.log('Sign in successful for:', data.user?.email);
-        console.log('User data from login:', {
-          id: data.user?.id,
-          email: data.user?.email,
-          app_metadata: data.user?.app_metadata,
-          user_metadata: data.user?.user_metadata,
-        });
-        
-        // Create a user object if sign-in successful
-        if (data.user) {
-          console.log('Setting user immediately after sign in');
-          
-          // Check if user is admin from metadata first
-          const isAdminFromMetadata = 
-            data.user.user_metadata?.is_admin === true || 
-            data.user.user_metadata?.admin === true;
-          
-          // Create user object with correct isAdmin
-          const userData: User = {
-            id: data.user.id,
-            email: data.user.email!,
-            isAdmin: isAdminFromMetadata, // Set based on metadata
-            last_sign_in_at: data.user.last_sign_in_at,
-            user_metadata: data.user.user_metadata
-          };
-          
-          // Set the user right away
-          setUser(userData);
-          setAuthInitialized(true);
-          setLoading(false);
-          
-          // Update singleton
-          authInstance.user = userData;
-          authInstance.loading = false;
-          authInstance.authInitialized = true;
-          setGlobalAuthInstance(authInstance);
-          
-          console.log('User state updated immediately after sign in:', userData);
-          
-          // After setting initial user state, check for admin status
-          setTimeout(() => {
-            if (isMountedRef.current) {
-              refreshUserData(userData).then(() => {
-                if (authInstance.user && authInstance.user.isAdmin !== userData.isAdmin) {
-                  // Update user state if admin status has changed
-                  setUser({...authInstance.user});
-                }
-              });
-            }
-          }, 0);
-        } else {
-          setLoading(false);
-          
-          // Update singleton
-          authInstance.loading = false;
-          setGlobalAuthInstance(authInstance);
-        }
-        
-        return { error: null };
-      } catch (err) {
-        console.error('Sign in error:', err);
-        setLoading(false);
-        setAuthInitialized(true);
-        
-        // Update singleton
-        authInstance.loading = false;
-        authInstance.authInitialized = true;
-        setGlobalAuthInstance(authInstance);
-        
-        return { error: err as Error };
-      }
-    },
-    signUp: async (email: string, password: string) => {
-      try {
-        setLoading(true);
-        
-        // Update singleton
-        authInstance.loading = true;
-        setGlobalAuthInstance(authInstance);
-        
-        const { error } = await supabase.auth.signUp({ email, password });
-        
-        setLoading(false);
-        
-        // Update singleton
-        authInstance.loading = false;
-        setGlobalAuthInstance(authInstance);
-        
-        return { error };
-      } catch (err) {
-        console.error('Sign up error:', err);
-        setLoading(false);
-        
-        // Update singleton
-        authInstance.loading = false;
-        setGlobalAuthInstance(authInstance);
-        
-        return { error: err instanceof Error ? err : new Error(String(err)) };
-      }
-    },
-    signOut: async () => {
-      try {
-        console.log('Auth provider: signOut called');
-        setLoading(true);
-        
-        // Update singleton
-        authInstance.loading = true;
-        setGlobalAuthInstance(authInstance);
-        
-        // Clear user state first to prevent flashing of protected content
-        setUser(null);
-        setAuthInitialized(true);
-        
-        // Update singleton before sign out
-        authInstance.user = null;
-        authInstance.loading = true;
-        authInstance.authInitialized = true;
-        setGlobalAuthInstance(authInstance);
-        
-        const { error } = await supabase.auth.signOut();
-        
-        if (error) {
-          console.error('Sign out error:', error);
-          setLoading(false);
-          
-          // Update singleton
-          authInstance.loading = false;
-          setGlobalAuthInstance(authInstance);
-          
-          return { error };
-        }
-        
-        console.log('Sign out successful');
-        
-        // Update loading state
-        setLoading(false);
-        
-        // Update singleton after sign out
-        authInstance.loading = false;
-        setGlobalAuthInstance(authInstance);
-        
-        // Redirect to auth page instead of root
-        console.log('Redirecting to auth page after sign out');
-        window.location.href = '/auth';
-        
-        return { error: null };
-      } catch (err) {
-        console.error('Sign out error:', err);
-        setLoading(false);
-        
-        // Update singleton
-        authInstance.loading = false;
-        setGlobalAuthInstance(authInstance);
-        
-        // Even on error, try to redirect to auth page
-        console.log('Attempting to redirect to auth page after sign out error');
-        setTimeout(() => {
-          window.location.href = '/auth';
-        }, 500);
-        
-        return { error: err instanceof Error ? err : new Error(String(err)) };
-      }
-    },
-    refreshUser: async () => {
-      if (!user) return;
-      
-      try {
-        console.log('Refreshing user data');
-        // Get updated user data from Supabase
-        const { data: { user: authUser }, error } = await supabase.auth.getUser();
-        
-        if (error || !authUser) {
-          console.error('Error refreshing user:', error);
-          return;
-        }
-        
-        // Check for admin status in metadata
-        const isAdminFromMetadata = 
-          authUser.user_metadata?.is_admin === true || 
-          authUser.user_metadata?.admin === true;
-        
-        // Create user object with initial props
-        const updatedUser = {
-          id: authUser.id,
-          email: authUser.email!,
-          isAdmin: isAdminFromMetadata, // Set based on metadata first
-          last_sign_in_at: authUser.last_sign_in_at,
-          user_metadata: authUser.user_metadata
-        };
-        
-        console.log('User refreshed with data:', updatedUser);
-        
-        // Update state
-        setUser(updatedUser);
-        
-        // Update singleton instance
-        authInstance.user = updatedUser;
-        setGlobalAuthInstance(authInstance);
-        
-        // Refresh additional user data and check admin status
-        await refreshUserData(updatedUser);
-        
-        // Update user with latest admin status if it changed
-        if (authInstance.user && authInstance.user.isAdmin !== updatedUser.isAdmin) {
-          console.log('Admin status changed, updating user state');
-          setUser({...authInstance.user});
-        }
-      } catch (err) {
-        console.error('Error refreshing user:', err);
-      }
-    }
+  const value = {
+    ...auth,
+    isAuthResolved: auth.isAuthResolved,
   };
-  
-  if (!isInitialized && loading) {
-    // Always render children without showing a loading spinner
-    // This avoids showing a black spinner during authentication
-    return (
-      <AuthContext.Provider value={authContextValue}>
-        {children}
-      </AuthContext.Provider>
-    );
-  }
-  
-  // Auth is initialized or timed out, render children with the context
+
   return (
-    <AuthContext.Provider value={authContextValue}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
