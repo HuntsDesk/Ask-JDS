@@ -1095,79 +1095,89 @@ The flashcards module uses the following main components:
 
 ### Infinite Scroll Implementation
 
-The flashcards module uses offset-based pagination with React Query's `useInfiniteQuery` for efficient data loading:
+The flashcards module uses offset-based pagination with React Query's `useInfiniteQuery` for efficient data loading. The recommended pattern for implementing infinite scroll is:
 
 ```typescript
-// Query implementation with pagination
-const { 
-  data,
-  fetchNextPage,
-  hasNextPage,
-  isFetchingNextPage
-} = useInfiniteQuery({
-  queryKey: [...queryKeys, filter, subjectIds],
-  queryFn: async ({ pageParam = 0 }) => {
-    // Calculate pagination parameters
-    const pageSize = 21;  // Number of items per page
-    const offset = pageParam * pageSize;
-    
-    // Supabase query with range-based pagination
-    const { data, count } = await supabase
-      .from('table')
-      .select('*', { count: 'exact' })
-      // Apply filters
-      .range(offset, offset + pageSize - 1);
-      
-    // Check if more pages exist
-    const hasNextPage = offset + data.length < count;
-    const nextCursor = hasNextPage ? pageParam + 1 : null;
-    
-    return {
-      items: data,
-      nextCursor,
-      totalCount: count
-    };
-  },
-  getNextPageParam: (lastPage) => lastPage.nextCursor,
-  staleTime: 30 * 60 * 1000, // 30 minute cache
-});
-```
-
-The UI implementation uses an Intersection Observer to trigger pagination:
-
-```tsx
-// DOM reference for intersection observer
+// 1. Create a dedicated observer element at the bottom of the list
 const observerTarget = useRef(null);
 
-// Setup observer when component mounts
+// 2. Set up the observer in a useEffect
 useEffect(() => {
   const observer = new IntersectionObserver(
     (entries) => {
-      if (entries[0].isIntersecting && hasNextPage) {
+      if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+        console.log('Loading more items...');
         fetchNextPage();
       }
     },
     { threshold: 0.1 }
   );
   
-  if (observerTarget.current) {
-    observer.observe(observerTarget.current);
+  const currentTarget = observerTarget.current;
+  if (currentTarget) {
+    observer.observe(currentTarget);
   }
   
-  return () => observer.disconnect();
-}, [fetchNextPage, hasNextPage]);
+  return () => {
+    if (currentTarget) {
+      observer.unobserve(currentTarget);
+    }
+  };
+}, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-// Render the observer target at the bottom of the list
+// 3. Render the observer element at the bottom of the list
 return (
   <>
     {/* Content items */}
     {hasNextPage && (
-      <div ref={observerTarget} className="h-10 flex justify-center">
-        {isFetchingNextPage && <LoadingSpinner />}
+      <div 
+        ref={observerTarget} 
+        className="flex justify-center my-8"
+      >
+        {isFetchingNextPage ? (
+          <LoadingSpinner className="w-8 h-8" />
+        ) : (
+          <div className="h-10"></div> /* Spacer for observer */
+        )}
       </div>
     )}
   </>
 );
+```
+
+This implementation provides several advantages:
+- **Simplified observer management**: Uses a single, consistent observer element
+- **Clean separation**: Keeps the observer separate from the content items
+- **Clear loading indicators**: Shows a loading spinner right where new content will appear
+- **Predictable behavior**: Uses a simple condition check that's easy to reason about
+- **No complex ref callbacks**: Avoids issues with refs being attached/detached during renders
+
+The backend query function uses offset-based pagination:
+
+```typescript
+queryFn: async ({ pageParam = 0 }) => {
+  // Calculate pagination parameters
+  const pageSize = 21;  // Number of items per page
+  const offset = pageParam * pageSize;
+  
+  // Supabase query with range-based pagination
+  const { data, count } = await supabase
+    .from('table')
+    .select('*', { count: 'exact' })
+    // Apply filters
+    .range(offset, offset + pageSize - 1);
+    
+  // Check if more pages exist
+  const hasNextPage = offset + data.length < count;
+  const nextCursor = hasNextPage ? pageParam + 1 : null;
+  
+  return {
+    items: data,
+    nextCursor,
+    totalCount: count
+  };
+},
+getNextPageParam: (lastPage) => lastPage.nextCursor,
 ```
 
 ### Caching Strategy
