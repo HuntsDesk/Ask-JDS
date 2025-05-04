@@ -965,6 +965,7 @@ Reference documentation for specific technical implementations:
 
 The Flashcards module provides study tools with the following features:
 - Collections of flashcards organized by subject
+- Infinite scroll for efficient loading of large collection sets
 - Progressive loading with skeleton UI for improved UX
 - React Query integration for efficient data fetching and caching
 - Mastery tracking with visual indicators
@@ -980,6 +981,26 @@ The Flashcards module provides study tools with the following features:
 - `Card`: Reusable card component for collections and subjects
 - `SkeletonFlashcard`: Loading placeholder components
 - `UnifiedStudyMode`: Advanced study interface with direct card navigation
+
+#### Infinite Scroll Implementation
+The flashcard collections page uses an optimized infinite scroll system:
+
+- **Technology**: Uses Intersection Observer API to detect when the user scrolls to the bottom of the page
+- **Implementation**: A `lastCardRef` callback attaches to the last collection card to detect visibility 
+- **Pagination**: Uses offset-based pagination with React Query's `useInfiniteQuery` hook
+- **Page Size**: Dynamically loads 21 items per page (7 rows of 3 in desktop view)
+- **Performance**: Prefetches data with 300px margin before reaching the bottom of visible content
+- **State Management**: Leverages React Query's built-in states for loading, fetching, and pagination
+- **Error Handling**: Includes recovery logic to force re-fetch if data is incomplete
+- **URL Parameters**: Preserves filter settings in URL without causing full page refreshes
+
+**Key benefits over previous implementation:**
+- Efficiently loads only the data needed for the current view
+- Maintains performance with large datasets (90+ collections)
+- Preserves scroll position during filtering operations
+- Shows loading indicators only for newly fetched data, not entire page
+- Better handles race conditions and state management
+- Improved user experience through seamless scrolling
 
 #### Direct Card Navigation
 The study mode now supports direct navigation to specific flashcards:
@@ -1012,6 +1033,7 @@ The study mode now supports direct navigation to specific flashcards:
 - Progressive content rendering with skeleton UI
 - Memoization of filtered and processed data
 - React Query for caching and background updates
+- Intersection Observer for efficient infinite scrolling
 
 #### Known Issues
 - Tile buttons in study mode need adjustment for proper rendering
