@@ -1043,7 +1043,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                 </div>
               ) : (
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                  {showAnswer ? currentCard.answer : currentCard.question}
+                  {showAnswer ? currentCard?.answer : currentCard?.question}
                 </h2>
               )}
             </div>
@@ -1072,7 +1072,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           </button>
 
           <div className="flex items-center gap-3" style={{ pointerEvents: 'auto', position: 'relative', zIndex: 50 }}>
-            {!currentCard.is_mastered && (
+            {currentCard && !currentCard.is_mastered && (
               <button
                 onClick={(e) => {
                   e.preventDefault();
@@ -1087,7 +1087,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
               </button>
             )}
             
-            {currentCard.is_mastered && (
+            {currentCard && currentCard.is_mastered && (
               <button
                 onClick={(e) => {
                   e.preventDefault();
