@@ -392,7 +392,10 @@ export function ChatContainer() {
         {isMobile && (
           <header className="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex items-center justify-between">
             <button
-              onClick={() => setIsExpanded(true)}
+              onClick={() => {
+                console.log('Welcome screen: Hamburger menu clicked');
+                setIsExpanded(!isExpanded);
+              }}
               className="p-2 rounded-md bg-[#f37022] text-white hover:bg-[#e36012] flex items-center justify-center"
               aria-label="Open sidebar"
             >
@@ -477,8 +480,11 @@ export function ChatContainer() {
           messageLimit={messageLimit}
           preservedMessage={preservedMessage}
           showPaywall={showPaywall}
-          onToggleSidebar={() => {}}
-          isSidebarOpen={true}
+          onToggleSidebar={() => {
+            console.log('ChatContainer: Toggle sidebar from hamburger');
+            setIsExpanded(!isExpanded);
+          }}
+          isSidebarOpen={isExpanded}
           isDesktop={isDesktop}
           isGenerating={isGenerating}
           onClosePaywall={handlePaywallClose}
