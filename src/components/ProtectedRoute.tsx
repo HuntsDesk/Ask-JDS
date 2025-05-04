@@ -4,6 +4,13 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useEffect, useState, Suspense, useRef } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/lib/supabase';
+
+// Constants for session storage keys
+const REDIRECT_ATTEMPTS_KEY = 'protected_redirect_attempts';
+const SESSION_FOUND_KEY = 'auth-session-detected';
+const SESSION_USER_ID_KEY = 'auth-session-user-id';
+const SESSION_TIMESTAMP_KEY = 'auth-session-timestamp';
 
 // Handle auth state properly
 interface ProtectedRouteProps {
@@ -20,15 +27,26 @@ export function ProtectedRoute({
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   const isMountedRef = useRef(true);
   const [redirectLock, setRedirectLock] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(false);
+  const [manualSessionChecked, setManualSessionChecked] = useState(false);
+  const [hasManualSession, setHasManualSession] = useState(false);
+  const didCheckSessionRef = useRef<boolean>(false);
 
-  // For debugging only
+  // For debugging only - but reduce frequency to avoid console spam
   useEffect(() => {
-    console.log('ProtectedRoute - Auth state:', { user, loading, isAuthResolved, loadingTimeout, redirectLock });
+    if (user || hasManualSession || redirectLock) {
+      console.log('[ProtectedRoute] Auth state:', {
+        user: user ? `found` : null,
+        isAuthResolved,
+        hasManualSession,
+        redirectLock
+      });
+    }
     
     return () => {
       isMountedRef.current = false;
     };
-  }, [user, loading, isAuthResolved, loadingTimeout, redirectLock]);
+  }, [user, isAuthResolved, hasManualSession, redirectLock]);
 
   // Add a safety timeout for loading
   useEffect(() => {
@@ -47,44 +65,101 @@ export function ProtectedRoute({
     
     return () => {
       if (timeoutId) {
-        console.log('ProtectedRoute: Clearing loading safety timeout');
         clearTimeout(timeoutId);
       }
     };
   }, [isAuthResolved, loadingTimeout]);
 
-  // Recovery mechanism if loading persists too long
+  // Check for session directly with Supabase if context says no user
   useEffect(() => {
-    let recoveryTimeoutId: NodeJS.Timeout | null = null;
-    
-    if (loadingTimeout && !isAuthResolved) {
-      // If loading has timed out, set a recovery action to force auth resolution
-      recoveryTimeoutId = setTimeout(() => {
-        if (isMountedRef.current) {
-          console.log('ProtectedRoute: Recovery timeout triggered - forcing page reload');
-          window.location.reload();
+    // Only check once per component instance and only if needed
+    if (isAuthResolved && !user && !isCheckingSession && !manualSessionChecked && !didCheckSessionRef.current) {
+      const checkSessionDirectly = async () => {
+        try {
+          setIsCheckingSession(true);
+          didCheckSessionRef.current = true;
+          console.log('[ProtectedRoute] Context shows no user but auth is resolved. Checking session directly with Supabase...');
+          
+          // First check if we have a recent session marker in storage
+          const sessionMarker = sessionStorage.getItem(SESSION_FOUND_KEY);
+          const sessionUserId = sessionStorage.getItem(SESSION_USER_ID_KEY);
+          const sessionTimestamp = sessionStorage.getItem(SESSION_TIMESTAMP_KEY);
+          
+          // If we have a recent session marker (last 5 minutes), trust it
+          if (sessionMarker === 'true' && sessionUserId && sessionTimestamp) {
+            const timestamp = parseInt(sessionTimestamp, 10);
+            const now = Date.now();
+            const fiveMinutesAgo = now - (5 * 60 * 1000);
+            
+            if (timestamp > fiveMinutesAgo) {
+              console.log('[ProtectedRoute] Found recent session marker in storage, using it');
+              setHasManualSession(true);
+              setManualSessionChecked(true);
+              setIsCheckingSession(false);
+              return;
+            }
+          }
+          
+          // If no recent marker or it's expired, check with Supabase
+          const { data, error } = await supabase.auth.getSession();
+          
+          if (error) {
+            console.error('[ProtectedRoute] Error checking session directly:', error);
+            setManualSessionChecked(true);
+            setHasManualSession(false);
+            setIsCheckingSession(false);
+            return;
+          }
+          
+          if (data?.session?.user) {
+            console.log('[ProtectedRoute] Found valid session directly from Supabase, preventing redirect loop');
+            
+            // Store session information to help coordinate with AuthPage
+            sessionStorage.setItem(SESSION_FOUND_KEY, 'true');
+            sessionStorage.setItem(SESSION_USER_ID_KEY, data.session.user.id);
+            sessionStorage.setItem(SESSION_TIMESTAMP_KEY, Date.now().toString());
+            
+            setHasManualSession(true);
+            // Wait briefly for context to sync
+            setTimeout(() => {
+              if (isMountedRef.current) {
+                setIsCheckingSession(false);
+              }
+            }, 500);
+          } else {
+            console.log('[ProtectedRoute] No session found directly from Supabase');
+            
+            // Clear any previous session markers
+            sessionStorage.removeItem(SESSION_FOUND_KEY);
+            sessionStorage.removeItem(SESSION_USER_ID_KEY);
+            sessionStorage.removeItem(SESSION_TIMESTAMP_KEY);
+            
+            setHasManualSession(false);
+            setIsCheckingSession(false);
+          }
+          
+          setManualSessionChecked(true);
+        } catch (err) {
+          console.error('[ProtectedRoute] Exception checking session directly:', err);
+          setManualSessionChecked(true);
+          setHasManualSession(false);
+          setIsCheckingSession(false);
         }
-      }, 10000); // 10 seconds until force reload
+      };
+      
+      checkSessionDirectly();
     }
-    
-    return () => {
-      if (recoveryTimeoutId) {
-        clearTimeout(recoveryTimeoutId);
-      }
-    };
-  }, [loadingTimeout, isAuthResolved]);
+  }, [isAuthResolved, user, isCheckingSession, manualSessionChecked]);
 
   // Check for redirect loops and prevent them
   useEffect(() => {
-    if (isAuthResolved && !user && !redirectLock) {
+    if (isAuthResolved && !user && !redirectLock && !isCheckingSession && !hasManualSession) {
       // Check if we're in a potential redirect loop
-      const prevRedirectAttempts = parseInt(sessionStorage.getItem('protected_redirect_attempts') || '0');
-      
-      console.log('ProtectedRoute: Checking redirect counter:', prevRedirectAttempts);
+      const prevRedirectAttempts = parseInt(sessionStorage.getItem(REDIRECT_ATTEMPTS_KEY) || '0');
       
       if (prevRedirectAttempts > 3) {
         console.warn('ProtectedRoute: Too many redirects detected, stopping redirect loop');
-        sessionStorage.removeItem('protected_redirect_attempts');
+        sessionStorage.removeItem(REDIRECT_ATTEMPTS_KEY);
         setRedirectLock(true);
         // Force authentication refresh after a delay
         setTimeout(() => {
@@ -95,17 +170,16 @@ export function ProtectedRoute({
       }
       
       // Increment the counter for future checks
-      sessionStorage.setItem('protected_redirect_attempts', (prevRedirectAttempts + 1).toString());
-    } else if (user) {
+      sessionStorage.setItem(REDIRECT_ATTEMPTS_KEY, (prevRedirectAttempts + 1).toString());
+    } else if (user || hasManualSession) {
       // Reset counter when user is authenticated
-      sessionStorage.removeItem('protected_redirect_attempts');
+      sessionStorage.removeItem(REDIRECT_ATTEMPTS_KEY);
     }
-  }, [isAuthResolved, user, redirectLock]);
+  }, [isAuthResolved, user, redirectLock, isCheckingSession, hasManualSession]);
 
   // CRITICAL: Show loading state when authentication is still being checked
   // We must not redirect until isAuthResolved = true, regardless of user status
-  if (!isAuthResolved) {
-    console.log('ProtectedRoute: Auth not yet resolved, showing loading state');
+  if (!isAuthResolved || isCheckingSession) {
     return (
       <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900">
         <div className="flex flex-col items-center">
@@ -125,10 +199,8 @@ export function ProtectedRoute({
     );
   }
 
-  // If authenticated, render the content
-  if (user) {
-    console.log("ProtectedRoute - User authenticated, rendering content");
-    
+  // If authenticated via context OR manual session check, render the content
+  if (user || hasManualSession) {
     // Wrap children in Suspense boundary to handle lazy-loaded components
     return <Suspense fallback={
       <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900">
@@ -142,26 +214,40 @@ export function ProtectedRoute({
     </Suspense>;
   }
 
-  // If we get here, authentication is resolved and user is not logged in
-  // Check if we're in a redirect lockdown (preventing loop)
+  // Redirect if manually prevented
   if (redirectLock) {
-    console.log("ProtectedRoute - Redirect locked due to loop prevention");
     return (
       <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900">
-        <div className="flex flex-col items-center text-center max-w-md">
-          <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
-          <h3 className="text-xl font-bold mb-2 text-gray-800 dark:text-gray-100">Authentication Error</h3>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">
-            There was a problem with authentication. Please try again.
+        <div className="flex flex-col items-center max-w-md mx-auto px-4 text-center">
+          <AlertTriangle className="h-16 w-16 text-amber-500 mb-4" />
+          <h2 className="text-2xl font-semibold mb-2 text-gray-800 dark:text-gray-200">Authorization Issue</h2>
+          <p className="mb-4 text-gray-600 dark:text-gray-400">
+            We detected a potential redirect loop. This usually happens when there's a session mismatch.
           </p>
-          <Button onClick={() => window.location.href = '/auth'}>
-            Go to Sign In
-          </Button>
+          <div className="space-y-2">
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="w-full"
+              variant="default"
+            >
+              Reload Page
+            </Button>
+            <Button 
+              onClick={() => {
+                sessionStorage.clear();
+                localStorage.removeItem('ask-jds-last-visited-page');
+                window.location.href = '/auth';
+              }} 
+              className="w-full"
+              variant="outline"
+            >
+              Go to Login
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
-
-  console.log("ProtectedRoute - Auth resolved, no user found, redirecting to", redirectTo);
+  
   return <Navigate to={redirectTo} />;
 } 

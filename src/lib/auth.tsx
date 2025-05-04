@@ -7,6 +7,10 @@ import { useDomain } from './domain-context';
 // Create a global key for the auth instance
 const GLOBAL_AUTH_KEY = '__AUTH_INSTANCE__';
 
+// Track auth provider instances in development to detect duplicates
+let AUTH_PROVIDER_INSTANCES = 0;
+const isStrictMode = process.env.NODE_ENV === 'development';
+
 export const AuthContext = createContext<AuthContextType | null>(null);
 
 // Get the global auth instance if it exists
@@ -68,6 +72,12 @@ export async function initializeAuth() {
   authInitPromise = new Promise<void>(async (resolve) => {
     try {
       console.log('Starting auth initialization');
+      
+      // Check for session markers in storage first
+      const { hasSession, userId } = checkSessionStorage();
+      if (hasSession && userId) {
+        console.log(`Found recent session marker for ${userId}, will prioritize this info`);
+      }
       
       // Wait for Supabase client to be ready
       await ensureSupabaseClientReady();
@@ -206,6 +216,59 @@ export async function initializeAuth() {
       }
       
       try {
+        // Before fetching from Supabase, check if we have a recently confirmed session
+        const { hasSession, userId } = checkSessionStorage();
+        
+        if (hasSession && userId) {
+          console.log(`Using recent session confirmation for user ${userId}`);
+          
+          // Try to recover user data from local storage
+          try {
+            if (typeof window !== 'undefined') {
+              const authStorage = localStorage.getItem('ask-jds-auth-storage');
+              if (authStorage) {
+                const authData = JSON.parse(authStorage);
+                if (authData?.user?.id === userId) {
+                  console.log('Recovered matching user data from localStorage for session marker');
+                  
+                  // Create user object from storage
+                  const userData = {
+                    id: authData.user.id,
+                    email: authData.user.email,
+                    isAdmin: false, // Default to false, will be updated by refreshUser if needed
+                    last_sign_in_at: authData.user.last_sign_in_at || new Date().toISOString(),
+                    user_metadata: authData.user.user_metadata || {}
+                  };
+                  
+                  // Update singleton instance with recovered data
+                  authInstance.user = userData;
+                  authInstance.status = 'authenticated';
+                  authInstance.initialized = true;
+                  authInstance.loading = false;
+                  authInstance.isAuthResolved = true;
+                  setGlobalAuthInstance(authInstance);
+                  
+                  // Mark as initialized to prevent redundant checks
+                  authInitialized = true;
+                  resolve();
+                  
+                  // Clear session markers to prevent future conflicts
+                  sessionStorage.removeItem('auth-session-detected');
+                  sessionStorage.removeItem('auth-session-user-id');
+                  sessionStorage.removeItem('auth-session-timestamp');
+                  
+                  // Still refresh user data in the background
+                  refreshUserData(userData);
+                  return;
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('Error recovering user data for session marker:', e);
+            // Continue with normal session fetch
+          }
+        }
+      
         // Use our improved withTimeout utility to fetch the session
         currentSessionFetch = withTimeout(
           () => supabase.auth.getSession(),
@@ -566,8 +629,87 @@ export function handleSessionExpiration(preservedMessage?: string) {
   }
 }
 
+/**
+ * Check for any manual session detection
+ */
+function checkSessionStorage(): { hasSession: boolean, userId: string | null } {
+  if (typeof window === 'undefined') {
+    return { hasSession: false, userId: null };
+  }
+  
+  try {
+    const sessionDetected = sessionStorage.getItem('auth-session-detected') === 'true';
+    const userId = sessionStorage.getItem('auth-session-user-id');
+    const timestamp = sessionStorage.getItem('auth-session-timestamp');
+    
+    // Check if session was detected recently (within last 30 seconds)
+    if (sessionDetected && userId && timestamp) {
+      const sessionTime = parseInt(timestamp, 10);
+      const now = Date.now();
+      const isRecent = now - sessionTime < 30 * 1000; // 30 seconds
+      
+      if (isRecent) {
+        console.log(`Found recent session marker in storage for user ${userId}`);
+        return { hasSession: true, userId };
+      }
+    }
+    
+    return { hasSession: false, userId: null };
+  } catch (e) {
+    console.warn('Error checking sessionStorage for session marker:', e);
+    return { hasSession: false, userId: null };
+  }
+}
+
 function AuthProviderComponent({ children }: { children: React.ReactNode }) {
-  console.log('AuthProvider mounted, initializing auth');
+  // Add enhanced logging with timestamp and unique ID for the provider instance
+  const providerId = useRef<string>(Math.random().toString(36).substring(2, 8));
+  const mountCount = useRef<number>(0);
+  
+  // Log provider mount and cleanup
+  useEffect(() => {
+    mountCount.current++;
+    // Increment global instance counter
+    AUTH_PROVIDER_INSTANCES++;
+    
+    // Expected pattern in strict mode: mount twice, then eventually unmount twice
+    console.log(
+      `[AUTH PROVIDER] Instance ${providerId.current} mounted (${mountCount.current}x) at ${new Date().toISOString()}`,
+      `\nTotal provider instances: ${AUTH_PROVIDER_INSTANCES}`
+    );
+    
+    if (AUTH_PROVIDER_INSTANCES > 2 && isStrictMode) {
+      console.warn(
+        `[WARNING] Detected ${AUTH_PROVIDER_INSTANCES} AuthProvider instances. ` +
+        `In StrictMode, you should see at most 2 instances (double mount). ` + 
+        `More than 2 instances indicates you have multiple AuthProviders in your component tree, ` +
+        `which will cause authentication issues.`
+      );
+    } else if (AUTH_PROVIDER_INSTANCES > 1 && !isStrictMode) {
+      console.error(
+        `[ERROR] Detected ${AUTH_PROVIDER_INSTANCES} AuthProvider instances in production mode. ` +
+        `There should only be ONE AuthProvider at the root of your application. ` +
+        `Multiple providers will cause authentication issues and redirect loops.`
+      );
+    }
+    
+    if (isStrictMode) {
+      console.log(
+        '\nNOTE: In React development mode with StrictMode enabled, components are intentionally mounted twice.',
+        '\nThis is expected and helps find side effects. It does NOT indicate a problem in your code.',
+        '\nAny duplicate AuthProvider logs are likely due to StrictMode and not actual duplicate providers.',
+        '\nIn production builds, components will only mount once.'
+      );
+    }
+    
+    return () => {
+      // Decrement global instance counter
+      AUTH_PROVIDER_INSTANCES--;
+      console.log(
+        `[AUTH PROVIDER] Instance ${providerId.current} unmounted at ${new Date().toISOString()}`
+      );
+    };
+  }, []);
   
   const [auth, setAuth] = useState<AuthContextType>({
     user: authInstance.user,
@@ -665,7 +807,6 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
     // On cleanup, set our flag to false to prevent state updates after unmount
     return () => {
       isProviderMounted.current = false;
-      console.log('AuthProvider unmounted');
       
       // Cancel any in-progress operations
       if (typeof cancelRef.current === 'function') {

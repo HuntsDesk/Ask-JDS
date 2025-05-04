@@ -25,6 +25,11 @@ const queryClient = new QueryClient({
 });
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
+  // React StrictMode intentionally mounts components twice in development to help find issues
+  // This is why you might see two AuthProvider mounts in the console - it's normal in dev mode
+  // IMPORTANT: There should only be ONE AuthProvider in the entire app tree.
+  // This double mounting is ONLY in development and doesn't indicate a bug.
+  // DO NOT add additional AuthProviders in your route components!
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
