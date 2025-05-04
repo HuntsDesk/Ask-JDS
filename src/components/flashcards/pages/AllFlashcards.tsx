@@ -265,7 +265,7 @@ export default function AllFlashcards() {
         const { count, error: countError } = await supabase
           .from('flashcards')
           .select('*', { count: 'exact', head: true })
-          .or('is_official.eq.true,flashcard_collections_junction.collection.is_official.eq.true');
+          .or('is_official.eq.true,collection.is_official.eq.true');
           
         if (countError) {
           console.error('Error in official cards count query:', countError);
@@ -274,57 +274,118 @@ export default function AllFlashcards() {
         
         console.log(`Official cards count: ${count || 0}`);
         
-        // Data query with pagination - use same approach as 'all' filter but with is_official=true condition
-        const { data, error } = await supabase
-          .from('flashcards')
-          .select(`
-            *,
-            flashcard_collections_junction (
-              collection:collection_id (
-                id, 
-                title, 
-                is_official, 
-                user_id
+        // Enhanced - first try the direct query using a different approach
+        let data, error;
+        try {
+          // First query directly for official flashcards
+          const result = await supabase
+            .from('flashcards')
+            .select(`
+              *,
+              flashcard_collections_junction (
+                collection:collection_id (
+                  id, 
+                  title, 
+                  is_official, 
+                  user_id
+                )
               )
-            )
-          `)
-          .or('is_official.eq.true,flashcard_collections_junction.collection.is_official.eq.true')
-          .range(offset, offset + pageSize - 1)
-          .order('created_at', { ascending: false });
-          
-        if (error) {
-          console.error('Error fetching official flashcards:', error);
-          throw error;
-        }
-        
-        // Process the junction table data to put collection directly on the flashcard
-        const processedData = data?.map(card => {
-          if (card.flashcard_collections_junction && card.flashcard_collections_junction.length > 0) {
+            `)
+            .eq('is_official', true)
+            .range(offset, offset + pageSize - 1)
+            .order('created_at', { ascending: false });
+            
+            data = result.data;
+            error = result.error;
+            
+            console.log(`Found ${data?.length || 0} directly marked official flashcards`);
+            
+            // If we don't have enough cards, try to get cards from official collections
+            if (!error && (!data || data.length < pageSize)) {
+              console.log('Looking for additional cards in official collections');
+              const additionalResult = await supabase
+                .from('flashcards')
+                .select(`
+                  *,
+                  flashcard_collections_junction (
+                    collection:collection_id (
+                      id, 
+                      title, 
+                      is_official, 
+                      user_id
+                    )
+                  )
+                `)
+                .not('id', 'in', `(${(data || []).map(c => c.id).join(',')})`)
+                .eq('flashcard_collections_junction.collection.is_official', true)
+                .range(0, pageSize - (data?.length || 0) - 1)
+                .order('created_at', { ascending: false });
+                
+                console.log(`Found ${additionalResult.data?.length || 0} additional cards in official collections`);
+                
+                // Combine the results
+                if (additionalResult.data && additionalResult.data.length > 0) {
+                  data = [...(data || []), ...(additionalResult.data || [])];
+                }
+              }
+            } catch (queryError) {
+              console.error('Error in complex official cards query:', queryError);
+              
+              // Fallback to the original query if the enhanced approach fails
+              const result = await supabase
+                .from('flashcards')
+                .select(`
+                  *,
+                  flashcard_collections_junction (
+                    collection:collection_id (
+                      id, 
+                      title, 
+                      is_official, 
+                      user_id
+                    )
+                  )
+                `)
+                .or('is_official.eq.true,flashcard_collections_junction.collection.is_official.eq.true')
+                .range(offset, offset + pageSize - 1)
+                .order('created_at', { ascending: false });
+                
+                data = result.data;
+                error = result.error;
+            }
+            
+            if (error) {
+              console.error('Error fetching official flashcards:', error);
+              throw error;
+            }
+            
+            // Process the junction table data to put collection directly on the flashcard
+            const processedData = data?.map(card => {
+              if (card.flashcard_collections_junction && card.flashcard_collections_junction.length > 0) {
+                return {
+                  ...card,
+                  collection: card.flashcard_collections_junction[0].collection
+                };
+              }
+              return card;
+            }) || [];
+            
+            console.log(`Fetched ${processedData.length} official flashcards (page ${pageParam + 1})`);
+            if (processedData.length > 0) {
+              console.log('First official card sample:', processedData[0]);
+              console.log('Official collection data:', processedData[0]?.collection);
+            } else {
+              console.log('No official flashcards found. Check SQL query or database content.');
+            }
+            
+            // Determine if there are more pages
+            const hasNextPage = offset + processedData.length < (count || 0);
+            const nextCursor = hasNextPage ? pageParam + 1 : null;
+            
             return {
-              ...card,
-              collection: card.flashcard_collections_junction[0].collection
+              flashcards: processedData,
+              nextCursor,
+              totalCount: count || 0
             };
-          }
-          return card;
-        }) || [];
-        
-        console.log(`Fetched ${processedData.length} official flashcards (page ${pageParam + 1})`);
-        if (processedData.length > 0) {
-          console.log('First official card sample:', processedData[0]);
-          console.log('Official collection data:', processedData[0]?.collection);
-        } else {
-          console.log('No official flashcards found. Check SQL query or database content.');
-        }
-        
-        // Determine if there are more pages
-        const hasNextPage = offset + processedData.length < (count || 0);
-        const nextCursor = hasNextPage ? pageParam + 1 : null;
-        
-        return {
-          flashcards: processedData,
-          nextCursor,
-          totalCount: count || 0
-        };
         
       } else {
         // For all cards, fetch with their collections
@@ -998,7 +1059,9 @@ export default function AllFlashcards() {
             <div className="flex flex-col">
               <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">Flashcards</h1>
               <p className="text-gray-600 dark:text-gray-300">
-                {filteredCards.length} {filteredCards.length === 1 ? 'card' : 'cards'}
+                {flashcardsData?.pages?.[0]?.totalCount || 0} {(flashcardsData?.pages?.[0]?.totalCount || 0) === 1 ? 'card' : 'cards'} 
+                {filteredCards.length !== (flashcardsData?.pages?.[0]?.totalCount || 0) && 
+                  ` (${filteredCards.length} ${filteredCards.length === 1 ? 'shown' : 'shown'})`}
               </p>
             </div>
             
