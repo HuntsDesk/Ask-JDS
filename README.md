@@ -364,74 +364,122 @@ where policies != '[]'::jsonb;
 
 ## UI Style Guide
 
-### Typography System
+The application follows a consistent style guide for UI elements:
 
-- Uses the "New York" style system from shadcn/ui
-- Implemented through Tailwind CSS
-- Prioritizes system fonts for performance
-
-#### Font Scale
-- xs: 0.75rem (12px) - For badges, small labels
-- sm: 0.875rem (14px) - For form labels, descriptions
-- base: 1rem (16px) - For body text
-- lg: 1.125rem (18px) - For dialog titles
-- xl: 1.25rem (20px) - For feature headings
-- 2xl: 1.5rem (24px) - For section titles
-- 3xl: 1.875rem (30px) - For main headings (mobile)
-- 4xl: 2.25rem (36px) - For main headings (desktop)
-
-### Brand Colors
+### Color Palette
 ```css
-:root {
-  /* Primary Brand Colors */
-  --jds-blue: #00178E;                /* JDS Blue - Primary brand color */
-  --jds-orange: #F37022;              /* JDS Orange - Secondary brand color */
-  --jds-yellow: #F5B111;              /* JDS Yellow - Accent color */
-  
-  /* UI Brand Colors */
-  --primary: 262.1 83.3% 57.8%;       /* Purple - Primary UI color */
-  --primary-foreground: 210 20% 98%;  /* Light text on primary */
-  --secondary: 220 14.3% 95.9%;       /* Light gray - Secondary UI color */
-  --accent: 220 14.3% 95.9%;          /* Accent color for UI elements */
+--primary: #F37022;                  /* Orange primary color */
+--primary-foreground: white;         /* Text on primary */
+--secondary: #001DA9;                /* Blue secondary color */
+--secondary-foreground: white;       /* Text on secondary */
+--background: white;                 /* Light mode background */
+--foreground: #333333;               /* Light mode text */
+--muted: #F5F5F5;                    /* Muted backgrounds */
+--muted-foreground: #636363;         /* Text on muted backgrounds */
+--card: white;                       /* Card backgrounds */
+--card-foreground: #333333;          /* Text on cards */
+--border: #D9D9D9;                   /* Border color */
+--accent: #EBF3FF;                   /* Accent backgrounds */
+--accent-foreground: #001DA9;        /* Text on accent */
+--destructive: #E11D48;              /* Destructive actions */
+--destructive-foreground: white;     /* Text on destructive */
+--ring: #E5E5E5;                     /* Focus rings */
+--focus-ring: #3B82F6;               /* Focus indicators */
+--success: #22C55E;                  /* Success messages */
+--warning: #F5B111;                  /* Yellow for warning states */
 }
 ```
 
-### Status Colors
+### Dark Mode
+For dark mode, the palette shifts to darker backgrounds and lighter text:
+
 ```css
-/* Status Colors */
---success: #22C55E;                   /* Green for success states */
---warning: #F5B111;                   /* Yellow for warning states */
---error: #EF4444;                     /* Red for error states */
+.dark {
+  --background: #111111;             /* Dark mode background */
+  --foreground: #F3F3F3;             /* Dark mode text */
+  --muted: #262626;                  /* Dark muted backgrounds */
+  --muted-foreground: #A1A1A1;       /* Dark muted text */
+  --card: #1A1A1A;                   /* Dark card backgrounds */
+  --card-foreground: #F3F3F3;        /* Dark card text */
+  --border: #333333;                 /* Dark borders */
+  --ring: #333333;                   /* Dark focus rings */
+}
 ```
 
-### Chat Bubble Styling
+### SVG and Icon Handling
 
-The chat interface uses distinctive bubble styling to differentiate between user and assistant messages.
+The application uses two approaches for handling icons and SVGs with dark mode support:
 
-#### Current Implementation
-- **User Messages**: 
-  - Right-aligned with orange background (`#F37022`)
-  - White text with rounded corners (except bottom-right)
-  - Maximum width of 80% of container
+1. **Dynamic CSS Approach (Preferred)**
+   
+   SVGs are modified with CSS filters for dark mode, keeping a single source file:
+   
+   ```jsx
+   <img 
+     src="/images/icon.svg" 
+     alt="Icon" 
+     className="h-5 w-5 dark:invert dark:brightness-[1.75] dark:hue-rotate-180"
+   />
+   ```
+   
+   This applies these CSS transformations only in dark mode:
+   - `dark:invert` - Inverts colors (black becomes white)
+   - `dark:brightness-[1.75]` - Increases brightness for visibility
+   - `dark:hue-rotate-180` - Maintains brand color feeling
+   
+   Benefits: 
+   - Single file to maintain
+   - Reduces HTTP requests
+   - Prevents theme switch flicker
+   - Automatic aspect ratio preservation
 
-- **Assistant Messages**:
-  - Left-aligned with light gray background (`bg-gray-100`, dark: `bg-gray-800`)
-  - Dark text (light in dark mode) with rounded corners (except bottom-left)
-  - Maximum width of 80% of container
+2. **Multiple Files Approach (Legacy)**
+   
+   For complex SVGs where CSS filters don't produce adequate results:
+   
+   ```jsx
+   <>
+     <img 
+       src="/images/icon-light.svg" 
+       alt="Icon" 
+       className="block dark:hidden h-5 w-5"
+     />
+     <img 
+       src="/images/icon-dark.svg" 
+       alt="Icon" 
+       className="hidden dark:block h-5 w-5"
+     />
+   </>
+   ```
+   
+   This approach requires maintaining separate files but provides precise control over complex SVGs.
 
-#### Planned Enhancements
+### Typography
+```css
+/* Headings */
+h1 { @apply text-3xl font-bold; }
+h2 { @apply text-2xl font-bold; }
+h3 { @apply text-xl font-semibold; }
+h4 { @apply text-lg font-semibold; }
 
-1. **Timestamp Display**
-   - Add subtle timestamps to messages (either always visible or on hover)
-   - Use small, low-contrast text (0.75rem/12px) below each message
-   - Format: "hh:mm AM/PM" or "Today, hh:mm" depending on recency
-   - For older messages, display full date
+/* Body text */
+p { @apply text-base leading-relaxed; }
+small { @apply text-sm; }
+```
 
-2. **Interaction Enhancements**
-   - Add copy button to messages for easy text copying
-   - Implement message reactions (like/bookmark)
-   - Add context menu with options: Copy, Quote, Share
-   - Long-press on mobile should reveal interaction options
+### Spacing System
+The application follows an 8px spacing system (using Tailwind's default spacing scale):
+
+```css
+--space-1: 0.25rem; /* 4px */
+--space-2: 0.5rem;  /* 8px */
+--space-3: 0.75rem; /* 12px */
+--space-4: 1rem;    /* 16px */
+--space-6: 1.5rem;  /* 24px */
+--space-8: 2rem;    /* 32px */
+--space-12: 3rem;   /* 48px */
+--space-16: 4rem;   /* 64px */
+```
 
 ## Pricing Model
 

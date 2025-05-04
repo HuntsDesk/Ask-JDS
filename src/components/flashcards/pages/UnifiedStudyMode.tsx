@@ -530,9 +530,6 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         throw error;
       }
       
-      // Show toast notification
-      showToast('Card marked as mastered', 'success');
-      
       // Update local state
       const newCards = cards.map(card => 
         card.id === currentCard.id ? { ...card, is_mastered: true } : card
@@ -586,9 +583,6 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       if (error) {
         throw error;
       }
-      
-      // Show toast notification
-      showToast('Card unmarked as mastered', 'success');
       
       // Update local state
       const newCards = cards.map(card => 
