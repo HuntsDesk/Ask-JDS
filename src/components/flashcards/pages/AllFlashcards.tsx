@@ -18,7 +18,7 @@ import { useFlashcardRelationships } from '@/hooks/useFlashcardRelationships';
 import FlashcardItem from '../FlashcardItem';
 import { useNavbar } from '@/contexts/NavbarContext';
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { SkeletonFlashcardGrid } from '../SkeletonFlashcard';
 import { enrichFlashcardWithRelationships, processRelationshipData, isFlashcardReadOnly } from '@/utils/flashcard-utils';
 
@@ -43,7 +43,7 @@ const flashcardKeys = {
   all: ['flashcards'] as const,
   cards: () => [...flashcardKeys.all, 'cards'] as const,
   basic: () => [...flashcardKeys.cards(), 'basic'] as const,
-  filtered: (filter: string) => [...flashcardKeys.basic(), filter] as const,
+  filtered: (filter: string, page = 0) => [...flashcardKeys.basic(), filter, page] as const,
   relationships: () => [...flashcardKeys.all, 'relationships'] as const,
   subjects: () => [...flashcardKeys.all, 'subjects'] as const,
   collections: () => [...flashcardKeys.all, 'collections'] as const,
@@ -88,6 +88,7 @@ export default function AllFlashcards() {
   const [showPaywall, setShowPaywall] = useState(false);
   const { updateTotalCardCount } = useNavbar();
   const [masteringCardId, setMasteringCardId] = useState<string | null>(null);
+  const [pageSize] = useState(30); // Number of cards to fetch per page
 
   // DEV ONLY: Check for forced subscription
   useEffect(() => {
@@ -177,19 +178,36 @@ export default function AllFlashcards() {
 
   // Primary flashcards query - basic data only
   const { 
-    data: flashcardsData = [], 
+    data: flashcardsData,
     isLoading: flashcardsLoading,
     isError: isFlashcardsError,
-    error: flashcardsError
-  } = useQuery({
+    error: flashcardsError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
     queryKey: flashcardKeys.filtered(filter),
-    queryFn: async () => {
-      console.log('Executing main flashcards query with filter:', filter);
+    queryFn: async ({ pageParam = 0 }) => {
+      console.log('Executing main flashcards query with filter:', filter, 'page:', pageParam);
+      
+      // Calculate offset for pagination
+      const offset = pageParam * pageSize;
+      console.log(`Using offset pagination: offset=${offset}, limit=${pageSize}`);
       
       // We need to fetch flashcards with their collections through the junction table
       if (filter === 'my' && user) {
         // Get user's own flashcards
         console.log('Fetching user-created flashcards for user ID:', user.id);
+        
+        // Count query for pagination
+        const { count, error: countError } = await supabase
+          .from('flashcards')
+          .select('*', { count: 'exact', head: true })
+          .eq('created_by', user.id);
+          
+        if (countError) throw countError;
+        
+        // Data query with pagination
         const { data, error } = await supabase
           .from('flashcards')
           .select(`
@@ -203,7 +221,9 @@ export default function AllFlashcards() {
               )
             )
           `)
-          .eq('created_by', user.id);
+          .eq('created_by', user.id)
+          .range(offset, offset + pageSize - 1)
+          .order('created_at', { ascending: false });
           
         if (error) {
           console.error('Error fetching user flashcards:', error);
@@ -221,18 +241,35 @@ export default function AllFlashcards() {
           return card;
         }) || [];
         
-        console.log(`Fetched ${processedData.length} user flashcards`);
+        console.log(`Fetched ${processedData.length} user flashcards (page ${pageParam + 1})`);
         if (processedData.length > 0) {
           console.log('First card sample:', processedData[0]);
           console.log('Collection data:', processedData[0]?.collection);
         }
         
-        return processedData;
+        // Determine if there are more pages
+        const hasNextPage = offset + processedData.length < (count || 0);
+        const nextCursor = hasNextPage ? pageParam + 1 : null;
+        
+        return {
+          flashcards: processedData,
+          nextCursor,
+          totalCount: count || 0
+        };
         
       } else if (filter === 'official') {
         // For official cards, we need to query using the junction table to get official collections
         console.log('Fetching official flashcards (from official collections)');
         
+        // Count query for pagination
+        const { count, error: countError } = await supabase
+          .from('flashcards')
+          .select('*', { count: 'exact', head: true })
+          .eq('flashcard_collections_junction.collection.is_official', true);
+          
+        if (countError) throw countError;
+        
+        // Data query with pagination
         const { data, error } = await supabase
           .from('flashcards')
           .select(`
@@ -246,7 +283,9 @@ export default function AllFlashcards() {
               )
             )
           `)
-          .eq('flashcard_collections_junction.collection.is_official', true);
+          .eq('flashcard_collections_junction.collection.is_official', true)
+          .range(offset, offset + pageSize - 1)
+          .order('created_at', { ascending: false });
           
         if (error) {
           console.error('Error fetching official flashcards:', error);
@@ -264,13 +303,21 @@ export default function AllFlashcards() {
           return card;
         }) || [];
         
-        console.log(`Fetched ${processedData.length} official flashcards`);
+        console.log(`Fetched ${processedData.length} official flashcards (page ${pageParam + 1})`);
         if (processedData.length > 0) {
           console.log('First official card sample:', processedData[0]);
           console.log('Official collection data:', processedData[0]?.collection);
         }
         
-        return processedData;
+        // Determine if there are more pages
+        const hasNextPage = offset + processedData.length < (count || 0);
+        const nextCursor = hasNextPage ? pageParam + 1 : null;
+        
+        return {
+          flashcards: processedData,
+          nextCursor,
+          totalCount: count || 0
+        };
         
       } else {
         // For all cards, fetch with their collections
@@ -287,9 +334,15 @@ export default function AllFlashcards() {
         
         console.log(`Using filter condition: ${filterCondition}`);
         
-        // PRIVACY FIX: The previous implementation was fetching ALL flashcards without filtering,
-        // which allowed users to see other users' private flashcards. This fix ensures users
-        // can only see their own flashcards, plus official or public sample cards.
+        // Count query for pagination
+        const { count, error: countError } = await supabase
+          .from('flashcards')
+          .select('*', { count: 'exact', head: true })
+          .or(filterCondition);
+          
+        if (countError) throw countError;
+        
+        // Data query with pagination
         const { data, error } = await supabase
           .from('flashcards')
           .select(`
@@ -304,7 +357,9 @@ export default function AllFlashcards() {
             )
           `)
           // Only show the user's own flashcards or official/public ones
-          .or(filterCondition);
+          .or(filterCondition)
+          .range(offset, offset + pageSize - 1)
+          .order('created_at', { ascending: false });
           
         if (error) {
           console.error('Error fetching all flashcards:', error);
@@ -322,21 +377,34 @@ export default function AllFlashcards() {
           return card;
         }) || [];
         
-        console.log(`Fetched ${processedData.length} flashcards in total`);
+        console.log(`Fetched ${processedData.length} flashcards in total (page ${pageParam + 1})`);
         if (processedData.length > 0) {
           console.log('First card sample:', processedData[0]);
           console.log('Collection data:', processedData[0]?.collection);
         }
         
-        return processedData;
+        // Determine if there are more pages
+        const hasNextPage = offset + processedData.length < (count || 0);
+        const nextCursor = hasNextPage ? pageParam + 1 : null;
+        
+        return {
+          flashcards: processedData,
+          nextCursor,
+          totalCount: count || 0
+        };
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    keepPreviousData: true,
-    onSuccess: () => {
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  });
+
+  // Handle initialization when data is loaded (replacing onSuccess)
+  useEffect(() => {
+    if (flashcardsData?.pages && flashcardsData.pages.length > 0 && !initialLoadComplete) {
       setInitialLoadComplete(true);
     }
-  });
+  }, [flashcardsData, initialLoadComplete]);
 
   // Secondary query for relationships (won't block UI rendering)
   const { 
@@ -461,22 +529,27 @@ export default function AllFlashcards() {
   const [loggedPremiumCard, setLoggedPremiumCard] = useState(false);
   const [checkedForOfficialCards, setCheckedForOfficialCards] = useState(false);
 
-  // Debug function to check if any official cards exist - runs only once
+  // Fix the useEffect for checking official cards
   useEffect(() => {
     // Only run this once to avoid excessive logging
-    if (flashcardsData.length > 0 && !flashcardsLoading && !checkedForOfficialCards) {
+    if (flashcardsData?.pages && flashcardsData.pages.length > 0 && !flashcardsLoading && !checkedForOfficialCards) {
       setCheckedForOfficialCards(true);
       
       console.log('Checking for official cards...');
-      const officialCards = flashcardsData.filter(card => 
-        card.collection && card.collection.is_official === true
-      );
+      // Process and count official cards from all pages
+      const officialCards = flashcardsData.pages.flatMap(page => {
+        return page.flashcards.filter(card => {
+          return card.collection && card.collection.is_official === true;
+        });
+      });
       
-      console.log(`Found ${officialCards.length} official cards out of ${flashcardsData.length} total`);
+      // Get total count from the first page (all pages should have the same totalCount)
+      const totalCount = flashcardsData.pages[0]?.totalCount || 0;
+      console.log(`Found ${officialCards.length} official cards out of ${totalCount} total`);
       
       if (officialCards.length > 0 && !loggedPremiumCard) {
-        console.log('Premium card detected:', officialCards[0].collection);
-        setLoggedPremiumCard(true);
+        // Check if the user already has some premium access
+        return;
       }
     }
   }, [flashcardsData, flashcardsLoading, checkedForOfficialCards, loggedPremiumCard]);
@@ -501,18 +574,27 @@ export default function AllFlashcards() {
     return card.created_by === user?.id;
   }, [user?.id]);
   
-  // Process cards with basic information (without waiting for relationships)
+  // Process cards from all pages into a flat array
   const processedCards = useMemo(() => {
-    return flashcardsData.map(card => ({
-          ...card,
-      is_mastered: masteryStatus[card.id] || false,
-      // Add empty relationships as placeholder
-      relationships: {
-        collections: [],
-        subjects: [],
-        examTypes: []
-      }
-    }));
+    if (!flashcardsData?.pages) return [];
+    
+    // Flatten the pages array into a single array
+    const allCards = flashcardsData.pages.flatMap(page => page.flashcards || []);
+    
+    // Apply mastery data to cards
+    return allCards.map(card => {
+      const isMastered = masteryStatus?.[card.id] ?? false;
+      return {
+        ...card,
+        is_mastered: isMastered,
+        // Add empty relationships as placeholder
+        relationships: {
+          collections: [],
+          subjects: [],
+          examTypes: []
+        }
+      };
+    });
   }, [flashcardsData, masteryStatus]);
   
   // Enrich cards with relationships once they're loaded
@@ -818,6 +900,32 @@ export default function AllFlashcards() {
   const isInitialLoading = flashcardsLoading && !initialLoadComplete;
   const isRefining = initialLoadComplete && relationshipsLoading;
 
+  // Implement infinite scrolling
+  const observerTarget = useRef(null);
+  
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          console.log('Loading more flashcards...');
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+    
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
   // Render our enriched data
   if (showPaywall) {
     return <FlashcardPaywall onClose={handleClosePaywall} />;
@@ -1078,6 +1186,20 @@ export default function AllFlashcards() {
           <p className="text-sm text-gray-500 dark:text-gray-400 italic">
             Loading additional card details...
           </p>
+        </div>
+      )}
+
+      {/* Loading indicator for infinite scroll */}
+      {hasNextPage && (
+        <div 
+          ref={observerTarget} 
+          className="flex justify-center my-8"
+        >
+          {isFetchingNextPage ? (
+            <LoadingSpinner className="w-8 h-8 text-jdblue" />
+          ) : (
+            <div className="h-10"></div> /* Spacer for observer */
+          )}
         </div>
       )}
       </div>
