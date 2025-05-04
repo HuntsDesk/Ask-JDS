@@ -404,6 +404,12 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
   const sendMessage = useCallback(async (content: string) => {
     if (!threadId || !aiProvider.current) return null;
     
+    // We'll track if this is a new conversation with no messages yet
+    const isFirstLoadForThread = messages.length === 0;
+    
+    // Don't set loading to true when sending a message in an existing conversation
+    // This prevents the "Loading messages..." indicator from appearing
+    
     // First, immediately dismiss any existing toasts before any checks
     dismiss();
     
@@ -653,7 +659,8 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
   // Create the return object with all functionality - ensure consistent keys
   const returnObject = {
     messages,
-    loading,
+    // Only show loading for initial load, not during sending
+    loading: loading && messages.length === 0,
     loadingTimeout: toastTimeoutRef.current,
     isGenerating,
     sendMessage,
