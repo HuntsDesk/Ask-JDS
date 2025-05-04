@@ -319,9 +319,29 @@ export function Sidebar({
   const handleNavLinkClick = useCallback((path: string) => {
     console.log('Sidebar: Navigation link clicked, path:', path);
     
-    // Use React Router's navigate function with replace: false
-    // This preserves the current sidebar state in the history
-    navigate(path, { replace: false, state: { fromSidebar: true } });
+    // Special handling for chat route - go directly to most recent thread
+    if (path === '/chat' && sessions.length > 0) {
+      // Find the most recent thread (sessions are already sorted by date)
+      const mostRecentThread = sessions[0];
+      
+      console.log('Sidebar: Directly navigating to most recent thread:', mostRecentThread.id);
+      
+      // Set current thread ID context
+      setSelectedThreadId(mostRecentThread.id);
+      
+      // Set the active tab for parent component
+      setActiveTab(mostRecentThread.id);
+      
+      // Navigate directly to the thread
+      navigate(`/chat/${mostRecentThread.id}`, { 
+        replace: true, 
+        state: { fromSidebar: true }
+      });
+    } else {
+      // Use React Router's navigate function with replace: false for other routes
+      // This preserves the current sidebar state in the history
+      navigate(path, { replace: false, state: { fromSidebar: true } });
+    }
     
     // If on mobile, collapse the sidebar after navigation
     if (isMobile) {
@@ -332,7 +352,7 @@ export function Sidebar({
     
     // Prevent default link behavior by returning false
     return false;
-  }, [isMobile, onDesktopExpandedChange, setIsExpanded, navigate]);
+  }, [isMobile, onDesktopExpandedChange, setIsExpanded, navigate, sessions, setSelectedThreadId, setActiveTab]);
 
   // Toggle sidebar on mobile
   const toggleMobileSidebar = useCallback(() => {
@@ -355,7 +375,7 @@ export function Sidebar({
     },
     {
       name: 'Flashcards',
-      href: '/flashcards',
+      href: '/flashcards/study',
       icon: Library,
       current: location.pathname.startsWith('/flashcards'),
     },
