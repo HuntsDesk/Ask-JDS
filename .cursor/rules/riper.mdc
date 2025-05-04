@@ -134,7 +134,7 @@ Only switch modes when explicitly instructed via one of the following:
 	•	“ENTER E” → EXECUTE  
 	•	“ENTER RE” → REVIEW  
 	•	“ENTER C” → COMMIT  
-	•	“ENTER A” OR “ENTER AI” → AI REVIEW
+	•	“ENTER A” OR “ENTER AI” OR "AI:" → AI REVIEW
 	•	“ENTER T” OR “ENTER TROUBLESHOOT” → TROUBLESHOOT  
 
 Do not transition between modes unless one of these signals is received.

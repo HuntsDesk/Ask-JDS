@@ -201,27 +201,25 @@ export default function FlashcardsPage() {
         <Navbar />
         
         {/* Main content with top margin to clear navbar */}
-        <div className="flex-1 flex flex-col overflow-auto">
-          <PageContainer noOverflow className="pt-4" flexColumn>
-            <div className="flex-1 overflow-auto">
-              <Routes>
-                {routeElements}
-                
-                {/* Additional routes */}
-                <Route path="edit-collection/:id" element={<EditCollection />} />
-                <Route path="manage-cards/:collectionId" element={<ManageCards />} />
-                <Route path="subjects" element={<SuspenseManageSubjects />} />
-                <Route path="edit-subject/:id" element={<EditSubject />} />
-                <Route path="create-subject" element={<CreateSubject />} />
-                <Route path="create-flashcard-select" element={<CreateFlashcardSelect />} />
-                <Route path="create-flashcard/:subjectId?" element={<CreateFlashcard />} />
-                <Route path="search" element={<SearchResults />} />
-                
-                {/* Study routes */}
-                <Route path="study" element={<UnifiedStudyMode />} />
-                <Route path="*" element={<Navigate to="/flashcards/collections" />} />
-              </Routes>
-            </div>
+        <div className="flex-1 overflow-auto w-full">
+          <PageContainer disablePadding={false} className="pt-4 pb-12" maxWidth="full">
+            <Routes>
+              {routeElements}
+              
+              {/* Additional routes */}
+              <Route path="edit-collection/:id" element={<EditCollection />} />
+              <Route path="manage-cards/:collectionId" element={<ManageCards />} />
+              <Route path="subjects" element={<SuspenseManageSubjects />} />
+              <Route path="edit-subject/:id" element={<EditSubject />} />
+              <Route path="create-subject" element={<CreateSubject />} />
+              <Route path="create-flashcard-select" element={<CreateFlashcardSelect />} />
+              <Route path="create-flashcard/:subjectId?" element={<CreateFlashcard />} />
+              <Route path="search" element={<SearchResults />} />
+              
+              {/* Study routes */}
+              <Route path="study" element={<UnifiedStudyMode />} />
+              <Route path="*" element={<Navigate to="/flashcards/collections" />} />
+            </Routes>
           </PageContainer>
         </div>
       </StudyProvider>
@@ -236,6 +234,19 @@ function ProtectedResource({ checkAccess, component: Component, ...rest }: any) 
   const [loading, setLoading] = useState(false); // Start with not loading
   const [loadingTimeout, setLoadingTimeout] = useState(false);
   
+  // Add test functions for toggling subscription state
+  const toggleTestSubscription = () => {
+    if (process.env.NODE_ENV === 'development') {
+      const current = localStorage.getItem('forceSubscription');
+      const newValue = current === 'true' ? 'false' : 'true';
+      localStorage.setItem('forceSubscription', newValue);
+      console.log(`DEV: Test subscription set to ${newValue}`);
+      
+      // Force a reload to apply the change
+      window.location.reload();
+    }
+  };
+  
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | null = null;
     let longLoadingTimeoutId: NodeJS.Timeout | null = null;
@@ -248,30 +259,27 @@ function ProtectedResource({ checkAccess, component: Component, ...rest }: any) 
         setLoading(true);
       }, 300);
       
-      // Safety timeout to prevent infinite loading
+      // Set loading timeout after 10 seconds
       longLoadingTimeoutId = setTimeout(() => {
-        console.warn("ProtectedResource: Access check timed out after 8 seconds, defaulting to allow access");
-        setCanAccess(true);
-        setLoading(false);
-        setLoadingTimeout(false);
-      }, 8000);
+        setLoadingTimeout(true);
+      }, 10000);
       
       try {
-        if (id) {
-          const hasAccess = await checkAccess(id);
-          console.log("ProtectedResource: Access result:", hasAccess);
-          setCanAccess(hasAccess);
-        } else {
-          console.log("ProtectedResource: No ID provided, defaulting to allowed");
-          setCanAccess(true);
-        }
+        const hasAccess = await checkAccess(id);
+        setCanAccess(hasAccess);
+        console.log("ProtectedResource: Access check result:", hasAccess);
+        
       } catch (error) {
-        console.error("ProtectedResource: Error checking access:", error);
-        // Default to allowing access on error
-        setCanAccess(true);
+        console.error("ProtectedResource: Error during access check:", error);
+        // Default to no access on error for better security
+        setCanAccess(false);
       } finally {
-        if (timeoutId) clearTimeout(timeoutId);
-        if (longLoadingTimeoutId) clearTimeout(longLoadingTimeoutId);
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        if (longLoadingTimeoutId) {
+          clearTimeout(longLoadingTimeoutId);
+        }
         setLoading(false);
       }
     }
@@ -279,28 +287,78 @@ function ProtectedResource({ checkAccess, component: Component, ...rest }: any) 
     verifyAccess();
     
     return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      if (longLoadingTimeoutId) clearTimeout(longLoadingTimeoutId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      if (longLoadingTimeoutId) {
+        clearTimeout(longLoadingTimeoutId);
+      }
     };
   }, [id, checkAccess]);
   
-  console.log("ProtectedResource: Current state - loading:", loading, "canAccess:", canAccess);
-  
-  if (loading) {
+  // If loading or no decision yet, show loading state
+  if (loading || canAccess === null) {
     return (
-      <div className="flex justify-center items-center py-12 mt-6">
-        <LoadingSpinner size="lg" />
-        <p className="ml-2 text-gray-700 dark:text-gray-300">Checking access...</p>
+      <div className="flex h-screen items-center justify-center">
+        <LoadingSpinner className="w-10 h-10 text-jdblue" />
+        {loadingTimeout && (
+          <div className="text-center mt-4">
+            <p className="text-gray-600 dark:text-gray-300">This is taking longer than expected...</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">
+              Our servers might be experiencing high traffic.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
-  
-  // If access is not granted, this will trigger the paywall in the parent component
+
+  // If access is denied, show the subscription required page
   if (!canAccess) {
-    console.log("ProtectedResource: Access denied, returning null");
-    return null;
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-2xl mx-auto text-center bg-gray-50 dark:bg-gray-800 rounded-lg p-8 shadow-sm">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Premium Content</h1>
+          <p className="text-gray-600 dark:text-gray-300 mb-8">
+            This content is only available to premium members.
+          </p>
+          
+          <div className="space-y-4">
+            <div className="bg-white dark:bg-gray-700 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600">
+              <h2 className="text-lg font-medium text-gray-900 dark:text-white">Premium Benefits</h2>
+              <ul className="mt-2 space-y-1 text-gray-600 dark:text-gray-300 text-left list-disc pl-5">
+                <li>Access to all premium flashcards</li>
+                <li>Enhanced study materials</li>
+                <li>Exclusive practice questions</li>
+                <li>Advanced tracking features</li>
+              </ul>
+            </div>
+            
+            <Link 
+              to="/subscription" 
+              className="inline-block bg-jdblue hover:bg-jdblue-dark text-white font-medium py-2 px-6 rounded-md transition-colors"
+            >
+              Upgrade to Premium
+            </Link>
+          </div>
+          
+          {/* Development-only subscription toggle */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Developer Controls</p>
+              <button 
+                onClick={toggleTestSubscription}
+                className="text-sm bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 px-3 py-1 rounded"
+              >
+                Toggle Test Subscription
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   }
-  
-  console.log("ProtectedResource: Access granted, rendering component");
+
+  // If access is granted, render the requested component
   return <Component {...rest} />;
 } 
