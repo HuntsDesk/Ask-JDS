@@ -574,13 +574,85 @@ function AuthProviderComponent({ children }: { children: React.ReactNode }) {
     loading: authInstance.loading !== false,
     authInitialized: false,
     isAuthResolved: false,
-    signIn: async () => {},
-    signUp: async () => {},
-    signOut: async () => {},
-    resetPassword: async () => {},
-    updatePassword: async () => {},
-    resendOtp: async () => {},
-    verifyOtp: async () => false,
+    signIn: async (email: string, password: string) => {
+      try {
+        console.log('Signing in with email:', email);
+        const { data, error } = await supabase.auth.signInWithPassword({ 
+          email, 
+          password 
+        });
+        
+        console.log('Sign in response:', data ? 'has data' : 'no data', error ? 'has error' : 'no error');
+        
+        if (error) {
+          console.error('Sign in error:', error);
+        }
+        
+        return { error };
+      } catch (err) {
+        console.error('Exception during sign in:', err);
+        return { error: err instanceof Error ? err : new Error(String(err)) };
+      }
+    },
+    signUp: async (email: string, password: string) => {
+      try {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        return { error };
+      } catch (err) {
+        console.error('Sign up error:', err);
+        return { error: err instanceof Error ? err : new Error(String(err)) };
+      }
+    },
+    signOut: async () => {
+      try {
+        const { error } = await supabase.auth.signOut();
+        return { error };
+      } catch (err) {
+        console.error('Sign out error:', err);
+        return { error: err instanceof Error ? err : new Error(String(err)) };
+      }
+    },
+    resetPassword: async (email: string) => {
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        return { error };
+      } catch (err) {
+        console.error('Reset password error:', err);
+        return { error: err instanceof Error ? err : new Error(String(err)) };
+      }
+    },
+    updatePassword: async (password: string) => {
+      try {
+        const { error } = await supabase.auth.updateUser({ password });
+        return { error };
+      } catch (err) {
+        console.error('Update password error:', err);
+        return { error: err instanceof Error ? err : new Error(String(err)) };
+      }
+    },
+    resendOtp: async (email: string) => {
+      try {
+        const { error } = await supabase.auth.resend({ email, type: 'signup' });
+        return { error };
+      } catch (err) {
+        console.error('Resend OTP error:', err);
+        return { error: err instanceof Error ? err : new Error(String(err)) };
+      }
+    },
+    verifyOtp: async (email: string, token: string) => {
+      try {
+        const { data, error } = await supabase.auth.verifyOtp({ 
+          email, 
+          token, 
+          type: 'signup' 
+        });
+        
+        return !error && !!data.user;
+      } catch (err) {
+        console.error('Verify OTP error:', err);
+        return false;
+      }
+    },
     refreshUser: async () => null,
   });
 
