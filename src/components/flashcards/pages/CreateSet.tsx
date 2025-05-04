@@ -318,7 +318,7 @@ export default function CreateSet() {
                       const subject = subjects.find(s => s.id === id);
                       return (
                         <div key={id} className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-md flex items-center">
-                          <span className="text-sm">{subject?.name}</span>
+                          <span className="text-sm text-gray-800 dark:text-gray-200">{subject?.name}</span>
                           <button 
                             type="button" 
                             onClick={() => removeSubject(id)}
