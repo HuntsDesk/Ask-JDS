@@ -1071,3 +1071,20 @@ The flashcards module uses an optimized caching strategy:
 - **Prefetching**: Related data is prefetched in parallel queries
 
 This approach provides the best balance between performance and memory usage for large datasets.
+
+### Premium Content Handling
+
+When browsing flashcards, premium content is handled in two ways:
+
+1. **Filtering**: The 'Premium' tab filter shows only official content, using a custom query that finds cards where either:
+   - The card itself is marked as official (`is_official = true`)
+   - The card belongs to an official collection (`collection.is_official = true`)
+
+2. **Card Display**: Premium cards are visually distinguished with:
+   - An orange "PREMIUM CONTENT" banner at the top
+   - Locked content indication for users without a subscription
+   - Protected editing/deletion rights
+
+Access control is determined by:
+- `isCardPremium`: Checks if content should be treated as premium based on ownership and subscription status
+- `isFlashcardReadOnly`: Determines if a flashcard should be editable, protecting official content
