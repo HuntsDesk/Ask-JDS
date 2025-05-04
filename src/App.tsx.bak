@@ -1,0 +1,494 @@
+import React, { useEffect, useState, Suspense, lazy, createContext, useContext } from 'react';
+import { AuthProvider, useAuth } from '@/lib/auth';
+import { Toaster } from '@/components/ui/toaster';
+import { Toaster as HotToaster } from 'react-hot-toast';
+import { DomainProvider, useDomain } from '@/lib/domain-context';
+import SimplifiedMode from '@/lib/SimplifiedMode';
+import { NavbarProvider } from '@/contexts/NavbarContext';
+import { CloseProvider } from '@/contexts/close-context';
+import { PaywallProvider } from '@/contexts/paywall-context';
+import { LayoutDebugger } from '@/components/LayoutDebugger';
+
+// Direct imports for homepage components
+import { HomePage } from '@/components/HomePage';
+import { HomePage as JDSHomePage } from '@/components/jds/HomePage';
+
+// Import our new Navbar components
+import { JDSNavbar } from '@/components/jds/JDSNavbar';
+import { AskJDSNavbar } from '@/components/askjds/AskJDSNavbar';
+
+// Import the new PersistentLayout
+import { PersistentLayout } from '@/components/layout/PersistentLayout';
+
+// Lazy load large components
+const ChatLayout = lazy(() => import('@/components/chat/ChatLayout').then(module => ({ default: module.ChatLayout })));
+const AuthPage = lazy(() => import('@/components/auth/AuthPage').then(module => ({ default: module.AuthPage })));
+const FlashcardsPage = lazy(() => import('@/components/flashcards/FlashcardsPage'));
+const CoursesPage = lazy(() => import('@/components/courses/CoursesPage'));
+const CourseDetail = lazy(() => import('./components/admin/CourseDetail').then(module => ({ default: module.CourseDetail })));
+const PublicCourseDetail = lazy(() => import('@/components/courses/CourseDetail'));
+const CourseContent = lazy(() => import('@/components/courses/CourseContent'));
+const SubscriptionSuccess = lazy(() => import('@/components/SubscriptionSuccess').then(module => ({ default: module.SubscriptionSuccess })));
+
+// Import ChatContainer instead of using ChatLayout
+const ChatContainer = lazy(() => import('@/components/chat/ChatContainer').then(module => ({ default: module.default })));
+
+// Import Dashboard directly to avoid lazy loading issues
+import JDSDashboard from '@/pages/Dashboard';
+
+// Import directly for debugging purposes
+// import JDSDashboardDirect from '@/pages/Dashboard';
+
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
+import { 
+  Routes, 
+  Route, 
+  Navigate,
+  BrowserRouter
+} from 'react-router-dom';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import LoadingScreen from '@/components/ui/LoadingScreen';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle } from 'lucide-react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/lib/query-client';
+import { ThemeProvider } from '@/lib/theme-provider';
+
+// Import the AuthenticatedLayout component
+import { DashboardLayout } from './components/layout/DashboardLayout';
+import { CourseLayout } from './components/layout/CourseLayout';
+
+// Import settings page directly to prevent lazy loading issues with sidebar
+import { SettingsPage } from '@/components/settings/SettingsPage';
+
+// Import our admin components
+const AdminDashboard = lazy(() => import('@/components/admin/Dashboard').then(module => ({ default: module.default })));
+const AdminUsers = lazy(() => import('@/components/admin/Users').then(module => ({ default: module.default })));
+const AdminErrorLogs = lazy(() => import('@/components/admin/ErrorLogs').then(module => ({ default: module.default })));
+const AdminCourses = lazy(() => import('@/components/admin/Courses').then(module => ({ default: module.default })));
+const AdminFlashcards = lazy(() => import('@/components/admin/Flashcards').then(module => ({ default: module.default })));
+const AdminAskJDS = lazy(() => import('@/components/admin/AskJDS').then(module => ({ default: module.default })));
+const AdminSettings = lazy(() => import('@/components/admin/Settings').then(module => ({ default: module.default })));
+const SetAdminStatus = lazy(() => import('@/components/admin/SetAdmin').then(module => ({ default: module.default })));
+
+// Import SetAdminStatus directly for the setup route
+import SetAdminSetup from './components/admin/SetAdmin';
+
+// Import our wrapper instead of direct import
+import { JDSDashboardWrapper } from '@/components/jds/JDSDashboardWrapper';
+
+// Check if admin setup is allowed from environment variables
+const allowSetupAdmin = import.meta.env.VITE_ALLOW_ADMIN_SETUP === 'true';
+
+// Create sidebar context
+export type SidebarContextType = {
+  isExpanded: boolean;
+  setIsExpanded: (value: boolean) => void;
+  isMobile: boolean;
+};
+
+export const SidebarContext = createContext<SidebarContextType>({
+  isExpanded: true,
+  setIsExpanded: () => {},
+  isMobile: false
+});
+
+// Create thread context
+export type SelectedThreadContextType = {
+  selectedThreadId: string | null;
+  setSelectedThreadId: (threadId: string | null) => void;
+};
+
+export const SelectedThreadContext = createContext<SelectedThreadContextType>({
+  selectedThreadId: null,
+  setSelectedThreadId: () => {}
+});
+
+// Add a simple redirect component that doesn't trigger authentication initialization
+const SimpleRedirect = ({ to }: { to: string }) => {
+  return <Navigate to={to} replace />;
+};
+
+// Create router with domain-aware routes
+function AppRoutes() {
+  const { isJDSimplified, isAskJDS, isAdmin, getCurrentDomain } = useDomain();
+  
+  console.log('Rendering routes with isJDSimplified:', isJDSimplified, 'isAdmin:', isAdmin);
+  
+  // Admin domain routes
+  if (isAdmin) {
+    return (
+      <Routes>
+        <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route 
+          path="/admin/dashboard" 
+          element={
+            <ProtectedRoute element={
+              <Suspense fallback={<PageLoader message="Loading admin dashboard..." />}>
+                <AdminDashboard />
+              </Suspense>
+            } adminOnly={true} />
+          } 
+        />
+        <Route 
+          path="/admin/users" 
+          element={
+            <ProtectedRoute element={
+              <Suspense fallback={<PageLoader message="Loading user management..." />}>
+                <AdminUsers />
+              </Suspense>
+            } adminOnly={true} />
+          } 
+        />
+        <Route 
+          path="/admin/error-logs" 
+          element={
+            <ProtectedRoute element={
+              <Suspense fallback={<PageLoader message="Loading error logs..." />}>
+                <AdminErrorLogs />
+              </Suspense>
+            } adminOnly={true} />
+          } 
+        />
+        <Route 
+          path="/admin/courses" 
+          element={
+            <ProtectedRoute element={
+              <Suspense fallback={<PageLoader message="Loading courses management..." />}>
+                <AdminCourses />
+              </Suspense>
+            } adminOnly={true} />
+          } 
+        />
+        <Route 
+          path="/admin/courses/:courseId" 
+          element={
+            <ProtectedRoute element={
+              <Suspense fallback={<PageLoader message="Loading course details..." />}>
+                <CourseDetail />
+              </Suspense>
+            } adminOnly={true} />
+          } 
+        />
+        <Route 
+          path="/admin/flashcards" 
+          element={
+            <ProtectedRoute element={
+              <Suspense fallback={<PageLoader message="Loading flashcards management..." />}>
+                <AdminFlashcards />
+              </Suspense>
+            } adminOnly={true} />
+          } 
+        />
+        <Route 
+          path="/admin/askjds" 
+          element={
+            <ProtectedRoute element={
+              <Suspense fallback={<PageLoader message="Loading AskJDS management..." />}>
+                <AdminAskJDS />
+              </Suspense>
+            } adminOnly={true} />
+          } 
+        />
+        <Route 
+          path="/admin/settings" 
+          element={
+            <ProtectedRoute element={
+              <Suspense fallback={<PageLoader message="Loading admin settings..." />}>
+                <AdminSettings />
+              </Suspense>
+            } adminOnly={true} />
+          } 
+        />
+        <Route 
+          path="/admin/set-admin" 
+          element={
+            <ProtectedRoute element={
+              <Suspense fallback={<PageLoader message="Loading admin setup..." />}>
+                <SetAdminStatus />
+              </Suspense>
+            } adminOnly={true} />
+          } 
+        />
+        <Route
+          path="/admin/login"
+          element={
+            <Suspense fallback={<PageLoader message="Loading authentication..." />}>
+              <AuthPage isAdmin={true} />
+            </Suspense>
+          }
+        />
+        <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+      </Routes>
+    );
+  }
+  
+  // JD Simplified domain routes
+  if (isJDSimplified) {
+    return (
+      <Routes>
+        <Route path="/" element={<JDSHomePage />} />
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute element={
+              <JDSDashboardWrapper />
+            } />
+          } 
+        />
+        <Route 
+          path="/courses" 
+          element={
+            <ProtectedRoute element={
+              <Suspense fallback={<PageLoader message="Loading courses..." />}>
+                <CourseLayout>
+                  <CoursesPage />
+                </CourseLayout>
+              </Suspense>
+            } />
+          } 
+        />
+        <Route 
+          path="/courses/:courseId" 
+          element={
+            <ProtectedRoute element={
+              <Suspense fallback={<PageLoader message="Loading course details..." />}>
+                <CourseLayout>
+                  <PublicCourseDetail />
+                </CourseLayout>
+              </Suspense>
+            } />
+          } 
+        />
+        <Route 
+          path="/courses/:courseId/:contentId" 
+          element={
+            <ProtectedRoute element={
+              <Suspense fallback={<PageLoader message="Loading course content..." />}>
+                <CourseLayout>
+                  <CourseContent />
+                </CourseLayout>
+              </Suspense>
+            } />
+          } 
+        />
+        <Route 
+          path="/flashcards" 
+          element={
+            <ProtectedRoute element={
+              <Suspense fallback={<PageLoader message="Loading flashcards..." />}>
+                <FlashcardsPage />
+              </Suspense>
+            } />
+          } 
+        />
+        <Route 
+          path="/settings" 
+          element={
+            <ProtectedRoute element={<SettingsPage />} />
+          } 
+        />
+        <Route
+          path="/login"
+          element={
+            <Suspense fallback={<PageLoader message="Loading authentication..." />}>
+              <AuthPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/subscription/success"
+          element={
+            <Suspense fallback={<PageLoader message="Loading subscription success..." />}>
+              <SubscriptionSuccess />
+            </Suspense>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
+  }
+  
+  // Ask JDS domain routes (default)
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route
+        path="/auth"
+        element={
+          <Suspense fallback={<PageLoader message="Loading authentication..." />}>
+            <AuthPage />
+          </Suspense>
+        }
+      />
+      <Route 
+        path="/chat" 
+        element={
+          <ProtectedRoute element={
+            <Suspense fallback={<PageLoader message="Loading chat..." />}>
+              <PersistentLayout>
+                <ChatContainer />
+              </PersistentLayout>
+            </Suspense>
+          } />
+        } 
+      />
+      <Route 
+        path="/chat/:threadId" 
+        element={
+          <ProtectedRoute element={
+            <Suspense fallback={<PageLoader message="Loading thread..." />}>
+              <PersistentLayout>
+                <ChatContainer />
+              </PersistentLayout>
+            </Suspense>
+          } />
+        } 
+      />
+      <Route 
+        path="/dashboard" 
+        element={
+          <ProtectedRoute element={
+            <DashboardLayout>
+              <JDSDashboard />
+            </DashboardLayout>
+          } />
+        } 
+      />
+      <Route 
+        path="/courses" 
+        element={
+          <ProtectedRoute element={
+            <Suspense fallback={<PageLoader message="Loading courses..." />}>
+              <DashboardLayout>
+                <CoursesPage />
+              </DashboardLayout>
+            </Suspense>
+          } />
+        } 
+      />
+      <Route 
+        path="/courses/:courseId" 
+        element={
+          <ProtectedRoute element={
+            <Suspense fallback={<PageLoader message="Loading course details..." />}>
+              <DashboardLayout>
+                <PublicCourseDetail />
+              </DashboardLayout>
+            </Suspense>
+          } />
+        } 
+      />
+      <Route 
+        path="/courses/:courseId/:contentId" 
+        element={
+          <ProtectedRoute element={
+            <Suspense fallback={<PageLoader message="Loading course content..." />}>
+              <DashboardLayout>
+                <CourseContent />
+              </DashboardLayout>
+            </Suspense>
+          } />
+        } 
+      />
+      <Route 
+        path="/flashcards" 
+        element={
+          <ProtectedRoute element={
+            <Suspense fallback={<PageLoader message="Loading flashcards..." />}>
+              <DashboardLayout>
+                <FlashcardsPage />
+              </DashboardLayout>
+            </Suspense>
+          } />
+        } 
+      />
+      <Route 
+        path="/settings" 
+        element={
+          <ProtectedRoute element={
+            <DashboardLayout>
+              <SettingsPage />
+            </DashboardLayout>
+          } />
+        } 
+      />
+      {allowSetupAdmin && (
+        <Route 
+          path="/setup/admin" 
+          element={<SetAdminSetup />} 
+        />
+      )}
+      <Route
+        path="/subscription/success"
+        element={
+          <Suspense fallback={<PageLoader message="Loading subscription success..." />}>
+            <SubscriptionSuccess />
+          </Suspense>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+// Loading screen component
+function PageLoader({ message = "Loading..." }: { message?: string }) {
+  return <LoadingScreen message={message} />;
+}
+
+// Return the main app with auth provider and router
+function App() {
+  // Sidebar state
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  
+  const checkMobile = () => {
+    setIsMobile(window.innerWidth < 768);
+    if (window.innerWidth < 768) {
+      setIsExpanded(false);
+    }
+  };
+  
+  useEffect(() => {
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return (
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ThemeProvider>
+            <DomainProvider>
+              <CloseProvider>
+                <PaywallProvider>
+                  <BrowserRouter>
+                    <SidebarContext.Provider value={{ isExpanded, setIsExpanded, isMobile }}>
+                      <SelectedThreadContext.Provider value={{ selectedThreadId, setSelectedThreadId }}>
+                        <NavbarProvider>
+                          <AppRoutes />
+                          <Toaster />
+                          <HotToaster position="bottom-center" />
+                          <OfflineIndicator />
+                          
+                          {/* Debug UI when needed */}
+                          {import.meta.env.DEV && false && <LayoutDebugger />}
+                        </NavbarProvider>
+                      </SelectedThreadContext.Provider>
+                    </SidebarContext.Provider>
+                  </BrowserRouter>
+                </PaywallProvider>
+              </CloseProvider>
+            </DomainProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  );
+}
+
+export default App;
