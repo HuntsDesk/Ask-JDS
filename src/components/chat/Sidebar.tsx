@@ -507,7 +507,7 @@ export function Sidebar({
         </div>
 
         <ScrollArea className="flex-1 overflow-hidden custom-scrollbar bg-white dark:bg-gray-800 [&_[data-radix-scroll-area-viewport]]:block">
-          <div className="space-y-4 p-2 w-full max-w-full">
+          <div className="space-y-4 p-2 w-full">
             {sortedSessionEntries.map(([date, dateSessions]) => (
               <div key={date} className="space-y-1">
                 {isDesktopExpanded && (
@@ -540,7 +540,7 @@ export function Sidebar({
                         <button
                           onClick={() => handleThreadClick(session.id)}
                           className={cn(
-                            "w-full flex items-center gap-2 rounded-lg nav-item overflow-hidden",
+                            "w-full flex items-center gap-2 rounded-lg nav-item overflow-hidden text-left relative",
                             isDesktopExpanded ? "px-3 py-2" : "p-2 justify-center",
                             (selectedThreadId === session.id) ? 
                               "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300" : 
@@ -553,13 +553,37 @@ export function Sidebar({
                               (selectedThreadId === session.id) && "text-[#F37022] dark:text-orange-300"
                             )} 
                           />
-                          <span className={cn(
-                            "truncate min-w-0 flex-1 text-left text-sm",
-                            isDesktopExpanded ? "block" : "hidden",
-                            (selectedThreadId === session.id) && "font-medium text-[#F37022] dark:text-orange-300"
-                          )}>{session.title}</span>
+                          
+                          {/* Using absolute positioning for thread title to bypass layout issues */}
+                          {isDesktopExpanded && (
+                            <>
+                              {/* Invisible spacer to maintain button height */}
+                              <div className="invisible h-4 flex-1">A</div>
+                              
+                              {/* Absolutely positioned text that can't overflow */}
+                              <div 
+                                style={{
+                                  position: 'absolute',
+                                  left: '32px', /* icon width + padding */
+                                  right: selectedThreadId === session.id ? '24px' : '8px', /* leave space for chevron if selected */
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis'
+                                }}
+                                className={cn(
+                                  "text-sm",
+                                  (selectedThreadId === session.id) && "font-medium text-[#F37022] dark:text-orange-300"
+                                )}
+                              >
+                                {session.title}
+                              </div>
+                            </>
+                          )}
+                          
                           {isDesktopExpanded && (selectedThreadId === session.id) && (
-                            <ChevronRight className="w-4 h-4 shrink-0 text-[#F37022] dark:text-orange-300" />
+                            <ChevronRight className="w-4 h-4 shrink-0 text-[#F37022] dark:text-orange-300 ml-auto" />
                           )}
                         </button>
                       )}

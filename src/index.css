@@ -8,11 +8,11 @@
 }
 
 /* Thread title text overflow handling */
-.nav-item span.truncate {
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
-  max-width: 100%;
+.truncate {
+  text-overflow: ellipsis !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  max-width: 100% !important;
 }
 
 /* Add missing JD Simplified animations */
