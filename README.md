@@ -758,6 +758,35 @@ If you encounter "violates row-level security policy" errors, check that your op
 - **flashcard_progress**: Users can only manage their own progress records
 - **collections**: Users can only modify non-official collections they own
 
+### Authentication Redirect Loops
+
+If you encounter authentication redirect loops between `/auth` and protected routes:
+
+1. **Common Causes:**
+   - Multiple AuthProvider instances in the component tree
+   - React StrictMode double mounting causing auth state confusion
+   - Inconsistent auth state between components using context vs. direct API calls
+
+2. **Solutions:**
+   - Ensure there is only ONE AuthProvider at the root of the application
+   - Use the refs in AuthPage and ProtectedRoute to prevent repeated session checks
+   - Check session storage markers for better coordination between components
+   - See the implementation in ProtectedRoute.tsx and AuthPage.tsx for details
+
+3. **Important Notes:**
+   - React StrictMode intentionally mounts components twice in development mode
+   - This is normal and does not indicate a problem with your code
+   - In production, components will only mount once
+
+```tsx
+// Example of proper auth state checking with prevent-loop safeguards
+if (isAuthResolved && !user && !isCheckingSession && !didCheckSessionRef.current) {
+  // Perform manual session check just once per component instance
+  didCheckSessionRef.current = true;
+  // Session check logic...
+}
+```
+
 ## Console Commands
 
 These commands can be executed in the browser's developer console during development:

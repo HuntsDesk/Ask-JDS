@@ -6,7 +6,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Loader2, Info } from 'lucide-react';
 import { Message } from '@/types';
 import { ChatMessage } from './ChatMessage';
-import { PageContainer } from '@/components/ui/page-container';
+import PageContainer from '@/components/layout/PageContainer';
 
 interface ChatInterfaceProps {
   threadId: string | null;
