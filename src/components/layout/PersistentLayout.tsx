@@ -82,7 +82,22 @@ export function PersistentLayout() {
       {isExpanded && !isDesktop && (
         <div 
           className="fixed inset-0 bg-black/50 z-20"
-          onClick={() => setIsExpanded(false)}
+          onClick={() => {
+            console.log('Mobile overlay clicked, closing sidebar');
+            setIsExpanded(false);
+            // Force additional DOM updates to ensure sidebar closes
+            if (window.innerWidth < 768) {
+              // Add a class to body to track sidebar state
+              document.body.classList.remove('sidebar-open');
+              // Use direct DOM manipulation as a fallback
+              const sidebar = document.querySelector('.sidebar-container');
+              if (sidebar) {
+                sidebar.classList.add('sidebar-hidden-mobile');
+                sidebar.classList.add('-translate-x-full');
+                sidebar.classList.add('opacity-0');
+              }
+            }
+          }}
         />
       )}
 

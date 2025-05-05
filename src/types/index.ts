@@ -26,7 +26,7 @@ export interface Thread {
 export interface Message {
   id: string;
   content: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   thread_id: string;
   user_id: string;
   created_at: string;

@@ -86,7 +86,7 @@ export default function AllFlashcards() {
   const [hasSubscription, setHasSubscription] = useState<boolean>(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
-  const { updateTotalCardCount } = useNavbar();
+  const { updateTotalCardCount, updateCount } = useNavbar();
   const [masteringCardId, setMasteringCardId] = useState<string | null>(null);
   const [pageSize] = useState(30); // Number of cards to fetch per page
 
@@ -953,10 +953,14 @@ export default function AllFlashcards() {
 
   // Update card count in navbar
   useEffect(() => {
-    if (!flashcardsLoading && filteredCards.length >= 0) {
-      updateTotalCardCount(filteredCards.length);
+    // Only update counts when data is loaded
+    if (!flashcardsLoading && flashcardsData?.pages?.[0]?.totalCount !== undefined) {
+      const totalFlashcardCount = flashcardsData.pages[0].totalCount;
+      // Use the same total count for both displays to keep them consistent
+      updateCount(totalFlashcardCount);
+      updateTotalCardCount(totalFlashcardCount);
     }
-  }, [filteredCards.length, updateTotalCardCount, flashcardsLoading]);
+  }, [flashcardsData?.pages, updateCount, updateTotalCardCount, flashcardsLoading]);
 
   // Calculate loading states
   const isInitialLoading = flashcardsLoading && !initialLoadComplete;
@@ -995,8 +999,8 @@ export default function AllFlashcards() {
 
   // Show skeleton loaders during initial data loading
   if (flashcardsLoading && !initialLoadComplete) {
-  return (
-      <div className="w-full max-w-6xl mx-auto px-4 pb-20 md:pb-10">
+    return (
+      <div className="w-full max-w-6xl mx-auto pb-20 md:pb-8 px-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
@@ -1021,7 +1025,7 @@ export default function AllFlashcards() {
 
   if (isFlashcardsError && flashcardsError instanceof Error) {
     return (
-      <div className="w-full max-w-6xl mx-auto px-4 pb-20 md:pb-10">
+      <div className="w-full max-w-6xl mx-auto pb-20 md:pb-8 px-4">
         <ErrorMessage 
           title="Could not load flashcards" 
           message={flashcardsError.message} 
@@ -1031,15 +1035,15 @@ export default function AllFlashcards() {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 pb-20 md:pb-10">
-        <DeleteConfirmation
-          isOpen={!!cardToDelete}
-          onClose={() => setCardToDelete(null)}
-          onConfirm={deleteCard}
-          title="Delete Flashcard"
-          message="Are you sure you want to delete this flashcard? This action cannot be undone."
-          itemName={cardToDelete?.question}
-        />
+    <div className="w-full max-w-6xl mx-auto pb-20 md:pb-8 px-4">
+      <DeleteConfirmation
+        isOpen={!!cardToDelete}
+        onClose={() => setCardToDelete(null)}
+        onConfirm={deleteCard}
+        title="Delete Flashcard"
+        message="Are you sure you want to delete this flashcard? This action cannot be undone."
+        itemName={cardToDelete?.question}
+      />
 
       {toast && (
         <Toast
@@ -1047,59 +1051,70 @@ export default function AllFlashcards() {
           type={toast.type}
           onClose={hideToast}
         />
-        )}
-        
-      <div className="flex items-center justify-between mb-8">
-            <div className="flex flex-col">
-              <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">Flashcards</h1>
-              <p className="text-gray-600 dark:text-gray-300">
-                {flashcardsData?.pages?.[0]?.totalCount || 0} {(flashcardsData?.pages?.[0]?.totalCount || 0) === 1 ? 'card' : 'cards'}
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex items-center gap-1 border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
-                  onClick={() => setShowFilters(!showFilters)}
-                >
-                  {showFilters ? <FilterX className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
-                  {showFilters ? 'Hide Filters' : 'Filter'}
-                </Button>
-              </div>
-
-              <div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="flex items-center gap-1 border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
-                  onClick={handleToggleMastered}
-                >
-                  {showMastered ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  {showMastered ? 'Hide Mastered' : 'Show Mastered'}
-                </Button>
-              </div>
-              
-              <div>
-                <Tabs value={filter} onValueChange={handleFilterChange} className="w-[340px]">
-                  <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
-                    <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
-                    <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
-                    <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Cards</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-            </div>
+      )}
+      
+      {/* Desktop layout */}
+      <div className="hidden md:block mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              {flashcardsData?.pages?.[0]?.totalCount || 0} {(flashcardsData?.pages?.[0]?.totalCount || 0) === 1 ? 'card' : 'cards'}
+            </p>
+          </div>
+          
+          <div className="w-[340px]">
+            <Tabs value={filter} onValueChange={handleFilterChange}>
+              <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+                <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+                <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+                <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Cards</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
+      </div>
 
-        {/* Filters */}
-        {showFilters && (
+      {/* Mobile layout - only filter tabs */}
+      <div className="md:hidden mb-6">
+        <Tabs value={filter} onValueChange={handleFilterChange}>
+          <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+            <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+            <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+            <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Cards</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      
+      {/* Filter controls */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-1 border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
+          onClick={() => setShowFilters(!showFilters)}
+        >
+          {showFilters ? <FilterX className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
+          {showFilters ? 'Hide Filters' : 'Filter'}
+        </Button>
+        
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-1 border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
+          onClick={handleToggleMastered}
+        >
+          {showMastered ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          {showMastered ? 'Hide Mastered' : 'Show Mastered'}
+        </Button>
+      </div>
+
+      {/* Filters */}
+      {showFilters && (
         <div className="mb-6 p-4 border dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800/70">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Subject filter */}
-              <div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subject</label>
               <div className="flex flex-col gap-2">
                 <select
@@ -1138,10 +1153,10 @@ export default function AllFlashcards() {
                   </div>
                 )}
               </div>
-              </div>
-              
+            </div>
+            
             {/* Collection filter */}
-              <div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Collection</label>
               <div className="flex flex-col gap-2">
                 <select
@@ -1180,11 +1195,11 @@ export default function AllFlashcards() {
                   </div>
                 )}
               </div>
-              </div>
             </div>
           </div>
-        )}
-        
+        </div>
+      )}
+      
       {flashcardsLoading && initialLoadComplete && (
         <div className="flex justify-center my-8">
           <LoadingSpinner className="w-8 h-8 text-jdblue" />
@@ -1192,7 +1207,7 @@ export default function AllFlashcards() {
       )}
 
       {!flashcardsLoading && filteredCards.length === 0 && (
-                <EmptyState 
+        <EmptyState 
           title="No flashcards found"
           description={
             selectedSubjectIds.length > 0 || selectedCollectionIds.length > 0 
@@ -1212,7 +1227,7 @@ export default function AllFlashcards() {
       )}
 
       {filteredCards.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {filteredCards.map((card) => {
             const isMastered = masteryStatus[card.id];
             const isPremium = isCardPremium(card);
@@ -1225,17 +1240,17 @@ export default function AllFlashcards() {
                 key={card.id}
                 id={card.id}
                 question={card.question}
-                answer={isPremium ? "Premium content requires a subscription." : card.answer}
+                answer={card.answer}
                 collectionTitle={card.collection?.title || "No Collection"}
                 isPremium={isPremium}
                 isLocked={isLocked}
                 isReadOnly={isReadOnly}
                 isMastered={isMastered}
                 isToggling={masteringCardId === card.id}
-                onView={() => handleViewCard(card)}
+                onToggleMastered={() => toggleMastered(card)}
                 onEdit={() => handleEditCard(card)}
                 onDelete={() => handleDeleteClick(card)}
-                onToggleMastered={() => toggleMastered(card)}
+                onView={() => handleViewCard(card)}
                 onUnlock={handleShowPaywall}
               />
             );
@@ -1243,27 +1258,18 @@ export default function AllFlashcards() {
         </div>
       )}
 
-      {relationshipsLoading && filteredCards.length > 0 && (
-        <div className="flex justify-center my-8">
-          <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-            Loading additional card details...
-          </p>
+      {/* Observation target for infinite scroll */}
+      {hasNextPage && !isFetchingNextPage && filteredCards.length > 0 && (
+        <div ref={observerTarget} className="h-10 flex justify-center items-center my-8">
+          <LoadingSpinner className="w-5 h-5 text-jdblue" />
         </div>
       )}
 
-      {/* Loading indicator for infinite scroll */}
-      {hasNextPage && (
-        <div 
-          ref={observerTarget} 
-          className="flex justify-center my-8"
-        >
-          {isFetchingNextPage ? (
-            <LoadingSpinner className="w-8 h-8 text-jdblue" />
-          ) : (
-            <div className="h-10"></div> /* Spacer for observer */
-          )}
+      {isFetchingNextPage && (
+        <div className="flex justify-center my-8">
+          <LoadingSpinner className="w-8 h-8 text-jdblue" />
         </div>
       )}
-      </div>
+    </div>
   );
 } 

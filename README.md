@@ -390,6 +390,70 @@ The application follows a consistent style guide for UI elements:
 }
 ```
 
+### Chat Interface
+
+The chat interface is a core component of the application, providing a clean and responsive experience for user-AI interactions:
+
+#### Key UI Features
+
+1. **Optimistic Message Updates**
+   - User messages appear instantly without waiting for server response
+   - Prevents UI flashing with a message locking mechanism when updates occur
+   - Uses a single source of truth for message state with controlled updates
+
+2. **Auto-Focus Behavior**
+   - Input field automatically focuses when:
+     - Creating a new chat
+     - Switching between threads
+     - After sending a message
+   - Uses a ref-based focus system exposed to parent components
+
+3. **Responsive Layout**
+   - Adapts to both desktop and mobile viewports
+   - Mobile-specific header with hamburger menu
+   - Vertical space optimization for maximum message visibility
+
+4. **Message Bubbles**
+   - Compact design with balanced vertical spacing
+   - User messages: Orange (#F37022) with white text
+   - AI messages: Light gray (or dark gray in dark mode)
+   - Padding: py-2 px-3 for optimal readability
+   - Font size: text-xs on mobile, text-sm on desktop
+   - Leading-tight for compact vertical spacing
+
+5. **Scrolling Behavior**
+   - Auto-scrolls to bottom on new messages
+   - Scroll-to-top button appears after scrolling down
+   - Maintains scroll position during AI response generation
+   - Keeps user at the latest message during conversations
+
+6. **Input Area**
+   - Height: 48px (h-12) for balanced visual rhythm with message bubbles
+   - Auto-expanding textarea that grows with content
+   - Enter to send, Shift+Enter for new line
+   - Disabled state during message submission
+
+7. **Loading States**
+   - Distinct loading states for initial load and AI response generation
+   - Retry option appears after extended loading time (10s)
+   - Animated indicators for active processes
+
+#### Component Structure
+
+The chat interface comprises several key components:
+- `ChatInterface`: Main container and logic controller
+- `ChatMessage`: Individual message bubble rendering
+- Message container with optimized scrolling
+- Input area with expanding textarea
+
+#### Design Principles
+
+- **Density Optimization**: Compact but readable design for maximum information density
+- **Visual Rhythm**: Consistent spacing (40px sidebar elements, ~38px message bubbles, 48px input)
+- **Minimal Transitions**: Only essential animations to prevent visual noise
+- **Error Handling**: Clear error states with recovery options
+- **Performance Focus**: Optimized rendering to prevent jank during fast interactions
+
 ### Dark Mode
 For dark mode, the palette shifts to darker backgrounds and lighter text:
 

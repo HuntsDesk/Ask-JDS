@@ -7,6 +7,8 @@ interface NavbarContextType {
   totalCardCount: number;
   updateTotalCollectionCount: (count: number) => void;
   updateTotalCardCount: (count: number) => void;
+  currentCardIndex: number;
+  updateCurrentCardIndex: (index: number) => void;
 }
 
 const NavbarContext = createContext<NavbarContextType | undefined>(undefined);
@@ -15,6 +17,7 @@ export function NavbarProvider({ children }: { children: React.ReactNode }) {
   const [itemCount, setItemCount] = useState(0);
   const [totalCollectionCount, setTotalCollectionCount] = useState(0);
   const [totalCardCount, setTotalCardCount] = useState(0);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
 
   const updateCount = (count: number) => {
     setItemCount(count);
@@ -28,6 +31,10 @@ export function NavbarProvider({ children }: { children: React.ReactNode }) {
     setTotalCardCount(count);
   };
 
+  const updateCurrentCardIndex = (index: number) => {
+    setCurrentCardIndex(index);
+  };
+
   return (
     <NavbarContext.Provider value={{ 
       updateCount, 
@@ -35,7 +42,9 @@ export function NavbarProvider({ children }: { children: React.ReactNode }) {
       totalCollectionCount,
       totalCardCount,
       updateTotalCollectionCount,
-      updateTotalCardCount
+      updateTotalCardCount,
+      currentCardIndex,
+      updateCurrentCardIndex
     }}>
       {children}
     </NavbarContext.Provider>

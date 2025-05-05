@@ -395,8 +395,8 @@ export function Sidebar({
 
   return (
     <>
-      {/* Main Sidebar - no redundant mobile burger button */}
-      <div 
+      {/* Main sidebar container */}
+      <div
         className={cn(
           "fixed inset-y-0 left-0 flex flex-col bg-background border-r transition-all duration-300 sidebar-transition sidebar-container",
           // Desktop state
@@ -404,11 +404,13 @@ export function Sidebar({
           !isMobile && (isDesktopExpanded ? "w-[var(--sidebar-width)] expanded" : "w-[var(--sidebar-collapsed-width)] collapsed"),
           // Mobile state - directly use isDesktopExpanded from parent
           isMobile && !isDesktopExpanded ? "opacity-0 pointer-events-none w-0 -translate-x-full sidebar-hidden-mobile" : "",
-          isMobile && isDesktopExpanded ? "w-[var(--sidebar-width)] shadow-xl expanded z-[60]" : ""
+          isMobile && isDesktopExpanded ? "w-[var(--sidebar-width)] shadow-xl expanded z-[60] transform translate-x-0 opacity-100" : ""
         )}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         style={{ overflow: 'hidden' }}
+        data-mobile={isMobile}
+        data-expanded={isDesktopExpanded}
       >
         <div className="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b dark:border-gray-700">
           <div className={cn(
@@ -422,6 +424,19 @@ export function Sidebar({
                   console.log('Sidebar: Mobile close button clicked');
                   onDesktopExpandedChange(false);
                   setIsExpanded(false);
+                  // Add a direct call to the parent's setIsExpanded via context if available
+                  if (window.innerWidth < 768) {
+                    // Force the sidebar to close for mobile
+                    document.body.classList.remove('sidebar-open');
+                    // Use direct DOM manipulation as a fallback to ensure sidebar closes 
+                    const sidebar = document.querySelector('.sidebar-container');
+                    if (sidebar) {
+                      sidebar.classList.add('sidebar-hidden-mobile');
+                      sidebar.classList.add('-translate-x-full');
+                      sidebar.classList.add('opacity-0');
+                      sidebar.classList.add('pointer-events-none');
+                    }
+                  }
                 }}
                 className="absolute right-2 p-2.5 rounded-md text-muted-foreground hover:bg-muted dark:hover:bg-gray-700 bg-background/80 dark:bg-gray-800/80"
                 aria-label="Close sidebar"
@@ -507,7 +522,7 @@ export function Sidebar({
         </div>
 
         <ScrollArea className="flex-1 overflow-hidden custom-scrollbar bg-white dark:bg-gray-800 [&_[data-radix-scroll-area-viewport]]:block">
-          <div className="space-y-4 p-2 w-full max-w-full">
+          <div className="space-y-4 p-2 w-full">
             {sortedSessionEntries.map(([date, dateSessions]) => (
               <div key={date} className="space-y-1">
                 {isDesktopExpanded && (
@@ -540,7 +555,7 @@ export function Sidebar({
                         <button
                           onClick={() => handleThreadClick(session.id)}
                           className={cn(
-                            "w-full flex items-center gap-2 rounded-lg nav-item overflow-hidden",
+                            "w-full flex items-center gap-2 rounded-lg nav-item overflow-hidden text-left relative",
                             isDesktopExpanded ? "px-3 py-2" : "p-2 justify-center",
                             (selectedThreadId === session.id) ? 
                               "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300" : 
@@ -553,13 +568,38 @@ export function Sidebar({
                               (selectedThreadId === session.id) && "text-[#F37022] dark:text-orange-300"
                             )} 
                           />
-                          <span className={cn(
-                            "truncate min-w-0 flex-1 text-left text-sm",
-                            isDesktopExpanded ? "block" : "hidden",
-                            (selectedThreadId === session.id) && "font-medium text-[#F37022] dark:text-orange-300"
-                          )}>{session.title}</span>
+                          
+                          {/* Using absolute positioning for thread title to bypass layout issues */}
+                          {isDesktopExpanded && (
+                            <>
+                              {/* Invisible spacer to maintain button height */}
+                              <div className="invisible h-4 flex-1">A</div>
+                              
+                              {/* Absolutely positioned text that can't overflow */}
+                              <div 
+                                style={{
+                                  position: 'absolute',
+                                  left: '32px', /* icon width + padding */
+                                  right: selectedThreadId === session.id ? '24px' : '8px', /* leave space for chevron if selected */
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  width: 'calc(100% - 40px)' /* Ensure width is calculated correctly */
+                                }}
+                                className={cn(
+                                  "text-sm truncate",
+                                  (selectedThreadId === session.id) && "font-medium text-[#F37022] dark:text-orange-300"
+                                )}
+                              >
+                                {session.title}
+                              </div>
+                            </>
+                          )}
+                          
                           {isDesktopExpanded && (selectedThreadId === session.id) && (
-                            <ChevronRight className="w-4 h-4 shrink-0 text-[#F37022] dark:text-orange-300" />
+                            <ChevronRight className="w-4 h-4 shrink-0 text-[#F37022] dark:text-orange-300 ml-auto" />
                           )}
                         </button>
                       )}

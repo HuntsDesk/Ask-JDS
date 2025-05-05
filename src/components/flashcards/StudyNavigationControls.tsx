@@ -46,9 +46,10 @@ export function StudyNavigationControls({
           onClick={onPrev}
           disabled={!hasPrev}
           intent="secondary"
-          className="flex w-16 items-center justify-center"
+          className="flex w-12 md:w-16 items-center justify-center"
         >
-          <ArrowLeftCircleIcon className="h-5 w-5" />
+          <ArrowLeftCircleIcon className="h-4 w-4 md:h-5 md:w-5" />
+          <span className="hidden md:inline ml-1">Previous</span>
         </Button>
 
         {/* Center controls */}
@@ -63,7 +64,7 @@ export function StudyNavigationControls({
                 intent="success"
                 className="flex flex-1 items-center justify-center gap-1 sm:flex-initial"
               >
-                <CheckCircleIcon className="h-5 w-5" />
+                <CheckCircleIcon className="h-4 w-4 md:h-5 md:w-5" />
                 <span className="hidden sm:inline">Correct</span>
               </Button>
 
@@ -75,7 +76,7 @@ export function StudyNavigationControls({
                 intent="danger"
                 className="flex flex-1 items-center justify-center gap-1 sm:flex-initial"
               >
-                <XCircleIcon className="h-5 w-5" />
+                <XCircleIcon className="h-4 w-4 md:h-5 md:w-5" />
                 <span className="hidden sm:inline">Incorrect</span>
               </Button>
             </>
@@ -85,7 +86,7 @@ export function StudyNavigationControls({
               intent="primary"
               className="flex flex-1 items-center justify-center gap-1 sm:flex-initial"
             >
-              <EyeIcon className="h-5 w-5" />
+              <EyeIcon className="h-4 w-4 md:h-5 md:w-5" />
               <span>Show Answer</span>
             </Button>
           )}
@@ -96,9 +97,10 @@ export function StudyNavigationControls({
           onClick={onNext}
           disabled={!hasNext}
           intent="secondary"
-          className="flex w-16 items-center justify-center"
+          className="flex w-12 md:w-16 items-center justify-center"
         >
-          <ArrowRightCircleIcon className="h-5 w-5" />
+          <ArrowRightCircleIcon className="h-4 w-4 md:h-5 md:w-5" />
+          <span className="hidden md:inline ml-1">Next</span>
         </Button>
       </div>
 
@@ -110,8 +112,8 @@ export function StudyNavigationControls({
           size="small"
           className="flex items-center gap-1 text-xs"
         >
-          <ArrowPathIcon className="h-4 w-4" />
-          <span>Shuffle</span>
+          <ArrowPathIcon className="h-3 w-3 md:h-4 md:w-4" />
+          <span className="hidden sm:inline">Shuffle</span>
         </Button>
 
         <Button
@@ -123,11 +125,16 @@ export function StudyNavigationControls({
           }`}
         >
           {isMastered ? (
-            <BookmarkSolidIcon className="h-4 w-4" />
+            <BookmarkSolidIcon className="h-3 w-3 md:h-4 md:w-4" />
           ) : (
-            <BookmarkIcon className="h-4 w-4" />
+            <BookmarkIcon className="h-3 w-3 md:h-4 md:w-4" />
           )}
-          <span>{isMastered ? "Unmark Mastered" : "Mark Mastered"}</span>
+          <span className="hidden xs:inline md:inline">
+            {isMastered ? "Unmark" : "Mark"}
+          </span>
+          <span className="hidden xs:hidden sm:inline">
+            {isMastered ? " Mastered" : " Mastered"}
+          </span>
         </Button>
       </div>
     </div>
