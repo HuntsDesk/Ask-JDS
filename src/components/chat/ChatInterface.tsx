@@ -7,6 +7,7 @@ import { Loader2, Info } from 'lucide-react';
 import { Message } from '@/types';
 import { ChatMessage } from './ChatMessage';
 import PageContainer from '@/components/layout/PageContainer';
+import { useLayoutState } from '@/hooks/useLayoutState';
 
 interface ChatInterfaceProps {
   threadId: string | null;
@@ -63,6 +64,14 @@ export function ChatInterface({
   // Create a single state for all messages including optimistic ones
   // This prevents any possibility of merging conflicts
   const [allMessages, setAllMessages] = useState<Message[]>(messages);
+  
+  // Get layout state to handle sidebar visibility
+  const { isExpanded: isSidebarExpanded, isMobile } = useLayoutState();
+  
+  // Create conditional style for the input container to prevent it touching the sidebar
+  const inputContainerStyle = useMemo(() => ({
+    paddingLeft: isMobile && isSidebarExpanded ? 'var(--sidebar-width)' : '1rem'
+  }), [isMobile, isSidebarExpanded]);
   
   // Update allMessages whenever server messages change, but only if not currently updating
   useEffect(() => {
@@ -385,7 +394,7 @@ export function ChatInterface({
         </div>
       </div>
       
-      <div className="input-container px-4 py-1 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
+      <div className="input-container py-1 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg" style={inputContainerStyle}>
         <div className="max-w-4xl mx-auto mb-0">
           {sendError && (
             <div className="mb-1 p-2 text-sm rounded bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">
