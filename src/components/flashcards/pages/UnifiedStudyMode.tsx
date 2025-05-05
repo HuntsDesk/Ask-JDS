@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   ArrowLeft, ArrowRight, Rotate3D as Rotate, BookOpen, Shuffle, 
   Check, Edit, EyeOff, Eye, FileEdit, FolderCog, ChevronLeft, 
-  Settings, PlusCircle, FileText, Lock, Filter, FilterX, Tag, Layers
+  Settings, PlusCircle, FileText, Lock, Filter, FilterX, Tag, Layers, Loader2
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import LoadingSpinner from '../LoadingSpinner';
@@ -17,6 +17,7 @@ import { useAuth } from '@/lib/auth';
 import { Flashcard, Subject, ExamType, FlashcardCollection } from '@/types';
 import { useNavbar } from '../../../contexts/NavbarContext';
 import { useLayoutState } from '@/hooks/useLayoutState';
+import { SkeletonStudyCard } from '../SkeletonFlashcard';
 
 interface FilterState {
   subjects: string[];
@@ -45,6 +46,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   
   // Data states
   const [cards, setCards] = useState<Flashcard[]>([]);
+  const [sampleCards, setSampleCards] = useState<Flashcard[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [examTypes, setExamTypes] = useState<ExamType[]>([]);
   const [collections, setCollections] = useState<FlashcardCollection[]>([]);
@@ -54,6 +56,8 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sampleCardsLoaded, setSampleCardsLoaded] = useState(false);
+  const [loadingRemainingCards, setLoadingRemainingCards] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSubscription, setHasSubscription] = useState<boolean | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
@@ -68,6 +72,122 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     showCommonPitfalls: false,
     showMastered: false
   });
+
+  // Define resetFilters early to avoid circular references
+  const resetFilters = () => {
+    // Get the current search params
+    const searchParams = new URLSearchParams(location.search);
+    const subjectParam = searchParams.get('subject');
+    const collectionParam = searchParams.get('collection');
+    
+    // Create a new filter object with only the essential filters
+    let newFilters: FilterState = {
+      subjects: [],
+      examTypes: [],
+      collections: [],
+      difficultyLevels: [],
+      showCommonPitfalls: false,
+      showMastered: false // Hide mastered cards by default
+    };
+    
+    // Maintain the subject or collection filter from the URL
+    if (subjectParam) {
+      newFilters.subjects = [subjectParam];
+    } else if (collectionParam) {
+      newFilters.collections = [collectionParam];
+    } else if (routeMode === 'subject' && routeId) {
+      newFilters.subjects = [routeId];
+    } else if (routeMode === 'collection' && routeId) {
+      newFilters.collections = [routeId];
+    }
+    
+    // Apply the new filters
+    setFilters(newFilters);
+    console.log("UnifiedStudyMode: Filters reset to:", newFilters);
+  };
+
+  // Refs to track latest state values
+  const filteredCardsRef = useRef<Flashcard[]>([]);
+  const hasSubscriptionRef = useRef<boolean | null>(null);
+
+  // Update refs when state changes
+  useEffect(() => {
+    filteredCardsRef.current = filteredCards;
+  }, [filteredCards]);
+
+  useEffect(() => {
+    hasSubscriptionRef.current = hasSubscription;
+  }, [hasSubscription]);
+
+  // Listen for filter toggle events from navbar
+  useEffect(() => {
+    const handleFilterToggle = (event: any) => {
+      if (event.detail && typeof event.detail.isOpen !== 'undefined') {
+        setShowFilters(event.detail.isOpen);
+      } else {
+        setShowFilters(prev => !prev);
+      }
+    };
+    
+    // Listen for shuffle cards events from navbar
+    const handleShuffleEvent = () => {
+      // Call the shuffleCards function directly
+      console.log("UnifiedStudyMode: Shuffle event received, shuffling cards...");
+      
+      // Get a copy of the filtered cards using ref for latest value
+      const cardsToShuffle = [...filteredCardsRef.current];
+      
+      if (cardsToShuffle.length === 0) {
+        console.log("UnifiedStudyMode: No cards to shuffle, resetting filters");
+        resetFilters();
+        return;
+      }
+      
+      console.log(`UnifiedStudyMode: Shuffling ${cardsToShuffle.length} cards`);
+      
+      // Shuffle the cards
+      let shuffledCards;
+      if (!hasSubscriptionRef.current) {
+        // Separate public samples from regular cards
+        const publicSamples = cardsToShuffle.filter(card => card.is_public_sample);
+        const regularCards = cardsToShuffle.filter(card => !card.is_public_sample);
+        
+        // Shuffle the public samples among themselves
+        const shuffledSamples = publicSamples
+          .map(value => ({ value, sort: Math.random() }))
+          .sort((a, b) => a.sort - b.sort)
+          .map(({ value }) => value);
+        
+        // Shuffle only the regular cards
+        const shuffledRegular = regularCards
+          .map(value => ({ value, sort: Math.random() }))
+          .sort((a, b) => a.sort - b.sort)
+          .map(({ value }) => value);
+        
+        // Combine the shuffled arrays, putting samples first
+        shuffledCards = [...shuffledSamples, ...shuffledRegular];
+      } else {
+        // For subscribers, shuffle all cards together
+        shuffledCards = cardsToShuffle
+          .map(value => ({ value, sort: Math.random() }))
+          .sort((a, b) => a.sort - b.sort)
+          .map(({ value }) => value);
+      }
+      
+      console.log("UnifiedStudyMode: Setting shuffled cards and resetting index");
+      setFilteredCards(shuffledCards);
+      setCurrentIndex(0);
+      setShowAnswer(false);
+    };
+    
+    window.addEventListener('toggleFilter', handleFilterToggle);
+    window.addEventListener('shuffleCards', handleShuffleEvent);
+    
+    return () => {
+      window.removeEventListener('toggleFilter', handleFilterToggle);
+      window.removeEventListener('shuffleCards', handleShuffleEvent);
+    };
+  }, [resetFilters]); // Only depend on resetFilters which is defined earlier
 
   // Determine current study mode and ID
   useEffect(() => {
@@ -138,7 +258,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       collections: [],
       difficultyLevels: [],
       showCommonPitfalls: false,
-      showMastered: cardParam ? true : false // Always show mastered cards if a specific card was requested
+      showMastered: cardParam ? true : false // Show mastered cards only if a specific card was requested
     };
     
     if (studyMode === 'subject' && studyId) {
@@ -224,33 +344,6 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         setExamTypes(examTypesData || []);
         console.log(`UnifiedStudyMode: Loaded ${examTypesData?.length || 0} exam types`);
         
-        // Load flashcards with their relationships
-        console.log("UnifiedStudyMode: Loading flashcards with relationships");
-        
-        // Create the filter condition safely
-        let filterCondition = 'is_official.eq.true,is_public_sample.eq.true';
-        if (user?.id) {
-          filterCondition = `created_by.eq.${user.id},${filterCondition}`;
-          console.log(`UnifiedStudyMode: Filter condition includes user ID ${user.id}`);
-        } else {
-          console.log('UnifiedStudyMode: No user ID available, only showing official and public flashcards');
-        }
-        
-        console.log(`UnifiedStudyMode: Using filter condition: ${filterCondition}`);
-        
-        // PRIVACY FIX: Only fetch flashcards the user is allowed to see
-        const { data: flashcardsData, error: flashcardsError } = await supabase
-          .from('flashcards')
-          .select(`*`)
-          .or(filterCondition);
-          
-        if (flashcardsError) {
-          console.error("UnifiedStudyMode: Error loading flashcards:", flashcardsError);
-          throw flashcardsError;
-        }
-        
-        console.log(`UnifiedStudyMode: Loaded ${flashcardsData?.length || 0} flashcards`);
-        
         // Get junction table data to link flashcards to collections
         const { data: flashcardCollections, error: fcError } = await supabase
           .from('flashcard_collections_junction')
@@ -293,8 +386,31 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           }
         }
         
-        // Process flashcards to include collection and subject info
-        const processedCards = flashcardsData?.map(card => {
+        // PHASE 1: Load sample flashcards first (quick loading)
+        console.log("UnifiedStudyMode: PHASE 1 - Loading public sample flashcards first");
+        
+        // Create the filter condition for samples only
+        let sampleFilterCondition = 'is_public_sample.eq.true';
+        if (user?.id) {
+          // For logged in users, also get samples they created
+          sampleFilterCondition = `${sampleFilterCondition},created_by.eq.${user.id}`;
+        }
+        
+        // Fetch only sample flashcards
+        const { data: sampleFlashcardsData, error: sampleFlashcardsError } = await supabase
+          .from('flashcards')
+          .select(`*`)
+          .or(sampleFilterCondition);
+          
+        if (sampleFlashcardsError) {
+          console.error("UnifiedStudyMode: Error loading sample flashcards:", sampleFlashcardsError);
+          throw sampleFlashcardsError;
+        }
+        
+        console.log(`UnifiedStudyMode: Loaded ${sampleFlashcardsData?.length || 0} sample flashcards`);
+        
+        // Process sample flashcards to include collection and subject info
+        const processedSampleCards = sampleFlashcardsData?.map(card => {
           // Find matching junction entries for this card
           const junctionEntries = flashcardCollections?.filter(fc => fc.flashcard_id === card.id) || [];
           
@@ -330,17 +446,104 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           };
         }) || [];
         
-        setCards(processedCards);
+        // Set sample cards in state
+        setSampleCards(processedSampleCards);
+        setCards(processedSampleCards); // Initially set cards to just samples
         
-        // Apply filters to determine which cards to actually show
-        applyFilters(processedCards);
+        // Apply filters to show sample cards immediately
+        applyFilters(processedSampleCards);
+        
+        // Mark sample cards as loaded
+        setSampleCardsLoaded(true);
+        
+        // PHASE 2: Load remaining flashcards in background
+        setLoadingRemainingCards(true);
+        console.log("UnifiedStudyMode: PHASE 2 - Loading remaining flashcards in background");
+        
+        // Give a small delay before loading remaining cards to ensure UI responds
+        setTimeout(async () => {
+          try {
+            // Create the filter condition for non-sample cards
+            let remainingFilterCondition = 'is_official.eq.true';
+            if (user?.id) {
+              remainingFilterCondition = `created_by.eq.${user.id},${remainingFilterCondition}`;
+            }
+            
+            // Fetch non-sample flashcards
+            const { data: remainingFlashcardsData, error: remainingFlashcardsError } = await supabase
+              .from('flashcards')
+              .select(`*`)
+              .eq('is_public_sample', false) // Only get non-sample cards
+              .or(remainingFilterCondition);
+              
+            if (remainingFlashcardsError) {
+              console.error("UnifiedStudyMode: Error loading remaining flashcards:", remainingFlashcardsError);
+              throw remainingFlashcardsError;
+            }
+            
+            console.log(`UnifiedStudyMode: Loaded ${remainingFlashcardsData?.length || 0} remaining flashcards`);
+            
+            // Process remaining flashcards
+            const processedRemainingCards = remainingFlashcardsData?.map(card => {
+              // Find matching junction entries for this card
+              const junctionEntries = flashcardCollections?.filter(fc => fc.flashcard_id === card.id) || [];
+              
+              // Get all the collection IDs for this card
+              const cardCollectionIds = junctionEntries.map(j => j.collection_id);
+              
+              // Find the actual collection objects
+              const cardCollections = collectionsData?.filter(c => cardCollectionIds.includes(c.id)) || [];
+              
+              // For each collection, find its subjects
+              const collectionsWithSubjects = cardCollections.map(collection => {
+                // Find subject IDs for this collection
+                const subjectIdsForCollection = collectionSubjects
+                  ?.filter(cs => cs.collection_id === collection.id)
+                  .map(cs => cs.subject_id) || [];
+                  
+                // Find the actual subject objects
+                const subjectsForCollection = subjectsData?.filter(s => subjectIdsForCollection.includes(s.id)) || [];
+                
+                return {
+                  ...collection,
+                  subjects: subjectsForCollection
+                };
+              });
+              
+              // Get mastery status from the progress map
+              const isMastered = progressMap.get(card.id) || false;
+              
+              return {
+                ...card,
+                is_mastered: isMastered,
+                collections: collectionsWithSubjects
+              };
+            }) || [];
+            
+            // Combine sample cards with remaining cards, ensuring samples come first
+            const allCards = [...processedSampleCards, ...processedRemainingCards];
+            console.log(`UnifiedStudyMode: Combined ${processedSampleCards.length} sample cards with ${processedRemainingCards.length} remaining cards`);
+            
+            // Update state with all cards
+            setCards(allCards);
+            
+            // Re-apply filters with the complete card set
+            applyFilters(allCards);
+          } catch (err: any) {
+            console.error('UnifiedStudyMode: Error loading remaining cards:', err);
+            // Don't set error state here as we already have sample cards to show
+          } finally {
+            setLoadingRemainingCards(false);
+            setLoading(false);
+          }
+        }, 300); // Small delay to ensure UI responds first
         
       } catch (err: any) {
         console.error('UnifiedStudyMode: Error loading study data:', err);
         setError(err.message);
-      } finally {
-        console.log("UnifiedStudyMode: Finished loading data, setting loading to false");
         setLoading(false);
+        setSampleCardsLoaded(false);
+        setLoadingRemainingCards(false);
       }
     };
     
@@ -445,42 +648,14 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   }, [filters, cards]);
 
   // Card navigation functions
-  const shuffleCards = () => {
-    // For non-subscribers, keep public samples at the beginning even when shuffling
-    let cardsToShuffle = [...filteredCards];
-    
-    if (!hasSubscription) {
-      // Separate public samples from regular cards
-      const publicSamples = cardsToShuffle.filter(card => card.is_public_sample);
-      const regularCards = cardsToShuffle.filter(card => !card.is_public_sample);
+  const shuffleCards = useCallback(() => {
+    console.log("UnifiedStudyMode: Shuffle function called directly");
       
-      // Shuffle the public samples among themselves
-      const shuffledSamples = publicSamples
-        .map(value => ({ value, sort: Math.random() }))
-        .sort((a, b) => a.sort - b.sort)
-        .map(({ value }) => value);
-      
-      // Shuffle only the regular cards
-      const shuffledRegular = regularCards
-        .map(value => ({ value, sort: Math.random() }))
-        .sort((a, b) => a.sort - b.sort)
-        .map(({ value }) => value);
-      
-      // Combine with public samples first
-      setFilteredCards([...shuffledSamples, ...shuffledRegular]);
-    } else {
-      // Subscribers see a complete shuffle
-      const shuffled = cardsToShuffle
-        .map(value => ({ value, sort: Math.random() }))
-        .sort((a, b) => a.sort - b.sort)
-        .map(({ value }) => value);
-      
-      setFilteredCards(shuffled);
-    }
-    
-    setCurrentIndex(0);
-    setShowAnswer(false);
-  };
+    // Simply dispatch the same event that the navbar uses
+    // This will ensure we have a single code path for shuffling
+    const event = new CustomEvent('shuffleCards');
+    window.dispatchEvent(event);
+  }, []);
 
   const goToNextCard = () => {
     if (currentIndex < filteredCards.length - 1) {
@@ -615,39 +790,6 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     navigate('/flashcards/collections');
   };
 
-  // Add a reset filters function
-  const resetFilters = () => {
-    // Get the current search params
-    const searchParams = new URLSearchParams(location.search);
-    const subjectParam = searchParams.get('subject');
-    const collectionParam = searchParams.get('collection');
-    
-    // Create a new filter object with only the essential filters
-    let newFilters: FilterState = {
-      subjects: [],
-      examTypes: [],
-      collections: [],
-      difficultyLevels: [],
-      showCommonPitfalls: false,
-      showMastered: true // Enable showing mastered cards by default
-    };
-    
-    // Maintain the subject or collection filter from the URL
-    if (subjectParam) {
-      newFilters.subjects = [subjectParam];
-    } else if (collectionParam) {
-      newFilters.collections = [collectionParam];
-    } else if (routeMode === 'subject' && routeId) {
-      newFilters.subjects = [routeId];
-    } else if (routeMode === 'collection' && routeId) {
-      newFilters.collections = [routeId];
-    }
-    
-    // Apply the new filters
-    setFilters(newFilters);
-    console.log("UnifiedStudyMode: Filters reset to:", newFilters);
-  };
-
   // Add a direct search for card by ID
   const findCardDirectly = (cardId: string) => {
     console.log(`UnifiedStudyMode: DIRECT SEARCH - Looking for card: ${cardId}`);
@@ -745,12 +887,52 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   }, [filteredCards.length, currentIndex, updateCount, updateCurrentCardIndex]);
 
   // Render function
-  if (loading) {
+  if (loading && !sampleCardsLoaded) {
     return (
-      <div className="flex flex-col justify-center items-center py-12">
-        <LoadingSpinner size="lg" />
-        <p className="mt-4 text-gray-600 dark:text-gray-400">Loading flashcards...</p>
-        <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">This may take a moment</p>
+      <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
+        {/* Preload the header area with title, icons and count */}
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            {isDesktop && (
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
+                <div className="flex items-center">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Loading flashcards...
+                  </p>
+                  <span className="ml-2 text-sm text-[#F37022] flex items-center">
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Desktop-only buttons for filter/shuffle - show actual buttons */}
+          {isDesktop && (
+            <div className="flex items-center gap-3">
+              <Tooltip text="Shuffle cards" position="top">
+                <button
+                  className="text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-75"
+                  disabled={true}
+                >
+                  <Shuffle className="h-5 w-5" />
+                </button>
+              </Tooltip>
+              
+              <Tooltip text="Show filters" position="top">
+                <button
+                  className="text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-75"
+                  disabled={true}
+                >
+                  <Filter className="h-5 w-5" />
+                </button>
+              </Tooltip>
+            </div>
+          )}
+        </div>
+        
+        <SkeletonStudyCard />
       </div>
     );
   }
@@ -768,10 +950,10 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
         <div className="mb-8">
           {isDesktop && (
-            <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
-              <ChevronLeft className="h-4 w-4" />
-              <span className="ml-1">Back to Collections</span>
-            </Link>
+          <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
+            <ChevronLeft className="h-4 w-4" />
+            <span className="ml-1">Back to Collections</span>
+          </Link>
           )}
         </div>
         
@@ -810,10 +992,10 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
         <div className="mb-8">
           {isDesktop && (
-            <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
-              <ChevronLeft className="h-4 w-4" />
-              <span className="ml-1">Back to Collections</span>
-            </Link>
+          <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
+            <ChevronLeft className="h-4 w-4" />
+            <span className="ml-1">Back to Collections</span>
+          </Link>
           )}
         </div>
         
@@ -842,11 +1024,13 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   // 1. Card is official/premium
   // 2. User doesn't have subscription
   // 3. Card was NOT created by the current user (user-created cards should always be visible to that user)
+  // 4. Card is NOT a public sample (public samples should be visible to all users)
   const isUserCard = currentCard && user && currentCard.created_by === user.id;
-  const isPremiumBlurred = currentCard && currentCard.is_official && !hasSubscription && !isUserCard;
+  const isPublicSample = currentCard && currentCard.is_public_sample === true;
+  const isPremiumBlurred = currentCard && currentCard.is_official && !hasSubscription && !isUserCard && !isPublicSample;
 
   return (
-    <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
+    <div className="max-w-6xl mx-auto pb-10 md:pb-8 px-4">
       {/* Toast notification */}
       {toast && (
         <Toast 
@@ -861,41 +1045,55 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       )}
       
       <div className="flex justify-between items-center mb-6">
-        <div>
+        <div className="flex items-center gap-2">
+          {/* Back link removed as requested */}
           {isDesktop && (
-            <Link to="/flashcards" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
-              <ChevronLeft className="h-4 w-4" />
-              <span className="ml-1">Back to Flashcards</span>
-            </Link>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
+          {filteredCards.length > 0 ? (
+            <div className="flex items-center">
+              {loadingRemainingCards ? (
+                <div className="flex items-center">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Loading flashcards...
+                  </p>
+                  <span className="ml-2 text-sm text-[#F37022] flex items-center">
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  </span>
+                </div>
+              ) : (
+                <p className="text-gray-600 dark:text-gray-400">
+                  {currentIndex + 1} of {filteredCards.length} flashcards
+                </p>
+              )}
+            </div>
+          ) : null}
+        </div>
           )}
         </div>
         
+        {/* Desktop-only buttons for filter/shuffle */}
+        {isDesktop && (
         <div className="flex items-center gap-3">
-          <Tooltip text={showFilters ? "Hide filters" : "Show filters"} position="top">
+            <Tooltip text="Shuffle cards" position="top">
             <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="text-gray-600 dark:text-gray-400 hover:text-[#F37022] dark:hover:text-[#F37022]"
-            >
-              {showFilters ? <FilterX className="h-5 w-5" /> : <Filter className="h-5 w-5" />}
-            </button>
-          </Tooltip>
-          <Tooltip text={filters.showMastered ? "Hide mastered cards" : "Show all cards"} position="top">
-            <button
-              onClick={() => handleFilterChange('showMastered', !filters.showMastered)}
+                onClick={shuffleCards}
               className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             >
-              {filters.showMastered ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                <Shuffle className="h-5 w-5" />
             </button>
           </Tooltip>
-          <Tooltip text="Shuffle cards" position="top">
+            
+            <Tooltip text={showFilters ? "Hide filters" : "Show filters"} position="top">
             <button
-              onClick={shuffleCards}
+                onClick={() => setShowFilters(!showFilters)}
               className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             >
-              <Shuffle className="h-5 w-5" />
+                {showFilters ? <FilterX className="h-5 w-5" /> : <Filter className="h-5 w-5" />}
             </button>
           </Tooltip>
         </div>
+        )}
       </div>
 
       {/* Filter Panel */}
@@ -909,6 +1107,19 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
             >
               Reset All
             </button>
+          </div>
+          
+          {/* Show/Hide Mastered Cards option at the top of filter panel */}
+          <div className="mb-4 pb-3 border-b dark:border-gray-700">
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={!filters.showMastered} 
+                onChange={(e) => handleFilterChange('showMastered', !e.target.checked)}
+                className="w-4 h-4 text-[#F37022] bg-gray-100 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 focus:ring-[#F37022]" 
+              />
+              Hide Mastered Cards
+            </label>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1017,18 +1228,35 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       {/* Flashcard Content */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden relative mb-16 md:mb-4" style={{ isolation: 'isolate' }}>
         {isPremiumBlurred && (
-          <div className="absolute top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-5 font-bold">
-            PREMIUM CONTENT - SUBSCRIPTION REQUIRED
+          <div className="absolute top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-5 font-bold flex items-center justify-center space-x-2">
+            <img 
+              src="/images/JD Simplified Favicon.svg" 
+              alt="Premium" 
+              className="h-5 w-5 brightness-0 invert"
+            />
+            <span>PREMIUM CONTENT</span>
+          </div>
+        )}
+        
+        {/* Banner for sample flashcards */}
+        {isPublicSample && (
+          <div className="absolute top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-5 font-bold flex items-center justify-center space-x-2">
+            <img 
+              src="/images/JD Simplified Favicon.svg" 
+              alt="Sample" 
+              className="h-5 w-5 brightness-0 invert"
+            />
+            <span>SAMPLE FLASHCARD</span>
           </div>
         )}
         
         <div className="p-8 flex flex-col">
           <div
-            className="min-h-[250px] flex items-center justify-center cursor-pointer"
+            className={`min-h-[250px] flex items-center justify-center cursor-pointer overflow-auto ${(isPremiumBlurred || isPublicSample) ? 'pt-4' : ''}`}
             onClick={toggleAnswer}
             style={{ zIndex: 5 }}
           >
-            <div className="text-center w-full">
+            <div className={`w-full ${showAnswer ? 'text-left' : 'text-center'}`}>
               {isPremiumBlurred && showAnswer ? (
                 <div className="premium-content-placeholder mt-6">
                   <div className="bg-orange-100 dark:bg-orange-900/30 p-6 rounded-lg">
@@ -1050,9 +1278,15 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                   </div>
                 </div>
               ) : (
+                showAnswer ? (
+                  <div className="text-xl font-normal text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words">
+                    {currentCard?.answer}
+                </div>
+              ) : (
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                  {showAnswer ? currentCard?.answer : currentCard?.question}
+                    {currentCard?.question}
                 </h2>
+                )
               )}
             </div>
           </div>
@@ -1088,11 +1322,11 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                   markAsMastered();
                 }}
                 type="button"
-                className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-700 cursor-pointer flex items-center gap-1 px-2 md:px-3 py-1 rounded-md text-xs md:text-sm font-medium"
+                className="bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-500 cursor-pointer flex items-center gap-1 px-2 md:px-3 py-1 rounded-md text-xs md:text-sm font-medium"
               >
                 <Check className="h-3 w-3 md:h-4 md:w-4" />
                 <span className="hidden xs:inline">Mark Mastered</span>
-                <span className="xs:hidden">Mark</span>
+                <span className="xs:hidden">Mark Mastered</span>
               </button>
             )}
             
@@ -1104,11 +1338,11 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                   unmarkAsMastered();
                 }}
                 type="button"
-                className="bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-500 cursor-pointer flex items-center gap-1 px-2 md:px-3 py-1 rounded-md text-xs md:text-sm"
+                className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-700 cursor-pointer flex items-center gap-1 px-2 md:px-3 py-1 rounded-md text-xs md:text-sm"
               >
                 <Check className="h-3 w-3 md:h-4 md:w-4" />
-                <span className="hidden xs:inline">Undo Mastered</span>
-                <span className="xs:hidden">Undo</span>
+                <span className="hidden xs:inline">Mastered</span>
+                <span className="xs:hidden">Mastered</span>
               </button>
             )}
           </div>

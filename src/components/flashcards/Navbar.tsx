@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { PlusCircle, BookOpen, FileText, Layers, Menu, X, Search, Brain } from 'lucide-react';
+import { PlusCircle, BookOpen, FileText, Layers, Menu, X, Search, Brain, Filter, Shuffle } from 'lucide-react';
 import SearchBar from './SearchBar';
 import useFlashcardAuth from '@/hooks/useFlashcardAuth';
 import { useNavbar } from '@/contexts/NavbarContext';
@@ -12,6 +12,7 @@ export default function Navbar() {
   const { user } = useFlashcardAuth();
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const { itemCount, totalCollectionCount, totalCardCount, currentCardIndex } = useNavbar();
   const { isExpanded, setIsExpanded } = useContext(SidebarContext);
@@ -177,12 +178,43 @@ export default function Navbar() {
                   </p>
                 )}
               </div>
-              <button
-                onClick={() => setIsMenuOpen(true)}
-                className="text-gray-600 flex items-center gap-1 ml-4"
-              >
-                <Search className="h-5 w-5" />
-              </button>
+              <div className="flex items-center space-x-2">
+                {/* Add shuffle button for study mode */}
+                {location.pathname.includes('/flashcards/study') && (
+                  <button
+                    onClick={() => {
+                      // Trigger a custom event for shuffle that components can listen for
+                      const event = new CustomEvent('shuffleCards');
+                      window.dispatchEvent(event);
+                    }}
+                    className="text-gray-600 dark:text-gray-300 flex items-center justify-center p-2"
+                    aria-label="Shuffle Cards"
+                  >
+                    <Shuffle className="h-5 w-5" />
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    // Trigger a custom event that filter components can listen for
+                    const event = new CustomEvent('toggleFilter', { detail: { isOpen: !isFilterOpen } });
+                    window.dispatchEvent(event);
+                    setIsFilterOpen(!isFilterOpen);
+                  }}
+                  className={`text-gray-600 dark:text-gray-300 flex items-center justify-center p-2 ${
+                    location.pathname.includes('/flashcards/subjects') ? 'hidden' : ''
+                  }`}
+                  aria-label="Filter"
+                >
+                  <Filter className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => setIsMenuOpen(true)}
+                  className="text-gray-600 dark:text-gray-300 flex items-center justify-center p-2"
+                  aria-label="Search"
+                >
+                  <Search className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             {/* Desktop layout container - Grid layout only applies at md breakpoint and above */}
