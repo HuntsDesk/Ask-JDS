@@ -70,7 +70,10 @@ export function ChatInterface({
   
   // Create conditional style for the input container to prevent it touching the sidebar
   const inputContainerStyle = useMemo(() => ({
-    paddingLeft: isMobile && isSidebarExpanded ? 'var(--sidebar-width)' : '1rem'
+    left: isMobile && isSidebarExpanded ? 'var(--sidebar-width)' : '0',
+    width: isMobile && isSidebarExpanded ? 'calc(100% - var(--sidebar-width))' : '100%',
+    paddingLeft: '1rem',
+    paddingRight: '1rem'
   }), [isMobile, isSidebarExpanded]);
   
   // Update allMessages whenever server messages change, but only if not currently updating
