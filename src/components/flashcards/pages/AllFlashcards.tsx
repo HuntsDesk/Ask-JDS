@@ -956,7 +956,7 @@ export default function AllFlashcards() {
     if (!flashcardsLoading && flashcardsData?.pages?.[0]?.totalCount !== undefined) {
       updateTotalCardCount(flashcardsData.pages[0].totalCount);
     }
-  }, [flashcardsData?.pages?.[0]?.totalCount, updateTotalCardCount, flashcardsLoading]);
+  }, [flashcardsData?.pages?.[0]?.totalCount, flashcardsLoading, updateTotalCardCount]);
 
   // Calculate loading states
   const isInitialLoading = flashcardsLoading && !initialLoadComplete;
