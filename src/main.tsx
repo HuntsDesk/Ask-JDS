@@ -7,7 +7,7 @@ import '../jdsimplified/src/index.css';
 import { AuthProvider } from './lib/auth';
 import { initializeTheme } from './lib/theme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-// import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 // Initialize theme before rendering the app
 initializeTheme();
@@ -35,7 +35,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <App />
       </AuthProvider>
-      {/* Temporary hide for development */}
+      {/* Temporarily disabled for testing */}
       {/* {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />} */}
     </QueryClientProvider>
   </React.StrictMode>

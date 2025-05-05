@@ -15,6 +15,8 @@ import { hasActiveSubscription } from '@/lib/subscription';
 import { FlashcardPaywall } from '@/components/FlashcardPaywall';
 import { useAuth } from '@/lib/auth';
 import { Flashcard, Subject, ExamType, FlashcardCollection } from '@/types';
+import { useNavbar } from '../../../contexts/NavbarContext';
+import { useLayoutState } from '@/hooks/useLayoutState';
 
 interface FilterState {
   subjects: string[];
@@ -38,6 +40,8 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   const { user } = useAuth();
   const { mode: routeMode, id: routeId } = useParams();
   const { toast, showToast, hideToast } = useToast();
+  const { updateCount, updateCurrentCardIndex } = useNavbar();
+  const { isDesktop } = useLayoutState();
   
   // Data states
   const [cards, setCards] = useState<Flashcard[]>([]);
@@ -482,6 +486,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     if (currentIndex < filteredCards.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setShowAnswer(false);
+      updateCurrentCardIndex(currentIndex + 1);
     }
   };
 
@@ -489,6 +494,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
       setShowAnswer(false);
+      updateCurrentCardIndex(currentIndex - 1);
     }
   };
 
@@ -729,6 +735,15 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     }
   }, [filteredCards, loading, cards]);
 
+  // Update the navbar count when filteredCards or currentIndex changes
+  useEffect(() => {
+    if (filteredCards.length > 0) {
+      // Update both the total count and current index
+      updateCount(filteredCards.length);
+      updateCurrentCardIndex(currentIndex);
+    }
+  }, [filteredCards.length, currentIndex, updateCount, updateCurrentCardIndex]);
+
   // Render function
   if (loading) {
     return (
@@ -752,11 +767,12 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     return (
       <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
         <div className="mb-8">
-          <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
-            <ChevronLeft className="h-4 w-4" />
-            <span className="ml-1">Back to Collections</span>
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
+          {isDesktop && (
+            <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
+              <ChevronLeft className="h-4 w-4" />
+              <span className="ml-1">Back to Collections</span>
+            </Link>
+          )}
         </div>
         
         <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md text-center">
@@ -793,11 +809,12 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     return (
       <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
         <div className="mb-8">
-          <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
-            <ChevronLeft className="h-4 w-4" />
-            <span className="ml-1">Back to Collections</span>
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
+          {isDesktop && (
+            <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
+              <ChevronLeft className="h-4 w-4" />
+              <span className="ml-1">Back to Collections</span>
+            </Link>
+          )}
         </div>
         
         <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md text-center">
@@ -845,15 +862,12 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       
       <div className="flex justify-between items-center mb-6">
         <div>
-          <Link to="/flashcards" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
-            <ChevronLeft className="h-4 w-4" />
-            <span className="ml-1">Back to Flashcards</span>
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            {filteredCards.length} {filteredCards.length === 1 ? 'card' : 'cards'} • 
-            {currentIndex + 1} of {filteredCards.length}
-          </p>
+          {isDesktop && (
+            <Link to="/flashcards" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
+              <ChevronLeft className="h-4 w-4" />
+              <span className="ml-1">Back to Flashcards</span>
+            </Link>
+          )}
         </div>
         
         <div className="flex items-center gap-3">
@@ -1001,7 +1015,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       )}
 
       {/* Flashcard Content */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden relative" style={{ isolation: 'isolate' }}>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden relative mb-16 md:mb-4" style={{ isolation: 'isolate' }}>
         {isPremiumBlurred && (
           <div className="absolute top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-5 font-bold">
             PREMIUM CONTENT - SUBSCRIPTION REQUIRED
@@ -1059,7 +1073,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           <button
             onClick={goToPreviousCard}
             disabled={currentIndex === 0}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
+            className="flex items-center gap-1 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
           >
             <ArrowLeft className="h-5 w-5" />
             <span className="hidden sm:inline">Previous</span>
@@ -1074,11 +1088,11 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                   markAsMastered();
                 }}
                 type="button"
-                className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-700 cursor-pointer flex items-center gap-1 px-3 py-1 rounded-md font-medium"
+                className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-700 cursor-pointer flex items-center gap-1 px-2 md:px-3 py-1 rounded-md text-xs md:text-sm font-medium"
               >
-                <Check className="h-4 w-4" />
-                <span className="hidden sm:inline">Mark Mastered</span>
-                <span className="sm:hidden">Mastered</span>
+                <Check className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="hidden xs:inline">Mark Mastered</span>
+                <span className="xs:hidden">Mark</span>
               </button>
             )}
             
@@ -1090,11 +1104,11 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                   unmarkAsMastered();
                 }}
                 type="button"
-                className="bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-500 cursor-pointer flex items-center gap-1 px-3 py-1 rounded-md"
+                className="bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-500 cursor-pointer flex items-center gap-1 px-2 md:px-3 py-1 rounded-md text-xs md:text-sm"
               >
-                <Check className="h-4 w-4" />
-                <span className="hidden sm:inline">Undo Mastered</span>
-                <span className="sm:hidden">Undo</span>
+                <Check className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="hidden xs:inline">Undo Mastered</span>
+                <span className="xs:hidden">Undo</span>
               </button>
             )}
           </div>
@@ -1102,7 +1116,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           <button
             onClick={goToNextCard}
             disabled={currentIndex === filteredCards.length - 1}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
+            className="flex items-center gap-1 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
           >
             <span className="hidden sm:inline">Next</span>
             <ArrowRight className="h-5 w-5" />

@@ -12,14 +12,20 @@ interface SearchResult {
   description?: string;
 }
 
-export default function SearchBar() {
+interface SearchBarProps {
+  isMobileOverlay?: boolean;
+  onSearchResultClick?: () => void;
+}
+
+export default function SearchBar({ isMobileOverlay = false, onSearchResultClick }: SearchBarProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(isMobileOverlay);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -45,6 +51,14 @@ export default function SearchBar() {
 
     return () => clearTimeout(delayDebounceFn);
   }, [query]);
+
+  useEffect(() => {
+    if (isMobileOverlay && inputRef.current) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [isMobileOverlay]);
 
   const performSearch = async () => {
     if (!query.trim()) return;
@@ -140,51 +154,82 @@ export default function SearchBar() {
     setShowResults(false);
     setQuery('');
     
-    switch (result.type) {
-      case 'collection':
-        navigate(`/flashcards/study?collection=${result.id}`);
-        break;
-      case 'subject':
-        navigate(`/flashcards/subjects/${result.id}`);
-        break;
-      case 'card':
-        navigate(`/flashcards/study?collection=${result.collection_id}`);
-        break;
+    if (isMobileOverlay && onSearchResultClick) {
+      setTimeout(() => {
+        switch (result.type) {
+          case 'collection':
+            navigate(`/flashcards/study?collection=${result.id}`);
+            break;
+          case 'subject':
+            navigate(`/flashcards/subjects/${result.id}`);
+            break;
+          case 'card':
+            navigate(`/flashcards/study?card=${result.id}`);
+            break;
+        }
+      }, 50);
+      
+      onSearchResultClick();
+    } else {
+      switch (result.type) {
+        case 'collection':
+          navigate(`/flashcards/study?collection=${result.id}`);
+          break;
+        case 'subject':
+          navigate(`/flashcards/subjects/${result.id}`);
+          break;
+        case 'card':
+          navigate(`/flashcards/study?card=${result.id}`);
+          break;
+      }
     }
   };
 
   const handleViewAllResults = () => {
-    navigate(`/flashcards/search?q=${encodeURIComponent(query)}`);
     setShowResults(false);
+    
+    if (isMobileOverlay && onSearchResultClick) {
+      setTimeout(() => {
+        navigate(`/flashcards/search?q=${encodeURIComponent(query)}`);
+      }, 50);
+      onSearchResultClick();
+    } else {
+      navigate(`/flashcards/search?q=${encodeURIComponent(query)}`);
+    }
   };
 
   return (
     <div className="relative w-full" ref={searchRef}>
       <div className="relative md:flex md:justify-end">
         {/* Search container with transition */}
-        <div className={`md:flex md:items-center md:transition-all md:duration-200 md:ease-in-out h-10 
-          md:border md:border-gray-300 md:dark:border-gray-600 md:rounded-md md:shadow-sm md:dark:bg-gray-700
-          md:focus-within:ring-1 md:focus-within:ring-[#F37022] md:focus-within:border-[#F37022]
-          ${isExpanded ? 'md:w-[300px]' : 'md:w-10'}
+        <div className={`flex items-center transition-all duration-200 ease-in-out h-10 
+          border border-gray-300 rounded-md shadow-sm 
+          focus-within:ring-1 focus-within:ring-[#F37022] focus-within:border-[#F37022]
+          dark:border-gray-600 dark:bg-gray-700 w-full
+          md:transition-all md:duration-200 md:ease-in-out
+          ${isExpanded || isMobileOverlay ? 'md:w-[300px]' : 'md:w-10'}
           lg:w-full md:aspect-square lg:aspect-auto`}>
           
           {/* Search icon - always visible */}
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-            <Search className="h-5 w-5 text-gray-400" />
+            <Search className="h-5 w-5 text-gray-400 dark:text-gray-300" />
           </div>
           
-          {/* For md screens: clickable search icon that expands on click */}
-          <button 
-            className="md:block lg:hidden absolute inset-0 flex items-center justify-center z-20"
-            onClick={() => {
-              setIsExpanded(true);
-              setShowResults(true);
-            }}
-          >
-            <span className="sr-only">Search</span>
-          </button>
+          {/* For md screens: clickable search icon that expands on click - NOT SHOWN IN MOBILE OVERLAY */}
+          {!isMobileOverlay && (
+            <button 
+              className="hidden md:block lg:hidden absolute inset-0 flex items-center justify-center z-20"
+              onClick={() => {
+                setIsExpanded(true);
+                setShowResults(true);
+              }}
+            >
+              <span className="sr-only">Search</span>
+            </button>
+          )}
           
           <input
+            ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => {
@@ -196,23 +241,27 @@ export default function SearchBar() {
               setIsExpanded(true);
             }}
             onBlur={() => {
-              if (!query) {
+              if (!query && !isMobileOverlay) {
                 setIsExpanded(false);
               }
             }}
             placeholder="Search collections, subjects, cards..."
-            className={`hidden md:block flex-grow py-0 pl-10 border-none shadow-none text-gray-500 
-              dark:text-gray-300 focus:outline-none focus:ring-0 text-sm bg-transparent 
-              placeholder:text-gray-400 dark:placeholder:text-gray-500 text-ellipsis overflow-hidden 
-              whitespace-nowrap min-w-0 h-10 ${isExpanded ? 'md:opacity-100' : 'md:opacity-0 lg:opacity-100'}`}
+            className="block flex-grow pl-10 pr-3 py-2 border-none shadow-none text-gray-500 
+              focus:outline-none focus:ring-0 text-sm bg-transparent text-ellipsis overflow-hidden 
+              whitespace-nowrap min-w-0 h-10 w-full dark:text-gray-300 dark:placeholder-gray-400 dark:caret-white
+              md:flex-grow z-30"
           />
           
           {query && (
             <button
-              className="md:flex md:items-center md:justify-center md:h-full md:px-3 md:text-gray-400 md:hover:text-gray-500 md:bg-transparent"
+              className="flex items-center justify-center h-full px-3 text-gray-400 hover:text-gray-500 bg-transparent z-30"
               onClick={() => {
                 setQuery('');
                 setResults([]);
+                
+                if (isMobileOverlay && inputRef.current) {
+                  inputRef.current.focus();
+                }
               }}
             >
               <X className="h-5 w-5" />
@@ -222,7 +271,7 @@ export default function SearchBar() {
       </div>
 
       {showResults && query.length >= 2 && (
-        <div className="absolute top-full right-0 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg overflow-hidden z-50 md:w-64 md:min-w-[180px] lg:w-full">
+        <div className="absolute top-full right-0 left-0 md:right-0 md:left-auto w-full md:w-64 md:min-w-[180px] lg:w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg overflow-hidden z-50">
           {isSearching ? (
             <div className="p-4 text-center text-gray-500 dark:text-gray-400">
               <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-[#F37022] mx-auto mb-2"></div>
@@ -237,26 +286,28 @@ export default function SearchBar() {
                   onClick={() => handleResultClick(result)}
                 >
                   <div className="flex items-center">
-                    {result.type === 'collection' && (
-                      <Layers className="h-4 w-4 text-[#F37022] mr-2" />
-                    )}
-                    {result.type === 'subject' && (
-                      <BookOpen className="h-4 w-4 text-[#F37022] mr-2" />
-                    )}
-                    {result.type === 'card' && (
-                      <FileText className="h-4 w-4 text-[#F37022] mr-2" />
-                    )}
-                    <div>
-                      <div className="font-medium text-gray-900 dark:text-white">{result.title}</div>
+                    <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center mr-2">
+                      {result.type === 'collection' && (
+                        <Layers className="h-4 w-4 text-[#F37022]" />
+                      )}
+                      {result.type === 'subject' && (
+                        <BookOpen className="h-4 w-4 text-[#F37022]" />
+                      )}
+                      {result.type === 'card' && (
+                        <FileText className="h-4 w-4 text-[#F37022]" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-gray-900 dark:text-gray-100 truncate">{result.title}</div>
                       {result.subtitle && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{result.subtitle}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{result.subtitle}</div>
                       )}
                     </div>
                   </div>
                 </div>
               ))}
               <div 
-                className="px-4 py-3 text-center text-sm text-blue-600 dark:text-blue-400 font-medium border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                className="px-4 py-2 bg-gray-50 dark:bg-gray-700 text-center text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer border-t border-gray-200 dark:border-gray-600"
                 onClick={handleViewAllResults}
               >
                 View all results
@@ -264,7 +315,7 @@ export default function SearchBar() {
             </div>
           ) : (
             <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-              No results found
+              No results found for "{query}"
             </div>
           )}
         </div>
