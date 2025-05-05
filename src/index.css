@@ -589,31 +589,11 @@ body {
     transition: left 0.3s, width 0.3s; /* Add transition for smoother effect */
   }
   
-  /* Handle all sidebar states for proper input positioning */
-  body.sidebar-visible .input-container,
-  body:has(.sidebar-container:not(.sidebar-hidden-mobile)) .input-container {
+  /* Adjust input container when sidebar is open - with both :has and class selectors for better browser compatibility */
+  body:has(.sidebar-container:not(.sidebar-hidden-mobile)) .input-container,
+  body.sidebar-visible .input-container {
     left: var(--sidebar-width) !important;
     width: calc(100% - var(--sidebar-width)) !important;
-  }
-  
-  /* Force the input container to follow sidebar position regardless of pin state */
-  .sidebar-container:not(.sidebar-hidden-mobile) ~ div .input-container {
-    left: var(--sidebar-width) !important;
-    width: calc(100% - var(--sidebar-width)) !important;
-  }
-  
-  /* Add styling for the with-sidebar class */
-  .input-container.with-sidebar {
-    left: var(--sidebar-width) !important;
-    width: calc(100% - var(--sidebar-width)) !important;
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-  }
-  
-  /* Default padding for input container */
-  .input-container {
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
   }
   
   /* Ensure chat messages are not hidden behind the input container */
@@ -776,6 +756,15 @@ body {
   --ring: 262.1 83.3% 57.8%;
   background-color: white;
   color: black;
+}
+
+/* Desktop specific styles for input container when sidebar is visible */
+@media (min-width: 769px) {
+  body:has(.sidebar-container:not(.sidebar-hidden-mobile)) .input-container,
+  body.sidebar-visible .input-container {
+    left: var(--sidebar-width) !important;
+    width: calc(100% - var(--sidebar-width)) !important;
+  }
 }
 
 /* Override dark mode styles within force-light-mode */
