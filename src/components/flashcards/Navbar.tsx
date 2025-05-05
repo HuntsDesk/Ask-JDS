@@ -13,7 +13,7 @@ export default function Navbar() {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const { itemCount, totalCollectionCount, totalCardCount } = useNavbar();
+  const { itemCount, totalCollectionCount, totalCardCount, currentCardIndex } = useNavbar();
   const { isExpanded, setIsExpanded } = useContext(SidebarContext);
   const { isDesktop, isPinned, contentMargin } = useLayoutState();
 
@@ -48,8 +48,8 @@ export default function Navbar() {
       };
     } else if (path.includes('/flashcards/study')) {
       return {
-        title: 'Study',
-        countKey: null
+        title: 'Study Mode',
+        countKey: 'studyCount'
       };
     }
     return {
@@ -61,19 +61,16 @@ export default function Navbar() {
   // Get the count based on the current page
   const getCount = () => {
     const path = location.pathname;
-    const searchParams = new URLSearchParams(location.search);
-    const currentFilter = searchParams.get('filter');
     
     if (path.includes('/flashcards/collections')) {
-      // When viewing "all" collections, show total count
-      if (!currentFilter || currentFilter === 'all') {
-        return totalCollectionCount;
-      }
-      // For filtered views (my/official), use the itemCount
-      return itemCount;
+      // Always use the totalCollectionCount for the navbar title count
+      return totalCollectionCount;
     } else if (path.includes('/flashcards/flashcards')) {
+      // Always use the totalCardCount for the navbar title count
       return totalCardCount;
     }
+    
+    // For other pages, use the itemCount
     return itemCount;
   };
 
@@ -172,7 +169,11 @@ export default function Navbar() {
                 </h1>
                 {pageInfo.countKey && (
                   <p className="text-sm text-gray-500 dark:text-gray-300 text-center">
-                    {count} {pageInfo.title.toLowerCase()}
+                    {location.pathname.includes('/flashcards/study') && itemCount > 0 ? (
+                      <>{currentCardIndex + 1} of {itemCount} flashcards</>
+                    ) : (
+                      <>{count} {pageInfo.title.toLowerCase()}</>
+                    )}
                   </p>
                 )}
               </div>
@@ -284,7 +285,7 @@ export default function Navbar() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Search</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Search</h2>
               <button
                 onClick={() => setIsMenuOpen(false)}
                 className="text-gray-600 dark:text-gray-300 p-2 rounded-md"
@@ -292,7 +293,12 @@ export default function Navbar() {
                 <X className="h-6 w-6" />
               </button>
             </div>
-            <SearchBar />
+            <div className="w-full">
+              <SearchBar 
+                isMobileOverlay={true} 
+                onSearchResultClick={() => setIsMenuOpen(false)} 
+              />
+            </div>
           </div>
         </div>
       )}

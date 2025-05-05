@@ -367,7 +367,7 @@ export function ChatInterface({
           ref={messagesContainerRef}
           className="chat-messages-scroll h-full w-full overflow-y-auto px-2 sm:px-4 py-2 pb-2"
         >
-          <div ref={messageTopRef} className="h-6 md:h-4"></div>
+          <div ref={messageTopRef} className="mt-2 md:mt-4"></div>
           
           {renderMessages()}
           
