@@ -66,12 +66,48 @@ export function ChatInterface({
   const [allMessages, setAllMessages] = useState<Message[]>(messages);
   
   // Get layout state to handle sidebar visibility
-  const { isExpanded: isSidebarExpanded, isMobile } = useLayoutState();
+  const { isExpanded: isSidebarExpanded, isMobile, isPinned, isDesktop: isDesktopViewport } = useLayoutState();
   
-  // Create classes for the input container based on sidebar state
-  const inputContainerClasses = `input-container py-1 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg ${
-    isMobile && isSidebarExpanded ? 'with-sidebar' : ''
-  }`;
+  // Create conditional style for the input container to prevent it touching the sidebar
+  const inputContainerStyle = useMemo(() => {
+    // For mobile with expanded sidebar
+    if (isMobile && isSidebarExpanded) {
+      return {
+        left: 'var(--sidebar-width)',
+        width: 'calc(100% - var(--sidebar-width))',
+        paddingLeft: '1rem',
+        paddingRight: '1rem'
+      };
+    }
+    
+    // For desktop with pinned sidebar
+    if (isDesktopViewport && isPinned) {
+      return {
+        left: 'var(--sidebar-width)',
+        width: 'calc(100% - var(--sidebar-width))',
+        paddingLeft: '1rem',
+        paddingRight: '1rem'
+      };
+    }
+    
+    // For desktop with expanded but not pinned sidebar
+    if (isDesktopViewport && isSidebarExpanded && !isPinned) {
+      return {
+        left: 'var(--sidebar-width)',
+        width: 'calc(100% - var(--sidebar-width))',
+        paddingLeft: '1rem', 
+        paddingRight: '1rem'
+      };
+    }
+    
+    // Default state
+    return {
+      left: '0',
+      width: '100%',
+      paddingLeft: '1rem',
+      paddingRight: '1rem'
+    };
+  }, [isMobile, isSidebarExpanded, isDesktopViewport, isPinned]);
   
   // Update allMessages whenever server messages change, but only if not currently updating
   useEffect(() => {
@@ -394,7 +430,7 @@ export function ChatInterface({
         </div>
       </div>
       
-      <div className={inputContainerClasses}>
+      <div className="input-container py-1 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg" style={inputContainerStyle}>
         <div className="max-w-4xl mx-auto mb-0">
           {sendError && (
             <div className="mb-1 p-2 text-sm rounded bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">
