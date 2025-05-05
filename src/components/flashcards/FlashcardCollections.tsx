@@ -547,11 +547,11 @@ export default function FlashcardCollections() {
                 Clear All
               </Button>
             )}
-              </div>
+          </div>
           
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col md:flex-row flex-wrap gap-2">
               <select
-                className="px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                className="w-full md:w-auto px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 value=""
                 onChange={handleSubjectDropdownChange}
                 disabled={isLoadingFilteredData || isLoadingSubjects}
@@ -619,7 +619,7 @@ export default function FlashcardCollections() {
           icon={<Layers className="h-12 w-12 text-gray-400" />}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-4 md:px-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {processedCollections.map((collection, index) => {
             return (
               <div 
