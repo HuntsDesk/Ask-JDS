@@ -897,8 +897,12 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
                 <div className="flex items-center">
-                  <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-36 animate-pulse"></div>
-                  <div className="ml-2 h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Loading flashcards...
+                  </p>
+                  <span className="ml-2 text-sm text-[#F37022] flex items-center">
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  </span>
                 </div>
               </div>
             )}
@@ -1046,20 +1050,25 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           {isDesktop && (
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
-              {filteredCards.length > 0 && (
+          {filteredCards.length > 0 ? (
+            <div className="flex items-center">
+              {loadingRemainingCards ? (
                 <div className="flex items-center">
                   <p className="text-gray-600 dark:text-gray-400">
-                    {currentIndex + 1} of {filteredCards.length} flashcards
+                    Loading flashcards...
                   </p>
-                  {loadingRemainingCards && (
-                    <span className="ml-2 text-sm text-[#F37022] flex items-center">
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      Loading more cards...
-                    </span>
-                  )}
+                  <span className="ml-2 text-sm text-[#F37022] flex items-center">
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  </span>
                 </div>
+              ) : (
+                <p className="text-gray-600 dark:text-gray-400">
+                  {currentIndex + 1} of {filteredCards.length} flashcards
+                </p>
               )}
             </div>
+          ) : null}
+        </div>
           )}
         </div>
         
