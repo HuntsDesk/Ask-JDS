@@ -1205,11 +1205,11 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         
         <div className="p-8 flex flex-col">
           <div
-            className={`min-h-[250px] flex ${showAnswer ? 'items-start' : 'items-center'} justify-center cursor-pointer overflow-auto`}
+            className={`min-h-[250px] flex items-center justify-center cursor-pointer overflow-auto ${(isPremiumBlurred || isPublicSample) ? 'pt-4' : ''}`}
             onClick={toggleAnswer}
             style={{ zIndex: 5 }}
           >
-            <div className={`w-full ${showAnswer ? 'self-start' : 'text-center'}`}>
+            <div className={`w-full ${showAnswer ? 'text-left' : 'text-center'}`}>
               {isPremiumBlurred && showAnswer ? (
                 <div className="premium-content-placeholder mt-6">
                   <div className="bg-orange-100 dark:bg-orange-900/30 p-6 rounded-lg">
@@ -1232,7 +1232,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                 </div>
               ) : (
                 showAnswer ? (
-                  <div className="text-xl font-normal text-gray-800 dark:text-gray-200 text-left whitespace-pre-wrap break-words">
+                  <div className="text-xl font-normal text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words">
                     {currentCard?.answer}
                   </div>
                 ) : (
