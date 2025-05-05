@@ -982,8 +982,10 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   // 1. Card is official/premium
   // 2. User doesn't have subscription
   // 3. Card was NOT created by the current user (user-created cards should always be visible to that user)
+  // 4. Card is NOT a public sample (public samples should be visible to all users)
   const isUserCard = currentCard && user && currentCard.created_by === user.id;
-  const isPremiumBlurred = currentCard && currentCard.is_official && !hasSubscription && !isUserCard;
+  const isPublicSample = currentCard && currentCard.is_public_sample === true;
+  const isPremiumBlurred = currentCard && currentCard.is_official && !hasSubscription && !isUserCard && !isPublicSample;
 
   return (
     <div className="max-w-6xl mx-auto pb-10 md:pb-8 px-4">
