@@ -105,11 +105,6 @@ export default function CreateFlashcard() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (selectedCollectionIds.length === 0) {
-      showToast('Please select at least one collection', 'error');
-      return;
-    }
-    
     if (!question.trim() || !answer.trim()) {
       showToast('Please provide both a question and an answer', 'error');
       return;
@@ -137,18 +132,20 @@ export default function CreateFlashcard() {
       if (flashcardData && flashcardData.length > 0) {
         const flashcardId = flashcardData[0].id;
         
-        // Create junction entries for each selected collection
-        for (const collectionId of selectedCollectionIds) {
-          const { error: junctionError } = await supabase
-            .from('flashcard_collections_junction')
-            .insert([
-              {
-                flashcard_id: flashcardId,
-                collection_id: collectionId
-              },
-            ]);
+        // Create junction entries for each selected collection (if any)
+        if (selectedCollectionIds.length > 0) {
+          for (const collectionId of selectedCollectionIds) {
+            const { error: junctionError } = await supabase
+              .from('flashcard_collections_junction')
+              .insert([
+                {
+                  flashcard_id: flashcardId,
+                  collection_id: collectionId
+                },
+              ]);
 
-          if (junctionError) throw junctionError;
+            if (junctionError) throw junctionError;
+          }
         }
         
         // Create entries for each selected subject
@@ -181,11 +178,6 @@ export default function CreateFlashcard() {
   };
 
   const handleSaveAndExit = async () => {
-    if (selectedCollectionIds.length === 0) {
-      showToast('Please select at least one collection', 'error');
-      return;
-    }
-    
     if (!question.trim() || !answer.trim()) {
       navigate(`/flashcards/flashcards`);
       return;
@@ -213,18 +205,20 @@ export default function CreateFlashcard() {
       if (flashcardData && flashcardData.length > 0) {
         const flashcardId = flashcardData[0].id;
         
-        // Create junction entries for each selected collection
-        for (const collectionId of selectedCollectionIds) {
-          const { error: junctionError } = await supabase
-            .from('flashcard_collections_junction')
-            .insert([
-              {
-                flashcard_id: flashcardId,
-                collection_id: collectionId
-              },
-            ]);
+        // Create junction entries for each selected collection (if any)
+        if (selectedCollectionIds.length > 0) {
+          for (const collectionId of selectedCollectionIds) {
+            const { error: junctionError } = await supabase
+              .from('flashcard_collections_junction')
+              .insert([
+                {
+                  flashcard_id: flashcardId,
+                  collection_id: collectionId
+                },
+              ]);
 
-          if (junctionError) throw junctionError;
+            if (junctionError) throw junctionError;
+          }
         }
         
         // Create entries for each selected subject
@@ -316,11 +310,7 @@ export default function CreateFlashcard() {
       )}
       
       <div className="mb-8">
-        <Link to="/flashcards/flashcards" className="text-[#F37022] hover:text-[#E36012] flex items-center gap-2">
-          <ChevronLeft className="h-5 w-5" />
-          Back to Flashcards
-        </Link>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mt-4">Create New Flashcard</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Create New Flashcard</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -355,7 +345,7 @@ export default function CreateFlashcard() {
             <div className="mb-4">
               <div className="flex justify-between items-center mb-1">
                 <label htmlFor="collection" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Collections
+                  Collections (Optional)
                 </label>
                 <Link
                   to="/flashcards/create-collection"
@@ -397,7 +387,7 @@ export default function CreateFlashcard() {
                 </div>
               )}
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Select one or more collections for this flashcard.
+                You can add this flashcard to one or more collections, or leave it uncategorized.
               </p>
             </div>
             

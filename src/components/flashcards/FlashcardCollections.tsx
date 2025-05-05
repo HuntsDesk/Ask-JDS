@@ -13,10 +13,11 @@ import useFlashcardAuth from '@/hooks/useFlashcardAuth';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavbar } from '@/contexts/NavbarContext';
 import Tooltip from '@/components/flashcards/Tooltip';
-import { useFlashcardCollections, useSubjects } from '@/hooks/use-query-flashcards';
+import { useFlashcardCollections, useSubjects, flashcardKeys } from '@/hooks/use-query-flashcards';
 import { SkeletonFlashcardGrid } from './SkeletonFlashcard';
 import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
+import { usePersistedState } from '@/hooks/use-persisted-state';
 
 // Define skeleton components
 const SkeletonCollectionCard = ({ className = '' }) => (
@@ -91,13 +92,12 @@ export default function FlashcardCollections() {
   
   // UI State
   const [collectionToDelete, setCollectionToDelete] = useState<FlashcardCollection | null>(null);
-  const [showFilters, setShowFilters] = useState<boolean>(false);
-  const [isFilteringSubjects, setIsFilteringSubjects] = useState<boolean>(false);
+  const [showFilters, setShowFilters] = usePersistedState<boolean>('collections-show-filters', false);
   
   // Filter and search state
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
-  const [filter, setFilter] = useState<'all' | 'official' | 'my'>('all');
+  const [selectedSubjectIds, setSelectedSubjectIds] = usePersistedState<string[]>('collections-filter-subjects', []);
+  const [filter, setFilter] = usePersistedState<'all' | 'official' | 'my'>('collections-filter-tab', 'all');
   
   // Fetch subjects separately to have them available immediately
   const { data: subjectsData, isLoading: isLoadingSubjects } = useSubjects({
@@ -219,21 +219,6 @@ export default function FlashcardCollections() {
     checkRLSPolicies();
   }, []);
   
-  // Handle URL parameters for filters
-  useEffect(() => {
-    // Get filter from URL if present
-    const filterParam = searchParams.get('filter');
-    if (filterParam && ['all', 'official', 'my'].includes(filterParam)) {
-      setFilter(filterParam as 'all' | 'official' | 'my');
-    }
-    
-    // Get subjects from URL if present
-    const subjectParams = searchParams.getAll('subject');
-    if (subjectParams.length > 0) {
-      setSelectedSubjectIds(subjectParams);
-    }
-  }, [searchParams]);
-  
   // NEW: Replace the complex ref callback with a simple useRef for infinite scroll
   const observerTarget = useRef(null);
   
@@ -266,16 +251,25 @@ export default function FlashcardCollections() {
     if (!collectionToDelete) return;
     
     try {
+      // Get the ID before clearing the state
+      const collectionIdToDelete = collectionToDelete.id;
+      
+      // Optimistically update the UI by filtering out the collection being deleted
+      const updatedCollections = collections.filter(c => c.id !== collectionIdToDelete);
+      
+      // Clear the deletion modal immediately for better UX
+      setCollectionToDelete(null);
+      
       // First delete entries in the junction tables
       const tasks = [
         supabase
           .from('collection_subjects')
           .delete()
-          .eq('collection_id', collectionToDelete.id),
+          .eq('collection_id', collectionIdToDelete),
         supabase
-        .from('flashcard_collections_junction')
-        .delete()
-          .eq('collection_id', collectionToDelete.id)
+          .from('flashcard_collections_junction')
+          .delete()
+          .eq('collection_id', collectionIdToDelete)
       ];
       
       await Promise.all(tasks);
@@ -284,18 +278,22 @@ export default function FlashcardCollections() {
       const { error } = await supabase
         .from('collections')
         .delete()
-        .eq('id', collectionToDelete.id)
+        .eq('id', collectionIdToDelete)
         .eq('user_id', user.id)
         .eq('is_official', false);
       
       if (error) throw error;
       
-      // Invalidate the collections query to trigger a refetch
-      queryClient.invalidateQueries({ queryKey: collectionKeys.all });
+      // Invalidate related queries to ensure data consistency
+      queryClient.invalidateQueries({ queryKey: [...flashcardKeys.collections(), filter, selectedSubjectIds] });
+      queryClient.invalidateQueries({ queryKey: flashcardKeys.collections() });
       
-      setCollectionToDelete(null);
     } catch (err: any) {
+      console.error("Error deleting collection:", err);
       showToast(`Error: ${err.message}`, 'error');
+      
+      // If there was an error, make sure to refetch to restore correct state
+      queryClient.invalidateQueries({ queryKey: [...flashcardKeys.collections(), filter, selectedSubjectIds] });
     }
   }
 
@@ -303,11 +301,6 @@ export default function FlashcardCollections() {
   function handleFilterChange(value: string) {
     const newFilter = value as 'all' | 'official' | 'my';
     setFilter(newFilter);
-      
-    // Update URL params
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('filter', newFilter);
-    setSearchParams(newParams, { replace: true });
   }
   
   // Subject filter
@@ -317,40 +310,21 @@ export default function FlashcardCollections() {
     
     // Add to selected subjects if not already added
     if (!selectedSubjectIds.includes(subjectId)) {
-      setIsFilteringSubjects(true);
-      const newSubjectIds = [...selectedSubjectIds, subjectId];
-      setSelectedSubjectIds(newSubjectIds);
-      
-      // Update URL params without causing a navigation/refresh
-      const newParams = new URLSearchParams(searchParams);
-      newParams.delete('subject');
-      newSubjectIds.forEach(id => newParams.append('subject', id));
-      setSearchParams(newParams, { replace: true });
+      setSelectedSubjectIds([...selectedSubjectIds, subjectId]);
     }
+    
+    // Reset the select element
+    e.target.value = '';
   }
   
   // Remove subject filter
   function removeSubjectFilter(subjectId: string) {
-    setIsFilteringSubjects(true);
-    const newSubjectIds = selectedSubjectIds.filter(id => id !== subjectId);
-    setSelectedSubjectIds(newSubjectIds);
-    
-    // Update URL params without causing a navigation/refresh
-    const newParams = new URLSearchParams(searchParams);
-    newParams.delete('subject');
-    newSubjectIds.forEach(id => newParams.append('subject', id));
-    setSearchParams(newParams, { replace: true });
+    setSelectedSubjectIds(selectedSubjectIds.filter(id => id !== subjectId));
   }
   
   // Clear all subject filters
   function clearSubjectFilters() {
-    setIsFilteringSubjects(true);
     setSelectedSubjectIds([]);
-    
-    // Update URL params without causing a navigation/refresh
-    const newParams = new URLSearchParams(searchParams);
-    newParams.delete('subject');
-    setSearchParams(newParams, { replace: true });
   }
   
   // Handle search
@@ -367,12 +341,21 @@ export default function FlashcardCollections() {
     setSearchParams(newParams, { replace: true });
   }
   
-  // Reset the filtering state when data is loaded
+  // Listen for the custom filter toggle event from the navbar
   useEffect(() => {
-    if (!isFetching && isFilteringSubjects) {
-      setIsFilteringSubjects(false);
-    }
-  }, [isFetching, isFilteringSubjects]);
+    const handleFilterToggle = (event: any) => {
+      if (event.detail && typeof event.detail.isOpen !== 'undefined') {
+        setShowFilters(event.detail.isOpen);
+      } else {
+        setShowFilters(prev => !prev);
+      }
+    };
+    
+    window.addEventListener('toggleFilter', handleFilterToggle);
+    return () => {
+      window.removeEventListener('toggleFilter', handleFilterToggle);
+    };
+  }, []);
   
   // Render the component
   if (isLoading && collections.length === 0) {
@@ -387,11 +370,25 @@ export default function FlashcardCollections() {
               </p>
             </div>
             
-            <div className="w-[340px]">
+            <div className="flex items-center gap-2">
+              {/* Filter button skeleton - replaced with the actual button */}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center gap-1 border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
+                disabled={true}
+              >
+                <span className="flex items-center gap-1">
+                  <Filter className="h-4 w-4" />
+                  Filter
+                </span>
+              </Button>
+              
+              {/* Tabs skeleton */}
               <Tabs value={filter} onValueChange={handleFilterChange}>
                 <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
                   <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
-                  <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+                  <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Official</TabsTrigger>
                   <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -404,7 +401,7 @@ export default function FlashcardCollections() {
           <Tabs value={filter} onValueChange={handleFilterChange}>
             <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
               <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
-              <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+              <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Official</TabsTrigger>
               <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -424,7 +421,66 @@ export default function FlashcardCollections() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
+    <div className="w-full max-w-6xl mx-auto">
+      {/* Page title - only visible on desktop */}
+      <div className="hidden md:block mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Collections</h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              {selectedSubjectIds.length > 0 
+                ? `${totalCount} ${totalCount === 1 ? 'collection' : 'collections'} (filtered)` 
+                : `${totalCount} ${totalCount === 1 ? 'collection' : 'collections'}`}
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {/* Filter button moved here */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-1 border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              {showFilters ? (
+                <span className="flex items-center gap-1">
+                  <FilterX className="h-4 w-4" />
+                  Hide Filters
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <Filter className="h-4 w-4" />
+                  Filter
+                </span>
+              )}
+            </Button>
+            
+            <Tabs value={filter} onValueChange={handleFilterChange}>
+              <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700 w-[340px]">
+                <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+                <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Official</TabsTrigger>
+                <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </div>
+      </div>
+      
+      {/* Mobile layout - only filter tabs */}
+      <div className="md:hidden mb-6">
+        <Tabs value={filter} onValueChange={handleFilterChange}>
+          <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+            <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+            <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Official</TabsTrigger>
+            <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      
+      {/* Remove the standalone filter controls since we've moved it to the header */}
+      {/* Filter controls - only show on desktop */}
+      {/* Remove this section */}
+
       <DeleteConfirmation
         isOpen={!!collectionToDelete}
         onClose={() => setCollectionToDelete(null)}
@@ -442,139 +498,86 @@ export default function FlashcardCollections() {
         />
       )}
 
-      {/* Desktop layout */}
-      <div className="hidden md:block mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Collections</h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              {isLoadingFilteredData ? (
-                <span className="flex items-center">
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Filtering collections...
-                </span>
-              ) : (
-                `${totalCount} ${totalCount === 1 ? 'collection' : 'collections'}`
-              )}
-            </p>
-          </div>
-          
-          <div className="w-[340px]">
-            <Tabs value={filter} onValueChange={handleFilterChange}>
-              <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
-                <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
-                <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
-                <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile layout - only filter tabs */}
-      <div className="md:hidden mb-6">
-        <Tabs value={filter} onValueChange={handleFilterChange}>
-          <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
-            <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
-            <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
-            <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-
-      {/* Filter button */}
-      <Button 
-        variant="outline" 
-        size="sm" 
-        className="flex items-center gap-1 text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white dark:border-gray-600 dark:hover:border-gray-500 dark:bg-gray-800 mb-4"
-        onClick={() => setShowFilters(!showFilters)}
-        disabled={isLoadingFilteredData}
-      >
-        {isLoadingFilteredData ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : showFilters ? (
-          <FilterX className="h-4 w-4" />
-        ) : (
-          <Filter className="h-4 w-4" />
-        )}
-        {showFilters ? 'Hide Filters' : 'Filter'}
-      </Button>
-
       {/* Filters */}
       {showFilters && (
-        <div className="mb-6 p-4 border dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800/80">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium dark:text-gray-200">Filter by Subject</h3>
+        <div className="mb-6 p-4 border dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800/70">
+          <div className="mb-4 pb-3 border-b dark:border-gray-700 flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Filter by Subject</label>
             
             {selectedSubjectIds.length > 0 && (
               <Button 
                 variant="outline" 
                 size="sm"
-                className="dark:border-gray-600 dark:text-gray-300 dark:hover:text-white dark:hover:border-gray-500 dark:bg-gray-800"
+                className="ml-auto text-xs dark:border-gray-600 dark:text-gray-300 dark:hover:text-white dark:hover:border-gray-500 dark:bg-gray-800"
                 onClick={clearSubjectFilters}
                 disabled={isLoadingFilteredData}
               >
                 {isLoadingFilteredData ? (
                   <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                 ) : null}
-                Clear All
+                Clear All Filters
               </Button>
             )}
           </div>
           
-          <div className="flex flex-wrap gap-2">
-            <select
-              className="px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              value=""
-              onChange={handleSubjectDropdownChange}
-              disabled={isLoadingFilteredData || isLoadingSubjects}
-            >
-              {isLoadingSubjects ? (
-                <option>Loading subjects...</option>
-              ) : (
-                <>
-                  <option value="">Select a subject...</option>
-                  {allSubjects.map(subject => (
-                    <option 
-                      key={subject.id} 
-                      value={subject.id}
-                      disabled={selectedSubjectIds.includes(subject.id)}
-                    >
-                      {subject.name}
-                    </option>
-                  ))}
-                </>
-              )}
-            </select>
-          
-            {selectedSubjectIds.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {selectedSubjectIds.map(id => {
-                  // First check the full subjects list
-                  const subject = allSubjects.find(s => s.id === id) || subjectMap[id];
-                  return subject && (
-                    <span
-                      key={id}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 dark:bg-blue-900/70 dark:text-blue-200"
-                    >
-                      {subject.name}
-                      <button 
-                        type="button" 
-                        onClick={() => removeSubjectFilter(id)}
-                        className="ml-1 focus:outline-none"
-                        disabled={isLoadingFilteredData}
-                      >
-                        {isLoadingFilteredData ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <X className="h-3 w-3" />
-                        )}
-                      </button>
-                    </span>
-                  );
-                })}
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+            {/* Subject filter */}
+            <div>
+              <div className="flex flex-col gap-2">
+                <select
+                  className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                  value=""
+                  onChange={handleSubjectDropdownChange}
+                  disabled={isLoadingFilteredData || isLoadingSubjects}
+                >
+                  {isLoadingSubjects ? (
+                    <option>Loading subjects...</option>
+                  ) : (
+                    <>
+                      <option value="">Select a subject...</option>
+                      {allSubjects.map(subject => (
+                        <option 
+                          key={subject.id} 
+                          value={subject.id}
+                          disabled={selectedSubjectIds.includes(subject.id)}
+                        >
+                          {subject.name}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+                
+                {selectedSubjectIds.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {selectedSubjectIds.map(id => {
+                      // First check the full subjects list
+                      const subject = allSubjects.find(s => s.id === id) || subjectMap[id];
+                      return subject && (
+                        <span
+                          key={id}
+                          className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded-md text-sm flex items-center text-gray-800 dark:text-gray-200"
+                        >
+                          {subject.name}
+                          <button 
+                            type="button" 
+                            onClick={() => removeSubjectFilter(id)}
+                            className="ml-2 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
+                            disabled={isLoadingFilteredData}
+                          >
+                            {isLoadingFilteredData ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <X className="h-3 w-3" />
+                            )}
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}

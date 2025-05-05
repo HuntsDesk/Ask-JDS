@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
-import { Menu, X, BookOpen, Library, Clock } from 'lucide-react';
+import { Menu, BookOpen, Library, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SidebarContext } from '@/App';
 import { useLayoutState } from '@/hooks/useLayoutState';
+import MobileBottomNav from './MobileBottomNav';
 
 export default function CourseNavbar() {
   const { user } = useAuth();
   const location = useLocation();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const { isExpanded, setIsExpanded } = useContext(SidebarContext);
   const { isDesktop, isPinned, contentMargin } = useLayoutState();
@@ -45,11 +45,6 @@ export default function CourseNavbar() {
     }
   }, [location]);
   
-  // Close menu when route changes
-  useEffect(() => {
-    setIsMenuOpen(false);
-  }, [location.pathname]);
-  
   const NavLink = ({ to, icon, text, className = '' }) => (
     <Link 
       to={to} 
@@ -60,7 +55,6 @@ export default function CourseNavbar() {
           ? 'text-[#F37022]' 
           : 'text-gray-600 dark:text-gray-300'
       } ${className}`}
-      onClick={() => setIsMenuOpen(false)}
     >
       {icon}
       <span>{text}</span>
@@ -93,12 +87,6 @@ export default function CourseNavbar() {
                   Courses
                 </h1>
               </div>
-              <button
-                onClick={() => setIsMenuOpen(true)}
-                className="text-gray-600 flex items-center gap-1 ml-4"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
             </div>
 
             {/* Desktop layout container - Grid layout only applies at md breakpoint and above */}
@@ -137,48 +125,8 @@ export default function CourseNavbar() {
         </div>
       </nav>
       
-      {/* Mobile menu overlay */}
-      {isMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-50 md:hidden"
-          onClick={() => setIsMenuOpen(false)}
-        />
-      )}
-      
-      {/* Mobile menu */}
-      {isMenuOpen && (
-        <div className="md:hidden fixed top-16 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50 shadow-lg">
-          <div className="p-4 space-y-2">
-            <Link
-              to="/courses"
-              className={cn(
-                "flex items-center space-x-3 p-3 rounded-md",
-                isPathActive('/courses') && !location.pathname.includes('/courses/') 
-                  ? "bg-gray-100 dark:bg-gray-700 text-[#F37022]"
-                  : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-              )}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <Library className="h-5 w-5" />
-              <span className="font-medium">Dashboard</span>
-            </Link>
-            
-            <Link
-              to="/courses/expired-courses"
-              className={cn(
-                "flex items-center space-x-3 p-3 rounded-md",
-                isPathActive('/courses/expired-courses')
-                  ? "bg-gray-100 dark:bg-gray-700 text-[#F37022]"
-                  : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-              )}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <Clock className="h-5 w-5" />
-              <span className="font-medium">Expired Courses</span>
-            </Link>
-          </div>
-        </div>
-      )}
+      {/* Mobile bottom navigation */}
+      <MobileBottomNav />
     </>
   );
 } 

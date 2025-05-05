@@ -41,4 +41,50 @@ export const SkeletonFlashcardGrid = ({ count = 6 }) => (
   </div>
 );
 
+// Add a skeleton component for the study page
+export const SkeletonStudyCard = () => (
+  <>
+    {/* Main flashcard placeholder */}
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden relative mb-16 md:mb-4">
+      {/* Banner placeholder */}
+      <div className="h-10 bg-orange-500 bg-opacity-60 animate-pulse"></div>
+      
+      <div className="p-8 flex flex-col">
+        {/* Card content */}
+        <div className="min-h-[250px] flex items-center justify-center pt-4">
+          <div className="text-center w-full">
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-md w-3/4 mx-auto"></div>
+            <div className="space-y-3 mt-8 max-w-md mx-auto">
+              <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded-md w-full"></div>
+              <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded-md w-5/6 mx-auto"></div>
+              <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded-md w-4/6 mx-auto"></div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Flip button placeholder */}
+        <div className="text-center mt-4">
+          <div className="flex items-center gap-2 mx-auto justify-center">
+            <div className="h-5 w-5 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+            <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-28"></div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Card footer */}
+      <div className="bg-gray-50 dark:bg-gray-700 px-8 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-1">
+          <div className="h-5 w-5 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="h-5 w-16 bg-gray-200 dark:bg-gray-700 rounded hidden sm:block"></div>
+        </div>
+        <div className="h-8 w-32 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
+        <div className="flex items-center gap-1">
+          <div className="h-5 w-16 bg-gray-200 dark:bg-gray-700 rounded hidden sm:block"></div>
+          <div className="h-5 w-5 bg-gray-200 dark:bg-gray-700 rounded"></div>
+        </div>
+      </div>
+    </div>
+  </>
+);
+
 export default SkeletonFlashcard; 

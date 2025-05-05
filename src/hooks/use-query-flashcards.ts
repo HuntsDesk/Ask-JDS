@@ -36,8 +36,8 @@ export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all
         .order('created_at', { ascending: false });
       
       // Apply offset-based pagination (instead of cursor-based)
-      // Each page is 21 items (7 rows of 3)
-      const pageSize = 21;
+      // Each page is 30 items
+      const pageSize = 30;
       const offset = typeof pageParam === 'number' ? pageParam * pageSize : 0;
       query = query.range(offset, offset + pageSize - 1);
       console.log(`Using offset pagination: offset=${offset}, limit=${pageSize}`);

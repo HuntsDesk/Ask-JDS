@@ -85,11 +85,7 @@ export default function CreateSubject() {
       {error && <ErrorMessage message={error} />}
       
       <div className="mb-8">
-        <Link to="/flashcards/subjects" className="text-[#F37022] hover:text-[#E36012] flex items-center gap-2">
-          <ChevronLeft className="h-5 w-5" />
-          Back to Subjects
-        </Link>
-        <h1 className="text-3xl font-bold mt-4 text-gray-900 dark:text-white">Create Subject</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Create Subject</h1>
       </div>
       
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-8">
