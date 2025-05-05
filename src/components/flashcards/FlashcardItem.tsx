@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Check, FileEdit, Trash2, BookOpen, Lock, Loader2 } from 'lucide-react';
+import { Check, FileEdit, Trash2, BookOpen, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import Tooltip from './Tooltip';
 
 interface FlashcardItemProps {
   id: string;
@@ -163,21 +164,17 @@ const FlashcardItem = React.memo(({
             </button>
             
             {/* Premium indicator with JD Simplified favicon */}
-            {(isPremium || isReadOnly) && (
-              <div className="text-[#F37022]" title="Premium content">
-                <img 
-                  src="/images/JD Simplified Favicon.svg" 
-                  alt="Premium" 
-                  className="h-5 w-5 dark:invert dark:brightness-[1.75] dark:hue-rotate-180"
-                />
-              </div>
-            )}
-            
-            {/* Lock indicator for locked content */}
-            {isLocked && !devForceSubscription && (
-              <div className="text-[#F37022]">
-                <Lock className="h-4 md:h-5 w-4 md:w-5" />
-              </div>
+            {(isPremium || isReadOnly) && !devForceSubscription && (
+              <Tooltip text="Premium Content" position="top">
+                <div className="text-[#F37022]">
+                  <img 
+                    src="/images/JD Simplified Favicon.svg" 
+                    alt="Premium" 
+                    className="h-5 w-5"
+                    style={{ filter: "brightness(0) saturate(100%) invert(57%) sepia(85%) saturate(1661%) hue-rotate(347deg) brightness(98%) contrast(98%)" }}
+                  />
+                </div>
+              </Tooltip>
             )}
           </div>
           
