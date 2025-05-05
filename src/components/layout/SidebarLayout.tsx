@@ -1,4 +1,4 @@
-import { ReactNode, useContext, useState, useEffect } from 'react';
+import { ReactNode, useContext, useState } from 'react';
 import { SidebarContext } from '@/App';
 import { Sidebar } from '../chat/Sidebar';
 import useMediaQuery from '@/hooks/useMediaQuery';
@@ -45,22 +45,6 @@ export const SidebarLayout = ({ children, sidebarProps = {} }: SidebarLayoutProp
     }
   };
   
-  // Add/remove sidebar-visible class on body when sidebar is expanded on mobile
-  useEffect(() => {
-    if (!isDesktop) {
-      if (isExpanded) {
-        document.body.classList.add('sidebar-visible');
-      } else {
-        document.body.classList.remove('sidebar-visible');
-      }
-    }
-    
-    // Clean up on unmount
-    return () => {
-      document.body.classList.remove('sidebar-visible');
-    };
-  }, [isExpanded, isDesktop]);
-  
   return (
     <div className="flex h-full bg-gray-50 dark:bg-gray-900 overflow-hidden">
       {/* Mobile backdrop - only show on mobile when sidebar is expanded */}
@@ -80,9 +64,7 @@ export const SidebarLayout = ({ children, sidebarProps = {} }: SidebarLayoutProp
           isExpanded || isDesktop ? 'translate-x-0' : '-translate-x-full'
         } ${
           isDesktop ? 'relative' : 'fixed'
-        } ${sidebarWidth} h-full transition-all duration-300 ease-in-out z-50 sidebar-container ${
-          !isExpanded ? 'sidebar-hidden-mobile' : ''
-        }`}
+        } ${sidebarWidth} h-full transition-all duration-300 ease-in-out z-50`}
       >
         <Sidebar
           setActiveTab={sidebarProps.setActiveTab}

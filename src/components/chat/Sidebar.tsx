@@ -115,10 +115,25 @@ export function Sidebar({
     }
   }, [effectiveIsPinned, isDesktopExpanded, onDesktopExpandedChange]);
 
+  // Unpin sidebar when on mobile
+  useEffect(() => {
+    if (isMobile && effectiveIsPinned) {
+      console.log('Unpinning sidebar on mobile view');
+      // Just update our local state, don't call the callback to avoid UI jank
+      setIsPinned(false);
+    }
+  }, [isMobile, effectiveIsPinned, setIsPinned]);
+
   // Add a ref to track recently toggled pin state
   const recentlyToggledPinRef = useRef(false);
   
   const togglePin = () => {
+    // Don't allow pinning on mobile devices
+    if (isMobile) {
+      console.log('Pinning not supported on mobile devices');
+      return;
+    }
+    
     const newPinState = !effectiveIsPinned;
     
     // Update our state hook
@@ -396,7 +411,7 @@ export function Sidebar({
   return (
     <>
       {/* Main sidebar container */}
-      <div
+      <div 
         className={cn(
           "fixed inset-y-0 left-0 flex flex-col bg-background border-r transition-all duration-300 sidebar-transition sidebar-container",
           // Desktop state
@@ -503,7 +518,7 @@ export function Sidebar({
                   variant="ghost" 
                   className={cn(
                     "ml-1",
-                    !isDesktopExpanded && "hidden",
+                    (!isDesktopExpanded || isMobile) && "hidden",
                     "dark:hover:bg-gray-700",
                     effectiveIsPinned && "text-[#F37022]",
                     !effectiveIsPinned && "dark:text-gray-300 dark:hover:text-gray-400"
@@ -590,7 +605,7 @@ export function Sidebar({
                                 }}
                                 className={cn(
                                   "text-sm truncate",
-                                  (selectedThreadId === session.id) && "font-medium text-[#F37022] dark:text-orange-300"
+                            (selectedThreadId === session.id) && "font-medium text-[#F37022] dark:text-orange-300"
                                 )}
                               >
                                 {session.title}

@@ -7,7 +7,6 @@ import { Loader2, Info } from 'lucide-react';
 import { Message } from '@/types';
 import { ChatMessage } from './ChatMessage';
 import PageContainer from '@/components/layout/PageContainer';
-import { useLayoutState } from '@/hooks/useLayoutState';
 
 interface ChatInterfaceProps {
   threadId: string | null;
@@ -64,63 +63,6 @@ export function ChatInterface({
   // Create a single state for all messages including optimistic ones
   // This prevents any possibility of merging conflicts
   const [allMessages, setAllMessages] = useState<Message[]>(messages);
-  
-  // Get layout state to handle sidebar visibility
-  const { isExpanded: isSidebarExpanded, isMobile, isPinned, isDesktop: isDesktopViewport } = useLayoutState();
-  
-  // Create conditional class for the inner container to fix alignment with sidebar
-  const innerContainerClassName = useMemo(() => {
-    // When sidebar is visible, use left alignment instead of center
-    if ((isMobile && isSidebarExpanded) || 
-        (isDesktopViewport && isPinned) || 
-        (isDesktopViewport && isSidebarExpanded && !isPinned)) {
-      return "max-w-4xl ml-0 mr-auto mb-0"; // Left-aligned
-    }
-    
-    // Default centered state
-    return "max-w-4xl mx-auto mb-0"; // Center-aligned
-  }, [isMobile, isSidebarExpanded, isDesktopViewport, isPinned]);
-  
-  // Create conditional style for the input container to prevent it touching the sidebar
-  const inputContainerStyle = useMemo(() => {
-    // For mobile with expanded sidebar
-    if (isMobile && isSidebarExpanded) {
-      return {
-        left: 'var(--sidebar-width)',
-        width: 'calc(100% - var(--sidebar-width))',
-        paddingLeft: '1.5rem',
-        paddingRight: '1.5rem'
-      };
-    }
-    
-    // For desktop with pinned sidebar
-    if (isDesktopViewport && isPinned) {
-      return {
-        left: 'var(--sidebar-width)',
-        width: 'calc(100% - var(--sidebar-width))',
-        paddingLeft: '1.5rem',
-        paddingRight: '1.5rem'
-      };
-    }
-    
-    // For desktop with expanded but not pinned sidebar
-    if (isDesktopViewport && isSidebarExpanded && !isPinned) {
-      return {
-        left: 'var(--sidebar-width)',
-        width: 'calc(100% - var(--sidebar-width))',
-        paddingLeft: '1.5rem', 
-        paddingRight: '1.5rem'
-      };
-    }
-    
-    // Default state
-    return {
-      left: '0',
-      width: '100%',
-      paddingLeft: '1rem',
-      paddingRight: '1rem'
-    };
-  }, [isMobile, isSidebarExpanded, isDesktopViewport, isPinned]);
   
   // Update allMessages whenever server messages change, but only if not currently updating
   useEffect(() => {
@@ -423,7 +365,7 @@ export function ChatInterface({
       <div className={`chat-messages-area flex-1 ${!isDesktop ? 'pt-16' : ''}`}>
         <div 
           ref={messagesContainerRef}
-          className="chat-messages-scroll h-full w-full overflow-y-auto px-2 sm:px-4 py-2 pb-0"
+          className="chat-messages-scroll h-full w-full overflow-y-auto px-2 sm:px-4 py-2 pb-2"
         >
           <div ref={messageTopRef} className="mt-2 md:mt-4"></div>
           
@@ -443,8 +385,8 @@ export function ChatInterface({
         </div>
       </div>
       
-      <div className="input-container py-1 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg" style={inputContainerStyle}>
-        <div className={innerContainerClassName}>
+      <div className="input-container px-4 py-1 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
+        <div className="max-w-4xl mx-auto mb-0">
           {sendError && (
             <div className="mb-1 p-2 text-sm rounded bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">
               {sendError}

@@ -264,12 +264,7 @@ export default function AllCoursesPage() {
           <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
             <BookOpen className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-3" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No active courses</h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-4">You're not enrolled in any active courses.</p>
-            <Link to="./available-courses">
-              <Button variant="default" className="bg-[#F37022] hover:bg-[#E36012]">
-                Browse Available Courses
-              </Button>
-            </Link>
+            <p className="text-gray-500 dark:text-gray-400">You're not enrolled in any active courses.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
