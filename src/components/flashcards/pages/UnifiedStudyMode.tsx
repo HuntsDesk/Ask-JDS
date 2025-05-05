@@ -1062,7 +1062,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
             className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
           >
             <ArrowLeft className="h-5 w-5" />
-            Previous
+            <span className="hidden sm:inline">Previous</span>
           </button>
 
           <div className="flex items-center gap-3" style={{ pointerEvents: 'auto', position: 'relative', zIndex: 50 }}>
@@ -1077,7 +1077,8 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                 className="bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-700 cursor-pointer flex items-center gap-1 px-3 py-1 rounded-md font-medium"
               >
                 <Check className="h-4 w-4" />
-                Mark Mastered
+                <span className="hidden sm:inline">Mark Mastered</span>
+                <span className="sm:hidden">Mastered</span>
               </button>
             )}
             
@@ -1092,7 +1093,8 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                 className="bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-500 cursor-pointer flex items-center gap-1 px-3 py-1 rounded-md"
               >
                 <Check className="h-4 w-4" />
-                Undo Mastered
+                <span className="hidden sm:inline">Undo Mastered</span>
+                <span className="sm:hidden">Undo</span>
               </button>
             )}
           </div>
@@ -1102,7 +1104,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
             disabled={currentIndex === filteredCards.length - 1}
             className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-50"
           >
-            Next
+            <span className="hidden sm:inline">Next</span>
             <ArrowRight className="h-5 w-5" />
           </button>
         </div>

@@ -967,3 +967,16 @@ div[role="tooltip"],
 .message-wrapper:last-child .message-timestamp {
   margin-bottom: 8px !important;
 }
+
+/* Fix for select elements in dark mode on flashcards study page */
+.dark select option {
+  background-color: rgb(55, 65, 81); /* dark:bg-gray-700 */
+  color: white;
+}
+
+/* Ensure proper contrast for form elements in dark mode */
+.dark select,
+.dark select option,
+.dark input {
+  color-scheme: dark;
+}
