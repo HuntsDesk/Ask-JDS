@@ -582,6 +582,11 @@ export default function AllFlashcards() {
       return false;
     }
     
+    // Cards without collections are never premium
+    if (!card.collection) {
+      return false;
+    }
+    
     // Official content requires subscription
     const isPremium = isOfficial && !hasSubscription;
     
@@ -756,11 +761,7 @@ export default function AllFlashcards() {
         })
       );
       
-      // Show success message
-      showToast(
-        isMastered ? "Card marked as mastered!" : "Card marked as not mastered", 
-        "success"
-      );
+      // Remove toast notification for success
       
       setMasteringCardId(null);
       
@@ -992,6 +993,22 @@ export default function AllFlashcards() {
     };
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
+  // Listen for the custom filter toggle event from the navbar
+  useEffect(() => {
+    const handleFilterToggle = (event: any) => {
+      if (event.detail && typeof event.detail.isOpen !== 'undefined') {
+        setShowFilters(event.detail.isOpen);
+      } else {
+        setShowFilters(prev => !prev);
+      }
+    };
+    
+    window.addEventListener('toggleFilter', handleFilterToggle);
+    return () => {
+      window.removeEventListener('toggleFilter', handleFilterToggle);
+    };
+  }, []);
+
   // Render our enriched data
   if (showPaywall) {
     return <FlashcardPaywall onClose={handleClosePaywall} />;
@@ -1007,14 +1024,20 @@ export default function AllFlashcards() {
             <p className="text-gray-600 dark:text-gray-400">Loading flashcards...</p>
           </div>
           
-          <div className="mt-4 sm:mt-0">
-            <Tabs value={filter} onValueChange={handleFilterChange} className="w-[340px]">
-              <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
-                <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
-                <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
-                <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Cards</TabsTrigger>
-              </TabsList>
-            </Tabs>
+          <div className="mt-4 sm:mt-0 flex items-center gap-2">
+            {/* Filter button skeleton */}
+            <div className="h-9 w-[80px] bg-gray-200 dark:bg-gray-700 rounded"></div>
+            
+            {/* Tabs skeleton */}
+            <div className="w-[340px]">
+              <Tabs value={filter} onValueChange={handleFilterChange} className="w-full">
+                <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+                  <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+                  <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+                  <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Cards</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </div>
         </div>
         
@@ -1035,7 +1058,7 @@ export default function AllFlashcards() {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto pb-20 md:pb-8 px-4">
+    <div className="max-w-6xl mx-auto">
       <DeleteConfirmation
         isOpen={!!cardToDelete}
         onClose={() => setCardToDelete(null)}
@@ -1053,65 +1076,78 @@ export default function AllFlashcards() {
         />
       )}
       
-      {/* Desktop layout */}
-      <div className="hidden md:block mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              {flashcardsData?.pages?.[0]?.totalCount || 0} {(flashcardsData?.pages?.[0]?.totalCount || 0) === 1 ? 'card' : 'cards'}
-            </p>
-          </div>
+      {/* Page title - only visible on desktop */}
+      <div className="md:flex items-center justify-between mb-4 hidden">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Flashcards</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            {(selectedSubjectIds.length > 0 || selectedCollectionIds.length > 0 || !showMastered) 
+              ? `${filteredCards.length} flashcards (filtered)` 
+              : `${flashcardsData?.pages?.[0]?.totalCount || 0} flashcards`}
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {/* Filter button */}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-1 border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            {showFilters ? (
+              <span className="flex items-center gap-1">
+                <FilterX className="h-4 w-4" />
+                Hide Filters
+              </span>
+            ) : (
+              <span className="flex items-center gap-1">
+                <Filter className="h-4 w-4" />
+                Filter
+              </span>
+            )}
+          </Button>
           
-          <div className="w-[340px]">
-            <Tabs value={filter} onValueChange={handleFilterChange}>
-              <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
-                <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
-                <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
-                <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Cards</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+          {/* Tabs slider */}
+          <Tabs value={filter} onValueChange={handleFilterChange}>
+            <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700 w-[340px]">
+              <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+              <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+              <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Cards</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
       </div>
-
+      
       {/* Mobile layout - only filter tabs */}
       <div className="md:hidden mb-6">
-        <Tabs value={filter} onValueChange={handleFilterChange}>
-          <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
-            <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
-            <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
-            <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Cards</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex flex-col gap-2">
+          <Tabs value={filter} onValueChange={handleFilterChange}>
+            <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+              <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+              <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+              <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Cards</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
       
-      {/* Filter controls */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex items-center gap-1 border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          {showFilters ? <FilterX className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
-          {showFilters ? 'Hide Filters' : 'Filter'}
-        </Button>
-        
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex items-center gap-1 border-gray-200 bg-white text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:hover:text-white"
-          onClick={handleToggleMastered}
-        >
-          {showMastered ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          {showMastered ? 'Hide Mastered' : 'Show Mastered'}
-        </Button>
-      </div>
-
       {/* Filters */}
       {showFilters && (
         <div className="mb-6 p-4 border dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800/70">
+          {/* Show/Hide Mastered option at the top of filter panel */}
+          <div className="mb-4 pb-3 border-b dark:border-gray-700">
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={!showMastered} 
+                onChange={handleToggleMastered}
+                className="w-4 h-4 text-[#F37022] bg-gray-100 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 focus:ring-[#F37022]" 
+              />
+              Hide Mastered Cards
+            </label>
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Subject filter */}
             <div>
@@ -1235,13 +1271,16 @@ export default function AllFlashcards() {
             // FIXED: Also consider official cards as locked to prevent showing edit/delete buttons
             const isLocked = isPremium || isReadOnly;
             
+            // Check if the card has a collection and provide a default if not
+            const collectionTitle = card.collection?.title || "Uncategorized";
+            
             return (
               <FlashcardItem
                 key={card.id}
                 id={card.id}
                 question={card.question}
                 answer={card.answer}
-                collectionTitle={card.collection?.title || "No Collection"}
+                collectionTitle={collectionTitle}
                 isPremium={isPremium}
                 isLocked={isLocked}
                 isReadOnly={isReadOnly}

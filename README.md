@@ -1144,6 +1144,7 @@ The Flashcards module provides a comprehensive study tool with the following fea
 - Mastery tracking with visual indicators
 - Premium content access controls
 - Responsive layouts optimized for all screen sizes
+- Ability to create standalone flashcards without assigning them to collections
 
 ### Component Structure
 

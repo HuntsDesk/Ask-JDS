@@ -110,7 +110,11 @@ const FlashcardItem = React.memo(({
           <div className="flex flex-col space-y-2">
             <div className="flex items-center gap-2">
               <BookOpen className="h-4 w-4 flex-shrink-0 text-[#F37022]" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <span className={`text-sm ${
+                collectionTitle === "Uncategorized" 
+                  ? "text-gray-500 dark:text-gray-500 italic" 
+                  : "text-gray-600 dark:text-gray-400"
+              }`}>
                 {collectionTitle}
               </span>
             </div>
