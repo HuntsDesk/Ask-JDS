@@ -5,14 +5,14 @@ import PageContainer from '@/components/layout/PageContainer';
 import SettingsNavbar from './SettingsNavbar';
 
 // Import page components
-import SubscriptionPage from './SubscriptionPage';
+import { SubscriptionSettings } from './SubscriptionSettings';
 import AccountPage from './AccountPage';
 import AppearancePage from './AppearancePage';
 
-// Add Suspense wrapped components for lazy loading
+// Create suspense wrapped components to ensure smooth loading experience
 const SuspenseSubscription = () => (
   <Suspense fallback={<div className="w-full py-8 flex justify-center"><LoadingSpinner className="w-8 h-8 text-jdblue" /></div>}>
-    <SubscriptionPage />
+    <SubscriptionSettings />
   </Suspense>
 );
 
@@ -36,7 +36,7 @@ export function SettingsPage() {
       
       {/* Main content */}
       <div className="flex-1 overflow-auto w-full">
-        <PageContainer disablePadding={false} className="pt-4 pb-12 mx-auto" maxWidth="default">
+        <PageContainer disablePadding={false} className="pt-4 pb-20 md:pb-12 mx-auto" maxWidth="default">
           <Routes>
             {/* Settings routes */}
             <Route path="/" element={<SuspenseSubscription />} />
