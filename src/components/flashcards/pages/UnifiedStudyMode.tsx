@@ -650,7 +650,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   // Card navigation functions
   const shuffleCards = useCallback(() => {
     console.log("UnifiedStudyMode: Shuffle function called directly");
-    
+      
     // Simply dispatch the same event that the navbar uses
     // This will ensure we have a single code path for shuffling
     const event = new CustomEvent('shuffleCards');
@@ -879,59 +879,18 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
 
   // Update the navbar count when filteredCards or currentIndex changes
   useEffect(() => {
-    if (filteredCards.length > 0) {
+    // Only update count when full data is loaded, not just sample cards
+    if (!loadingRemainingCards && filteredCards.length > 0) {
       // Update both the total count and current index
       updateCount(filteredCards.length);
       updateCurrentCardIndex(currentIndex);
     }
-  }, [filteredCards.length, currentIndex, updateCount, updateCurrentCardIndex]);
+  }, [filteredCards.length, currentIndex, updateCount, updateCurrentCardIndex, loadingRemainingCards]);
 
   // Render function
-  if (loading && !sampleCardsLoaded) {
+  if (loading || loadingRemainingCards) {
     return (
       <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
-        {/* Preload header area with title, icons, and counter */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2">
-            {isDesktop && (
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
-                <div className="flex items-center">
-                  <p className="text-gray-600 dark:text-gray-400">
-                    <span className="flex items-center">
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      Loading flashcards...
-                    </span>
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          {/* Desktop-only buttons for filter/shuffle - preloaded but disabled */}
-          {isDesktop && (
-            <div className="flex items-center gap-3">
-              <Tooltip text="Shuffle cards" position="top">
-                <button
-                  disabled={true}
-                  className="text-gray-400 dark:text-gray-600 cursor-not-allowed"
-                >
-                  <Shuffle className="h-5 w-5" />
-                </button>
-              </Tooltip>
-              
-              <Tooltip text="Show filters" position="top">
-                <button
-                  disabled={true}
-                  className="text-gray-400 dark:text-gray-600 cursor-not-allowed"
-                >
-                  <Filter className="h-5 w-5" />
-                </button>
-              </Tooltip>
-            </div>
-          )}
-        </div>
-        
         <SkeletonStudyCard />
       </div>
     );
@@ -950,10 +909,10 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
         <div className="mb-8">
           {isDesktop && (
-            <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
-              <ChevronLeft className="h-4 w-4" />
-              <span className="ml-1">Back to Collections</span>
-            </Link>
+          <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
+            <ChevronLeft className="h-4 w-4" />
+            <span className="ml-1">Back to Collections</span>
+          </Link>
           )}
         </div>
         
@@ -992,10 +951,10 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
         <div className="mb-8">
           {isDesktop && (
-            <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
-              <ChevronLeft className="h-4 w-4" />
-              <span className="ml-1">Back to Collections</span>
-            </Link>
+          <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
+            <ChevronLeft className="h-4 w-4" />
+            <span className="ml-1">Back to Collections</span>
+          </Link>
           )}
         </div>
         
@@ -1048,50 +1007,53 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         <div className="flex items-center gap-2">
           {/* Back link removed as requested */}
           {isDesktop && (
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
-              <div className="flex items-center">
-                {loadingRemainingCards ? (
-                  <p className="text-gray-600 dark:text-gray-400">
-                    <span className="flex items-center">
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      Loading flashcards...
-                    </span>
-                  </p>
-                ) : (
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {currentIndex + 1} of {filteredCards.length} flashcards
-                  </p>
-                )}
-              </div>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
+              {filteredCards.length > 0 && (
+                <div className="flex items-center">
+                  {loadingRemainingCards ? (
+                    <div className="flex items-center text-gray-600 dark:text-gray-400">
+                      <span>Loading flashcards</span>
+                      <span className="ml-2 text-sm text-[#F37022] flex items-center">
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Please wait...
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-gray-600 dark:text-gray-400">
+                      {currentIndex + 1} of {filteredCards.length} flashcards
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
         
         {/* Desktop-only buttons for filter/shuffle */}
         {isDesktop && (
-          <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
             <Tooltip text="Shuffle cards" position="top">
-              <button
+            <button
                 onClick={shuffleCards}
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-              >
+              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            >
                 <Shuffle className="h-5 w-5" />
-              </button>
-            </Tooltip>
+            </button>
+          </Tooltip>
             
             <Tooltip text={showFilters ? "Hide filters" : "Show filters"} position="top">
-              <button
+            <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-              >
+              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            >
                 {showFilters ? <FilterX className="h-5 w-5" /> : <Filter className="h-5 w-5" />}
-              </button>
-            </Tooltip>
-          </div>
+            </button>
+          </Tooltip>
+        </div>
         )}
       </div>
-      
+
       {/* Filter Panel */}
       {showFilters && (
         <div className="bg-white dark:bg-gray-800 p-4 mb-6 rounded-lg shadow-md">
@@ -1220,7 +1182,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           </div>
         </div>
       )}
-      
+
       {/* Flashcard Content */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden relative mb-16 md:mb-4" style={{ isolation: 'isolate' }}>
         {isPremiumBlurred && (
@@ -1277,11 +1239,11 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                 showAnswer ? (
                   <div className="text-xl font-normal text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words">
                     {currentCard?.answer}
-                  </div>
-                ) : (
-                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                </div>
+              ) : (
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
                     {currentCard?.question}
-                  </h2>
+                </h2>
                 )
               )}
             </div>

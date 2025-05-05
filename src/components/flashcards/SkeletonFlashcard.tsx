@@ -43,14 +43,32 @@ export const SkeletonFlashcardGrid = ({ count = 6 }) => (
 
 // Add a skeleton component for the study page
 export const SkeletonStudyCard = () => (
-  <div>
+  <div className="max-w-6xl mx-auto pb-10 md:pb-8 px-4">
+    {/* Header placeholder that matches the real UI more closely */}
+    <div className="flex justify-between items-center mb-6">
+      <div>
+        <div className="h-9 bg-gray-200 dark:bg-gray-700 rounded w-48 mb-2"></div>
+        <div className="flex items-center">
+          <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-36"></div>
+          <div className="ml-2 flex items-center">
+            <div className="h-3 w-3 bg-gray-200 dark:bg-gray-700 rounded-full mr-1 animate-pulse"></div>
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-32 animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="h-6 w-6 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+        <div className="h-6 w-6 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+      </div>
+    </div>
+    
     {/* Main flashcard placeholder */}
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden relative mb-16 md:mb-4">
       <div className="p-8 flex flex-col">
         {/* Card content */}
         <div className="min-h-[250px] flex items-center justify-center">
           <div className="text-center w-full">
-            <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mx-auto"></div>
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mx-auto"></div>
             <div className="space-y-3 mt-4 max-w-md mx-auto">
               <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
               <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6 mx-auto"></div>
@@ -61,15 +79,24 @@ export const SkeletonStudyCard = () => (
         
         {/* Flip button placeholder */}
         <div className="text-center mt-4">
-          <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-32 mx-auto"></div>
+          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-36 mx-auto flex items-center justify-center">
+            <div className="h-4 w-4 bg-gray-300 dark:bg-gray-600 rounded-full mr-2"></div>
+            <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-24"></div>
+          </div>
         </div>
       </div>
       
       {/* Card footer */}
       <div className="bg-gray-50 dark:bg-gray-700 px-8 py-4 flex justify-between items-center">
-        <div className="h-5 w-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
-        <div className="h-8 w-28 bg-gray-200 dark:bg-gray-700 rounded"></div>
-        <div className="h-5 w-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
+        <div className="h-6 w-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center">
+          <div className="h-4 w-4 bg-gray-300 dark:bg-gray-600 rounded-full mr-2"></div>
+          <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-16"></div>
+        </div>
+        <div className="h-8 w-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
+        <div className="h-6 w-24 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-end">
+          <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-16"></div>
+          <div className="h-4 w-4 bg-gray-300 dark:bg-gray-600 rounded-full ml-2"></div>
+        </div>
       </div>
     </div>
   </div>
