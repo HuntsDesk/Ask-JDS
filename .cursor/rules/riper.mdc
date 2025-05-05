@@ -102,6 +102,7 @@ Required:
 - Do NOT modify any implementation logic in this mode  
 - Do NOT switch files, adjust formatting, or fix typos unless explicitly permitted
 - Changes should only be committed when asked to enter this mode
+- Once completed, check to see if there are any files that have not been committed. If there are, commit them. 
 
 ⸻
 
