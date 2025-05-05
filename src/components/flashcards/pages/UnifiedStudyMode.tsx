@@ -1191,6 +1191,18 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           </div>
         )}
         
+        {/* Banner for sample flashcards */}
+        {isPublicSample && (
+          <div className="absolute top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-5 font-bold flex items-center justify-center space-x-2">
+            <img 
+              src="/images/JD Simplified Favicon.svg" 
+              alt="Sample" 
+              className="h-5 w-5 brightness-0 invert"
+            />
+            <span>SAMPLE FLASHCARD</span>
+          </div>
+        )}
+        
         <div className="p-8 flex flex-col">
           <div
             className="min-h-[250px] flex items-center justify-center cursor-pointer"
