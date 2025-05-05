@@ -120,7 +120,13 @@ export function ProtectedRoute({
             sessionStorage.setItem(SESSION_TIMESTAMP_KEY, Date.now().toString());
             
             setHasManualSession(true);
-            // Wait briefly for context to sync
+            
+            // Force refresh auth context by reloading the page
+            // This ensures the auth context is in sync with the actual session
+            console.log('[ProtectedRoute] User in session but not in context, refreshing page to sync auth state');
+            window.location.reload();
+
+            // Wait briefly for context to sync (this will only run if reload fails)
             setTimeout(() => {
               if (isMountedRef.current) {
                 setIsCheckingSession(false);

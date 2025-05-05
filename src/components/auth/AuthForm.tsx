@@ -184,9 +184,14 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
         duration: 2000, // 2 seconds
       });
       
-      // Immediately navigate to chat after successful sign-in
-      console.log('Sign-in successful, immediately navigating to /chat');
-      navigate('/chat', { replace: true });
+      // Clear any redirect counters to prevent loop detection from interfering
+      sessionStorage.removeItem('auth_redirect_attempts');
+      sessionStorage.removeItem('protected_redirect_attempts');
+      
+      // Immediately navigate to chat after successful sign-in using direct location change
+      // This is more reliable than navigate() when auth state might not be fully propagated
+      console.log('Sign-in successful, using direct location change to /chat');
+      window.location.href = '/chat';
       
     } catch (error) {
       console.error('Sign in error:', error);
