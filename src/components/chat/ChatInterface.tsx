@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ interface ChatInterfaceProps {
   isDesktop: boolean;
   isGenerating?: boolean;
   onClosePaywall?: () => void;
+  setFocusInputRef?: (focusFn: () => void) => void;
 }
 
 export function ChatInterface({
@@ -41,7 +42,8 @@ export function ChatInterface({
   isSidebarOpen,
   isDesktop,
   isGenerating = false,
-  onClosePaywall = () => {}
+  onClosePaywall = () => {},
+  setFocusInputRef
 }: ChatInterfaceProps) {
   const messageEndRef = useRef<HTMLDivElement>(null);
   const messageTopRef = useRef<HTMLDivElement>(null);
@@ -54,22 +56,56 @@ export function ChatInterface({
   const [isScrolled, setIsScrolled] = useState(false);
   const [showGeneratingStatus, setShowGeneratingStatus] = useState<boolean>(true);
   const [showRetryButton, setShowRetryButton] = useState<boolean>(false);
-
-  // Combine our local submission state with the external isGenerating prop
-  const isShowingResponseIndicator = isSubmitting || isGenerating;
+  
+  // A simple flag to prevent multiple message updates
+  const updatingMessagesRef = useRef(false);
+  
+  // Create a single state for all messages including optimistic ones
+  // This prevents any possibility of merging conflicts
+  const [allMessages, setAllMessages] = useState<Message[]>(messages);
+  
+  // Update allMessages whenever server messages change, but only if not currently updating
+  useEffect(() => {
+    if (!updatingMessagesRef.current) {
+      setAllMessages(messages);
+    }
+  }, [messages]);
   
   // Determine if we've been loading for too long - show retry button
   useEffect(() => {
     if (loading) {
       const timeoutId = setTimeout(() => {
         setShowRetryButton(true);
-      }, 10000); // 10 seconds
+      }, 10000);
       
       return () => clearTimeout(timeoutId);
     } else {
       setShowRetryButton(false);
     }
   }, [loading]);
+  
+  // Define a focus function to expose to the parent component
+  const focusTextarea = useCallback(() => {
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, []);
+  
+  // Register the focus function with the parent component
+  useEffect(() => {
+    if (setFocusInputRef) {
+      setFocusInputRef(focusTextarea);
+    }
+  }, [setFocusInputRef, focusTextarea]);
+  
+  // Focus textarea when thread changes
+  useEffect(() => {
+    if (threadId && threadId !== previousThreadIdRef.current) {
+      setTimeout(() => {
+        focusTextarea();
+      }, 100);
+    }
+  }, [threadId, focusTextarea]);
   
   // Scroll to bottom helper function
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
@@ -78,71 +114,31 @@ export function ChatInterface({
     }
   };
   
-  // Scroll to bottom when messages change
+  // Scroll to bottom when messages change or during AI response generation
   useEffect(() => {
-    if (messages.length > 0) {
+    if (allMessages.length > 0 || isGenerating) {
       scrollToBottom();
     }
-  }, [messages]);
+  }, [allMessages, isGenerating]);
   
-  // Handle initial load and thread switching
+  // Additional scroll listener to ensure we stay at the bottom during generation
   useEffect(() => {
-    // If thread ID changes, scroll to bottom
-    if (threadId && threadId !== previousThreadIdRef.current) {
-      // Use a slight delay to ensure the messages are rendered
-      const timeoutId = setTimeout(() => {
-        if (messages.length > 0 && !loading) {
-          // Use 'auto' for thread switching to avoid animation
-          scrollToBottom('auto');
-        }
-      }, 100);
-      
-      // Update the previous thread ID
-      previousThreadIdRef.current = threadId;
-      
-      // Clean up timeout
-      return () => clearTimeout(timeoutId);
-    }
-  }, [threadId, messages.length, loading]);
-  
-  // Additional scroll to bottom on initial content load
-  useEffect(() => {
-    // Trigger when loading changes from true to false
-    if (!loading && messages.length > 0) {
-      // Use a slight delay to ensure the messages are rendered
-      const timeoutId = setTimeout(() => {
+    if (isGenerating) {
+      // Set up an interval to keep scrolling to bottom during generation
+      const scrollInterval = setInterval(() => {
         scrollToBottom('auto');
-      }, 100);
+      }, 500);
       
-      return () => clearTimeout(timeoutId);
+      return () => clearInterval(scrollInterval);
     }
-  }, [loading, messages.length]);
-
-  // Additional effect to force a render update when messages are loaded
+  }, [isGenerating]);
+  
+  // Scroll to bottom when the user sends a message (after handleSubmit)
   useEffect(() => {
-    if (messages.length > 0 && !loading) {
-      // Force a re-render by updating a DOM element
-      const container = messagesContainerRef.current;
-      if (container) {
-        // Trigger layout recalculation to force render
-        container.style.display = 'none';
-        // Use requestAnimationFrame to ensure the style change is processed
-        requestAnimationFrame(() => {
-          if (container) {
-            container.style.display = '';
-            scrollToBottom('auto');
-          }
-        });
-      }
+    if (isSubmitting) {
+      scrollToBottom('auto');
     }
-  }, [messages.length, loading]);
-
-  // Function to scroll to the top of the messages
-  const scrollToTop = () => {
-    if (messageTopRef.current) {
-      messageTopRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
+  }, [isSubmitting]);
   
   // Track scrolling to show/hide scroll to top button
   useEffect(() => {
@@ -160,7 +156,7 @@ export function ChatInterface({
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
-
+  
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -168,67 +164,28 @@ export function ChatInterface({
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [message]);
-
+  
   // Update message input when preservedMessage changes
   useEffect(() => {
     if (preservedMessage) {
       setMessage(preservedMessage);
     }
   }, [preservedMessage]);
-
-  // Reset textarea when thread changes
+  
+  // Reset textarea when thread changes  
   useEffect(() => {
     if (threadId !== previousThreadIdRef.current) {
       setMessage('');
       previousThreadIdRef.current = threadId;
-    }
-  }, [threadId]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessage(e.target.value);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Submit on Enter without Shift
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (message.trim() === '' || isSubmitting || loading || !threadId) return;
-    
-    setSendError(null);
-    setIsSubmitting(true);
-    
-    // Store message content in a variable
-    const messageContent = message.trim();
-    
-    // Clear the input field immediately
-    setMessage('');
-    
-    try {
-      // Send message
-      await onSend(messageContent);
-      // No need to clear message here as it's already cleared
-    } catch (error) {
-      console.error('Error sending message:', error);
-      setSendError("An error occurred. Please try again.");
       
-      // If sending fails, restore the message for the user to try again
-      setMessage(messageContent);
-    } finally {
-      // Complete our local submission state - isGenerating will still be true if AI is generating
-      setIsSubmitting(false);
+      focusTextarea();
     }
-  };
+  }, [threadId, focusTextarea]);
   
-  // Calculate remaining messages
-  const remainingMessages = Math.max(0, messageLimit - messageCount);
-  const isNearLimit = remainingMessages <= 3 && remainingMessages > 0;
-
-  // Render loading state with more helpful info
+  // Combine our local submission state with the external isGenerating prop
+  const isShowingResponseIndicator = isSubmitting || isGenerating;
+  
+  // Define loading state rendering function
   const renderLoadingState = () => {
     return (
       <div className="flex items-center justify-center h-full">
@@ -250,7 +207,7 @@ export function ChatInterface({
     );
   };
 
-  // Render empty state (no messages) with better styling
+  // Define empty state rendering function
   const renderEmptyState = () => {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-6">
@@ -261,30 +218,95 @@ export function ChatInterface({
       </div>
     );
   };
-
-  // Render messages with proper handling for empty states and loading
+  
+  // Handle sending messages with a simplified approach to eliminate flashing
+  const handleSubmit = async () => {
+    if (message.trim() === '' || isSubmitting || loading || !threadId) return;
+    
+    setSendError(null);
+    setIsSubmitting(true);
+    
+    // Store message content in a variable
+    const messageContent = message.trim();
+    
+    // Clear the input field immediately
+    setMessage('');
+    
+    // Focus back on the textarea immediately
+    focusTextarea();
+    
+    try {
+      // Set the updating flag to prevent message updates
+      updatingMessagesRef.current = true;
+      
+      // Create an optimistic message
+      const optimisticMessage: Message = {
+        id: `optimistic-${Date.now()}`,
+        role: 'user',
+        content: messageContent,
+        created_at: new Date().toISOString(),
+        thread_id: threadId,
+        user_id: 'optimistic-user'
+      };
+      
+      // Add directly to our allMessages state - one update only
+      setAllMessages(prev => [...prev, optimisticMessage]);
+      
+      // Scroll to bottom
+      setTimeout(() => scrollToBottom('auto'), 0);
+      
+      // Send message to the server
+      await onSend(messageContent);
+      
+      // Wait before updating messages from server
+      // This ensures no flickering during the transition
+      setTimeout(() => {
+        updatingMessagesRef.current = false;
+        setAllMessages(messages);
+      }, 500);
+      
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setSendError("An error occurred. Please try again.");
+      
+      // Re-enable message updates and restore from server
+      updatingMessagesRef.current = false;
+      setAllMessages(messages);
+      
+      // Restore the message for retry
+      setMessage(messageContent);
+    } finally {
+      // Complete our local submission state
+      setIsSubmitting(false);
+    }
+  };
+  
+  // Render messages with a simplified approach to eliminate flashing
   const renderMessages = () => {
-    if (loading) {
+    // Only show loading state on initial load when no messages exist
+    if (loading && allMessages.length === 0) {
       return renderLoadingState();
     }
     
-    if (messages.length === 0) {
+    if (allMessages.length === 0) {
       return renderEmptyState();
     }
     
     return (
-      <div className="flex flex-col space-y-2 pb-0 mt-2">
-        {messages.map((msg, index) => (
-          <div key={`${msg.id || index}-${msg.created_at || Date.now()}`} className="message-wrapper">
+      <div className="flex flex-col space-y-1 pb-0 mt-2 md:mb-1 mb-4">
+        {allMessages.map((msg) => (
+          <div 
+            key={msg.id} 
+            className="message-wrapper py-0"
+          >
             <ChatMessage 
-              key={msg.id || `temp-${index}`} 
               message={msg}
-              isLastMessage={index === messages.length - 1}
+              isLastMessage={msg === allMessages[allMessages.length - 1]}
             />
           </div>
         ))}
         
-        {isShowingResponseIndicator && (
+        {(isShowingResponseIndicator || (loading && allMessages.length > 0)) && (
           <div className="flex justify-start">
             <div className="max-w-[80%] rounded-lg p-3 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 ml-8 rounded-bl-none">
               <div className="flex items-center">
@@ -299,8 +321,13 @@ export function ChatInterface({
       </div>
     );
   };
+  
+  const scrollToTop = () => {
+    if (messageTopRef.current) {
+      messageTopRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
-  // Welcome state - no thread selected
   if (threadId === null) {
     return (
       <PageContainer bare>
@@ -316,7 +343,6 @@ export function ChatInterface({
 
   return (
     <div className="flex flex-col h-full min-h-screen chat-interface-root">
-      {/* Only show header on mobile */}
       {!isDesktop && (
         <header className="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex items-center justify-between">
           <button
@@ -332,23 +358,20 @@ export function ChatInterface({
             </svg>
           </button>
           <h1 className="text-xl font-semibold text-gray-800 dark:text-white">Ask JDS</h1>
-          <div className="w-9"></div> {/* Spacer for alignment */}
+          <div className="w-9"></div>
         </header>
       )}
       
-      {/* Main content area - messages */}
       <div className={`chat-messages-area flex-1 ${!isDesktop ? 'pt-16' : ''}`}>
         <div 
           ref={messagesContainerRef}
-          className="chat-messages-scroll h-full w-full overflow-y-auto px-2 sm:px-4 py-2"
+          className="chat-messages-scroll h-full w-full overflow-y-auto px-2 sm:px-4 py-2 pb-2"
         >
-          {/* Spacer element to ensure messages start below the header */}
-          <div ref={messageTopRef} className="h-6 md:h-4"></div>
+          <div ref={messageTopRef} className="mt-2 md:mt-4"></div>
           
           {renderMessages()}
           
-          {/* Scroll to top button - only visible on mobile when scrolled */}
-          {!isDesktop && isScrolled && messages.length > 0 && (
+          {!isDesktop && isScrolled && allMessages.length > 0 && (
             <button
               onClick={scrollToTop}
               className="fixed top-[70px] right-3 z-10 bg-white dark:bg-gray-800 p-2 rounded-full shadow-md border border-gray-200 dark:border-gray-700"
@@ -362,29 +385,34 @@ export function ChatInterface({
         </div>
       </div>
       
-      {/* Input container - at the bottom with auto height */}
-      <div className="input-container px-4 py-2 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
-        <div className="max-w-4xl mx-auto mb-1">
+      <div className="input-container px-4 py-1 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
+        <div className="max-w-4xl mx-auto mb-0">
           {sendError && (
-            <div className="mb-2 p-2 text-sm rounded bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">
+            <div className="mb-1 p-2 text-sm rounded bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">
               {sendError}
             </div>
           )}
           
-          <form className="flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+          <div className="flex items-end gap-2">
             <textarea
               ref={textareaRef}
               value={message}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              className="flex-1 resize-none rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 text-gray-900 dark:text-gray-100 min-h-[56px] max-h-[200px] focus:outline-none focus:ring-2 focus:ring-[#F37022]"
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit();
+                }
+              }}
+              className="flex-1 resize-none rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 text-gray-900 dark:text-gray-100 min-h-[48px] max-h-[200px] focus:outline-none focus:ring-2 focus:ring-[#F37022]"
               placeholder="Type your message..."
               rows={1}
               disabled={isSubmitting || isGenerating || loading || !threadId}
             />
             <button
-              type="submit"
-              className="px-4 py-3 bg-[#F37022] text-white rounded-lg hover:bg-[#E36012] min-h-[56px] flex items-center justify-center"
+              type="button"
+              onClick={handleSubmit}
+              className="px-4 py-2.5 bg-[#F37022] text-white rounded-lg hover:bg-[#E36012] h-12 flex items-center justify-center"
               disabled={isSubmitting || isGenerating || loading || message.trim() === '' || !threadId}
             >
               {isSubmitting ? (
@@ -393,16 +421,7 @@ export function ChatInterface({
                 'Send'
               )}
             </button>
-          </form>
-          
-          {isNearLimit && (
-            <div className="mt-2 p-2 rounded bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
-              <p className="text-sm flex items-center">
-                <Info className="h-4 w-4 mr-2 flex-shrink-0" />
-                You have {remainingMessages} message{remainingMessages !== 1 ? 's' : ''} left before hitting your daily limit.
-              </p>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

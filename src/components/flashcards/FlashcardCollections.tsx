@@ -50,7 +50,7 @@ const SkeletonCollectionCard = ({ className = '' }) => (
 );
 
 const SkeletonCollectionGrid = ({ count = 6 }) => (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
     {Array.from({ length: count }).map((_, index) => (
       <SkeletonCollectionCard key={index} />
     ))}
@@ -158,10 +158,43 @@ export default function FlashcardCollections() {
     }
   }, [collections.length, totalCount, hasNextPage]);
   
-  // Update count in navbar when total changes
+  // Prepare data for rendering
+  const processedCollections = collections.map(collection => {
+    // Get card count for this collection
+    const cardCount = cardCounts[collection.id] || 0;
+    
+    // Get mastery data for this collection
+    const mastery = masteryData[collection.id] || { total: 0, mastered: 0 };
+    
+    // Get subject data for this collection from all pages
+    const allSubjectRelationships = collectionsData?.pages
+      ? collectionsData.pages.flatMap(page => page.subjectRelationships || [])
+      : [];
+      
+    const collectionSubjects = allSubjectRelationships
+      .filter(rel => rel.collection_id === collection.id)
+      .map(rel => subjectMap[rel.subject_id])
+      .filter(Boolean);
+    
+    return {
+      ...collection,
+      card_count: cardCount,
+      mastered_count: mastery.mastered,
+      subjects: collectionSubjects
+    };
+  });
+  
+  // Update both navbar counts using the same data
   useEffect(() => {
-    updateCount(totalCount);
-  }, [totalCount, updateCount]);
+    if (!isLoadingFilteredData) {
+      // Use totalCount for both navbar displays since this is what's shown in the top text
+      updateCount(totalCount);
+      updateTotalCollectionCount(totalCount);
+    }
+  }, [totalCount, updateCount, updateTotalCollectionCount, isLoadingFilteredData]);
+  
+  // Get all available subjects for the dropdown
+  const allSubjects = subjectsData || [];
   
   // Check RLS policies on component mount
   useEffect(() => {
@@ -341,64 +374,40 @@ export default function FlashcardCollections() {
     }
   }, [isFetching, isFilteringSubjects]);
   
-  // Prepare data for rendering
-  const processedCollections = collections.map(collection => {
-    // Get card count for this collection
-    const cardCount = cardCounts[collection.id] || 0;
-    
-    // Get mastery data for this collection
-    const mastery = masteryData[collection.id] || { total: 0, mastered: 0 };
-    
-    // Get subject data for this collection from all pages
-    const allSubjectRelationships = collectionsData?.pages
-      ? collectionsData.pages.flatMap(page => page.subjectRelationships || [])
-      : [];
-      
-    const collectionSubjects = allSubjectRelationships
-      .filter(rel => rel.collection_id === collection.id)
-      .map(rel => subjectMap[rel.subject_id])
-      .filter(Boolean);
-    
-    return {
-      ...collection,
-      card_count: cardCount,
-      mastered_count: mastery.mastered,
-      subjects: collectionSubjects
-    };
-  });
-  
-  // Get all available subjects for the dropdown
-  const allSubjects = subjectsData || [];
-  
   // Render the component
   if (isLoading && collections.length === 0) {
     return (
-      <div className="max-w-6xl mx-auto px-4 pb-10">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Collections</h1>
-            <p className="text-gray-600 dark:text-gray-400">Loading collections...</p>
-          </div>
-          
-          <div className="mt-4 sm:mt-0 flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex items-center gap-1 text-gray-700 dark:text-gray-300 dark:hover:text-white dark:border-gray-600 dark:hover:border-gray-500"
-              disabled
-            >
-              <Filter className="h-4 w-4" />
-              Filter
-            </Button>
+      <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
+        <div className="hidden md:block mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Collections</h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Loading collections...
+              </p>
+            </div>
             
-            <Tabs value={filter} onValueChange={handleFilterChange} className="w-[340px]">
-              <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
-                <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
-                <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
-                <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="w-[340px]">
+              <Tabs value={filter} onValueChange={handleFilterChange}>
+                <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+                  <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+                  <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+                  <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </div>
+        </div>
+
+        {/* Mobile layout - only filter tabs */}
+        <div className="md:hidden mb-6">
+          <Tabs value={filter} onValueChange={handleFilterChange}>
+            <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+              <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+              <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+              <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
         
         <SkeletonCollectionGrid />
@@ -408,14 +417,14 @@ export default function FlashcardCollections() {
 
   if (isError && error instanceof Error) {
     return (
-      <div className="max-w-6xl mx-auto px-4 pb-10">
+      <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
         <ErrorMessage message={error.message} />
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 pb-10">
+    <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
       <DeleteConfirmation
         isOpen={!!collectionToDelete}
         onClose={() => setCollectionToDelete(null)}
@@ -433,7 +442,9 @@ export default function FlashcardCollections() {
         />
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+      {/* Desktop layout */}
+      <div className="hidden md:block mb-6">
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Collections</h1>
             <p className="text-gray-600 dark:text-gray-400">
@@ -448,33 +459,46 @@ export default function FlashcardCollections() {
             </p>
           </div>
           
-        <div className="mt-4 sm:mt-0 flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center gap-1 text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white dark:border-gray-600 dark:hover:border-gray-500 dark:bg-gray-800"
-            onClick={() => setShowFilters(!showFilters)}
-            disabled={isLoadingFilteredData}
-          >
-            {isLoadingFilteredData ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : showFilters ? (
-              <FilterX className="h-4 w-4" />
-            ) : (
-              <Filter className="h-4 w-4" />
-            )}
-            {showFilters ? 'Hide Filters' : 'Filter'}
-          </Button>
-          
-          <Tabs value={filter} onValueChange={handleFilterChange} className="w-[340px]">
-            <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
-              <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
-              <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
-              <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="w-[340px]">
+            <Tabs value={filter} onValueChange={handleFilterChange}>
+              <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+                <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+                <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+                <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
         </div>
       </div>
+
+      {/* Mobile layout - only filter tabs */}
+      <div className="md:hidden mb-6">
+        <Tabs value={filter} onValueChange={handleFilterChange}>
+          <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+            <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+            <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+            <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {/* Filter button */}
+      <Button 
+        variant="outline" 
+        size="sm" 
+        className="flex items-center gap-1 text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white dark:border-gray-600 dark:hover:border-gray-500 dark:bg-gray-800 mb-4"
+        onClick={() => setShowFilters(!showFilters)}
+        disabled={isLoadingFilteredData}
+      >
+        {isLoadingFilteredData ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : showFilters ? (
+          <FilterX className="h-4 w-4" />
+        ) : (
+          <Filter className="h-4 w-4" />
+        )}
+        {showFilters ? 'Hide Filters' : 'Filter'}
+      </Button>
 
       {/* Filters */}
       {showFilters && (
@@ -496,36 +520,36 @@ export default function FlashcardCollections() {
                 Clear All
               </Button>
             )}
-              </div>
+          </div>
           
           <div className="flex flex-wrap gap-2">
-              <select
-                className="px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                value=""
-                onChange={handleSubjectDropdownChange}
-                disabled={isLoadingFilteredData || isLoadingSubjects}
+            <select
+              className="px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              value=""
+              onChange={handleSubjectDropdownChange}
+              disabled={isLoadingFilteredData || isLoadingSubjects}
             >
-                {isLoadingSubjects ? (
-                  <option>Loading subjects...</option>
-                ) : (
-                  <>
-                    <option value="">Select a subject...</option>
-                    {allSubjects.map(subject => (
-                      <option 
-                        key={subject.id} 
-                        value={subject.id}
-                        disabled={selectedSubjectIds.includes(subject.id)}
-                      >
-                        {subject.name}
-                      </option>
-                    ))}
-                  </>
-                )}
-              </select>
-            
-              {selectedSubjectIds.length > 0 && (
+              {isLoadingSubjects ? (
+                <option>Loading subjects...</option>
+              ) : (
+                <>
+                  <option value="">Select a subject...</option>
+                  {allSubjects.map(subject => (
+                    <option 
+                      key={subject.id} 
+                      value={subject.id}
+                      disabled={selectedSubjectIds.includes(subject.id)}
+                    >
+                      {subject.name}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+          
+            {selectedSubjectIds.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedSubjectIds.map(id => {
+                {selectedSubjectIds.map(id => {
                   // First check the full subjects list
                   const subject = allSubjects.find(s => s.id === id) || subjectMap[id];
                   return subject && (
@@ -534,23 +558,23 @@ export default function FlashcardCollections() {
                       className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 dark:bg-blue-900/70 dark:text-blue-200"
                     >
                       {subject.name}
-                        <button 
-                          type="button" 
-                          onClick={() => removeSubjectFilter(id)}
-                          className="ml-1 focus:outline-none"
-                          disabled={isLoadingFilteredData}
-                        >
+                      <button 
+                        type="button" 
+                        onClick={() => removeSubjectFilter(id)}
+                        className="ml-1 focus:outline-none"
+                        disabled={isLoadingFilteredData}
+                      >
                         {isLoadingFilteredData ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
                         ) : (
                           <X className="h-3 w-3" />
                         )}
-                        </button>
+                      </button>
                     </span>
                   );
                 })}
-                </div>
-              )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -568,7 +592,7 @@ export default function FlashcardCollections() {
           icon={<Layers className="h-12 w-12 text-gray-400" />}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {processedCollections.map((collection, index) => {
             return (
               <div 

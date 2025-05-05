@@ -8,11 +8,11 @@
 }
 
 /* Thread title text overflow handling */
-.nav-item span.truncate {
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
-  max-width: 100%;
+.truncate {
+  text-overflow: ellipsis !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  max-width: 100% !important;
 }
 
 /* Add missing JD Simplified animations */
@@ -621,6 +621,34 @@ body {
     display: block;
   }
   
+  /* Ensure chat messages are not hidden behind the input container */
+  .chat-messages-scroll {
+    padding-bottom: 30px !important;
+  }
+  
+  /* Add specific styling to ensure timestamps are visible */
+  .message-wrapper:last-child {
+    margin-bottom: 16px !important;
+  }
+  
+  /* Add extra spacing for the message end reference */
+  div[ref="messageEndRef"] {
+    height: 0 !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+    display: block !important;
+  }
+  
+  /* Ensure last message timestamp has extra space */
+  .message-wrapper:last-child .message-timestamp {
+    margin-bottom: 12px !important;
+  }
+  
+  /* Add space at the end of the message list */
+  .flex.flex-col.space-y-1.pb-0.mt-2 {
+    padding-bottom: 15px !important;
+  }
+  
   /* Ensure the chat container handles the fixed input properly */
   .chat-container {
     padding-bottom: 0;
@@ -925,4 +953,17 @@ div[role="tooltip"],
 /* Prevent transitions while theme is changing */
 .theme-changing * {
   transition: none !important;
+}
+
+/* Make sure timestamps are visible and have enough space */
+.message-timestamp {
+  margin-bottom: 4px !important;
+  padding-bottom: 2px !important;
+  position: relative;
+  z-index: 5;
+}
+
+/* Ensure last message timestamp has extra space */
+.message-wrapper:last-child .message-timestamp {
+  margin-bottom: 8px !important;
 }
