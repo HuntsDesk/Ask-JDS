@@ -879,18 +879,55 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
 
   // Update the navbar count when filteredCards or currentIndex changes
   useEffect(() => {
-    // Only update count when full data is loaded, not just sample cards
-    if (!loadingRemainingCards && filteredCards.length > 0) {
+    if (filteredCards.length > 0) {
       // Update both the total count and current index
       updateCount(filteredCards.length);
       updateCurrentCardIndex(currentIndex);
     }
-  }, [filteredCards.length, currentIndex, updateCount, updateCurrentCardIndex, loadingRemainingCards]);
+  }, [filteredCards.length, currentIndex, updateCount, updateCurrentCardIndex]);
 
   // Render function
-  if (loading || loadingRemainingCards) {
+  if (loading && !sampleCardsLoaded) {
     return (
       <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
+        {/* Preload the header area with title, icons and count */}
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            {isDesktop && (
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
+                <div className="flex items-center">
+                  <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-36 animate-pulse"></div>
+                  <div className="ml-2 h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Desktop-only buttons for filter/shuffle - show actual buttons */}
+          {isDesktop && (
+            <div className="flex items-center gap-3">
+              <Tooltip text="Shuffle cards" position="top">
+                <button
+                  className="text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-75"
+                  disabled={true}
+                >
+                  <Shuffle className="h-5 w-5" />
+                </button>
+              </Tooltip>
+              
+              <Tooltip text="Show filters" position="top">
+                <button
+                  className="text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-75"
+                  disabled={true}
+                >
+                  <Filter className="h-5 w-5" />
+                </button>
+              </Tooltip>
+            </div>
+          )}
+        </div>
+        
         <SkeletonStudyCard />
       </div>
     );
@@ -1011,18 +1048,14 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
               {filteredCards.length > 0 && (
                 <div className="flex items-center">
-                  {loadingRemainingCards ? (
-                    <div className="flex items-center text-gray-600 dark:text-gray-400">
-                      <span>Loading flashcards</span>
-                      <span className="ml-2 text-sm text-[#F37022] flex items-center">
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        Please wait...
-                      </span>
-                    </div>
-                  ) : (
-                    <p className="text-gray-600 dark:text-gray-400">
-                      {currentIndex + 1} of {filteredCards.length} flashcards
-                    </p>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {currentIndex + 1} of {filteredCards.length} flashcards
+                  </p>
+                  {loadingRemainingCards && (
+                    <span className="ml-2 text-sm text-[#F37022] flex items-center">
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Loading more cards...
+                    </span>
                   )}
                 </div>
               )}
