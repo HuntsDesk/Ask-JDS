@@ -589,16 +589,21 @@ body {
     transition: left 0.3s, width 0.3s; /* Add transition for smoother effect */
   }
   
-  /* Adjust input container when sidebar is open */
-  body:has(.sidebar-container:not(.sidebar-hidden-mobile)) .input-container {
+  /* Adjust input container when sidebar is open - with both :has and class selectors for better browser compatibility */
+  body:has(.sidebar-container:not(.sidebar-hidden-mobile)) .input-container,
+  body.sidebar-visible .input-container {
     left: var(--sidebar-width) !important;
     width: calc(100% - var(--sidebar-width)) !important;
   }
   
-  /* Fallback for browsers that don't support :has selector */
-  body.sidebar-visible .input-container {
-    left: var(--sidebar-width) !important;
-    width: calc(100% - var(--sidebar-width)) !important;
+  /* Ensure chat messages are not hidden behind the input container */
+  .chat-messages-scroll {
+    padding-bottom: 65px !important; /* Ensure messages aren't hidden behind input */
+  }
+  
+  /* Add specific styling to ensure timestamps are visible */
+  .message-wrapper:last-child {
+    margin-bottom: 16px !important;
   }
   
   /* Adjust message container to account for fixed input and fixed header */
@@ -632,16 +637,6 @@ body {
   .h-4[ref="messageEndRef"] {
     height: 30px !important;
     display: block;
-  }
-  
-  /* Ensure chat messages are not hidden behind the input container */
-  .chat-messages-scroll {
-    padding-bottom: 30px !important;
-  }
-  
-  /* Add specific styling to ensure timestamps are visible */
-  .message-wrapper:last-child {
-    margin-bottom: 16px !important;
   }
   
   /* Add extra spacing for the message end reference */
