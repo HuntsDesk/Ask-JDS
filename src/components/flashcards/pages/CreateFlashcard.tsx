@@ -310,11 +310,7 @@ export default function CreateFlashcard() {
       )}
       
       <div className="mb-8">
-        <Link to="/flashcards/flashcards" className="text-[#F37022] hover:text-[#E36012] flex items-center gap-2">
-          <ChevronLeft className="h-5 w-5" />
-          Back to Flashcards
-        </Link>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mt-4">Create New Flashcard</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Create New Flashcard</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
