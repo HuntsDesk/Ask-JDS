@@ -373,32 +373,38 @@ export default function FlashcardCollections() {
   // Render the component
   if (isLoading && collections.length === 0) {
     return (
-      <div className="max-w-6xl mx-auto px-4 pb-10">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Collections</h1>
-            <p className="text-gray-600 dark:text-gray-400">Loading collections...</p>
-          </div>
-          
-          <div className="mt-4 sm:mt-0 flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex items-center gap-1 text-gray-700 dark:text-gray-300 dark:hover:text-white dark:border-gray-600 dark:hover:border-gray-500"
-              disabled
-            >
-              <Filter className="h-4 w-4" />
-              Filter
-            </Button>
+      <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
+        {/* Desktop layout */}
+        <div className="hidden md:block mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Collections</h1>
+              <p className="text-gray-600 dark:text-gray-400">Loading collections...</p>
+            </div>
             
-            <Tabs value={filter} onValueChange={handleFilterChange} className="w-[340px]">
-              <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
-                <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
-                <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
-                <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="w-[340px]">
+              <Tabs value={filter} onValueChange={handleFilterChange}>
+                <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+                  <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+                  <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+                  <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </div>
+        </div>
+
+        {/* Mobile layout - only filter tabs */}
+        <div className="md:hidden mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Collections</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-3">Loading collections...</p>
+          <Tabs value={filter} onValueChange={handleFilterChange}>
+            <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+              <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+              <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+              <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
         
         <SkeletonCollectionGrid />
@@ -408,14 +414,14 @@ export default function FlashcardCollections() {
 
   if (isError && error instanceof Error) {
     return (
-      <div className="max-w-6xl mx-auto px-4 pb-10">
+      <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
         <ErrorMessage message={error.message} />
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 pb-10">
+    <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
       <DeleteConfirmation
         isOpen={!!collectionToDelete}
         onClose={() => setCollectionToDelete(null)}
@@ -433,7 +439,9 @@ export default function FlashcardCollections() {
         />
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+      {/* Desktop layout */}
+      <div className="hidden md:block mb-6">
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Collections</h1>
             <p className="text-gray-600 dark:text-gray-400">
@@ -448,7 +456,51 @@ export default function FlashcardCollections() {
             </p>
           </div>
           
-        <div className="mt-4 sm:mt-0 flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-1 text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white dark:border-gray-600 dark:hover:border-gray-500 dark:bg-gray-800"
+              onClick={() => setShowFilters(!showFilters)}
+              disabled={isLoadingFilteredData}
+            >
+              {isLoadingFilteredData ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : showFilters ? (
+                <FilterX className="h-4 w-4" />
+              ) : (
+                <Filter className="h-4 w-4" />
+              )}
+              {showFilters ? 'Hide Filters' : 'Filter'}
+            </Button>
+            
+            <div className="w-[340px]">
+              <Tabs value={filter} onValueChange={handleFilterChange}>
+                <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+                  <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+                  <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+                  <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile layout - only filter tabs */}
+      <div className="md:hidden mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Collections</h1>
+        <p className="text-gray-600 dark:text-gray-400 mb-3">
+          {isLoadingFilteredData ? (
+            <span className="flex items-center">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Filtering collections...
+            </span>
+          ) : (
+            `${totalCount} ${totalCount === 1 ? 'collection' : 'collections'}`
+          )}
+        </p>
+        <div className="flex items-center gap-2 mb-3">
           <Button 
             variant="outline" 
             size="sm" 
@@ -463,17 +515,16 @@ export default function FlashcardCollections() {
             ) : (
               <Filter className="h-4 w-4" />
             )}
-            {showFilters ? 'Hide Filters' : 'Filter'}
+            {showFilters ? 'Hide' : 'Filter'}
           </Button>
-          
-          <Tabs value={filter} onValueChange={handleFilterChange} className="w-[340px]">
-            <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
-              <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
-              <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
-              <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
-            </TabsList>
-          </Tabs>
         </div>
+        <Tabs value={filter} onValueChange={handleFilterChange}>
+          <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
+            <TabsTrigger value="all" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">All</TabsTrigger>
+            <TabsTrigger value="official" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">Premium</TabsTrigger>
+            <TabsTrigger value="my" className="data-[state=active]:bg-[#F37022] data-[state=active]:text-white dark:text-gray-200 data-[state=inactive]:dark:text-gray-400">My Collections</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Filters */}

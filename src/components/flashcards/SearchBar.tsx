@@ -163,7 +163,7 @@ export default function SearchBar() {
       <div className="relative md:flex md:justify-end">
         {/* Search container with transition */}
         <div className={`md:flex md:items-center md:transition-all md:duration-200 md:ease-in-out h-10 
-          md:border md:border-gray-300 md:rounded-md md:shadow-sm 
+          md:border md:border-gray-300 md:dark:border-gray-600 md:rounded-md md:shadow-sm md:dark:bg-gray-700
           md:focus-within:ring-1 md:focus-within:ring-[#F37022] md:focus-within:border-[#F37022]
           ${isExpanded ? 'md:w-[300px]' : 'md:w-10'}
           lg:w-full md:aspect-square lg:aspect-auto`}>
@@ -202,7 +202,8 @@ export default function SearchBar() {
             }}
             placeholder="Search collections, subjects, cards..."
             className={`hidden md:block md:flex-grow md:py-0 md:pl-10 md:border-none md:shadow-none md:text-gray-500 
-              md:focus:outline-none md:focus:ring-0 md:text-sm md:bg-transparent md:text-ellipsis md:overflow-hidden 
+              md:dark:text-gray-300 md:focus:outline-none md:focus:ring-0 md:text-sm md:bg-transparent 
+              md:placeholder:text-gray-400 md:dark:placeholder:text-gray-500 md:text-ellipsis md:overflow-hidden 
               md:whitespace-nowrap md:min-w-0 md:h-10 ${isExpanded ? 'md:opacity-100' : 'md:opacity-0 lg:opacity-100'}`}
           />
           
@@ -221,9 +222,9 @@ export default function SearchBar() {
       </div>
 
       {showResults && query.length >= 2 && (
-        <div className="md:absolute md:top-full md:right-0 md:w-64 md:min-w-[180px] lg:w-full md:mt-1 md:bg-white md:border md:border-gray-300 md:rounded-md md:shadow-lg md:overflow-hidden md:z-50">
+        <div className="md:absolute md:top-full md:right-0 md:w-64 md:min-w-[180px] lg:w-full md:mt-1 md:bg-white md:dark:bg-gray-800 md:border md:border-gray-300 md:dark:border-gray-700 md:rounded-md md:shadow-lg md:overflow-hidden md:z-50">
           {isSearching ? (
-            <div className="md:p-4 md:text-center md:text-gray-500">
+            <div className="md:p-4 md:text-center md:text-gray-500 md:dark:text-gray-400">
               <div className="md:animate-spin md:rounded-full md:h-5 md:w-5 md:border-t-2 md:border-b-2 md:border-[#F37022] md:mx-auto md:mb-2"></div>
               Searching...
             </div>
@@ -232,7 +233,7 @@ export default function SearchBar() {
               {results.map((result) => (
                 <div 
                   key={`${result.type}-${result.id}`}
-                  className="md:px-4 md:py-2 md:hover:bg-gray-100 md:cursor-pointer"
+                  className="md:px-4 md:py-2 md:hover:bg-gray-100 md:dark:hover:bg-gray-700 md:cursor-pointer"
                   onClick={() => handleResultClick(result)}
                 >
                   <div className="md:flex md:items-center">
@@ -246,23 +247,23 @@ export default function SearchBar() {
                       <FileText className="md:h-4 md:w-4 md:text-[#F37022] md:mr-2" />
                     )}
                     <div>
-                      <div className="md:font-medium md:text-gray-900">{result.title}</div>
+                      <div className="md:font-medium md:text-gray-900 md:dark:text-white">{result.title}</div>
                       {result.subtitle && (
-                        <div className="md:text-xs md:text-gray-500">{result.subtitle}</div>
+                        <div className="md:text-xs md:text-gray-500 md:dark:text-gray-400">{result.subtitle}</div>
                       )}
                     </div>
                   </div>
                 </div>
               ))}
               <div 
-                className="md:px-4 md:py-2 md:bg-gray-50 md:text-center md:text-sm md:text-gray-700 md:hover:bg-gray-100 md:cursor-pointer md:border-t md:border-gray-200"
+                className="md:px-4 md:py-2 md:bg-gray-50 md:dark:bg-gray-700 md:text-center md:text-sm md:text-gray-700 md:dark:text-gray-300 md:hover:bg-gray-100 md:dark:hover:bg-gray-600 md:cursor-pointer md:border-t md:border-gray-200 md:dark:border-gray-600"
                 onClick={handleViewAllResults}
               >
                 View all results
               </div>
             </div>
           ) : (
-            <div className="md:p-4 md:text-center md:text-gray-500">
+            <div className="md:p-4 md:text-center md:text-gray-500 md:dark:text-gray-400">
               No results found
             </div>
           )}
