@@ -890,6 +890,48 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   if (loading && !sampleCardsLoaded) {
     return (
       <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
+        {/* Preload header area with title, icons, and counter */}
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            {isDesktop && (
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
+                <div className="flex items-center">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    <span className="flex items-center">
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Loading flashcards...
+                    </span>
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Desktop-only buttons for filter/shuffle - preloaded but disabled */}
+          {isDesktop && (
+            <div className="flex items-center gap-3">
+              <Tooltip text="Shuffle cards" position="top">
+                <button
+                  disabled={true}
+                  className="text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                >
+                  <Shuffle className="h-5 w-5" />
+                </button>
+              </Tooltip>
+              
+              <Tooltip text="Show filters" position="top">
+                <button
+                  disabled={true}
+                  className="text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                >
+                  <Filter className="h-5 w-5" />
+                </button>
+              </Tooltip>
+            </div>
+          )}
+        </div>
+        
         <SkeletonStudyCard />
       </div>
     );
@@ -1008,19 +1050,20 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           {isDesktop && (
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
-              {filteredCards.length > 0 && (
-                <div className="flex items-center">
+              <div className="flex items-center">
+                {loadingRemainingCards ? (
+                  <p className="text-gray-600 dark:text-gray-400">
+                    <span className="flex items-center">
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Loading flashcards...
+                    </span>
+                  </p>
+                ) : (
                   <p className="text-gray-600 dark:text-gray-400">
                     {currentIndex + 1} of {filteredCards.length} flashcards
                   </p>
-                  {loadingRemainingCards && (
-                    <span className="ml-2 text-sm text-[#F37022] flex items-center">
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      Loading more cards...
-                    </span>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>
