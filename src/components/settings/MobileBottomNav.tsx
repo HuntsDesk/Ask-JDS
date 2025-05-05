@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Clock, Library } from 'lucide-react';
+import { CreditCard, User, Palette } from 'lucide-react';
 
 interface MobileNavLinkProps {
   to: string;
@@ -10,9 +10,10 @@ interface MobileNavLinkProps {
 
 const MobileNavLink = ({ to, icon, text }: MobileNavLinkProps) => {
   const location = useLocation();
-  const isActive = location.pathname === to || 
-                  (to === '/courses' && location.pathname === '/courses') || 
-                  (to === '/courses/expired-courses' && location.pathname.includes('/courses/expired-courses'));
+  const isActive = 
+    (to === '/settings' && location.pathname === '/settings') || 
+    (to === '/settings/account' && location.pathname.includes('/settings/account')) ||
+    (to === '/settings/appearance' && location.pathname.includes('/settings/appearance'));
   
   return (
     <Link 
@@ -32,16 +33,21 @@ const MobileNavLink = ({ to, icon, text }: MobileNavLinkProps) => {
 export default function MobileBottomNav() {
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-50">
-      <div className="grid grid-cols-2 gap-1 px-2 py-2">
+      <div className="grid grid-cols-3 gap-1 px-2 py-2">
         <MobileNavLink 
-          to="/courses" 
-          icon={<Library className="h-5 w-5" />} 
-          text="Dashboard" 
+          to="/settings" 
+          icon={<CreditCard className="h-5 w-5" />} 
+          text="Subscription" 
         />
         <MobileNavLink 
-          to="/courses/expired-courses" 
-          icon={<Clock className="h-5 w-5" />} 
-          text="Expired" 
+          to="/settings/account" 
+          icon={<User className="h-5 w-5" />} 
+          text="Account" 
+        />
+        <MobileNavLink 
+          to="/settings/appearance" 
+          icon={<Palette className="h-5 w-5" />} 
+          text="Appearance" 
         />
       </div>
     </div>
