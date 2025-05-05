@@ -1231,9 +1231,15 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                   </div>
                 </div>
               ) : (
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-                  {showAnswer ? currentCard?.answer : currentCard?.question}
-                </h2>
+                showAnswer ? (
+                  <div className="text-2xl font-normal text-gray-800 dark:text-gray-200">
+                    {currentCard?.answer}
+                  </div>
+                ) : (
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                    {currentCard?.question}
+                  </h2>
+                )
               )}
             </div>
           </div>
