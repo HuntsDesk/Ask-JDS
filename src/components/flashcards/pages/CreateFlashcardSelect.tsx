@@ -103,17 +103,16 @@ export default function CreateFlashcardSelect() {
         <form onSubmit={handleSubmit}>
           <div className="mb-6">
             <label htmlFor="collection" className="block text-sm font-medium text-gray-700 mb-2">
-              Select a Collection
+              Select a Collection (Optional)
             </label>
             <p className="text-sm text-gray-600 mb-4">
-              Choose which collection you want to add a new flashcard to.
+              You can choose a collection or create a flashcard without one.
             </p>
             <select
               id="collection"
               value={selectedCollectionId}
               onChange={(e) => setSelectedCollectionId(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#F37022] focus:border-[#F37022]"
-              required
             >
               <option value="">Select a collection...</option>
               {collections.map(collection => (
@@ -124,14 +123,21 @@ export default function CreateFlashcardSelect() {
             </select>
           </div>
           
-          <div className="flex justify-end">
+          <div className="flex justify-between">
             <button
-              type="submit"
-              disabled={!selectedCollectionId}
-              className="flex items-center gap-2 bg-[#F37022] text-white px-6 py-2 rounded-md hover:bg-[#E36012] disabled:opacity-50"
+              type="button"
+              onClick={() => navigate(`/flashcards/create-flashcard`)}
+              className="flex items-center gap-2 border border-[#F37022] text-[#F37022] px-6 py-2 rounded-md hover:bg-[#FFF4EE]"
             >
               <PlusCircle className="h-5 w-5" />
-              Create Flashcard
+              Create Without Collection
+            </button>
+            <button
+              type="submit"
+              className="flex items-center gap-2 bg-[#F37022] text-white px-6 py-2 rounded-md hover:bg-[#E36012]"
+            >
+              <PlusCircle className="h-5 w-5" />
+              {selectedCollectionId ? 'Create in Collection' : 'Create Flashcard'}
             </button>
           </div>
         </form>
