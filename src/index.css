@@ -547,6 +547,20 @@ body {
   z-index: 10;
   background-color: white;
   border-top: 1px solid #e5e7eb;
+  padding: 0.75rem 1rem;
+}
+
+/* Desktop styles for when sidebar is expanded */
+@media (min-width: 769px) {
+  body.sidebar-expanded .input-container {
+    margin-left: var(--sidebar-width);
+    padding-left: 8px;
+  }
+  
+  body.sidebar-hidden .input-container {
+    margin-left: var(--sidebar-collapsed-width);
+    padding-left: 8px;
+  }
 }
 
 .dark .input-container {
@@ -590,145 +604,10 @@ body {
     backdrop-filter: blur(10px);
   }
   
-  /* Add padding to the input container when sidebar is expanded */
+  /* Add minimal padding to the input container when sidebar is expanded on mobile */
   body.sidebar-expanded .input-container {
-    padding-left: 4rem;
-  }
-  
-  /* Adjust message container to account for fixed input and fixed header */
-  .message-container {
-    padding-bottom: 220px !important; /* Increased padding to ensure content is never hidden behind the input box */
-    margin-bottom: 20px;
-    padding-top: 100px !important; /* Increased top padding to ensure content is never hidden behind the header */
-    margin-top: 0 !important;
-  }
-  
-  /* Fix for first message in chat being hidden under header */
-  .message-container > div:first-child {
-    padding-top: 10px;
-    min-height: 20px;
-    display: block;
-  }
-  
-  /* Fix for the first actual message to ensure it's not hidden */
-  .message-container .flex.flex-col.space-y-4 > div:first-child {
-    margin-top: 25px !important;
-    padding-top: 15px !important;
-  }
-  
-  /* Fix for the last message to ensure it's not hidden behind the input box */
-  .message-container .flex.flex-col.space-y-4 > div:last-child {
-    margin-bottom: 25px !important;
-    padding-bottom: 25px !important;
-  }
-  
-  /* Add extra padding to message end reference */
-  .h-4[ref="messageEndRef"] {
-    height: 30px !important;
-    display: block;
-  }
-  
-  /* Ensure chat messages are not hidden behind the input container */
-  .chat-messages-scroll {
-    padding-bottom: 30px !important;
-  }
-  
-  /* Add specific styling to ensure timestamps are visible */
-  .message-wrapper:last-child {
-    margin-bottom: 16px !important;
-  }
-  
-  /* Add extra spacing for the message end reference */
-  div[ref="messageEndRef"] {
-    height: 0 !important;
-    padding-bottom: 0 !important;
-    margin-bottom: 0 !important;
-    display: block !important;
-  }
-  
-  /* Ensure last message timestamp has extra space */
-  .message-wrapper:last-child .message-timestamp {
-    margin-bottom: 12px !important;
-  }
-  
-  /* Add space at the end of the message list */
-  .flex.flex-col.space-y-1.pb-0.mt-2 {
-    padding-bottom: 15px !important;
-  }
-  
-  /* Ensure the chat container handles the fixed input properly */
-  .chat-container {
-    padding-bottom: 0;
-    height: calc(100vh - 60px); /* Account for top navbar */
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  /* Fix mobile overflow issues */
-  body, html, #root {
-    max-width: 100vw;
-    overflow-x: hidden;
-    position: relative;
-  }
-  
-  /* Flashcard pages and components */
-  .container {
-    max-width: 100% !important;
-    width: 100% !important;
-    overflow-x: hidden !important;
-    padding-left: 0.75rem !important;
-    padding-right: 0.75rem !important;
-  }
-  
-  /* Force all cards to fit within viewport */
-  .card {
-    max-width: 100%;
-    box-sizing: border-box;
-  }
-  
-  /* Improve flashcards navigation on mobile */
-  nav.bg-white {
-    padding: 0.5rem 0;
-  }
-  
-  /* Ensure hamburger menu is visible */
-  button.text-gray-600.hover\:text-\[\#F37022\] {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-  
-  /* Ensure subjects layout fits mobile screens */
-  .grid.md\:grid-cols-2.lg\:grid-cols-3.gap-6 {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-  
-  /* Adjust subject cards for mobile */
-  .bg-white.dark\:bg-gray-800.rounded-lg.shadow-md {
-    width: 100%;
-    max-width: 100%;
-  }
-  
-  /* Fix for the first actual message to ensure it's not hidden */
-  .message-container .flex.flex-col.space-y-4 > div:first-child {
-    margin-top: 25px !important;
-    padding-top: 15px !important;
-  }
-  
-  /* Force the message area to have sufficient padding at top */
-  .flex-1.overflow-hidden.relative.pt-16 {
-    padding-top: 4rem !important;
-  }
-  
-  /* Ensure the scrollable area has enough top padding */
-  .message-container {
-    padding-top: 100px !important;
-  }
-  
-  /* Apply more top margin to the first message */
-  .flex.flex-col.space-y-4.pb-2.mt-4 {
-    margin-top: 1.5rem !important;
+    margin-left: 0;
+    padding-left: 16px;
   }
 }
 
@@ -864,8 +743,6 @@ button[aria-label="Open sidebar"] {
 button[aria-label="Open sidebar"]:hover {
   background-color: #E36012 !important;
 }
-
-/* Ensure hamburger menu is visible */
 
 /* Fix white line between sidebar and main content */
 .sidebar-container {
