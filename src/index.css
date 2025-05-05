@@ -596,6 +596,13 @@ body {
     width: calc(100% - var(--sidebar-width)) !important;
   }
   
+  /* Fix inner container alignment when sidebar is visible */
+  body:has(.sidebar-container:not(.sidebar-hidden-mobile)) .input-container > div,
+  body.sidebar-visible .input-container > div {
+    margin-left: 0 !important;
+    margin-right: auto !important;
+  }
+  
   /* Ensure chat messages are not hidden behind the input container */
   .chat-messages-scroll {
     padding-bottom: 65px !important; /* Ensure messages aren't hidden behind input */
@@ -764,6 +771,13 @@ body {
   body.sidebar-visible .input-container {
     left: var(--sidebar-width) !important;
     width: calc(100% - var(--sidebar-width)) !important;
+  }
+  
+  /* Fix inner container alignment on desktop when sidebar is visible */
+  body:has(.sidebar-container:not(.sidebar-hidden-mobile)) .input-container > div,
+  body.sidebar-visible .input-container > div {
+    margin-left: 0 !important;
+    margin-right: auto !important;
   }
 }
 

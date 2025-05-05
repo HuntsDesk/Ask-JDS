@@ -68,6 +68,19 @@ export function ChatInterface({
   // Get layout state to handle sidebar visibility
   const { isExpanded: isSidebarExpanded, isMobile, isPinned, isDesktop: isDesktopViewport } = useLayoutState();
   
+  // Create conditional class for the inner container to fix alignment with sidebar
+  const innerContainerClassName = useMemo(() => {
+    // When sidebar is visible, use left alignment instead of center
+    if ((isMobile && isSidebarExpanded) || 
+        (isDesktopViewport && isPinned) || 
+        (isDesktopViewport && isSidebarExpanded && !isPinned)) {
+      return "max-w-4xl ml-0 mr-auto mb-0"; // Left-aligned
+    }
+    
+    // Default centered state
+    return "max-w-4xl mx-auto mb-0"; // Center-aligned
+  }, [isMobile, isSidebarExpanded, isDesktopViewport, isPinned]);
+  
   // Create conditional style for the input container to prevent it touching the sidebar
   const inputContainerStyle = useMemo(() => {
     // For mobile with expanded sidebar
@@ -75,8 +88,8 @@ export function ChatInterface({
       return {
         left: 'var(--sidebar-width)',
         width: 'calc(100% - var(--sidebar-width))',
-        paddingLeft: '1rem',
-        paddingRight: '1rem'
+        paddingLeft: '1.5rem',
+        paddingRight: '1.5rem'
       };
     }
     
@@ -85,8 +98,8 @@ export function ChatInterface({
       return {
         left: 'var(--sidebar-width)',
         width: 'calc(100% - var(--sidebar-width))',
-        paddingLeft: '1rem',
-        paddingRight: '1rem'
+        paddingLeft: '1.5rem',
+        paddingRight: '1.5rem'
       };
     }
     
@@ -95,8 +108,8 @@ export function ChatInterface({
       return {
         left: 'var(--sidebar-width)',
         width: 'calc(100% - var(--sidebar-width))',
-        paddingLeft: '1rem', 
-        paddingRight: '1rem'
+        paddingLeft: '1.5rem', 
+        paddingRight: '1.5rem'
       };
     }
     
@@ -431,7 +444,7 @@ export function ChatInterface({
       </div>
       
       <div className="input-container py-1 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg" style={inputContainerStyle}>
-        <div className="max-w-4xl mx-auto mb-0">
+        <div className={innerContainerClassName}>
           {sendError && (
             <div className="mb-1 p-2 text-sm rounded bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">
               {sendError}
