@@ -586,31 +586,6 @@ body {
     padding-top: 0.75rem;
     background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(10px);
-    transition: left 0.3s, width 0.3s; /* Add transition for smoother effect */
-  }
-  
-  /* Adjust input container when sidebar is open - with both :has and class selectors for better browser compatibility */
-  body:has(.sidebar-container:not(.sidebar-hidden-mobile)) .input-container,
-  body.sidebar-visible .input-container {
-    left: var(--sidebar-width) !important;
-    width: calc(100% - var(--sidebar-width)) !important;
-  }
-  
-  /* Fix inner container alignment when sidebar is visible */
-  body:has(.sidebar-container:not(.sidebar-hidden-mobile)) .input-container > div,
-  body.sidebar-visible .input-container > div {
-    margin-left: 0 !important;
-    margin-right: auto !important;
-  }
-  
-  /* Ensure chat messages are not hidden behind the input container */
-  .chat-messages-scroll {
-    padding-bottom: 65px !important; /* Ensure messages aren't hidden behind input */
-  }
-  
-  /* Add specific styling to ensure timestamps are visible */
-  .message-wrapper:last-child {
-    margin-bottom: 16px !important;
   }
   
   /* Adjust message container to account for fixed input and fixed header */
@@ -644,6 +619,16 @@ body {
   .h-4[ref="messageEndRef"] {
     height: 30px !important;
     display: block;
+  }
+  
+  /* Ensure chat messages are not hidden behind the input container */
+  .chat-messages-scroll {
+    padding-bottom: 30px !important;
+  }
+  
+  /* Add specific styling to ensure timestamps are visible */
+  .message-wrapper:last-child {
+    margin-bottom: 16px !important;
   }
   
   /* Add extra spacing for the message end reference */
@@ -763,22 +748,6 @@ body {
   --ring: 262.1 83.3% 57.8%;
   background-color: white;
   color: black;
-}
-
-/* Desktop specific styles for input container when sidebar is visible */
-@media (min-width: 769px) {
-  body:has(.sidebar-container:not(.sidebar-hidden-mobile)) .input-container,
-  body.sidebar-visible .input-container {
-    left: var(--sidebar-width) !important;
-    width: calc(100% - var(--sidebar-width)) !important;
-  }
-  
-  /* Fix inner container alignment on desktop when sidebar is visible */
-  body:has(.sidebar-container:not(.sidebar-hidden-mobile)) .input-container > div,
-  body.sidebar-visible .input-container > div {
-    margin-left: 0 !important;
-    margin-right: auto !important;
-  }
 }
 
 /* Override dark mode styles within force-light-mode */
