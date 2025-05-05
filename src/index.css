@@ -628,15 +628,20 @@ body {
   
   /* Add specific styling to ensure timestamps are visible */
   .message-wrapper:last-child {
-    margin-bottom: 12px !important;
+    margin-bottom: 16px !important;
   }
   
   /* Add extra spacing for the message end reference */
   div[ref="messageEndRef"] {
-    height: 10px !important;
-    padding-bottom: 10px !important;
-    margin-bottom: 10px !important;
+    height: 0 !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
     display: block !important;
+  }
+  
+  /* Ensure last message timestamp has extra space */
+  .message-wrapper:last-child .message-timestamp {
+    margin-bottom: 12px !important;
   }
   
   /* Add space at the end of the message list */
