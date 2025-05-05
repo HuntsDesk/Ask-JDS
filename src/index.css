@@ -584,8 +584,15 @@ body {
     z-index: 30;
     padding-bottom: calc(1rem + var(--safe-area-inset-bottom));
     padding-top: 0.75rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
     background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(10px);
+  }
+  
+  /* Add padding to the input container when sidebar is expanded */
+  body.sidebar-expanded .input-container {
+    padding-left: 4rem;
   }
   
   /* Adjust message container to account for fixed input and fixed header */

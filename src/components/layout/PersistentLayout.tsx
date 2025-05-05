@@ -28,6 +28,23 @@ export function PersistentLayout() {
   const updateThreadMutation = useUpdateThread();
   const deleteThreadMutation = useDeleteThread();
 
+  // Update body class when sidebar state changes
+  useEffect(() => {
+    if (isExpanded) {
+      document.body.classList.add('sidebar-expanded');
+      document.body.classList.remove('sidebar-hidden');
+    } else {
+      document.body.classList.remove('sidebar-expanded');
+      document.body.classList.add('sidebar-hidden');
+    }
+
+    // Cleanup function for when component unmounts
+    return () => {
+      document.body.classList.remove('sidebar-expanded');
+      document.body.classList.remove('sidebar-hidden');
+    };
+  }, [isExpanded]);
+
   const handleNewChat = async () => {
     try {
       const thread = await createThreadMutation.mutateAsync('New Conversation');
