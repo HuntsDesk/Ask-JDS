@@ -75,7 +75,6 @@ export default function CreateSet() {
 
   const validateForm = () => {
     if (!title.trim()) return 'Please enter a title for your flashcard collection';
-    if (selectedSubjectIds.length === 0 && !newSubjectName) return 'Please select or create at least one subject';
     if (cards.length === 0) return 'Please add at least one flashcard';
     
     for (let index = 0; index < cards.length; index++) {
@@ -249,7 +248,7 @@ export default function CreateSet() {
       
       {error && <ErrorMessage message={error} />}
       
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Create Flashcard Collection</h1>
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Create Collection</h1>
       
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-8">
         <div className="p-6">
@@ -285,7 +284,7 @@ export default function CreateSet() {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-1">
               <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Subjects*
+                Subjects
               </label>
               <button
                 type="button"
@@ -333,7 +332,7 @@ export default function CreateSet() {
                 )}
                 
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Select one or more subjects for this collection.
+                  Select one or more subjects for this collection (optional).
                 </p>
               </div>
             ) : (
