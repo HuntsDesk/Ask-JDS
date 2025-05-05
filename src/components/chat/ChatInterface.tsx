@@ -317,7 +317,7 @@ export function ChatInterface({
           </div>
         )}
         
-        <div ref={messageEndRef} className="h-4 pb-2" />
+        <div ref={messageEndRef} />
       </div>
     );
   };
