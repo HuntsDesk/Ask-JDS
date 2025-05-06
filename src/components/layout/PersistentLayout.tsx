@@ -43,9 +43,16 @@ export function PersistentLayout() {
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('/');
+      // Clear any session storage keys
+      sessionStorage.removeItem('auth-session-detected');
+      sessionStorage.removeItem('auth-session-user-id');
+      sessionStorage.removeItem('auth-session-timestamp');
+      // Force a page reload to clear any stale state
+      window.location.href = '/';
     } catch (error) {
       console.error('Failed to sign out:', error);
+      // Force a page reload as a fallback
+      window.location.href = '/';
     }
   };
 

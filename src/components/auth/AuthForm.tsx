@@ -178,12 +178,6 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       
       if (error) throw error;
       
-      toast({
-        title: 'Success',
-        description: 'You have been signed in. Redirecting to app...',
-        duration: 2000, // 2 seconds
-      });
-      
       // Immediately navigate to chat after successful sign-in
       console.log('Sign-in successful, immediately navigating to /chat');
       navigate('/chat', { replace: true });

@@ -2348,3 +2348,24 @@ The flashcard system has been optimized for performance and user experience:
    - Stale-while-revalidate caching strategy
    - Debounced filter operations
    - Local storage persistence for user preferences
+
+### Shared Components
+
+The application uses shared components in the `src/components/common` directory:
+
+1. **MobileNavLink**: Reusable navigation link component for mobile navigation bars that shows active state styling.
+
+```tsx
+import { MobileNavLink } from '@/components/common/MobileNavLink';
+
+<MobileNavLink 
+  to="/courses" 
+  icon={<BookOpen className="h-5 w-5" />} 
+  text="Courses" 
+/>
+```
+
+This component automatically:
+- Tracks active state based on the current route
+- Applies consistent styling across mobile navigation bars
+- Shows highlight color for the active navigation item
