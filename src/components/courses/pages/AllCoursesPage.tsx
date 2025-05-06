@@ -254,41 +254,10 @@ export default function AllCoursesPage() {
   return (
     <div className="px-4 py-6 space-y-12">
       
-      {/* My Courses Section */}
+      {/* All Courses Section */}
       <section>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">My Courses</h2>
-        </div>
-        
-        {myActiveCourses.length === 0 ? (
-          <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-            <BookOpen className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-3" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No active courses</h3>
-            <p className="text-gray-500 dark:text-gray-400">You're not enrolled in any active courses.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {myActiveCourses.map((enrollment) => (
-              <JDSCourseCard
-                key={enrollment.id}
-                id={enrollment.course.id}
-                title={enrollment.course.title}
-                description={enrollment.course.description}
-                image_url={enrollment.course.image_url}
-                is_featured={enrollment.course.is_featured}
-                status={enrollment.course.status}
-                _count={enrollment.course._count}
-                enrolled={true}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-      
-      {/* Available Courses Section */}
-      <section>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Available Courses</h2>
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">All Courses</h2>
         </div>
         
         {availableCourses.length === 0 ? (

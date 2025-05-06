@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Clock, BookOpen, Settings } from 'lucide-react';
+import { Clock, BookOpen, User } from 'lucide-react';
 
 import { MobileNavLink } from '../common/MobileNavLink';
 
@@ -14,17 +14,17 @@ const MobileBottomNav: React.FC = () => {
           <MobileNavLink 
             to="/courses" 
             icon={<BookOpen className="h-5 w-5" />} 
-            text="Courses" 
+            text="All Courses" 
+          />
+          <MobileNavLink 
+            to="/courses/my-courses" 
+            icon={<User className="h-5 w-5" />} 
+            text="My Courses" 
           />
           <MobileNavLink 
             to="/courses/expired-courses" 
             icon={<Clock className="h-5 w-5" />} 
             text="Expired" 
-          />
-          <MobileNavLink 
-            to="/settings" 
-            icon={<Settings className="h-5 w-5" />} 
-            text="Settings" 
           />
         </div>
       </div>

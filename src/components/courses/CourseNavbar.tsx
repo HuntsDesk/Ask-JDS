@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
-import { Menu, BookOpen, Library, Clock } from 'lucide-react';
+import { Menu, BookOpen, Library, Clock, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SidebarContext } from '@/App';
 import { useLayoutState } from '@/hooks/useLayoutState';
@@ -40,8 +40,10 @@ export default function CourseNavbar() {
   useEffect(() => {
     if (location.pathname.includes('/courses/expired-courses')) {
       document.title = 'Expired Courses - Ask JDS';
+    } else if (location.pathname.includes('/courses/my-courses')) {
+      document.title = 'My Courses - Ask JDS';
     } else {
-      document.title = 'Courses Dashboard - Ask JDS';
+      document.title = 'All Courses - Ask JDS';
     }
   }, [location]);
   
@@ -51,7 +53,8 @@ export default function CourseNavbar() {
       className={`flex items-center space-x-1 py-2 px-3 rounded-md ${
         (location.pathname === to || 
          (to === '/courses' && location.pathname === '/courses') || 
-         (to === '/courses/expired-courses' && location.pathname.includes('/courses/expired-courses')))
+         (to === '/courses/expired-courses' && location.pathname.includes('/courses/expired-courses')) ||
+         (to === '/courses/my-courses' && location.pathname.includes('/courses/my-courses')))
           ? 'text-[#F37022]' 
           : 'text-gray-600 dark:text-gray-300'
       } ${className}`}
@@ -99,8 +102,14 @@ export default function CourseNavbar() {
                 </div>
                 <NavLink 
                   to="/courses" 
-                  icon={<Library className="h-5 w-5" />} 
-                  text="Dashboard" 
+                  icon={<BookOpen className="h-5 w-5" />} 
+                  text="All Courses" 
+                  className="text-base md:mr-2 lg:mr-3 xl:mr-4"
+                />
+                <NavLink 
+                  to="/courses/my-courses" 
+                  icon={<User className="h-5 w-5" />} 
+                  text="My Courses" 
                   className="text-base md:mr-2 lg:mr-3 xl:mr-4"
                 />
                 <NavLink 
