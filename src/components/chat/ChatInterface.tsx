@@ -365,7 +365,7 @@ export function ChatInterface({
       <div className={`chat-messages-area flex-1 ${!isDesktop ? 'pt-16' : ''}`}>
         <div 
           ref={messagesContainerRef}
-          className="chat-messages-scroll h-full w-full overflow-y-auto px-2 sm:px-4 py-2 pb-2"
+          className="chat-messages-scroll h-full w-full overflow-y-auto px-2 sm:px-4 py-2 pb-0"
         >
           <div ref={messageTopRef} className="mt-2 md:mt-4"></div>
           
