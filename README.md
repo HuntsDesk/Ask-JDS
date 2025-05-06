@@ -613,12 +613,12 @@ The application follows an 8px spacing system (using Tailwind's default spacing 
 #### User Subscriptions
 - Stored in `user_subscriptions` table
 - Tracks subscription status, tier, and billing periods
-- Key fields: `user_id`, `status`, `tier`, `current_period_end`
+- Key fields: `user_id`, `status`, `tier`, `current_period_end`, `stripe_price_id` (links to Stripe Price)
 
 #### Course Enrollments
 - Stored in `course_enrollments` table
 - Tracks which users have access to which courses and when that access expires
-- Key fields: `user_id`, `course_id`, `expires_at`, `status`
+- Key fields: `user_id`, `course_id`, `expires_at`, `status`, `stripe_price_id` (links to Stripe Price used for purchase)
 
 #### Course Pricing
 - `courses.price`: Current selling price of the course
@@ -710,20 +710,27 @@ SELECT * FROM has_course_access('user_id', 'course_id');
 2. Unlimited Subscription (recurring)
 3. Premium Subscription (recurring)
 
-#### Checkout Flows
-- `createCourseCheckout()`
-- `createCourseRenewalCheckout()`
-- `createUnlimitedSubscriptionCheckout()`
+#### Core Backend Logic
+- **`create-payment-handler` Edge Function (or similar)**: Responsible for securely creating Stripe `PaymentIntents` (for immediate payments like course purchases or initial subscription payments) or `SetupIntents` (for saving payment details for trials or future payments). It populates necessary metadata (e.g., `userId`, `targetStripePriceId`, `purchaseType`, `courseId`) that the webhook will use.
+- **Stripe Customer Portal**: Integrated to allow users to manage their subscriptions (update payment methods, cancel, view invoices). A backend endpoint creates a portal session for authenticated users.
 
-All Stripe metadata includes user_id, course_id, and isRenewal flags.
+#### Checkout Flows
+- The frontend uses Stripe Payment Elements for a self-hosted (embedded) checkout experience.
+- Client-side logic calls the `create-payment-handler` function to get a `client_secret` for the PaymentElement.
+- Older checkout functions like `createCourseCheckout()` are being refactored or replaced by this unified PaymentIntent-based flow.
+
+All Stripe metadata must consistently include `userId` and `targetStripePriceId`. `courseId` and `isRenewal` flags are used for course-specific transactions.
 
 ### Webhook Logic
 
-Edge function stripe-webhook handles:
-- `checkout.session.completed`: Creates course enrollment or subscription
-- `customer.subscription.updated`: Updates billing period
-- `customer.subscription.deleted`: Sets subscription as inactive
-- Adds analytics events after each event
+The `stripe-webhook` Supabase Edge Function is critical for fulfillment and handles key events from Stripe:
+- **`payment_intent.succeeded`**: Confirms successful one-time payments (e.g., course purchases) and initial subscription payments. Used to create `course_enrollments` records or ensure `stripe_customer_id` is set on user profiles.
+- **`customer.subscription.created` / `customer.subscription.updated`**: Manages creation and updates to `user_subscriptions` records, including status, `stripe_price_id`, and `current_period_end`.
+- **`invoice.payment_succeeded`**: Crucial for recurring subscription payments. Confirms subscription activation/renewal and updates `user_subscriptions` status and billing period.
+- **`customer.subscription.deleted`**: Handles subscription cancellations, updating the `user_subscriptions` record to an inactive state.
+- **Other events** like `setup_intent.succeeded` (for trials) and `invoice.payment_failed` are also handled for robust subscription management.
+- The webhook ensures idempotency and includes detailed logging.
+- Adds analytics events after processing key lifecycle events.
 
 ### Frontend Components
 - `CourseCard`: Shows price or access button
