@@ -490,7 +490,7 @@ export function Sidebar({
               onNewChat();
             }}
             className={cn(
-              "flex font-medium items-center gap-2 px-3 py-2 w-full",
+              "flex font-medium items-center gap-2 px-3 py-[7px] w-full",
               "rounded-lg bg-[#f37022] text-white hover:bg-[#e36012] transition",
               // Adjust padding and size based on sidebar width
               isDesktopExpanded 
@@ -571,7 +571,7 @@ export function Sidebar({
                           onClick={() => handleThreadClick(session.id)}
                           className={cn(
                             "w-full flex items-center gap-2 rounded-lg nav-item overflow-hidden text-left relative",
-                            isDesktopExpanded ? "px-3 py-2" : "p-2 justify-center",
+                            isDesktopExpanded ? "px-3 py-[7px]" : "p-2 justify-center",
                             (selectedThreadId === session.id) ? 
                               "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300" : 
                               "hover:bg-gray-100 dark:hover:bg-gray-700/30 text-gray-700 dark:text-gray-200"
