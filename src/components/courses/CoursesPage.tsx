@@ -8,6 +8,7 @@ import CourseNavbar from './CourseNavbar';
 import AllCoursesPage from './pages/AllCoursesPage';
 import AvailableCoursesPage from './AvailableCoursesPage';
 import ExpiredCoursesPage from './ExpiredCoursesPage';
+import MyCoursesPage from './MyCoursesPage';
 
 // Add Suspense wrapped components for lazy loading
 const SuspenseDashboard = () => (
@@ -28,6 +29,12 @@ const SuspenseExpiredCourses = () => (
   </Suspense>
 );
 
+const SuspenseMyCourses = () => (
+  <Suspense fallback={<div className="w-full py-8 flex justify-center"><LoadingSpinner className="w-8 h-8 text-jdblue" /></div>}>
+    <MyCoursesPage />
+  </Suspense>
+);
+
 export default function CoursesPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -42,6 +49,7 @@ export default function CoursesPage() {
             <Route path="/" element={<SuspenseDashboard />} />
             <Route path="expired-courses" element={<SuspenseExpiredCourses />} />
             <Route path="available-courses" element={<SuspenseAvailableCourses />} />
+            <Route path="my-courses" element={<SuspenseMyCourses />} />
             
             {/* Fallback route */}
             <Route path="*" element={<Navigate to="." replace />} />

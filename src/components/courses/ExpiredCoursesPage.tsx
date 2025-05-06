@@ -125,78 +125,106 @@ export default function ExpiredCoursesPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[60vh]">
-        <LoadingSpinner className="w-8 h-8" />
+      <div className="px-4 py-6 space-y-12">
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <LoadingSpinner className="w-8 h-8" />
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-        <p className="text-lg text-red-500 dark:text-red-400 mb-4">{error}</p>
-        <Link to="/courses">
-          <Button className="bg-jdorange hover:bg-jdorange/90">
-            Back to Courses
-          </Button>
-        </Link>
+      <div className="px-4 py-6 space-y-12">
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Expired Courses</h2>
+          </div>
+          
+          <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <p className="text-lg text-red-500 dark:text-red-400 mb-4">{error}</p>
+            <Link to="/courses">
+              <Button className="bg-jdorange hover:bg-jdorange/90">
+                Back to Courses
+              </Button>
+            </Link>
+          </div>
+        </section>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="text-center p-8">
-        <p className="text-lg text-gray-700 dark:text-gray-300">
-          Please sign in to view your expired courses.
-        </p>
+      <div className="px-4 py-6 space-y-12">
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Expired Courses</h2>
+          </div>
+          
+          <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <p className="text-lg text-gray-700 dark:text-gray-300">
+              Please sign in to view your expired courses.
+            </p>
+          </div>
+        </section>
       </div>
     );
   }
 
   if (enrollments.length === 0) {
     return (
-      <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-        <Clock className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-3" />
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No expired courses</h3>
-        <p className="text-gray-500 dark:text-gray-400">You don't have any expired courses.</p>
+      <div className="px-4 py-6 space-y-12">
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Expired Courses</h2>
+          </div>
+          
+          <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <Clock className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-3" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No expired courses</h3>
+            <p className="text-gray-500 dark:text-gray-400">You don't have any expired courses.</p>
+          </div>
+        </section>
       </div>
     );
   }
 
   return (
-    <div className="px-4 py-6">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white hidden md:block">Expired Courses</h1>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={fetchEnrollments}
-          className="ml-auto flex items-center gap-1"
-        >
-          <RefreshCw className="h-4 w-4" />
-          <span>Refresh</span>
-        </Button>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {enrollments.map((enrollment) => (
-          <div key={enrollment.id} className="relative">
-            <div className="absolute right-3 top-3 z-10 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-xs font-medium px-2.5 py-0.5 rounded">
-              Expired: {format(new Date(enrollment.expires_at), 'MMM d, yyyy')}
+    <div className="px-4 py-6 space-y-12">
+      <section>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Expired Courses</h2>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={fetchEnrollments}
+            className="flex items-center gap-1"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>Refresh</span>
+          </Button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {enrollments.map((enrollment) => (
+            <div key={enrollment.id} className="relative">
+              <div className="absolute right-3 top-3 z-10 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-xs font-medium px-2.5 py-0.5 rounded">
+                Expired: {format(new Date(enrollment.expires_at), 'MMM d, yyyy')}
+              </div>
+              <JDSCourseCard
+                id={enrollment.course.id}
+                title={enrollment.course.title}
+                description={enrollment.course.description}
+                image_url={enrollment.course.image_url}
+                _count={enrollment.course._count}
+                status={enrollment.course.status}
+                expired={true}
+              />
             </div>
-            <JDSCourseCard
-              id={enrollment.course.id}
-              title={enrollment.course.title}
-              description={enrollment.course.description}
-              image_url={enrollment.course.image_url}
-              _count={enrollment.course._count}
-              status={enrollment.course.status}
-              expired={true}
-            />
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 } 

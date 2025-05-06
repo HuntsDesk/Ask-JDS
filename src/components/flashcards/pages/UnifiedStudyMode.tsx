@@ -900,9 +900,6 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                   <p className="text-gray-600 dark:text-gray-400">
                     Loading flashcards...
                   </p>
-                  <span className="ml-2 text-sm text-[#F37022] flex items-center">
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  </span>
                 </div>
               </div>
             )}
@@ -1050,10 +1047,17 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           {isDesktop && (
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Study Mode</h1>
-          {filteredCards.length > 0 && (
+          {filteredCards.length > 0 && !loadingRemainingCards && (
             <div className="flex items-center">
               <p className="text-gray-600 dark:text-gray-400">
                 {currentIndex + 1} of {filteredCards.length} flashcards
+              </p>
+            </div>
+          )}
+          {loadingRemainingCards && (
+            <div className="flex items-center">
+              <p className="text-gray-600 dark:text-gray-400">
+                Loading flashcards...
               </p>
             </div>
           )}
