@@ -23,12 +23,27 @@ interface Course {
   expiresIn?: number;
 }
 
+// Safe wrapper for useNavbar to handle cases where NavbarProvider isn't available
+const useSafeNavbar = () => {
+  try {
+    return useNavbar();
+  } catch (e) {
+    // Return a dummy implementation if NavbarProvider is not available
+    return {
+      updateCount: (count: number) => {},
+      updateCurrentCardIndex: (index: number) => {},
+      count: 0,
+      currentCardIndex: 0
+    };
+  }
+};
+
 export default function MyCoursesPage() {
   const { user } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { updateCount } = useNavbar();
+  const { updateCount } = useSafeNavbar();
 
   useEffect(() => {
     if (!user) {
@@ -109,67 +124,85 @@ export default function MyCoursesPage() {
 
   if (loading) {
     return (
-      <PageContainer className="pt-4" flexColumn>
+      <div className="px-4 py-6 space-y-12">
         <div className="flex justify-center items-center min-h-[60vh]">
           <DelayedLoadingSpinner className="w-8 h-8" />
         </div>
-      </PageContainer>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <PageContainer className="pt-4" flexColumn>
+      <div className="px-4 py-6 space-y-12">
         <div className="text-center text-red-500 dark:text-red-400 p-4 rounded-lg bg-red-50 dark:bg-gray-800 border border-red-200 dark:border-red-900">
           {error}
         </div>
-      </PageContainer>
+      </div>
     );
   }
 
   if (!user) {
     return (
-      <PageContainer className="pt-4" flexColumn>
-        <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-          <BookOpen className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-3" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Sign in to view your courses</h3>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">You need to be signed in to view your enrolled courses.</p>
-          <Link to="/login">
-            <Button className="bg-[#F37022] hover:bg-[#E36012] text-white">Sign In</Button>
-          </Link>
-        </div>
-      </PageContainer>
+      <div className="px-4 py-6 space-y-12">
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">My Courses</h2>
+          </div>
+          
+          <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <BookOpen className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-3" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Sign in to view your courses</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-4">You need to be signed in to view your enrolled courses.</p>
+            <Link to="/login">
+              <Button className="bg-[#F37022] hover:bg-[#E36012] text-white">Sign In</Button>
+            </Link>
+          </div>
+        </section>
+      </div>
     );
   }
 
   if (courses.length === 0) {
     return (
-      <PageContainer className="pt-4" flexColumn>
-        <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-          <BookOpen className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-3" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No enrolled courses</h3>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">You haven't enrolled in any courses yet.</p>
-        </div>
-      </PageContainer>
+      <div className="px-4 py-6 space-y-12">
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">My Courses</h2>
+          </div>
+          
+          <div className="text-center p-8 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            <BookOpen className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-3" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No enrolled courses</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-4">You haven't enrolled in any courses yet.</p>
+          </div>
+        </section>
+      </div>
     );
   }
 
   return (
-    <PageContainer className="pt-4" flexColumn>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {courses.map((course) => (
-          <JDSCourseCard
-            key={course.id}
-            id={course.id}
-            title={course.title}
-            description={course.description}
-            image_url={course.image_url}
-            is_featured={course.is_featured}
-            status={course.status}
-            _count={{ modules: 0, lessons: 0 }} // You may want to fetch actual module/lesson counts
-          />
-        ))}
-      </div>
-    </PageContainer>
+    <div className="px-4 py-6 space-y-12">
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">My Courses</h2>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {courses.map((course) => (
+            <JDSCourseCard
+              key={course.id}
+              id={course.id}
+              title={course.title}
+              description={course.description}
+              image_url={course.image_url}
+              is_featured={course.is_featured}
+              status={course.status}
+              _count={{ modules: 0, lessons: 0 }} // You may want to fetch actual module/lesson counts
+            />
+          ))}
+        </div>
+      </section>
+    </div>
   );
 } 
