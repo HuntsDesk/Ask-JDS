@@ -4,7 +4,7 @@ import { Clock, BookOpen, Settings } from 'lucide-react';
 
 import { MobileNavLink } from '../common/MobileNavLink';
 
-export const MobileBottomNav: React.FC = () => {
+const MobileBottomNav: React.FC = () => {
   const location = useLocation();
   
   return (
@@ -30,4 +30,6 @@ export const MobileBottomNav: React.FC = () => {
       </div>
     </div>
   );
-}; 
+};
+
+export default MobileBottomNav; 
