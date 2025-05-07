@@ -793,6 +793,32 @@ Edge function stripe-webhook handles:
    }, [threadId]);
    ```
 
+5. **Early Returns in Components**
+   ```js
+   // Good - Hooks called first, then early return
+   const foo = useSomething();
+   const bar = useSomethingElse();
+
+   if (!ready) {
+     return <Spinner />;
+   }
+   ```
+
+6. **Debug Logging (Development Only)**
+   ```js
+   if (process.env.NODE_ENV === 'development') {
+     console.debug('...');
+   }
+   ```
+
+7. **Testing Before Merge**
+   - Switch threads manually → No infinite refresh
+   - Check DevTools → No runaway API calls
+   - Ensure the app doesn't crash or reload infinitely
+
+8. **Final Mantra**
+   "Every hook. Every time. Same order. Static dependencies. Full cleanup."
+
 ## Troubleshooting
 
 ### Vite Optimization Issues
@@ -989,6 +1015,46 @@ Row Level Security (RLS) is used extensively to ensure data security:
    - Role-based access: `get_user_role(auth.uid()) = 'admin'`
    - Public content: `is_public = true`
 
+### Database Functions
+
+1. **Security Settings**
+   - Always use SECURITY DEFINER with search_path for security-critical functions
+   ```sql
+   CREATE OR REPLACE FUNCTION function_name()
+   RETURNS BOOLEAN
+   LANGUAGE plpgsql
+   SECURITY DEFINER
+   SET search_path = public
+   AS $$
+   BEGIN
+     -- Function body
+   END;
+   $$;
+   ```
+
+2. **Variable Declarations**
+   - Properly declare all variables at the top of PL/pgSQL blocks
+   ```sql
+   DECLARE
+     var_name text;
+     counter integer := 0;
+   BEGIN
+     -- Code here
+   END;
+   ```
+
+3. **Exception Handling**
+   - Implement proper error handling in functions
+   ```sql
+   BEGIN
+     -- Code here
+   EXCEPTION
+     WHEN others THEN
+       RAISE NOTICE 'Error: %', SQLERRM;
+       -- Handle error
+   END;
+   ```
+
 ### Authentication Security
 
 1. **Email Verification**
@@ -1014,6 +1080,32 @@ Row Level Security (RLS) is used extensively to ensure data security:
 2. **Client-side Validation**
    - Use Zod schemas for form validation
    - Implement consistent error handling
+
+### Frontend Security
+
+1. **Never Store Sensitive Data Client-Side**
+   - Don't store sensitive information in localStorage or sessionStorage
+   - Use secure HTTP-only cookies for authentication when needed
+
+2. **Supabase Client Pattern**
+   - Create a single instance of the Supabase client to avoid issues
+   - Set proper authentication settings (autoRefreshToken, persistSession)
+
+3. **Input Validation**
+   - Validate all user input both client-side and server-side
+   - Use parameterized queries to prevent SQL injection
+
+### Security Testing
+
+1. **Regular Policy Reviews**
+   - Periodically review all RLS policies
+   - Check for functions without proper security settings
+   - Use our schema inspection tools to review policies
+
+2. **Test Policies with Different Roles**
+   - Test access with authenticated users
+   - Test access with admin users
+   - Test unauthenticated access when applicable
 
 ## Common Development Tasks
 
@@ -1374,6 +1466,21 @@ The flashcard system has been optimized for performance and user experience:
 The application uses shared components in the `src/components/common` directory:
 
 1. **MobileNavLink**: Reusable navigation link component for mobile navigation bars that shows active state styling.
+
+```tsx
+import { MobileNavLink } from '@/components/common/MobileNavLink';
+
+<MobileNavLink 
+  to="/courses" 
+  icon={<BookOpen className="h-5 w-5" />} 
+  text="Courses" 
+/>
+```
+
+This component automatically:
+- Tracks active state based on the current route
+- Applies consistent styling across mobile navigation bars
+- Shows highlight color for the active navigation item
 
 ```tsx
 import { MobileNavLink } from '@/components/common/MobileNavLink';
