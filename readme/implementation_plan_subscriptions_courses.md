@@ -37,7 +37,20 @@ This document outlines the step-by-step plan to implement the subscription tiers
         ```
     *   **Rationale**: To track the exact Stripe Price ID used for a course purchase, allowing for accurate historical sales data and handling price variations.
 
-3.  **Review/Update RLS Policies (if necessary):**
+3.  **Add `stripe_payment_intent_id` to `course_enrollments` table (for Webhook Idempotency):**
+    *   **Action**: Add to the same migration file.
+    *   **SQL**:
+        ```sql
+        ALTER TABLE public.course_enrollments
+        ADD COLUMN IF NOT EXISTS stripe_payment_intent_id TEXT UNIQUE;
+
+        COMMENT ON COLUMN public.course_enrollments.stripe_payment_intent_id IS 'Stores the Stripe Payment Intent ID for the transaction that created/updated this enrollment. Used for webhook idempotency.';
+        ```
+    *   **Rationale**: To track the exact Stripe Price ID used for a course purchase, allowing for accurate historical sales data and handling price variations.
+    *   **Idempotency Check**: Using the `stripe_payment_intent_id` column in `course_enrollments`, first check if this `payment_intent.id` has already been processed. If yes, return 200 OK and stop further processing for this event to ensure idempotency.
+    *   Query the `courses` table to get `days_of_access` for the `courseId`.
+
+4.  **Review/Update RLS Policies (if necessary):**
     *   **Action**: After adding columns, review RLS policies on `user_subscriptions` and `course_enrollments`. The new columns should generally follow the access patterns of other non-sensitive data in those tables (e.g., readable by the user for their own records, manageable by service role/admin).
     *   **Current Policies (from `supabase_dump.md`)**:
         *   `user_subscriptions`:
@@ -116,6 +129,30 @@ This document outlines the step-by-step plan to implement the subscription tiers
 *   `invoice.payment_failed`
 *   `checkout.session.completed` (Retain if any part of the flow, e.g. setting up a subscription with SCA, might still use this. However, focus is shifting to PaymentIntents for direct payment actions).
 
+**Webhook Events Documentation**:
+
+Below is a detailed explanation of each webhook event, what triggers it, the actions to take, and expected outcomes:
+
+| Event | Trigger | Actions | Expected Outcome |
+|-------|---------|---------|-----------------|
+| `payment_intent.succeeded` | Payment is successfully processed | • For course purchases: Create enrollment record with stripe_price_id, calculate expires_at<br>• For subscriptions: Update profiles.stripe_customer_id<br>• Apply idempotency check using stripe_payment_intent_id | • New course_enrollments record with active status<br>• Customer ID updated in profiles table |
+| `customer.subscription.created` | New subscription is successfully created | • Insert into user_subscriptions with user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end<br>• Update profiles.stripe_customer_id | • User gains access to Premium/Unlimited tier features<br>• Subscription record created |
+| `customer.subscription.updated` | Subscription details change (plan changes, payment method updates, etc.) | • Update user_subscriptions record with latest status, stripe_price_id, current_period_end, cancel_at_period_end<br>• Handle status changes like 'past_due' → 'active' (successful retry) or 'past_due' → 'canceled' (after all retries fail) | • User subscription reflects current state<br>• Access level updated if plan changed |
+| `customer.subscription.deleted` | Subscription is canceled | • Update user_subscriptions status to 'canceled' or 'inactive'<br>• If cancel_at_period_end was true, may still keep 'active' until current_period_end | • User reverts to Free tier when subscription period ends<br>• Message limits apply |
+| `invoice.payment_succeeded` | Recurring subscription payment succeeds | • Update user_subscriptions with status='active'<br>• Update current_period_end<br>• Verify stripe_price_id is current | • Subscription period extended<br>• User maintains access to paid tier |
+| `invoice.payment_failed` | Subscription payment attempt fails | • Update user_subscriptions status to 'past_due'<br>• Log failure for monitoring<br>• Note: Stripe will handle automatic retries via its dunning process | • Access is determined by our business logic for 'past_due' status |
+| `setup_intent.succeeded` | Payment method is successfully set up | • For trials: May complete subscription setup without immediate charge<br>• For saved payment methods: Update customer payment methods | • Payment method stored for future subscription billing |
+| `checkout.session.completed` | Checkout flow completes | • Process based on session metadata (subscription vs. course purchase)<br>• May create/update user_subscriptions or course_enrollments | • Depends on checkout context and metadata<br>• Generally creates or updates subscription/enrollment |
+
+**Important Implementation Notes**:
+- All webhook handlers must be idempotent as Stripe may send the same event multiple times
+- Verify the webhook signature using Stripe's signing secret
+- Include appropriate error handling and logging
+- Return 200 response code for successful processing (even if the event is ignored)
+- Use consistent metadata keys across checkout creation and webhook processing
+- **Payment Method Updates**: No special webhook handling is needed when users update their payment methods via Stripe Portal. Stripe manages the customer's payment methods, and the application only needs to respond if payments succeed or fail.
+- **Failed Recurring Payments & Dunning**: Stripe handles failed payments with automatic retry attempts (dunning). The app should update subscription status to 'past_due' on `invoice.payment_failed` events, but access control during this period should be explicitly defined according to business requirements.
+
 **Tasks**:
 
 1.  **Basic Setup & Security**:
@@ -138,14 +175,17 @@ This document outlines the step-by-step plan to implement the subscription tiers
 3.  **Handle `payment_intent.succeeded`**:
     *   This event confirms a successful payment.
     *   **Metadata**: The `payment_intent.metadata` should contain `userId`, `purchaseType`, `targetStripePriceId`, `courseId` (if applicable), `isRenewal` (if applicable).
+    *   **Database Transaction**: Wrap related operations in a transaction to ensure data consistency. 
     *   **For One-Time Course Purchases (`metadata.purchaseType === 'course_purchase'`)**:
-        *   Extract `userId`, `courseId`, `targetStripePriceId` from metadata.
+        *   Extract `userId`, `courseId`, `targetStripePriceId` from metadata, and `payment_intent.id` from the event.
+        *   **Idempotency Check**: Using the `stripe_payment_intent_id` column in `course_enrollments`, first check if this `payment_intent.id` has already been processed. If yes, return 200 OK and stop further processing for this event to ensure idempotency.
         *   Query the `courses` table to get `days_of_access` for the `courseId`.
         *   Calculate `expires_at` (NOW() + `days_of_access`).
         *   Insert into `public.course_enrollments` (ensure idempotency, e.g., check if already processed based on `payment_intent.id`):
             *   `user_id` = `userId`
             *   `course_id` = `courseId`
             *   `stripe_price_id` = `targetStripePriceId`
+            *   `stripe_payment_intent_id` = `payment_intent.id` (if column added)
             *   `enrolled_at` = NOW()
             *   `expires_at` = calculated expiration
             *   `status` = 'active'
@@ -159,6 +199,7 @@ This document outlines the step-by-step plan to implement the subscription tiers
 4.  **Handle `customer.subscription.created` and `customer.subscription.updated`**:
     *   `customer.subscription.created`: Typically fires when a new subscription is successfully set up.
     *   `customer.subscription.updated`: Fires for various changes including plan changes, trial ending, status changes.
+    *   **Database Transaction**: Wrap related operations in a transaction.
     *   **Action**: Upsert into `public.user_subscriptions`:
         *   `user_id` = `subscription.metadata.userId` (ensure `userId` is passed in subscription metadata when creating it, or retrieve by `stripe_customer_id`)
         *   `stripe_customer_id` = `subscription.customer`
@@ -171,6 +212,7 @@ This document outlines the step-by-step plan to implement the subscription tiers
 
 5. **Handle `invoice.payment_succeeded`**:
     *   Crucial for ongoing subscriptions and potentially for the first payment if a subscription starts immediately with an invoice.
+    *   **Database Transaction**: Wrap related operations in a transaction.
     *   **Identify Context**: Check `invoice.billing_reason` (e.g., 'subscription_create', 'subscription_cycle', 'subscription_update').
     *   **Metadata**: `invoice.subscription_details.metadata` or `invoice.metadata` might contain your `userId` if set during subscription creation.
     *   **Action**: Primarily for subscriptions. If `invoice.subscription` (the Stripe Subscription ID) is present:
@@ -180,17 +222,46 @@ This document outlines the step-by-step plan to implement the subscription tiers
             *   `stripe_price_id` = `invoice.lines.data[0].price.id`.
         *   This is where you reliably activate/extend a subscription period.
 
-6.  **Handle `customer.subscription.deleted` (Cancellation)**:
+6.  **Handle `invoice.payment_failed`**:
+    *   Fired when an invoice payment attempt fails.
+    *   **Database Transaction**: Wrap related operations in a transaction.
+    *   Update the `public.user_subscriptions` record:
+        *   Set `status` to 'past_due'.
+    *   **Access Control During Past Due**: Define in application logic how to handle users during this "past_due" grace period - whether they retain access while Stripe attempts to collect payment or lose access immediately. This should be explicitly documented as a business decision.
+    *   Log the failure event in the `error_logs` table for monitoring and customer support purposes.
+
+7.  **Handle `customer.subscription.deleted` (Cancellation)**:
     *   This fires when a subscription is canceled (either immediately or at period end).
+    *   **Database Transaction**: Wrap related operations in a transaction.
     *   Update the `public.user_subscriptions` record:
         *   Set `status` to 'canceled' or 'inactive'.
         *   If `cancel_at_period_end` was true, the subscription might still be active until `current_period_end`. The status should reflect this (e.g., keep 'active' but note `cancel_at_period_end` is true). The final "inactive" update might come when the period actually ends, or you handle it based on `current_period_end` in your app logic.
     *   **Logic**: User reverts to "Free Tier". No specific database change for this beyond the subscription status, as "Free Tier" is the absence of an active paid subscription. Message limits will apply based on `get_user_message_count` and application logic.
 
-7.  **Idempotency**: Ensure your webhook logic is idempotent. Stripe may send the same event multiple times. Design updates/inserts to handle this gracefully (e.g., using `ON CONFLICT` for inserts, or checking if an update is actually needed before performing it).
+8.  **Database Transactions**:
+    *   Implement transaction support for all webhook handlers that perform multiple database operations to ensure data consistency:
+    
+    ```typescript
+    try {
+      // Begin transaction
+      await supabaseClient.rpc('begin');
+      
+      // Multiple database operations
+      await supabaseClient.from('user_subscriptions').upsert({...});
+      await supabaseClient.from('profiles').update({...});
+      
+      // Commit if all succeeded
+      await supabaseClient.rpc('commit');
+    } catch (error) {
+      // Rollback on any error
+      await supabaseClient.rpc('rollback');
+      throw error;
+    }
+    ```
 
-8.  **Error Handling & Logging**:
-    *   Robustly log errors.
+9.  **Error Handling & Logging**:
+    *   Log all errors to the existing `error_logs` table for consistent error tracking.
+    *   Include event type, event ID, and error details in the logs.
     *   Return appropriate HTTP status codes to Stripe (200 for success, 4xx for client errors like bad signature, 5xx for server errors). Stripe will retry webhooks that don't receive a 200.
 
 **Testing & Verification for Phase 3**:
@@ -218,6 +289,11 @@ This document outlines the step-by-step plan to implement the subscription tiers
     *   **Subscription Cancellation**:
         *   Trigger `customer.subscription.deleted`.
         *   Verify the `user_subscriptions` status is updated appropriately.
+    *   **Failed Payment & Dunning**:
+        *   Trigger `invoice.payment_failed`.
+        *   Verify the subscription status is set to 'past_due'.
+        *   Trigger successful payment retry (leading to `customer.subscription.updated` with status 'active').
+        *   Verify the subscription status is updated correctly.
 5.  **Security**:
     *   Test with an invalid Stripe signature; verify the webhook rejects it.
 6.  **Idempotency**: Send the same event twice; verify it doesn't create duplicate records or fail.
@@ -226,6 +302,8 @@ This document outlines the step-by-step plan to implement the subscription tiers
 ## Phase 4: Frontend - Self-Hosted Checkout with Stripe Payment Elements
 
 **Objective**: Implement frontend components and logic for a self-hosted (embedded) checkout experience using Stripe Payment Elements, providing a seamless payment process within the application.
+
+**Relevant Database Function**: `public.has_course_access(user_id, course_id)` (Will need refinement later - see Phase 6).
 
 **Tasks (Frontend Development)**:
 
@@ -261,7 +339,8 @@ This document outlines the step-by-step plan to implement the subscription tiers
             *   Wrap your payment form with the `<Elements>` provider from `@stripe/react-stripe-js`, passing the `client_secret` and Stripe instance.
             *   Mount the `<PaymentElement />` (and optionally `<LinkAuthenticationElement />`).
             *   Handle form submission using `stripe.confirmPayment({ elements, confirmParams: { return_url: 'your_order_confirmation_page_url' } })` for PaymentIntents, or `stripe.confirmSetup()` for SetupIntents.
-            *   The `return_url` will be invoked by Stripe after the user attempts payment (or completes 3D Secure). Your page at this URL should check the status of the PaymentIntent/SetupIntent to show a success/failure message. The webhook will handle backend fulfillment.
+            *   The `return_url` will be invoked by Stripe after the user attempts payment (or completes 3D Secure). Your page at this URL should check the status of the PaymentIntent/SetupIntent (e.g., by calling another backend endpoint that retrieves the intent status from Stripe using its ID passed as a query parameter) to show a clear success/failure message to the user. The webhook will handle backend fulfillment and database updates.
+            *   It's crucial to handle errors returned by `stripe.confirmPayment()` or `stripe.confirmSetup()` directly in the client-side submission handler to inform the user of issues like card declines immediately.
 
 2.  **UI for Course Purchases (Embedded Flow)**:
     *   On course pages, a "Purchase Course" button. Clicking this should open a modal or navigate to an in-app checkout page where the Stripe Payment Element is displayed.
@@ -328,23 +407,65 @@ This document outlines the step-by-step plan to implement the subscription tiers
 
 ## Phase 6: Handling Subscription Lifecycle & Free Tier Reversion
 
-**Objective**: Ensure the application correctly handles subscription cancellations, expiries, and reverts users to the Free Tier with associated message limits.
+**Objective**: Ensure the application correctly handles subscription cancellations, expiries, and reverts users to the Free Tier with associated message limits. Also, ensure course access logic is correctly checking for Unlimited Tier subscriptions.
 
 **Tasks**:
 
 1.  **Webhook Logic (Reinforce from Phase 3)**:
     *   `customer.subscription.deleted` or `customer.subscription.updated` (with status like `canceled` or `past_due` leading to cancellation): Ensure the `user_subscriptions.status` is set to a final inactive state (e.g., 'canceled', 'expired').
+
 2.  **Application Logic for Access Control**:
-    *   Your `has_course_access` function and other access checks should rely on `user_subscriptions.status = 'active'` (or 'trialing') AND `user_subscriptions.current_period_end > NOW()`.
+    *   Your `has_course_access` function and other access checks should explicitly rely on: 
+        * `user_subscriptions.status = 'active'` (or 'trialing') AND 
+        * `user_subscriptions.current_period_end > NOW()`
+    *   This combination properly handles the period between cancellation and actual subscription end.
     *   When a user's subscription is no longer active by these criteria, they are effectively "Free Tier."
+    *   For 'past_due' status: Define explicit business rules for whether users retain access during Stripe's dunning process.
+
 3.  **Message Limit Enforcement & UI Feedback**:
     *   The existing `get_user_message_count` function tracks monthly messages.
     *   Your application logic (likely in the chat feature) needs to:
-        *   Check if the user has an active paid subscription (Premium or Unlimited).
-        *   If NOT, then check `get_user_message_count(auth.uid())`. If it's >= 10 (or your defined limit), disallow sending new messages.
+        *   **Step 1**: Check if the user has an active *paid* subscription (Premium or Unlimited). This involves querying `public.user_subscriptions` for a record where `user_id = auth.uid()`, `status = 'active'`, `current_period_end > NOW()`, AND `stripe_price_id` matches one of the known Premium or Unlimited Price IDs (from env vars).
+        *   **Step 2**: If **no** active paid subscription is found (i.e., user is effectively Free Tier), **then** call `public.get_user_message_count(auth.uid())`.
+        *   **Step 3**: If the count from Step 2 is >= the defined limit (e.g., 10), block the user from sending a new message.
             *   **UX Note**: Implement a clear, informative, yet non-intrusive banner (e.g., `<UsageBanner />` component) at the top of the chat interface for Free Tier users. This banner should display current message usage (X of Y), provide an easy link to upgrade, and potentially use distinct styling if the limit is reached. Consider a progress bar for visual feedback. (Reference user-provided design draft and AI feedback for details).
             *   **Analytics Note**: Consider logging these blocked attempts (anonymously or tied to user ID if privacy policy allows) for analytics on feature demand and potential conversion triggers.
         *   The `increment_user_message_count` function should still be called for all user messages, regardless of tier, for tracking purposes.
+
+4.  **Refine `has_course_access` Function:**
+    *   **Action**: Review and modify the existing `public.has_course_access(user_id, course_id)` database function.
+    *   **Required Change**: The part of the function that checks `user_subscriptions` needs to be updated. Instead of just checking for *any* active subscription, it must specifically check if the active subscription's `stripe_price_id` corresponds to an **Unlimited Tier** Price ID.
+    *   **Implementation Approach**: Store the Stripe Price IDs in environment variables and pass these to the edge functions that need them. For database functions, determine the tier by matching against known Price IDs:
+    
+    ```sql
+    CREATE OR REPLACE FUNCTION has_course_access(user_id uuid, course_id uuid)
+    RETURNS BOOLEAN AS $$
+    DECLARE
+        unlimited_price_ids TEXT[] := ARRAY[
+            /* These should be passed in or sourced from a database lookup */
+            'price_unlimited_monthly', 
+            'price_unlimited_annual'
+        ];
+    BEGIN
+      RETURN EXISTS (
+        -- Check for direct course enrollment
+        SELECT 1 FROM public.course_enrollments 
+        WHERE user_id = has_course_access.user_id 
+          AND course_id = has_course_access.course_id
+          AND expires_at > NOW()
+      ) OR EXISTS (
+        -- Check for Unlimited tier subscription specifically
+        SELECT 1 FROM public.user_subscriptions
+        WHERE user_id = has_course_access.user_id
+          AND status = 'active'
+          AND current_period_end > NOW()
+          -- Check if the price ID matches any of the Unlimited tier prices
+          AND stripe_price_id = ANY(unlimited_price_ids)
+      );
+    END;
+    $$ LANGUAGE plpgsql;
+    ```
+    *   **Alternative Implementation**: Store pricing tier information in a separate database table that maps Stripe Price IDs to tier names/capabilities.
 
 **Testing & Verification for Phase 6**:
 
@@ -358,37 +479,21 @@ This document outlines the step-by-step plan to implement the subscription tiers
     *   Verify the user loses access and reverts to Free Tier message limits.
 3.  **Transition from Paid to Free**:
     *   Ensure the UI correctly reflects the change in status (e.g., no "Premium" badge, course access revoked).
+4.  **Payment Failure & Dunning Process**:
+    *   Simulate an invoice payment failure (status changes to 'past_due').
+    *   Verify access behavior during the dunning period matches business requirements.
+    *   Simulate a successful retry and verify subscription status updates correctly.
+    *   Simulate a failed dunning process (all retries failed) and verify subscription status becomes 'canceled'.
+5.  **Access Control Function Testing**:
+    *   Test the updated `has_course_access` function with various combinations:
+        *   User with direct course enrollment - Should have access
+        *   User with Unlimited tier subscription - Should have access to all courses
+        *   User with Premium tier subscription - Should NOT have access to courses
+        *   User with no subscription - Should have no access
 
-## Phase 7: Course Renewal Flow (Conceptual - If Implementing Custom Renewals)
+## Phase 7: Course Renewal Flow (DEFERRED)
 
-**Objective**: Allow users to renew/extend access to individually purchased courses. (If using Stripe Customer Portal for everything, this might be simpler or handled by new purchases). The `readme/archive/enrollments.md` mentions `createCourseRenewalCheckout`.
-
-**Tasks (Frontend & Backend if custom renewal is needed)**:
-
-1.  **UI for Renewal**:
-    *   If a `course_enrollment` is nearing `expires_at` (or has expired), show a "Renew Access" button.
-2.  **Backend for Renewal Checkout**:
-    *   This would use the same consolidated `create-checkout-session` Edge Function from Phase 4.
-    *   **Parameters to send**:
-        *   `targetStripePriceId` (original or current price ID for the course).
-        *   `purchaseType`: 'course_purchase'.
-        *   `courseId`.
-        *   `isRenewal`: `true`.
-        *   `existingEnrollmentId` (optional, if needed by webhook to locate the exact enrollment, though `userId` and `courseId` might be sufficient).
-    *   **Starting Point**: Investigate adapting any renewal-specific logic if present in `supabase/functions_downloaded/create-payment-intent/index.ts`, ensuring it aligns with the `PaymentIntent` flow.
-3.  **Webhook Handling for Renewals**:
-    *   When `payment_intent.succeeded` with `metadata.isRenewal: true` and relevant `courseId` is received:
-        *   Find the existing `course_enrollments` record.
-        *   Update its `expires_at` by adding `days_of_access` to the *current `expires_at`* (if renewing before expiry) or to *NOW()* (if renewing after expiry).
-        *   Increment `renewal_count`.
-        *   Reset notification flags (`notification_7day_sent`, `notification_1day_sent`).
-
-**Testing & Verification for Phase 7**:
-
-1.  For an enrolled course nearing expiration, click "Renew Access."
-2.  Complete the test Stripe Checkout.
-3.  Verify the webhook updates the existing `course_enrollments` record's `expires_at` and `renewal_count`, rather than creating a new enrollment.
-4.  Verify continued access to the course.
+This phase is deferred from the initial MVP. Expired access to individually purchased courses will be handled by the user repurchasing the course via the standard purchase flow (Phase 4), which creates a new enrollment record.
 
 ## Phase 8: Final Testing and Refinement
 
@@ -414,6 +519,7 @@ This document outlines the step-by-step plan to implement the subscription tiers
 ## Future Considerations (Post-MVP)
 *   **Subscription Proration Logic**: For handling upgrades/downgrades between tiers (e.g., Premium to Unlimited mid-cycle), understand and implement logic for Stripe's proration behavior.
 *   **Partial Refund Handling**: If customer support scenarios require partial refunds for courses or subscriptions, the webhook might need to handle `charge.refunded` events to update access or records accordingly.
+*   **In-app Selection of Saved Payment Methods**: For new one-time purchases, allowing users to select a previously saved card (managed via Stripe Customer object) directly within the embedded checkout form, rather than always re-entering details. This would require extending the `create-payment-handler`.
 *   **Multi-Course Bundling**: If you plan to offer bundles of courses for a single price in the future, the schema and logic might need adjustments (e.g., a new `bundles` table and linking enrollments to bundles or individual courses within a bundle).
 *   **Custom UI for subscription upgrades/downgrades**: If the Stripe Customer Portal doesn't meet all future needs for managing plan changes, a custom in-app interface might be considered.
 
