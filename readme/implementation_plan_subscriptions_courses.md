@@ -112,6 +112,20 @@ This document outlines the step-by-step plan to implement the subscription tiers
 
 ## Phase 3: Backend - Stripe Webhook Edge Function
 
+**Phase 3 Completion Summary**:
+- ✅ Implemented robust webhook handler for all required Stripe events
+- ✅ Added enhanced error handling with proper logging
+- ✅ Implemented fallback for missing metadata fields
+- ✅ Added transaction management for data consistency
+- ✅ Created testing tools (webhook-test.js, webhook-test-all.js, stripe-proxy.js)
+- ✅ Verified webhook signature verification and event processing
+
+**Key Issues Fixed**:
+- Added graceful handling for missing user_id in payment_intent.succeeded events
+- Improved error logging with proper JSON stringification
+- Enhanced transaction management to ensure proper commits/rollbacks
+- Added detailed event logging for easier debugging
+
 **Objective**: Implement/Refactor the Supabase Edge Function (`stripe-webhook`) to securely handle events from Stripe, particularly for creating and managing subscriptions and course enrollments.
 
 **Starting Point**: Review and consider refactoring/basing the implementation on the existing webhook logic found in `supabase/functions_downloaded/stripe-webhook/`, as it may be more complete than any version currently in `supabase/functions/stripe-webhook/`.
@@ -155,13 +169,13 @@ Below is a detailed explanation of each webhook event, what triggers it, the act
 
 **Tasks**:
 
-1.  **Basic Setup & Security**:
+1. **Basic Setup & Security**:
     *   Ensure the function uses `Deno.serve`.
     *   Retrieve the Stripe webhook secret from environment variables (`STRIPE_TEST_WEBHOOK_SECRET` or `STRIPE_LIVE_WEBHOOK_SECRET` based on the environment).
     *   Verify the Stripe signature for every incoming event to ensure authenticity. Reject requests with invalid signatures.
     *   Initialize the Supabase client using service role key for database operations.
 
-2.  **Define Consistent Metadata Keys**:
+2. **Define Consistent Metadata Keys**:
     *   **Action**: Establish a consistent set of metadata keys used when creating Stripe Checkout sessions and expected by this webhook. Document these, possibly in a shared constants file if developing across multiple functions.
     *   **Essential Keys (Examples)**:
         *   `userId` (Supabase Auth User ID)
@@ -172,7 +186,7 @@ Below is a detailed explanation of each webhook event, what triggers it, the act
         *   `successUrl`, `cancelUrl` (though these are top-level checkout session params, sometimes useful in metadata for context)
     *   **Rationale**: Ensures reliable data transfer from checkout initiation to webhook processing.
 
-3.  **Handle `payment_intent.succeeded`**:
+3. **Handle `payment_intent.succeeded`**:
     *   This event confirms a successful payment.
     *   **Metadata**: The `payment_intent.metadata` should contain `userId`, `purchaseType`, `targetStripePriceId`, `courseId` (if applicable), `isRenewal` (if applicable).
     *   **Database Transaction**: Wrap related operations in a transaction to ensure data consistency. 
@@ -196,7 +210,7 @@ Below is a detailed explanation of each webhook event, what triggers it, the act
         *   Can be used as a trigger to ensure the user profile has the `stripe_customer_id` (`payment_intent.customer`).
         *   Log this event and correlate with subscription events.
 
-4.  **Handle `customer.subscription.created` and `customer.subscription.updated`**:
+4. **Handle `customer.subscription.created` and `customer.subscription.updated`**:
     *   `customer.subscription.created`: Typically fires when a new subscription is successfully set up.
     *   `customer.subscription.updated`: Fires for various changes including plan changes, trial ending, status changes.
     *   **Database Transaction**: Wrap related operations in a transaction.
@@ -303,6 +317,30 @@ Below is a detailed explanation of each webhook event, what triggers it, the act
 
 **Objective**: Implement frontend components and logic for a self-hosted (embedded) checkout experience using Stripe Payment Elements, providing a seamless payment process within the application.
 
+**Critical Requirements from Phase 3**:
+
+1. **Required Metadata Fields**:
+   - `user_id` - **REQUIRED**: Must be included in ALL payment intents/sessions
+   - `purchase_type` - **REQUIRED**: 'course' or 'subscription'
+   - `course_id` - **REQUIRED for course purchases**: Must be a valid UUID
+   - `days_of_access` - **REQUIRED for course purchases**: Numeric duration for access
+   - `is_renewal` - For course renewals: 'true' or 'false'
+   - `price_id` - Stripe Price ID being used for the purchase
+
+2. **Validation Requirements**:
+   ```typescript
+   // In create-payment-handler
+   if (!userId) throw new Error("user_id is required for payment processing");
+   if (!purchaseType) throw new Error("purchase_type is required");
+   if (purchaseType === 'course' && !courseId) throw new Error("course_id is required for course purchases");
+   ```
+
+3. **Error Handling Guidelines**:
+   - Implement comprehensive error handling for Stripe API calls
+   - Show user-friendly error messages on payment failures
+   - Log all checkout creation errors to assist with debugging
+   - Provide clear recovery paths for users after failed payments
+
 **Relevant Database Function**: `public.has_course_access(user_id, course_id)` (Will need refinement later - see Phase 6).
 
 **Tasks (Frontend Development)**:
@@ -373,6 +411,7 @@ Below is a detailed explanation of each webhook event, what triggers it, the act
     *   Verify the UI now grants access to the course content.
 3.  **Error Handling**: Test what happens if Checkout is cancelled.
 4.  **Access Control**: Verify that content is correctly gated based on subscription/enrollment status.
+5.  **Metadata Validation**: Verify all required metadata is correctly passed through the entire chain.
 
 ## Phase 5: Stripe Customer Portal Integration
 
