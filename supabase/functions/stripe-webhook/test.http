@@ -1,0 +1,140 @@
+# Test file for Stripe webhook function
+# Make POST requests to simulate Stripe webhook events
+# Use with REST Client extension in VS Code or other HTTP client tools
+
+### Variables
+@baseUrl = http://localhost:54321/functions/v1/stripe-webhook
+@stripeSignature = dummy_signature
+
+### Test OPTIONS request (CORS)
+OPTIONS {{baseUrl}}
+Origin: http://localhost:3000
+Access-Control-Request-Method: POST
+
+### Test payment_intent.succeeded
+# Simulates a successful course purchase
+POST {{baseUrl}}
+Content-Type: application/json
+stripe-signature: {{stripeSignature}}
+
+{
+  "id": "evt_test_123",
+  "object": "event",
+  "type": "payment_intent.succeeded",
+  "livemode": false,
+  "data": {
+    "object": {
+      "id": "pi_test_123",
+      "object": "payment_intent",
+      "amount": 2500,
+      "currency": "usd",
+      "status": "succeeded",
+      "customer": "cus_test_123",
+      "metadata": {
+        "userId": "test-user-123",
+        "purchaseType": "course_purchase",
+        "courseId": "test-course-456",
+        "targetStripePriceId": "price_test_course_123",
+        "isRenewal": "false"
+      }
+    }
+  },
+  "created": 1625097600
+}
+
+### Test customer.subscription.created
+# Simulates a new subscription creation
+POST {{baseUrl}}
+Content-Type: application/json
+stripe-signature: {{stripeSignature}}
+
+{
+  "id": "evt_test_456",
+  "object": "event",
+  "type": "customer.subscription.created",
+  "livemode": false,
+  "data": {
+    "object": {
+      "id": "sub_test_123",
+      "object": "subscription",
+      "customer": "cus_test_123",
+      "status": "active",
+      "current_period_start": 1625097600,
+      "current_period_end": 1627776000,
+      "cancel_at_period_end": false,
+      "metadata": {
+        "userId": "test-user-123"
+      },
+      "items": {
+        "data": [
+          {
+            "id": "si_test_123",
+            "price": {
+              "id": "price_test_sub_123"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "created": 1625097600
+}
+
+### Test customer.subscription.updated
+# Simulates a subscription update
+POST {{baseUrl}}
+Content-Type: application/json
+stripe-signature: {{stripeSignature}}
+
+{
+  "id": "evt_test_789",
+  "object": "event",
+  "type": "customer.subscription.updated",
+  "livemode": false,
+  "data": {
+    "object": {
+      "id": "sub_test_123",
+      "object": "subscription",
+      "customer": "cus_test_123",
+      "status": "active",
+      "current_period_start": 1625097600,
+      "current_period_end": 1627776000,
+      "cancel_at_period_end": true,
+      "items": {
+        "data": [
+          {
+            "id": "si_test_123",
+            "price": {
+              "id": "price_test_sub_123"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "created": 1625097600
+}
+
+### Test invoice.payment_failed
+# Simulates a failed payment
+POST {{baseUrl}}
+Content-Type: application/json
+stripe-signature: {{stripeSignature}}
+
+{
+  "id": "evt_test_999",
+  "object": "event",
+  "type": "invoice.payment_failed",
+  "livemode": false,
+  "data": {
+    "object": {
+      "id": "in_test_123",
+      "object": "invoice",
+      "customer": "cus_test_123",
+      "subscription": "sub_test_123",
+      "attempt_count": 1,
+      "next_payment_attempt": 1625184000
+    }
+  },
+  "created": 1625097600
+} 
