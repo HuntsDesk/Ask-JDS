@@ -1,6 +1,6 @@
-# Course Enrollment System
+# Enrollment System
 
-This document outlines the design and implementation of the course enrollment system for JD Simplified.
+This document outlines the design and implementation of the course enrollment system for JD Simplified/Ask JDS.
 
 ## Table of Contents
 1. [System Overview](#system-overview)
@@ -236,22 +236,20 @@ Three primary product types in Stripe:
 
 ### Environment Configuration
 
-```
-# Test environment (.env.local)
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_test_...
+The Stripe API keys, webhook secrets, and specific Price IDs for different products and tiers (for both test and live environments) are managed in the project's environment file (e.g., `.env` or `.env.local`). The `.env.blank` file in the root directory serves as a template and lists all necessary Stripe-related environment variables, including:
 
-# Production environment (.env.production)
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_live_...
-```
+-   `VITE_STRIPE_PUBLISHABLE_KEY` (for test)
+-   `VITE_STRIPE_LIVE_PUBLISHABLE_KEY`
+-   `STRIPE_SECRET_KEY` (for test backend)
+-   `STRIPE_LIVE_SECRET_KEY` (for live backend)
+-   `STRIPE_TEST_WEBHOOK_SECRET`
+-   `STRIPE_LIVE_WEBHOOK_SECRET`
+-   Various `STRIPE_[TIER/COURSE]_[INTERVAL]_PRICE_ID` variables for both live and test modes (e.g., `STRIPE_UNLIMITED_MONTHLY_PRICE_ID`, `STRIPE_LIVE_UNLIMITED_MONTHLY_PRICE_ID`).
 
 Key considerations:
-- Use test keys for development/staging
-- Use live keys for production
-- Edge functions require appropriate secrets set
+- Ensure the correct set of keys (test or live) is used based on the environment (development/staging vs. production).
+- Supabase Edge Functions require their environment variables (secrets) to be set appropriately in the Supabase dashboard for each environment.
+- The application's build and deployment process should ensure that the frontend receives the correct publishable key and the backend functions use the corresponding secret key and webhook secret.
 
 ### Checkout Flow
 
