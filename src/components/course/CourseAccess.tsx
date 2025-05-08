@@ -4,7 +4,6 @@ import { Button, Card, CardContent, CardDescription, CardFooter, CardHeader, Car
 import { useUserContext } from '@/context/UserContext';
 import { trackEvent, AnalyticsEventType } from '@/lib/flotiq/analytics';
 import { supabase } from '@/lib/supabase';
-import { createCourseCheckout } from '@/lib/stripe/checkout';
 
 // Initialize Supabase client
 // const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -127,11 +126,30 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
         }
       );
       
-      // Create checkout session using our utility function
-      const checkoutResponse = await createCourseCheckout(user.id, courseId);
+      // Create checkout session
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'course',
+          course: {
+            courseId,
+            isRenewal: false,
+            daysOfAccess: 30,
+          },
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+      
+      const { url } = await response.json();
       
       // Redirect to checkout
-      window.location.href = checkoutResponse.url;
+      window.location.href = url;
     } catch (error) {
       console.error('Error initiating checkout:', error);
       

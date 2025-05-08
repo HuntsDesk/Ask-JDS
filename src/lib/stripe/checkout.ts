@@ -61,11 +61,8 @@ export async function createCourseCheckout(
         'Authorization': `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
-        userId: userId,
-        courseId: courseId,
-        mode: 'payment',
+        courseId,
         isRenewal: false,
-        daysOfAccess: course.days_of_access || 30,
         origin: window.location.origin
       }),
     });
@@ -215,15 +212,6 @@ export async function createUnlimitedSubscriptionCheckout(
       throw new Error('Authentication required');
     }
     
-    // Get the appropriate price ID for the unlimited subscription
-    const priceId = interval === 'month' 
-      ? import.meta.env.VITE_STRIPE_UNLIMITED_MONTHLY_PRICE_ID
-      : import.meta.env.VITE_STRIPE_UNLIMITED_YEARLY_PRICE_ID;
-      
-    if (!priceId) {
-      throw new Error(`Price ID not configured for unlimited ${interval} subscription`);
-    }
-    
     // Call checkout edge function
     const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-session`, {
       method: 'POST',
@@ -232,11 +220,8 @@ export async function createUnlimitedSubscriptionCheckout(
         'Authorization': `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
-        userId: userId,
-        priceId: priceId,
-        mode: 'subscription',
-        interval: interval,
-        subscriptionTier: 'unlimited',
+        subscriptionType: 'unlimited',
+        interval,
         origin: window.location.origin
       }),
     });

@@ -33,8 +33,7 @@ import { supabase } from '@/lib/supabase';
 
 // Constants
 const FREE_TIER_LIMIT = FREE_MESSAGE_LIMIT;
-const PREMIUM_SUBSCRIPTION_PRICE = '$9.99';
-const UNLIMITED_SUBSCRIPTION_PRICE = '$19.99';
+const SUBSCRIPTION_PRICE = '$10';
 
 export function SubscriptionSettings() {
   const [isLoading, setIsLoading] = useState(true);
@@ -167,23 +166,6 @@ export function SubscriptionSettings() {
     return !subscription || subscription.status !== 'active';
   };
   
-  // Check if user has Unlimited tier
-  const isUnlimitedTier = () => {
-    return subscription?.tier === 'unlimited' && subscription.status === 'active';
-  };
-  
-  // Check if user has Premium tier
-  const isPremiumTier = () => {
-    return subscription?.tier === 'premium' && subscription.status === 'active';
-  };
-  
-  // Get current subscription tier name
-  const getCurrentTierName = () => {
-    if (isUnlimitedTier()) return 'Unlimited';
-    if (isPremiumTier()) return 'Premium';
-    return 'Free Tier';
-  };
-  
   // Helper function to format subscription end date
   const formatSubscriptionEndDate = () => {
     if (!subscription || !subscription.periodEnd) {
@@ -191,11 +173,6 @@ export function SubscriptionSettings() {
     }
     
     return format(subscription.periodEnd, 'MMM d, yyyy');
-  };
-
-  // Handle upgrade to unlimited button click
-  const handleUpgradeToUnlimited = () => {
-    window.location.href = '/subscribe';
   };
 
   // Function to refresh message count
@@ -449,7 +426,7 @@ export function SubscriptionSettings() {
         <CardHeader>
           <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">Subscription</CardTitle>
           <CardDescription className="text-gray-500 dark:text-gray-300">
-            You are currently on the {getCurrentTierName()}
+            You are currently on the {isFreeTier() ? 'free tier' : 'premium plan'}
           </CardDescription>
         </CardHeader>
         
@@ -457,66 +434,36 @@ export function SubscriptionSettings() {
           <div className="bg-gray-50 dark:bg-gray-700/80 rounded-lg p-6 border border-gray-100 dark:border-gray-600">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Current Plan</h3>
             <p className="text-base text-gray-700 dark:text-gray-300 mb-1">
-              {getCurrentTierName()}
-              {!isFreeTier() && (
-                <Badge className="ml-2 bg-green-500 text-white">Active</Badge>
-              )}
+              {isFreeTier() ? 'Free Tier' : 'Premium Subscription'}
             </p>
             {!isFreeTier() && (
-              <>
-                <p className="text-sm text-gray-500 dark:text-gray-300">
-                  Active until: {formatSubscriptionEndDate()}
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">
-                  {isUnlimitedTier() 
-                    ? 'Includes unlimited messages and access to all courses' 
-                    : 'Includes unlimited messages, but no course access'}
-                </p>
-              </>
+              <p className="text-sm text-gray-500 dark:text-gray-300">
+                Active until: {formatSubscriptionEndDate()}
+              </p>
             )}
           </div>
           
-          {/* Upgrade Section */}
+          {/* Upgrade Section - moved here */}
           <div className="pt-2">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              {isFreeTier() 
-                ? 'Upgrade Your Plan' 
-                : (isPremiumTier() ? 'Manage Your Plan' : 'Manage Your Unlimited Plan')}
-            </h3>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Upgrade Your Plan</h3>
             <p className="text-base text-gray-700 dark:text-gray-300 mb-4">
               {isFreeTier() 
                 ? `Get unlimited messages and priority support` 
-                : (isPremiumTier() 
-                  ? `Manage your premium subscription or upgrade to Unlimited for course access` 
-                  : `Manage your unlimited subscription or payment method`)}
+                : `Manage your premium subscription or payment method`}
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                onClick={isFreeTier() ? handleSubscribe : handleManageSubscription}
-                disabled={isActionLoading}
-                className="w-full sm:w-auto bg-[#F37022] hover:bg-[#E36012] text-white"
-              >
-                {isActionLoading ? (
-                  <LoadingSpinner className="w-4 h-4 mr-2" />
-                ) : (
-                  <CreditCard className="w-4 h-4 mr-2" />
-                )}
-                {isFreeTier() 
-                  ? `Upgrade to Premium (${PREMIUM_SUBSCRIPTION_PRICE}/month)` 
-                  : 'Manage Subscription'}
-              </Button>
-              
-              {isPremiumTier() && (
-                <Button
-                  onClick={handleUpgradeToUnlimited}
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                >
-                  Upgrade to Unlimited (${UNLIMITED_SUBSCRIPTION_PRICE}/month)
-                </Button>
+            <Button
+              onClick={isFreeTier() ? handleSubscribe : handleManageSubscription}
+              disabled={isActionLoading}
+              className="w-full sm:w-auto bg-[#F37022] hover:bg-[#E36012] text-white"
+            >
+              {isActionLoading ? (
+                <LoadingSpinner className="w-4 h-4 mr-2" />
+              ) : (
+                <CreditCard className="w-4 h-4 mr-2" />
               )}
-            </div>
+              {isFreeTier() ? `Upgrade to Premium (${SUBSCRIPTION_PRICE}/month)` : 'Manage Subscription'}
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -557,46 +504,11 @@ export function SubscriptionSettings() {
             <p className="mt-2 text-sm text-gray-500 dark:text-gray-300">
               {isFreeTier() 
                 ? `${messageCount}/${FREE_TIER_LIMIT} monthly limit` 
-                : 'Unlimited messages with your subscription'}
+                : 'Unlimited messages with your premium subscription'}
             </p>
           </div>
         </CardContent>
       </Card>
-
-      {/* Course Access Section - only show if not on Unlimited tier */}
-      {!isUnlimitedTier() && (
-        <Card className="border dark:border-gray-700 shadow-sm dark:bg-gray-800">
-          <CardHeader>
-            <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">Course Access</CardTitle>
-            <CardDescription className="text-gray-500 dark:text-gray-300">
-              {isFreeTier() || isPremiumTier() 
-                ? 'Upgrade to unlock access to all courses' 
-                : 'Your current plan includes access to all courses'}
-            </CardDescription>
-          </CardHeader>
-          
-          <CardContent className="space-y-4">
-            <div className="bg-gray-50 dark:bg-gray-700/80 p-4 rounded-lg border border-gray-100 dark:border-gray-600">
-              <p className="text-gray-700 dark:text-gray-300">
-                With the Unlimited plan, you get access to all courses, including:
-              </p>
-              <ul className="mt-2 space-y-1 text-gray-700 dark:text-gray-300 list-disc list-inside">
-                <li>Complete Constitutional Law course</li>
-                <li>Detailed Evidence guides</li>
-                <li>Federal Civil Procedure lessons</li>
-                <li>And many more subject areas</li>
-              </ul>
-            </div>
-            
-            <Button
-              onClick={handleUpgradeToUnlimited}
-              className="w-full sm:w-auto bg-[#F37022] hover:bg-[#E36012] text-white"
-            >
-              Upgrade to Unlimited (${UNLIMITED_SUBSCRIPTION_PRICE}/month)
-            </Button>
-          </CardContent>
-        </Card>
-      )}
       
       {/* Developer Tools Section */}
       <Card className="border dark:border-gray-700 shadow-sm dark:bg-gray-800">

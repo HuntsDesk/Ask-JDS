@@ -6,7 +6,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { formatPrice } from '../../utils/format';
 import { trackEvent } from '../../lib/analytics/track';
 import { supabase } from '@/lib/supabase';
-import { createCourseCheckout } from '@/lib/stripe/checkout';
 
 // Create a supabase client
 // const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -101,11 +100,8 @@ export function CourseEnrollmentCard({
         price
       });
       
-      // Create checkout session using our utility function
-      const checkoutResponse = await createCourseCheckout(user.id, courseId.toString());
-      
       // Redirect to checkout
-      window.location.href = checkoutResponse.url;
+      window.location.href = `/checkout?course=${courseId}`;
       
     } catch (error: any) {
       console.error('Error initiating purchase:', error);
