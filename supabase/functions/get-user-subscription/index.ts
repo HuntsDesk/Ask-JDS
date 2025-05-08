@@ -49,7 +49,7 @@ async function logError(supabase: SupabaseClient, message: string, errorDetails:
   console.error(message, errorDetails);
   try {
     await supabase.from('error_logs').insert({
-      message: \`get-user-subscription: ${message}\`,
+      message: 'get-user-subscription: ' + message,
       error_details: JSON.stringify(errorDetails),
       user_id: userId,
       source: 'get-user-subscription',
@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: \`Bearer ${supabaseToken}\` } } }
+      { global: { headers: { Authorization: 'Bearer ' + supabaseToken } } }
     );
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
