@@ -834,6 +834,8 @@ export async function createCheckoutSession(userId?: string): Promise<string | n
 
 /**
  * Create a Stripe customer portal session
+ * @param userId User ID
+ * @returns Portal URL
  */
 export async function createCustomerPortalSession(userId?: string): Promise<string | null> {
   try {
@@ -843,26 +845,38 @@ export async function createCustomerPortalSession(userId?: string): Promise<stri
       userId = user?.id;
       
       if (!userId) {
-        console.warn('No user ID available for creating customer portal session');
+        console.warn('No user ID available for creating portal session');
         return null;
       }
     }
     
-    try {
-      const { data, error } = await supabase.functions.invoke('create-customer-portal-session', {
-        body: { userId }
-      });
-      
-      if (error) {
-        console.error('Error creating customer portal session:', error);
-        return null;
-      }
-      
-      return data.url;
-    } catch (invokeErr) {
-      console.error('Failed to invoke create-customer-portal-session function:', invokeErr);
-      return null;
+    // Get authenticated session for the API call
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      throw new Error('Authentication required');
     }
+    
+    // Call the edge function
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-customer-portal-session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ 
+        userId,
+        returnUrl: `${window.location.origin}/settings/subscription`
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Failed to create customer portal session: ${errorData.error || response.statusText}`);
+    }
+    
+    const data = await response.json();
+    return data.url;
   } catch (err) {
     console.error('Failed to create customer portal session:', err);
     return null;
