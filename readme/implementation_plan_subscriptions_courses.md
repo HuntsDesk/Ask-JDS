@@ -313,73 +313,160 @@ Below is a detailed explanation of each webhook event, what triggers it, the act
 6.  **Idempotency**: Send the same event twice; verify it doesn't create duplicate records or fail.
 7.  **Logging**: Check Supabase function logs for errors and successful processing messages.
 
-## Phase 4: Frontend - Subscription and Checkout UI (COMPLETED)
+## Phase 4: Frontend - Self-Hosted Checkout with Stripe Payment Elements
 
-**Phase 4 Completion Summary**:
-- ✅ Implemented subscription checkout components for both tiers
-- ✅ Created customer portal access for managing subscriptions
-- ✅ Updated checkout functions to include proper metadata
-- ✅ Added course access information to subscription settings
-- ✅ Created deployment scripts for the frontend components
+**Objective**: Implement frontend components and logic for a self-hosted (embedded) checkout experience using Stripe Payment Elements, providing a seamless payment process within the application.
 
-**Key Components Added**:
-- Subscription checkout page with premium and unlimited tiers
-- Course access management UI in subscription settings
-- Customer portal integration for subscription management
-- Monthly/yearly subscription option toggle
+**Critical Requirements & Lessons Learned (from Phase 3 & Reviews)**:
 
-**Critical Requirements from Phase 3**:
-- ✅ **User ID in Metadata**: All checkout functions now explicitly add user_id to metadata
-- ✅ **Event Type Handling**: Frontend support for all webhook events
-- ✅ **Error Handling**: Improved error handling in checkout and portal functions
-- ✅ **Transaction Management**: Functions support proper database transactions
+1.  **Stripe Elements Flow - Manual Confirmation & Status Check (Client-Side Responsibility)**:
+    *   Unlike Stripe Checkout (redirect flow), Stripe Elements requires **explicit client-side actions** to confirm payment status after user interaction.
+    *   When you call `stripe.confirmPayment({ elements, confirmParams: { return_url: 'YOUR_RETURN_URL' } })` (or `confirmSetup`):
+        *   Stripe processes the payment/setup and handles any necessary authentication (e.g., 3D Secure).
+        *   The user is then redirected to your specified `return_url`.
+    *   **On the page serving this `return_url`, your client-side JavaScript MUST**:
+        1.  Retrieve the `payment_intent_client_secret` (for PaymentIntents) or `setup_intent_client_secret` (for SetupIntents) from the URL query parameters (e.g., `new URLSearchParams(window.location.search).get('payment_intent_client_secret')`).
+        2.  Use this `client_secret` to fetch the **latest status** of the PaymentIntent/SetupIntent directly from Stripe. This is typically done by calling a secure backend endpoint you create (e.g., `/api/get-payment-status`) which then uses the Stripe SDK on the server-side (`stripe.paymentIntents.retrieve(payment_intent_id)`).
+        3.  Based on the retrieved status (e.g., `succeeded`, `processing`, `requires_payment_method`), display the appropriate confirmation, error, or pending message to the user.
+    *   **The redirect to `return_url` does NOT automatically mean payment success.** Verification is a client-side and server-assisted responsibility.
+    *   The webhook (Phase 3) handles backend fulfillment (e.g., creating enrollments) asynchronously, but the client needs to provide immediate user feedback.
 
-**Implementation Details**:
+2.  **Backend Enforcement of Access Control (`has_course_access`) - CRITICAL FOR SECURITY**:
+    *   Displaying UI elements (e.g., "Access Course" vs "Purchase" buttons) based on `has_course_access` or `SubscriptionProvider` state is for **user experience only**.
+    *   **Actual delivery of protected course content MUST be gated by rigorous backend checks.**
+    *   Any API routes, Supabase Edge Functions, or server-side logic that serves course-specific data (e.g., video URLs from Gumlet, lesson content, downloadable materials) **must re-verify the user's access rights at the moment of the request.** This involves calling the `has_course_access` SQL function or equivalent logic within the backend function using the authenticated user's ID and the target course ID.
+    *   **Rationale**: This prevents unauthorized access by users who might bypass client-side UI restrictions (e.g., by manipulating JavaScript, making direct API calls, or sharing links).
 
-1. **Subscription UI**:
-   - Created a subscription page with tiered pricing
-   - Added monthly/yearly toggle for each subscription tier
-   - Implemented Analytics event tracking for checkout events
+3.  **Required Metadata Fields (MUST be sent to `create-payment-handler`)**:
+    *   `user_id`: **REQUIRED** (Supabase Auth User ID)
+    *   `purchase_type`: **REQUIRED** (e.g., 'subscription', 'course_purchase')
+    *   `targetStripePriceId`: **REQUIRED** (The Stripe Price ID for the item being purchased/subscribed to)
+    *   `courseId`: (Required for `purchaseType === 'course_purchase'`, your internal Course ID)
+    *   `days_of_access`: (Required for `purchaseType === 'course_purchase'`, if not centrally defined for the course/price)
+    *   `isRenewal`: (Boolean, optional, for course renewals)
 
-2. **Enhanced Checkout Functions**:
-   - Updated backend edge functions to handle both subscription types
-   - Added proper metadata to all checkout sessions
-   - Included courseId parameter for course-specific purchases
+4.  **Validation in `create-payment-handler` (Backend Edge Function)**:
+    *   Implement strict server-side validation for all incoming parameters from the client, especially `userId`, `purchaseType`, `targetStripePriceId`, and `courseId` (when applicable), before interacting with the Stripe API.
+    *   Example: `if (!userId) throw new Error("User ID is required for payment processing");`
 
-3. **Customer Portal**:
-   - Implemented Stripe Customer Portal integration
-   - Added return URL parameter for better UX
-   - Created dedicated edge function for portal access
-   
-4. **Subscription Settings**:
-   - Enhanced subscription display with tier information
-   - Added course access section with upgrade option
-   - Improved subscription management UI
+5.  **Error Handling Guidelines**:
+    *   Frontend: Provide clear, user-friendly messages for card declines, payment processing errors, and other issues encountered during the checkout flow. Offer actionable next steps or ways to retry.
+    *   Backend (`create-payment-handler`, `get-payment-status`): Log detailed errors from Stripe API calls and internal processing. Return appropriate HTTP status codes and structured error responses to the client.
 
-5. **Deployment and Testing**:
-   - Created deployment script for frontend components
-   - Added test endpoints for checkout and portal functions
-   - Included environment variable validation
+**Architectural Considerations for Phase 4**:
 
-**Notable Edge Cases**:
-- Handling users with no subscription data
-- Managing subscription tier changes
-- Supporting both one-time purchases and subscriptions
+*   **`SubscriptionProvider` (New Task)**: Implement a React Context (`SubscriptionProvider`) to centralize user subscription state (status, tier, loading, `current_period_end`, refresh function). This will simplify components needing this data and provide a single source of truth for subscription status. The provider will likely call a backend endpoint to fetch this data, which in turn uses centrally configured **Unlimited Tier Stripe Price IDs** (e.g., from environment variables like `STRIPE_UNLIMITED_TIER_PRICE_IDS="price_abc,price_def"` parsed by an Edge Function) to determine if a subscription grants full course access. (Detailed mechanism for `has_course_access` to be finalized in Phase 6).
+*   **`CheckoutConfirmationPage` or Component (New Task)**: Create a dedicated page/component to handle the `return_url` from Stripe Elements. This component is responsible for the client-side status verification of PaymentIntents/SetupIntents as described in point #1 above.
 
-**Testing Approach**:
-- Testing checkout flow with test price IDs
-- Verifying webhook processing for subscription events
-- Checking portal access and return URLs
-- Validating course access based on subscription tier
+**Tasks (Frontend Development)**:
 
-**Deployment Steps**:
-1. Run the `deploy_phase4_frontend.sh` script to deploy edge functions
-2. Build and deploy the frontend application
-3. Test the subscription flow end-to-end
-4. Verify customer portal functionality
-5. Check subscription management in settings
+1.  **Implement `SubscriptionProvider` (React Context)**:
+    *   **Status**: `[Scaffolded]` - `useSubscription` hook and `SubscriptionProvider` context generated. `get-user-subscription` Edge Function generated. Requires integration and potentially wrapping relevant app sections.
+    *   On mount, or when user auth state changes, fetch the user's current subscription details from a new backend endpoint (e.g., `/api/get-subscription-status`).
+        *   This backend endpoint will query `public.user_subscriptions` for the user.
+        *   It will also determine if the subscription tier (based on `stripe_price_id`) corresponds to an "Unlimited" tier by checking against a centrally managed list of Unlimited Tier Stripe Price IDs (e.g., read from an environment variable like `STRIPE_UNLIMITED_TIER_PRICE_IDS` by this endpoint).
+    *   Provide state like `isActive`, `tierName` (e.g., 'Premium', 'Unlimited', 'Free'), `isLoading`, `current_period_end`, and a `refreshSubscription` function.
+    *   Wrap relevant parts of the application (e.g., main layout, course pages) with this provider.
 
-**Next Steps**: Implement has_course_access integration with the frontend
+2.  **Create Backend `create-payment-handler` Edge Function**:
+    *   **Status**: `[Generated]` - Function created at `supabase/functions/create-payment-handler/index.ts`. Requires deployment and client-side integration.
+    *   **Security**: Ensure this function is callable only by authenticated users.
+    *   **Input**: Accepts `userId` (verified from auth context), `targetStripePriceId`, `purchaseType`, `courseId` (if applicable), `stripeCustomerId` (optional, to reuse existing Stripe customer), `isRenewal` (optional).
+    *   **Validation**: Strictly validate all inputs as per "Required Metadata Fields" and "Validation" requirements above.
+    *   **Logic for Course Purchase (`purchaseType === 'course_purchase'`)**:
+        *   Retrieve/Create Stripe Customer: Use `userId` to find or create a Stripe Customer. Store/update `stripe_customer_id` in `public.profiles`.
+        *   Create Stripe `PaymentIntent`: Use `targetStripePriceId` (which defines amount and currency), `customer` (Stripe Customer ID), and populate `metadata` with all required fields (`userId`, `purchaseType`, `courseId`, `targetStripePriceId`, `isRenewal`, `days_of_access`).
+        *   Return the `client_secret` of the PaymentIntent to the frontend.
+    *   **Logic for New Subscription (`purchaseType === 'subscription'`)**:
+        *   Retrieve/Create Stripe Customer (as above).
+        *   Create Stripe `Subscription`: Use `customer` and `items: [{ price: targetStripePriceId }]`. Include `payment_settings: { save_default_payment_method: 'on_subscription' }`.
+            *   Populate `subscription.metadata` with `userId`, `purchaseType`, `targetStripePriceId`.
+            *   To handle the first payment or setup for trial: Set `payment_behavior: 'default_incomplete'` and `expand: ['latest_invoice.payment_intent']`. This ensures a PaymentIntent is created for the first invoice, whose `client_secret` can be used by the frontend.
+            *   If it's a trial without immediate payment, you might lean towards a `SetupIntent` first, then create the subscription. (For now, assume subscriptions might have an initial payment or start immediately, thus `payment_behavior: 'default_incomplete'` is suitable).
+        *   Return the `client_secret` from `subscription.latest_invoice.payment_intent.client_secret`.
+    *   Ensure robust error handling and detailed logging.
+
+3.  **Create Backend `get-payment-status` Edge Function (New Task)**:
+    *   **Status**: `[Generated]` - Function created at `supabase/functions/get-payment-status/index.ts`. Requires deployment and client-side integration.
+    *   **Security**: Ensure this function is callable only by authenticated users.
+    *   **Input**: Accepts `payment_intent_id` or `setup_intent_id`.
+    *   **Logic**: Uses the Stripe SDK server-side to call `stripe.paymentIntents.retrieve(id)` or `stripe.setupIntents.retrieve(id)`.
+    *   **Output**: Returns a subset of the intent object, primarily the `status` and any relevant error information, to the client.
+
+4.  **Implement Client-Side Checkout Logic (using Stripe.js and React Stripe.js)**:
+    *   On checkout pages/modals (for courses or subscriptions):
+        *   Initialize Stripe.js with your `VITE_STRIPE_PUBLISHABLE_KEY` (this should be chosen based on live/test mode, perhaps via an env var like `VITE_STRIPE_MODE === 'live' ? VITE_STRIPE_LIVE_PUBLISHABLE_KEY : VITE_STRIPE_TEST_PUBLISHABLE_KEY`).
+        *   When user initiates payment: Call your `create-payment-handler` Edge Function to get the `client_secret`.
+        *   If `client_secret` is received, wrap your payment form with the `<Elements>` provider from `@stripe/react-stripe-js`, passing the `client_secret` and Stripe instance options.
+        *   Mount the `<PaymentElement />` (and optionally `<LinkAuthenticationElement />` for returning customers).
+        *   Handle form submission using `stripe.confirmPayment({ elements, confirmParams: { return_url: 'YOUR_APP_DOMAIN/checkout-confirmation' } })`. (Adjust `return_url` path as needed).
+        *   Handle any immediate errors from `stripe.confirmPayment()` (e.g., card validation errors) and display them to the user directly in the payment form.
+
+5.  **Implement `CheckoutConfirmationPage` (or Component) at `YOUR_APP_DOMAIN/checkout-confirmation`**:
+    *   **Status**: `[Generated]` - Skeleton component created at `src/pages/CheckoutConfirmationPage.tsx`. Requires routing setup and potentially UI refinement.
+    *   This page is the `return_url` specified in `confirmParams`.
+    *   On component mount:
+        *   Extract `payment_intent_client_secret` or `setup_intent_client_secret` from URL query parameters.
+        *   If a secret is found, call the `get-payment-status` backend Edge Function to fetch the latest intent status from Stripe.
+        *   Based on the retrieved status:
+            *   `succeeded`: Display a success message (e.g., "Payment successful! Your access has been granted/updated."). Optionally, `refreshSubscription()` from `SubscriptionProvider` if it was a subscription purchase.
+            *   `processing`: Display a pending message (e.g., "Your payment is processing. We will notify you once confirmed.").
+            *   `requires_payment_method` or other failure statuses: Display an error message (e.g., "Payment failed. Please try a different payment method or contact support."). Provide a link to go back to the payment form or pricing page.
+        *   If no client_secret is in the URL, show an appropriate error or redirect.
+
+6.  **UI for Course Purchases (Embedded Flow)**:
+    *   On individual course pages:
+        *   Use `SubscriptionProvider` and `has_course_access` (via a hook that calls a backend endpoint) to determine user's access status for *this specific course* and their overall subscription tier.
+        *   Conditionally display: "Start Learning" button (if access granted), or a "Purchase Course for $X" / "Enroll via Unlimited Subscription" section.
+        *   The "Purchase Course" button initiates the `create-payment-handler` flow (Task #2) for the course's `targetStripePriceId` and presents the embedded Stripe Payment Element modal/section.
+        *   Display price. **Strategy**: Display price amounts from environment variables (e.g., `VITE_COURSE_XYZ_DISPLAY_PRICE="$49"`). The actual charge is determined by the `targetStripePriceId`.
+
+7.  **UI for Subscription Signup (Embedded Flow)**:
+    *   On a dedicated pricing/subscription page:
+        *   Use `SubscriptionProvider` to display current plan (if any) and available tiers.
+        *   For each available tier, display a "Subscribe" or "Upgrade" button.
+        *   Clicking initiates the `create-payment-handler` flow (Task #2) for the tier's `targetStripePriceId` and presents the embedded Stripe Payment Element.
+        *   Display price amounts from environment variables (e.g., `VITE_PREMIUM_MONTHLY_DISPLAY_PRICE="$10/month"`).
+
+8.  **Displaying Subscription Status & Course Access (Leveraging `SubscriptionProvider` and backend checks)**:
+    *   Across the application (e.g., navbars, course lists, content pages), use data from `SubscriptionProvider` to conditionally render UI elements.
+    *   When attempting to access specific course content, components should re-verify access with a backend check if needed, beyond just relying on initially loaded `SubscriptionProvider` state, especially for sensitive actions.
+
+**Testing & Verification for Phase 4**:
+
+1.  **Subscription Signup Flow**:
+    *   UI correctly displays subscription options, prices, and current plan (if any).
+    *   User can select a tier; embedded payment form appears.
+    *   Complete test payment (Stripe test cards for success, decline, 3DS).
+    *   User is redirected to `checkout-confirmation` page. Page correctly fetches intent status from `get-payment-status` endpoint and displays appropriate (success/failure/pending) message.
+    *   Webhook (Phase 3) processes `customer.subscription.created` and `invoice.payment_succeeded` correctly.
+    *   `user_subscriptions` table in DB is updated.
+    *   `SubscriptionProvider` state updates, and UI reflects new active subscription.
+2.  **Course Purchase Flow**:
+    *   UI correctly displays course purchase options and price; purchase button is conditional on existing access.
+    *   User clicks purchase; embedded payment form appears.
+    *   Complete test payment.
+    *   User is redirected to `checkout-confirmation` page, which correctly verifies and displays status.
+    *   Webhook (Phase 3) processes `payment_intent.succeeded`.
+    *   `course_enrollments` table in DB is updated.
+    *   UI (e.g., course page) now grants access to course content (verified via `has_course_access` logic).
+3.  **Error Handling & Payment Failures**:
+    *   Test card declines: UI shows Stripe-provided error directly in PaymentElement.
+    *   Test other payment failures: `checkout-confirmation` page shows failure message after status check.
+    *   Test cancelling out of Stripe authentication modals (e.g., 3D Secure); user returns to `checkout-confirmation` which should reflect the incomplete/failed status.
+4.  **Access Control Logic (Frontend & Backend)**:
+    *   Verify UI elements (buttons, links) are correctly gated based on `SubscriptionProvider` and `has_course_access` results.
+    *   **Crucially**: Attempt to access course content URLs or trigger course-data-fetching API endpoints directly (e.g., using `curl` or Postman if API routes exist, or by manipulating frontend state to bypass UI button logic) as a user *without* access. These attempts **must be blocked by backend enforcement** which calls `has_course_access` or equivalent.
+5.  **Metadata and Validation**:
+    *   Use browser dev tools and backend logs to trace and verify all required metadata (`userId`, `purchaseType`, etc.) is correctly passed: Client -> `create-payment-handler` -> Stripe PaymentIntent/Subscription metadata -> Webhook processing.
+    *   Test `create-payment-handler` by sending requests with missing required metadata to ensure server-side validation throws appropriate errors before calling Stripe.
+6.  **Frontend Structure & Configuration**:
+    *   Verify the correct Stripe Publishable Key (`VITE_STRIPE_PUBLISHABLE_KEY` or `VITE_STRIPE_LIVE_PUBLISHABLE_KEY`) is loaded and used by Stripe.js based on the application's mode (test/live).
+    *   Inspect Stripe Elements integration for adherence to best practices (e.g., single `<Elements>` provider per checkout flow, error handling).
+7.  **Edge Cases**:
+    *   Test course renewal flow if `create-payment-handler` and UI support it.
+    *   Test UI for users already subscribed to one tier when viewing options for another (e.g., clear indication of current plan, correct options for upgrade/downgrade if supported).
+    *   Test behavior if `create-payment-handler` or `get-payment-status` endpoints fail (e.g., network error, server error) - UI should handle gracefully.
 
 ## Phase 5: Stripe Customer Portal Integration
 
