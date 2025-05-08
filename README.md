@@ -1496,3 +1496,36 @@ This component automatically:
 - Tracks active state based on the current route
 - Applies consistent styling across mobile navigation bars
 - Shows highlight color for the active navigation item
+
+```
+
+## Subscription and Course Purchase System (COMPLETED)
+
+The subscription and course purchase system has been fully implemented with the following features:
+
+- **Tiered Subscription Model**:
+  - Free Tier: Limited message access
+  - Premium Tier ($9.99/month): Unlimited messages and premium features
+  - Unlimited Tier ($19.99/month): All features plus course access
+
+- **Purchase Options**:
+  - Monthly or yearly subscription plans
+  - Individual course purchases
+
+- **Payment Processing**:
+  - Secure payment processing with Stripe Checkout
+  - Customer portal for subscription management
+  - Proper handling of payment events via webhooks
+
+- **Access Control**:
+  - Database-level course access verification
+  - Subscription status tracking
+  - Automatic expiration handling
+
+- **Implementation Details**:
+  - Database schema with subscription and enrollment tables
+  - Stripe webhook handler for event processing
+  - Frontend components for checkout and subscription management
+  - Edge functions for secure payment processing
+
+See the [Subscription Implementation Plan](./readme/implementation_plan_subscriptions_courses.md) for detailed information.
