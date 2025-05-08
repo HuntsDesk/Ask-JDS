@@ -51,6 +51,10 @@ projectEnv: {
 
 ### Key Architectural Points
 - Deno-native Edge Functions (Deno.serve, npm: specifiers only)
+  - `stripe-webhook`: Handles incoming Stripe events for subscriptions and purchases.
+  - `create-payment-handler`: Creates Stripe PaymentIntents/Subscriptions for Payment Elements flow.
+  - `get-payment-status`: Securely retrieves the status of Stripe PaymentIntents/SetupIntents.
+  - `get-user-subscription`: Fetches current user subscription details for the frontend.
 - Shared ESM-only components
 - Vite dev/build system
 - **No Node.js runtime** - Only used as dev-time tooling
@@ -705,17 +709,31 @@ SELECT * FROM has_course_access('user_id', 'course_id');
 
 ### Stripe Integration
 
-#### Products
-1. Course Product (one-time)
-2. Unlimited Subscription (recurring)
-3. Premium Subscription (recurring)
+The application integrates with Stripe for handling payments for course purchases and subscription tiers (Premium, Unlimited). Key components include:
 
-#### Checkout Flows
-- `createCourseCheckout()`
-- `createCourseRenewalCheckout()`
-- `createUnlimitedSubscriptionCheckout()`
+#### Products & Prices
+Stripe is configured with Products for each subscription tier and individual courses, each having corresponding Prices (recurring for subscriptions, one-time for courses).
 
-All Stripe metadata includes user_id, course_id, and isRenewal flags.
+#### Payment Flow (Stripe Payment Elements)
+1.  **Client-Side Request**: The frontend calls the `create-payment-handler` Edge Function with purchase details (user ID, price ID, type, etc.).
+2.  **Intent Creation**: The Edge Function interacts with the Stripe API to create a `PaymentIntent` (for courses) or a `Subscription` (which generates an initial `PaymentIntent` for its first invoice).
+3.  **Client Secret**: The function returns the `client_secret` of the relevant `PaymentIntent` to the frontend.
+4.  **Stripe Elements**: The frontend uses the `client_secret` to initialize and mount the Stripe `<PaymentElement>`. The user enters payment details.
+5.  **Confirmation**: The user submits the form, triggering `stripe.confirmPayment()` on the client-side. Stripe handles authentication (e.g., 3D Secure) and redirects the user to a specified `return_url` (handled by `CheckoutConfirmationPage`).
+6.  **Status Check**: The `CheckoutConfirmationPage` extracts the intent's client secret from the URL and calls the `get-payment-status` Edge Function to securely fetch the final payment status from Stripe.
+7.  **UI Update**: The confirmation page displays success, failure, or processing status to the user.
+8.  **Webhook Fulfillment**: Asynchronously, the `stripe-webhook` Edge Function receives events from Stripe (e.g., `payment_intent.succeeded`, `customer.subscription.created`) and updates the database (creates enrollments, updates subscriptions).
+
+#### Key Backend Functions
+- `create-payment-handler`: Initiates the payment/subscription process.
+- `get-payment-status`: Verifies the outcome after redirect.
+- `stripe-webhook`: Handles asynchronous updates from Stripe events.
+- `get-user-subscription`: Provides subscription status to the frontend.
+
+#### Key Frontend Components/Hooks
+- Payment form using `@stripe/react-stripe-js` and `<PaymentElement>`.
+- `CheckoutConfirmationPage`: Handles the redirect and displays payment outcome.
+- `useSubscription` / `SubscriptionProvider`: Manages and provides subscription state globally using React Query.
 
 ### Webhook Logic
 
@@ -760,17 +778,19 @@ Edge function stripe-webhook handles:
    - Never conditionally skip or reorder hooks
 
 2. **Custom Hooks**
+   - Encapsulate related stateful logic and effects within custom hooks (e.g., `useSubscription`).
+   - Follow the Rules of Hooks within custom hooks.
    ```js
-   export function useX(someId?: string) {
-     const [state, setState] = useState(defaultValue);
-     const ref = useRef(null);
-     
-     // Early return only after all hooks are called
-     if (!someId) {
-       return { state: defaultValue, fetcher: async () => {} };
-     }
-     
-     return { state, fetcher: async () => {} };
+   // Example: useSubscription hook using React Query
+   import { useQuery } from '@tanstack/react-query';
+   import { fetchSubscriptionData } from './api'; // Your API call
+
+   export function useSubscription(userId: string) {
+     const queryKey = ['subscription', userId];
+     return useQuery(queryKey, () => fetchSubscriptionData(userId), {
+       enabled: !!userId,
+       staleTime: 5 * 60 * 1000, // 5 minutes
+     });
    }
    ```
 
@@ -1496,36 +1516,3 @@ This component automatically:
 - Tracks active state based on the current route
 - Applies consistent styling across mobile navigation bars
 - Shows highlight color for the active navigation item
-
-```
-
-## Subscription and Course Purchase System (COMPLETED)
-
-The subscription and course purchase system has been fully implemented with the following features:
-
-- **Tiered Subscription Model**:
-  - Free Tier: Limited message access
-  - Premium Tier ($9.99/month): Unlimited messages and premium features
-  - Unlimited Tier ($19.99/month): All features plus course access
-
-- **Purchase Options**:
-  - Monthly or yearly subscription plans
-  - Individual course purchases
-
-- **Payment Processing**:
-  - Secure payment processing with Stripe Checkout
-  - Customer portal for subscription management
-  - Proper handling of payment events via webhooks
-
-- **Access Control**:
-  - Database-level course access verification
-  - Subscription status tracking
-  - Automatic expiration handling
-
-- **Implementation Details**:
-  - Database schema with subscription and enrollment tables
-  - Stripe webhook handler for event processing
-  - Frontend components for checkout and subscription management
-  - Edge functions for secure payment processing
-
-See the [Subscription Implementation Plan](./readme/implementation_plan_subscriptions_courses.md) for detailed information.
