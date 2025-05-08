@@ -8,6 +8,10 @@ import { NavbarProvider } from '@/contexts/NavbarContext';
 import { CloseProvider } from '@/contexts/close-context';
 import { PaywallProvider } from '@/contexts/paywall-context';
 import { LayoutDebugger } from '@/components/LayoutDebugger';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/lib/query-client';
+import { ThemeProvider } from '@/lib/theme-provider';
+import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 
 // Direct imports for homepage components
 import { HomePage } from '@/components/HomePage';
@@ -54,9 +58,6 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { queryClient } from '@/lib/query-client';
-import { ThemeProvider } from '@/lib/theme-provider';
 
 // Import the AuthenticatedLayout component
 import { DashboardLayout } from './components/layout/DashboardLayout';
@@ -80,6 +81,9 @@ import SetAdminSetup from './components/admin/SetAdmin';
 
 // Import our wrapper instead of direct import
 import { JDSDashboardWrapper } from '@/components/jds/JDSDashboardWrapper';
+
+// Import the checkout confirmation page
+const CheckoutConfirmationPage = lazy(() => import('@/pages/CheckoutConfirmationPage').then(module => ({ default: module.CheckoutConfirmationPage })));
 
 // Check if admin setup is allowed from environment variables
 const allowSetupAdmin = import.meta.env.VITE_ALLOW_ADMIN_SETUP === 'true';
@@ -237,6 +241,13 @@ function AppRoutes() {
         <AuthPage />
       } />
       
+      {/* Checkout Confirmation Page (Standalone) */}
+      <Route path="/checkout-confirmation" element={
+        <Suspense fallback={<PageLoader message="Loading confirmation..." />}>
+          <CheckoutConfirmationPage />
+        </Suspense>
+      } />
+      
       {/* Protected routes wrapped in PersistentLayout */}
       <Route element={
         <ProtectedRoute>
@@ -313,7 +324,7 @@ function PageLoader({ message = "Loading..." }: { message?: string }) {
 }
 
 // Wrapper function for the entire app
-function App() {
+function AppWrapper() {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
@@ -356,45 +367,49 @@ function App() {
   }, []);
   
   return (
-    <ThemeProvider defaultTheme="system" storageKey="ui-theme">
-      <DomainProvider>
-        <PaywallProvider>
-          <CloseProvider>
-            <SidebarContext.Provider value={{ isExpanded, setIsExpanded, isMobile }}>
-              <SelectedThreadContext.Provider value={{ selectedThreadId, setSelectedThreadId }}>
-                <ErrorBoundary
-                  fallback={
-                    <div className="fixed inset-0 flex items-center justify-center bg-background">
-                      <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full text-center">
-                        <h2 className="text-xl font-bold mb-4">Application Error</h2>
-                        <p className="mb-4">
-                          The application encountered an unexpected error. Please try refreshing the page.
-                        </p>
-                        <Button 
-                          onClick={() => window.location.reload()}
-                          className="w-full bg-orange-600 hover:bg-orange-500"
-                        >
-                          Reload Application
-                        </Button>
-                      </div>
-                    </div>
-                  }
-                >
-                  <BrowserRouter>
-                    <AppRoutes />
-                    <Toaster />
-                    <HotToaster position="top-right" />
-                    <OfflineIndicator />
-                    <LayoutDebugger />
-                  </BrowserRouter>
-                </ErrorBoundary>
-              </SelectedThreadContext.Provider>
-            </SidebarContext.Provider>
-          </CloseProvider>
-        </PaywallProvider>
-      </DomainProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="system" storageKey="ui-theme">
+        <DomainProvider>
+          <SubscriptionProvider>
+            <PaywallProvider>
+              <CloseProvider>
+                <SidebarContext.Provider value={{ isExpanded, setIsExpanded, isMobile }}>
+                  <SelectedThreadContext.Provider value={{ selectedThreadId, setSelectedThreadId }}>
+                    <ErrorBoundary
+                      fallback={
+                        <div className="fixed inset-0 flex items-center justify-center bg-background">
+                          <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full text-center">
+                            <h2 className="text-xl font-bold mb-4">Application Error</h2>
+                            <p className="mb-4">
+                              The application encountered an unexpected error. Please try refreshing the page.
+                            </p>
+                            <Button 
+                              onClick={() => window.location.reload()}
+                              className="w-full bg-orange-600 hover:bg-orange-500"
+                            >
+                              Reload Application
+                            </Button>
+                          </div>
+                        </div>
+                      }
+                    >
+                      <BrowserRouter>
+                        <AppRoutes />
+                        <Toaster />
+                        <HotToaster position="top-right" />
+                        <OfflineIndicator />
+                        <LayoutDebugger />
+                      </BrowserRouter>
+                    </ErrorBoundary>
+                  </SelectedThreadContext.Provider>
+                </SidebarContext.Provider>
+              </CloseProvider>
+            </PaywallProvider>
+          </SubscriptionProvider>
+        </DomainProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 
-export default App;
+export default AppWrapper;

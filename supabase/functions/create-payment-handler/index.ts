@@ -43,7 +43,7 @@ async function logError(supabase: SupabaseClient, message: string, errorDetails:
   console.error(message, errorDetails);
   try {
     await supabase.from('error_logs').insert({
-      message: \`create-payment-handler: ${message}\`,
+      message: 'create-payment-handler: ' + message,
       error_details: JSON.stringify(errorDetails),
       user_id: userId,
       source: 'create-payment-handler',
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: \`Bearer ${supabaseToken}\` } } }
+      { global: { headers: { Authorization: 'Bearer ' + supabaseToken } } }
     );
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
 
       if (profileError && profileError.code !== 'PGRST116') { // PGRST116: 'No rows found'
         await logError(supabaseClient, 'Error fetching profile', profileError, userId);
-        throw new Error(\`Error fetching profile: ${profileError.message}\`);
+        throw new Error('Error fetching profile: ' + profileError.message);
       }
       if (profile?.stripe_customer_id) {
         customerId = profile.stripe_customer_id;
