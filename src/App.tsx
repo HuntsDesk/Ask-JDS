@@ -32,7 +32,6 @@ const CourseDetail = lazy(() => import('./components/admin/CourseDetail').then(m
 const PublicCourseDetail = lazy(() => import('@/components/courses/CourseDetail'));
 const CourseContent = lazy(() => import('@/components/courses/CourseContent'));
 const SubscriptionSuccess = lazy(() => import('@/components/SubscriptionSuccess').then(module => ({ default: module.SubscriptionSuccess })));
-const SubscriptionCheckout = lazy(() => import('@/components/subscriptions/SubscriptionCheckout').then(module => ({ default: module.default })));
 
 // Import ChatContainer instead of using ChatLayout
 const ChatContainer = lazy(() => import('@/components/chat/ChatContainer').then(module => ({ default: module.default })));
@@ -271,11 +270,6 @@ function AppRoutes() {
         <Route path="/subscription/success" element={
           <Suspense fallback={<PageLoader message="Loading subscription details..." />}>
             <SubscriptionSuccess />
-          </Suspense>
-        } />
-        <Route path="/subscribe" element={
-          <Suspense fallback={<PageLoader message="Loading subscription options..." />}>
-            <SubscriptionCheckout />
           </Suspense>
         } />
         

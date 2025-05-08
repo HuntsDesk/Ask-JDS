@@ -14,24 +14,6 @@
           },
           {
             "table_name": "system_prompts",
-            "column_name": "id",
-            "data_type": "uuid",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "system_prompts",
-            "column_name": "is_active",
-            "data_type": "boolean",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "system_prompts",
-            "column_name": "created_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "system_prompts",
             "column_name": "created_by",
             "data_type": "uuid",
             "is_nullable": "YES"
@@ -95,6 +77,42 @@
             "column_name": "is_public",
             "data_type": "boolean",
             "is_nullable": "YES"
+          },
+          {
+            "table_name": "user_subscriptions",
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "user_subscriptions",
+            "column_name": "user_id",
+            "data_type": "uuid",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "user_subscriptions",
+            "column_name": "current_period_end",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "user_subscriptions",
+            "column_name": "cancel_at_period_end",
+            "data_type": "boolean",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "user_subscriptions",
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "user_subscriptions",
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO"
           },
           {
             "table_name": "collection_subjects",
@@ -823,40 +841,22 @@
             "is_nullable": "YES"
           },
           {
-            "table_name": "user_subscriptions",
+            "table_name": "system_prompts",
             "column_name": "id",
             "data_type": "uuid",
             "is_nullable": "NO"
           },
           {
-            "table_name": "user_subscriptions",
-            "column_name": "user_id",
-            "data_type": "uuid",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "user_subscriptions",
-            "column_name": "current_period_end",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "user_subscriptions",
-            "column_name": "cancel_at_period_end",
+            "table_name": "system_prompts",
+            "column_name": "is_active",
             "data_type": "boolean",
-            "is_nullable": "NO"
+            "is_nullable": "YES"
           },
           {
-            "table_name": "user_subscriptions",
+            "table_name": "system_prompts",
             "column_name": "created_at",
             "data_type": "timestamp with time zone",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "user_subscriptions",
-            "column_name": "updated_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "NO"
+            "is_nullable": "YES"
           },
           {
             "table_name": "courses",
@@ -878,49 +878,13 @@
           },
           {
             "table_name": "document_chunks",
-            "column_name": "source",
-            "data_type": "text",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "document_chunks",
-            "column_name": "type",
-            "data_type": "text",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "query_logs",
-            "column_name": "query",
+            "column_name": "heading",
             "data_type": "text",
             "is_nullable": "YES"
           },
           {
-            "table_name": "subjects",
-            "column_name": "name",
-            "data_type": "text",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "subjects",
-            "column_name": "description",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "document_chunks",
-            "column_name": "speaker",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "threads",
-            "column_name": "title",
-            "data_type": "text",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "messages",
-            "column_name": "content",
+            "table_name": "user_subscriptions",
+            "column_name": "status",
             "data_type": "text",
             "is_nullable": "NO"
           },
@@ -931,20 +895,26 @@
             "is_nullable": "YES"
           },
           {
-            "table_name": "courses",
-            "column_name": "stripe_price_id",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "courses",
-            "column_name": "stripe_price_id_dev",
+            "table_name": "profiles",
+            "column_name": "avatar_url",
             "data_type": "text",
             "is_nullable": "YES"
           },
           {
             "table_name": "profiles",
-            "column_name": "avatar_url",
+            "column_name": "stripe_customer_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "document_chunks",
+            "column_name": "outline_subject",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "document_chunks",
+            "column_name": "outline_source",
             "data_type": "text",
             "is_nullable": "YES"
           },
@@ -961,32 +931,62 @@
             "is_nullable": "NO"
           },
           {
-            "table_name": "profiles",
+            "table_name": "courses",
+            "column_name": "stripe_price_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "courses",
+            "column_name": "stripe_price_id_dev",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "user_subscriptions",
             "column_name": "stripe_customer_id",
             "data_type": "text",
             "is_nullable": "YES"
           },
           {
-            "table_name": "models",
-            "column_name": "name",
+            "table_name": "profiles",
+            "column_name": "first_name",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "profiles",
+            "column_name": "last_name",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "user_subscriptions",
+            "column_name": "stripe_subscription_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "profiles",
+            "column_name": "email",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "schema_overview",
+            "column_name": "table_name",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "system_prompts",
+            "column_name": "content",
             "data_type": "text",
             "is_nullable": "NO"
           },
           {
             "table_name": "document_chunks",
-            "column_name": "text",
-            "data_type": "text",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "messages",
-            "column_name": "role",
-            "data_type": "text",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "profiles",
-            "column_name": "first_name",
+            "column_name": "heading_number",
             "data_type": "text",
             "is_nullable": "YES"
           },
@@ -999,24 +999,6 @@
           {
             "table_name": "collections",
             "column_name": "description",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "profiles",
-            "column_name": "last_name",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "course_enrollments",
-            "column_name": "status",
-            "data_type": "text",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "profiles",
-            "column_name": "email",
             "data_type": "text",
             "is_nullable": "YES"
           },
@@ -1039,8 +1021,26 @@
             "is_nullable": "YES"
           },
           {
+            "table_name": "user_subscriptions",
+            "column_name": "stripe_price_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
             "table_name": "document_chunks",
-            "column_name": "heading",
+            "column_name": "heading_text",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "document_chunks",
+            "column_name": "heading_path",
+            "data_type": "ARRAY",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "query_logs",
+            "column_name": "query",
             "data_type": "text",
             "is_nullable": "YES"
           },
@@ -1057,22 +1057,22 @@
             "is_nullable": "YES"
           },
           {
-            "table_name": "document_chunks",
-            "column_name": "outline_subject",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "user_subscriptions",
-            "column_name": "status",
+            "table_name": "threads",
+            "column_name": "title",
             "data_type": "text",
             "is_nullable": "NO"
           },
           {
-            "table_name": "models",
-            "column_name": "model_version",
+            "table_name": "messages",
+            "column_name": "content",
             "data_type": "text",
-            "is_nullable": "YES"
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "document_chunks",
+            "column_name": "source",
+            "data_type": "text",
+            "is_nullable": "NO"
           },
           {
             "table_name": "error_logs",
@@ -1083,24 +1083,6 @@
           {
             "table_name": "error_logs",
             "column_name": "stack_trace",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "models",
-            "column_name": "provider",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "user_subscriptions",
-            "column_name": "stripe_customer_id",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "user_subscriptions",
-            "column_name": "stripe_subscription_id",
             "data_type": "text",
             "is_nullable": "YES"
           },
@@ -1117,14 +1099,32 @@
             "is_nullable": "YES"
           },
           {
+            "table_name": "models",
+            "column_name": "name",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
             "table_name": "document_chunks",
-            "column_name": "outline_source",
+            "column_name": "type",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "document_chunks",
+            "column_name": "speaker",
             "data_type": "text",
             "is_nullable": "YES"
           },
           {
-            "table_name": "schema_overview",
-            "column_name": "table_name",
+            "table_name": "messages",
+            "column_name": "role",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "course_enrollments",
+            "column_name": "stripe_payment_intent_id",
             "data_type": "text",
             "is_nullable": "YES"
           },
@@ -1142,27 +1142,9 @@
           },
           {
             "table_name": "document_chunks",
-            "column_name": "heading_number",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "system_prompts",
-            "column_name": "content",
+            "column_name": "text",
             "data_type": "text",
             "is_nullable": "NO"
-          },
-          {
-            "table_name": "document_chunks",
-            "column_name": "heading_text",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "document_chunks",
-            "column_name": "heading_path",
-            "data_type": "ARRAY",
-            "is_nullable": "YES"
           },
           {
             "table_name": "user_entitlements",
@@ -1177,8 +1159,44 @@
             "is_nullable": "YES"
           },
           {
+            "table_name": "models",
+            "column_name": "model_version",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "models",
+            "column_name": "provider",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "course_enrollments",
+            "column_name": "status",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
             "table_name": "flashcards",
             "column_name": "difficulty_level",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "subjects",
+            "column_name": "name",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "subjects",
+            "column_name": "description",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "course_enrollments",
+            "column_name": "stripe_price_id",
             "data_type": "text",
             "is_nullable": "YES"
           }
@@ -1353,16 +1371,6 @@
             "indexdef": "CREATE UNIQUE INDEX profiles_stripe_customer_id_key ON public.profiles USING btree (stripe_customer_id)"
           },
           {
-            "tablename": "user_subscriptions",
-            "indexname": "user_subscriptions_pkey",
-            "indexdef": "CREATE UNIQUE INDEX user_subscriptions_pkey ON public.user_subscriptions USING btree (id)"
-          },
-          {
-            "tablename": "user_subscriptions",
-            "indexname": "user_subscriptions_user_id_idx",
-            "indexdef": "CREATE INDEX user_subscriptions_user_id_idx ON public.user_subscriptions USING btree (user_id)"
-          },
-          {
             "tablename": "system_prompts",
             "indexname": "system_prompts_pkey",
             "indexdef": "CREATE UNIQUE INDEX system_prompts_pkey ON public.system_prompts USING btree (id)"
@@ -1376,6 +1384,16 @@
             "tablename": "models",
             "indexname": "models_pkey",
             "indexdef": "CREATE UNIQUE INDEX models_pkey ON public.models USING btree (id)"
+          },
+          {
+            "tablename": "user_subscriptions",
+            "indexname": "user_subscriptions_pkey",
+            "indexdef": "CREATE UNIQUE INDEX user_subscriptions_pkey ON public.user_subscriptions USING btree (id)"
+          },
+          {
+            "tablename": "user_subscriptions",
+            "indexname": "user_subscriptions_user_id_idx",
+            "indexdef": "CREATE INDEX user_subscriptions_user_id_idx ON public.user_subscriptions USING btree (user_id)"
           },
           {
             "tablename": "collection_subjects",
@@ -1481,6 +1499,11 @@
             "tablename": "course_enrollments",
             "indexname": "idx_course_enrollments_status",
             "indexdef": "CREATE INDEX idx_course_enrollments_status ON public.course_enrollments USING btree (status)"
+          },
+          {
+            "tablename": "course_enrollments",
+            "indexname": "course_enrollments_stripe_payment_intent_id_key",
+            "indexdef": "CREATE UNIQUE INDEX course_enrollments_stripe_payment_intent_id_key ON public.course_enrollments USING btree (stripe_payment_intent_id)"
           }
         ]
       },
@@ -1876,6 +1899,11 @@
             "table_name": "user_subscriptions",
             "constraint_name": "user_subscriptions_user_id_fkey",
             "constraint_type": "f"
+          },
+          {
+            "table_name": "course_enrollments",
+            "constraint_name": "course_enrollments_stripe_payment_intent_id_key",
+            "constraint_type": "u"
           }
         ]
       },
@@ -2060,7 +2088,7 @@
           },
           {
             "proname": "has_course_access",
-            "prosrc": "\nBEGIN\n  RETURN EXISTS (\n    SELECT 1 FROM public.course_enrollments \n    WHERE user_id = has_course_access.user_id \n      AND course_id = has_course_access.course_id\n      AND expires_at > NOW()\n  ) OR EXISTS (\n    SELECT 1 FROM public.user_subscriptions\n    WHERE user_id = has_course_access.user_id\n      AND status = 'active'\n      AND current_period_end > NOW()\n  );\nEND;\n"
+            "prosrc": "\nDECLARE\n    -- These should match your actual Stripe Price IDs in production\n    unlimited_tier_price_ids TEXT[] := ARRAY[\n        'price_unlimited_monthly',\n        'price_unlimited_annual'\n    ];\nBEGIN\n    RETURN EXISTS (\n        -- Check for direct course enrollment\n        SELECT 1 FROM public.course_enrollments \n        WHERE user_id = has_course_access.user_id \n          AND course_id = has_course_access.course_id\n          AND expires_at > NOW()\n    ) OR EXISTS (\n        -- Check for Unlimited tier subscription specifically\n        SELECT 1 FROM public.user_subscriptions\n        WHERE user_id = has_course_access.user_id\n          AND status = 'active'\n          AND current_period_end > NOW()\n          AND stripe_price_id = ANY(unlimited_tier_price_ids)\n    );\nEND;\n"
           },
           {
             "proname": "create_course_enrollment",
