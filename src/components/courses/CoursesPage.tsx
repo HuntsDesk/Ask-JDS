@@ -41,7 +41,7 @@ export default function CoursesPage() {
       {/* Navbar at the top */}
       <CourseNavbar />
       
-      {/* Main content */}
+      {/* Main content - Using default maxWidth to match other pages */}
       <div className="flex-1 overflow-auto w-full">
         <PageContainer disablePadding={false} className="pt-2 pb-32 md:pb-12 mx-auto" maxWidth="default">
           <Routes>

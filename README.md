@@ -16,6 +16,7 @@
 - [Contributing](#contributing)
 - [Migration Backlog](#migration-backlog)
 - [Additional Documentation](#additional-documentation)
+- [Course Access Control](#course-access-control)
 
 ## Overview
 
@@ -181,6 +182,10 @@ The application uses several layout components for consistency across features:
    - Dynamic content padding based on sidebar state
 
 3. **CourseLayout**: Specialized layout for course content, includes navigation for modules and lessons.
+   - Proper spacing between sidebar and content
+   - Cross-module navigation between lessons
+   - Rich text content rendering (HTML, Markdown, and plain text with preserved line breaks)
+   - Responsive design that adapts to sidebar state changes
 
 4. **DashboardLayout**: Used for dashboard pages with specialized navigation.
 
@@ -734,6 +739,39 @@ Stripe is configured with Products for each subscription tier and individual cou
 - Payment form using `@stripe/react-stripe-js` and `<PaymentElement>`.
 - `CheckoutConfirmationPage`: Handles the redirect and displays payment outcome.
 - `useSubscription` / `SubscriptionProvider`: Manages and provides subscription state globally using React Query.
+
+### Phase 4: Self-Hosted Checkout Implementation
+
+This phase completes the subscription and course enrollment system by implementing a self-hosted checkout flow using Stripe Payment Elements, providing a seamless payment experience without redirecting to Stripe Checkout.
+
+#### New Edge Functions
+- **create-payment-handler**: Creates Stripe PaymentIntents for course purchases or subscriptions and returns the client_secret
+- **get-payment-status**: Securely verifies payment status after completion, supporting various payment states
+- **get-user-subscription**: Provides real-time subscription data to the frontend
+
+#### Frontend Components
+- **SubscriptionProvider/Context**: Global subscription state management with React Query
+- **CheckoutConfirmationPage**: Handles payment confirmation redirects with appropriate success/error states
+- **JDSCourseCard/CourseDetail**: Updated to use the new payment flow with Payment Elements
+
+#### Subscription Hook
+The `useSubscription` hook provides a centralized, cached subscription state:
+- Automatically refreshes when user logs in/out
+- Handles anonymous users gracefully
+- Provides convenient status flags (isActive, tierName)
+- Manages retry logic for API failures
+
+#### Integration Points
+Course purchase and subscription upgrade flows now use the Payment Elements approach:
+- User initiates payment (course purchase or subscription)
+- Frontend calls create-payment-handler Edge Function
+- Edge Function creates appropriate Stripe objects and returns client_secret
+- User completes payment directly on the site
+- User is redirected to CheckoutConfirmationPage
+- Confirmation page verifies payment status
+- Webhook handler processes successful payments asynchronously
+
+These changes eliminate the need for redirects to Stripe Checkout, providing a more integrated user experience and better conversion rates.
 
 ### Webhook Logic
 
@@ -1502,17 +1540,94 @@ This component automatically:
 - Applies consistent styling across mobile navigation bars
 - Shows highlight color for the active navigation item
 
-```tsx
-import { MobileNavLink } from '@/components/common/MobileNavLink';
+# Course Access Control
 
-<MobileNavLink 
-  to="/courses" 
-  icon={<BookOpen className="h-5 w-5" />} 
-  text="Courses" 
-/>
+The application uses an entitlement-based approach for controlling access to courses, rather than domain-based restrictions:
+
+## Key Components
+
+### 1. `useCourseAccess` Hook
+
+The `useCourseAccess` hook provides a reusable way to check if a user has access to a specific course:
+
+```tsx
+const { hasAccess, isLoading } = useCourseAccess(courseId);
 ```
 
-This component automatically:
-- Tracks active state based on the current route
-- Applies consistent styling across mobile navigation bars
-- Shows highlight color for the active navigation item
+This hook:
+- Checks for direct course enrollment in the `course_enrollments` table
+- Falls back to checking unlimited subscription status
+- Uses React Query for efficient caching and data fetching
+- Returns loading state for better UX during checks
+- Supports checking multiple courses with `useCourseAccess(courseIds: string[])`
+
+### 2. `CourseAccessGuard` Component
+
+The `CourseAccessGuard` component is used in route definitions to protect course content routes:
+
+```tsx
+<Route path="/course/:courseId" element={
+  <CourseAccessGuard>
+    <CourseLayout>
+      <CourseContent />
+    </CourseLayout>
+  </CourseAccessGuard>
+} />
+```
+
+This component:
+- Uses the `useCourseAccess` hook to check entitlements
+- Shows a loading spinner while checking access
+- Redirects unauthorized users to the courses page
+- Redirects unauthenticated users to the login page
+
+### 3. `permissions.ts` Utility
+
+The permissions utility provides a centralized place for access control logic:
+
+```tsx
+// Direct server-side access check
+const { hasAccess } = await hasCourseAccess(userId, courseId);
+
+// Check multiple courses at once
+const accessMap = await hasCourseAccessMultiple(userId, [courseId1, courseId2]);
+```
+
+This utility:
+- Serves as a single source of truth for access control logic
+- Can be used in both client and server code
+- Provides detailed access information including the reason for access (enrollment vs. subscription)
+
+## Benefits of This Approach
+
+- **Domain-Agnostic**: Users can access courses from any domain if they have the proper entitlements
+- **Simplified Access Logic**: Uses a single source of truth for access control
+- **Improved Performance**: React Query provides caching to prevent redundant API calls
+- **Consistent UX**: Users see appropriate UI based on their entitlements
+- **Better Error Handling**: Graceful handling of API failures
+
+## Example Usage in Components
+
+The `JDSCourseCard` component uses the `useCourseAccess` hook to conditionally render the appropriate button:
+
+```tsx
+const { hasAccess, isLoading } = useCourseAccess(courseId);
+
+// In the render:
+{isLoading ? (
+  <LoadingSpinner />
+) : hasAccess ? (
+  <Link to={`/course/${courseId}`}>Access Course</Link>
+) : (
+  <Link to={`/purchase/course/${courseId}`}>Purchase Access</Link>
+)}
+```
+
+## Future Enhancements
+
+### Planned Improvements
+
+- **Multi-course Bundling**: Support for course bundles with shared access control
+- **Access Expiry Notifications**: Notify users before their course access expires
+- **Internationalization (i18n)**: Add multi-language support using react-i18next
+- **Access History**: Track and display user's access history and engagement with courses
