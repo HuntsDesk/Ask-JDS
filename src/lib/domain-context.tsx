@@ -18,21 +18,26 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
     
     // Environment variable takes precedence over everything else
     if (envMode === 'jds') {
+      console.log('Domain detection: Using environment variable jds');
       return 'jdsimplified';
     } else if (envMode === 'askjds') {
+      console.log('Domain detection: Using environment variable askjds');
       return 'askjds';
     } else if (envMode === 'admin') {
+      console.log('Domain detection: Using environment variable admin');
       return 'admin';
     }
     
     // If no environment variable is set explicitly, then use localStorage
     if (typeof window !== 'undefined') {
       const storedDomain = localStorage.getItem('current_domain');
+      console.log('Domain detection: localStorage domain =', storedDomain);
       if (storedDomain === 'jdsimplified' || storedDomain === 'askjds' || storedDomain === 'admin') {
         return storedDomain as Domain;
       }
     }
     
+    console.log('Domain detection: Using default askjds');
     return 'askjds'; // Default fallback
   };
 
@@ -46,6 +51,8 @@ export function DomainProvider({ children }: { children: React.ReactNode }) {
       currentMode: envMode === 'jds' ? 'jdsimplified' : envMode === 'askjds' ? 'askjds' : envMode === 'admin' ? 'admin' : 'default',
       hostname: window.location.hostname,
       port: window.location.port,
+      path: window.location.pathname,
+      storedDomain: localStorage.getItem('current_domain'),
       allEnv: import.meta.env
     });
 

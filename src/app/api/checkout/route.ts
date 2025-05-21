@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     const idempotencyKey = `checkout_${user.id}_${uuidv4()}`;
     
     // Create origin URL for success and cancel
-    const origin = req.headers.get('origin') || process.env.APP_URL || 'http://localhost:3000';
+    const origin = req.headers.get('origin') || process.env.APP_URL || 'https://localhost:3000';
     
     if (type === 'course' && course) {
       // Handle course purchase checkout

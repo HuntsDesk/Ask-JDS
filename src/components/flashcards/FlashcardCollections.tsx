@@ -360,7 +360,7 @@ export default function FlashcardCollections() {
   // Render the component
   if (isLoading && collections.length === 0) {
     return (
-      <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
+      <>
         <div className="hidden md:block mb-6">
           <div className="flex items-center justify-between">
             <div>
@@ -369,7 +369,6 @@ export default function FlashcardCollections() {
                 Loading collections...
               </p>
             </div>
-            
             <div className="flex items-center gap-2">
               {/* Filter button skeleton - replaced with the actual button */}
               <Button 
@@ -383,7 +382,6 @@ export default function FlashcardCollections() {
                   Filter
                 </span>
               </Button>
-              
               {/* Tabs skeleton */}
               <Tabs value={filter} onValueChange={handleFilterChange}>
                 <TabsList className="grid w-full grid-cols-3 bg-gray-100 dark:bg-gray-700">
@@ -395,7 +393,6 @@ export default function FlashcardCollections() {
             </div>
           </div>
         </div>
-
         {/* Mobile layout - only filter tabs */}
         <div className="md:hidden mb-6">
           <Tabs value={filter} onValueChange={handleFilterChange}>
@@ -406,22 +403,21 @@ export default function FlashcardCollections() {
             </TabsList>
           </Tabs>
         </div>
-        
         <SkeletonCollectionGrid />
-      </div>
+      </>
     );
   }
 
   if (isError && error instanceof Error) {
     return (
-      <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
+      <div className="hidden md:block mb-6">
         <ErrorMessage message={error.message} />
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto">
+    <div className="w-full">
       {/* Page title - only visible on desktop */}
       <div className="hidden md:block mb-6">
         <div className="flex items-center justify-between">
