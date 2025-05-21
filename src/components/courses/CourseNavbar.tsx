@@ -68,11 +68,10 @@ export default function CourseNavbar() {
     <>
       <nav className={cn(
         "bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 sticky top-0 z-20 w-full transition-all duration-300 ease-in-out",
-        // Apply proper margin based on sidebar state
-        isDesktop && isPinned && isExpanded && "pl-[280px]", // Full sidebar width
-        isDesktop && isPinned && !isExpanded && "pl-[70px]"  // Collapsed sidebar width
+        // Apply the proper left padding when the sidebar is collapsed and pinned
+        isDesktop && isPinned && !isExpanded && contentMargin
       )}>
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Mobile header */}
             <div className="md:hidden flex items-center justify-between w-full">
@@ -96,10 +95,6 @@ export default function CourseNavbar() {
             <div className="hidden md:grid md:grid-cols-[auto_1fr_auto] md:items-center md:w-full md:gap-4">
               {/* Navigation links */}
               <div className="md:flex md:items-center md:space-x-2 lg:space-x-4 xl:space-x-5">
-                <div className="flex items-center text-xl font-semibold mr-4 text-gray-800 dark:text-white pl-2">
-                  <BookOpen className="h-6 w-6 mr-2 text-[#F37022]" />
-                  Courses
-                </div>
                 <NavLink 
                   to="/courses" 
                   icon={<BookOpen className="h-5 w-5" />} 

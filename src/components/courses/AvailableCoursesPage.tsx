@@ -180,6 +180,7 @@ export default function AvailableCoursesPage() {
             is_featured={course.is_featured}
             status={course.status}
             _count={{ modules: 0, lessons: 0 }} // You may want to fetch actual module/lesson counts
+            enrolled={false} // These are specifically filtered to be courses the user is not enrolled in
           />
         ))}
       </div>

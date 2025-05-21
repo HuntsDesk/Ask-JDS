@@ -38,7 +38,7 @@ const stripe = new Stripe(stripeSecretKey, {
 // Get webhook signing secret based on environment
 const webhookSecret = isProd()
   ? Deno.env.get('STRIPE_LIVE_WEBHOOK_SECRET')
-  : Deno.env.get('STRIPE_WEBHOOK_SECRET') || 'whsec_ab5d2912178ddea7bf61e7da522e793d6c14f87a6c093f05b464eb0fdbb22a49';
+  : Deno.env.get('STRIPE_TEST_WEBHOOK_SECRET') || 'whsec_WdhE6lrlqHHN6IvjtukOhrK6rwFCgMNF';
 
 if (!webhookSecret) {
   console.warn('Missing webhook secret - signature verification will be skipped');
@@ -127,11 +127,12 @@ async function handlePaymentIntentSucceeded(paymentIntent, supabase) {
     await beginTransaction(supabase);
     
     const metadata = paymentIntent.metadata || {};
-    const userId = metadata.user_id;
+    // Check for both user_id and supabase_user_id in the metadata
+    const userId = metadata.user_id || metadata.supabase_user_id;
     
     // Gracefully handle missing user_id
     if (!userId) {
-      console.log(`Payment intent ${paymentIntent.id} missing user_id in metadata, checking if this is a test event`);
+      console.log(`Payment intent ${paymentIntent.id} missing user_id/supabase_user_id in metadata, checking if this is a test event`);
       
       // Check if this is a test payment intent (handle gracefully)
       if (isTestEvent(paymentIntent) || paymentIntent.id.startsWith('pi_test_')) {
@@ -141,8 +142,8 @@ async function handlePaymentIntentSucceeded(paymentIntent, supabase) {
       }
       
       // Log the error but don't throw (prevents retries)
-      console.warn(`Payment intent ${paymentIntent.id} missing user_id in metadata and is not a test event`);
-      await logError(supabase, 'Missing user_id in payment intent metadata', { paymentIntentId: paymentIntent.id, metadata });
+      console.warn(`Payment intent ${paymentIntent.id} missing user_id/supabase_user_id in metadata and is not a test event`);
+      await logError(supabase, 'Missing user_id/supabase_user_id in payment intent metadata', { paymentIntentId: paymentIntent.id, metadata });
       await commitTransaction(supabase);
       return true; // Return success to prevent Stripe retries
     }
@@ -168,9 +169,13 @@ async function handlePaymentIntentSucceeded(paymentIntent, supabase) {
     }
     
     // Handle course purchase
-    if (metadata.purchase_type === 'course') {
+    if (metadata.purchase_type === 'course' || metadata.purchase_type === 'course_purchase') {
       const courseId = metadata.course_id;
-      const daysOfAccess = parseInt(metadata.days_of_access || '365');
+      // Fix for "undefined" string in days_of_access
+      console.log(`Original days_of_access value: "${metadata.days_of_access}" (type: ${typeof metadata.days_of_access})`);
+      const daysOfAccessValue = metadata.days_of_access === "undefined" ? '365' : metadata.days_of_access;
+      const daysOfAccess = parseInt(daysOfAccessValue || '365');
+      console.log(`Parsed daysOfAccess: ${daysOfAccess}, isNaN: ${isNaN(daysOfAccess)}`);
       const isRenewal = metadata.is_renewal === 'true';
       
       if (!courseId) {
@@ -278,14 +283,16 @@ async function handleSubscriptionCreated(subscription, supabase) {
       throw new Error('No price ID found in subscription');
     }
     
+    console.log(`Creating subscription record for user ${userId} with price ${priceId}`);
+    
     // Insert subscription record
     const { error: subscriptionError } = await supabase
       .from('user_subscriptions')
       .upsert({
         user_id: userId,
-        stripe_subscription_id: subscription.id,
+        subscription_id: subscription.id,
         stripe_customer_id: subscription.customer,
-        stripe_price_id: priceId,
+        price_id: priceId,
         status: subscription.status,
         current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
         current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
@@ -337,18 +344,20 @@ async function handleSubscriptionUpdated(subscription, supabase) {
       return true;
     }
     
+    console.log(`Updating subscription record for subscription ${subscription.id} with price ${priceId}`);
+    
     // Update subscription record
     const { error: subscriptionError } = await supabase
       .from('user_subscriptions')
       .update({
-        stripe_price_id: priceId,
+        price_id: priceId,
         status: subscription.status,
         current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
         current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
         cancel_at_period_end: subscription.cancel_at_period_end,
         updated_at: new Date().toISOString()
       })
-      .eq('stripe_subscription_id', subscription.id);
+      .eq('subscription_id', subscription.id);
       
     if (subscriptionError) {
       throw new Error(`Failed to update subscription record: ${subscriptionError.message}`);
@@ -376,6 +385,8 @@ async function handleSubscriptionDeleted(subscription, supabase) {
       return true;
     }
     
+    console.log(`Marking subscription ${subscription.id} as canceled`);
+    
     // Update subscription record
     const { error: subscriptionError } = await supabase
       .from('user_subscriptions')
@@ -383,7 +394,7 @@ async function handleSubscriptionDeleted(subscription, supabase) {
         status: 'canceled',
         updated_at: new Date().toISOString()
       })
-      .eq('stripe_subscription_id', subscription.id);
+      .eq('subscription_id', subscription.id);
       
     if (subscriptionError) {
       throw new Error(`Failed to update subscription record: ${subscriptionError.message}`);
@@ -420,11 +431,13 @@ async function handleInvoicePaymentSucceeded(invoice, supabase) {
     const priceId = invoice.lines?.data[0]?.price?.id;
     const periodEnd = invoice.lines?.data[0]?.period?.end;
     
+    console.log(`Updating subscription ${invoice.subscription} after successful payment`);
+    
     // Update subscription record
     const updateData: {
       status: string; 
       updated_at: string;
-      stripe_price_id?: string;
+      price_id?: string;
       current_period_end?: string;
     } = {
       status: 'active',
@@ -432,7 +445,7 @@ async function handleInvoicePaymentSucceeded(invoice, supabase) {
     };
     
     if (priceId) {
-      updateData.stripe_price_id = priceId;
+      updateData.price_id = priceId;
     }
     
     if (periodEnd) {
@@ -442,7 +455,7 @@ async function handleInvoicePaymentSucceeded(invoice, supabase) {
     const { error: subscriptionError } = await supabase
       .from('user_subscriptions')
       .update(updateData)
-      .eq('stripe_subscription_id', invoice.subscription);
+      .eq('subscription_id', invoice.subscription);
       
     if (subscriptionError) {
       throw new Error(`Failed to update subscription record: ${subscriptionError.message}`);
@@ -476,6 +489,8 @@ async function handleInvoicePaymentFailed(invoice, supabase) {
       return true;
     }
     
+    console.log(`Marking subscription ${invoice.subscription} as past_due due to failed payment`);
+    
     // Update subscription record to past_due
     const { error: subscriptionError } = await supabase
       .from('user_subscriptions')
@@ -483,7 +498,7 @@ async function handleInvoicePaymentFailed(invoice, supabase) {
         status: 'past_due',
         updated_at: new Date().toISOString()
       })
-      .eq('stripe_subscription_id', invoice.subscription);
+      .eq('subscription_id', invoice.subscription);
       
     if (subscriptionError) {
       throw new Error(`Failed to update subscription record: ${subscriptionError.message}`);
@@ -504,10 +519,18 @@ async function handleCheckoutSessionCompleted(session, supabase) {
     // Extract relevant information
     const metadata = session.metadata || {};
     const userId = metadata.user_id;
+    const priceId = metadata.target_stripe_price_id || metadata.price_id;
+    const tier = metadata.tier;
     
     if (!userId) {
       throw new Error('Missing user_id in checkout session metadata');
     }
+    
+    // Log the metadata for debugging
+    console.log('Checkout session metadata:', metadata);
+    console.log('Checkout session mode:', session.mode);
+    console.log('Checkout session tier:', tier);
+    console.log('Checkout session price ID:', priceId);
     
     // Update the user's stripe_customer_id if available
     if (session.customer) {
@@ -515,6 +538,65 @@ async function handleCheckoutSessionCompleted(session, supabase) {
         .from('profiles')
         .update({ stripe_customer_id: session.customer })
         .eq('id', userId);
+    }
+    
+    // If this is a subscription and we have a price ID, create or update the subscription record
+    if (session.mode === 'subscription' && priceId) {
+      console.log(`Creating subscription from checkout session for user ${userId} with price ${priceId}`);
+      
+      // Calculate period end (1 month from now)
+      const periodEnd = new Date();
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+      
+      // Check if a subscription already exists
+      const { data: existingSubscriptions } = await supabase
+        .from('user_subscriptions')
+        .select('id')
+        .eq('user_id', userId);
+      
+      if (existingSubscriptions && existingSubscriptions.length > 0) {
+        // Update existing subscription
+        const { error: updateError } = await supabase
+          .from('user_subscriptions')
+          .update({
+            price_id: priceId,
+            status: 'active',
+            current_period_start: new Date().toISOString(),
+            current_period_end: periodEnd.toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingSubscriptions[0].id);
+          
+        if (updateError) {
+          console.error(`Failed to update subscription from checkout: ${updateError.message}`);
+        } else {
+          console.log(`Updated existing subscription for user ${userId}`);
+        }
+      } else {
+        // Create new subscription
+        const { error: insertError } = await supabase
+          .from('user_subscriptions')
+          .insert({
+            user_id: userId,
+            subscription_id: `cs_${session.id}`, // Use checkout session ID as placeholder
+            stripe_customer_id: session.customer,
+            price_id: priceId,
+            status: 'active',
+            current_period_start: new Date().toISOString(),
+            current_period_end: periodEnd.toISOString(),
+            cancel_at_period_end: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+          
+        if (insertError) {
+          console.error(`Failed to create subscription from checkout: ${insertError.message}`);
+        } else {
+          console.log(`Created new subscription for user ${userId}`);
+        }
+      }
+    } else {
+      console.log('Checkout session is not for a subscription or missing price ID');
     }
     
     return true;
@@ -534,7 +616,7 @@ async function handleStripeEvent(event, supabase) {
       case 'payment_intent.succeeded':
         // Log additional details for debugging
         const paymentIntent = event.data.object;
-        console.log(`Payment intent details - ID: ${paymentIntent.id}, Amount: ${paymentIntent.amount}, Has metadata: ${!!paymentIntent.metadata}, User ID in metadata: ${paymentIntent.metadata?.user_id || 'MISSING'}`);
+        console.log(`Payment intent details - ID: ${paymentIntent.id}, Amount: ${paymentIntent.amount}, Has metadata: ${!!paymentIntent.metadata}, User ID in metadata: ${paymentIntent.metadata?.user_id || paymentIntent.metadata?.supabase_user_id || 'MISSING'}`);
         await handlePaymentIntentSucceeded(paymentIntent, supabase);
         break;
       case 'customer.subscription.created':

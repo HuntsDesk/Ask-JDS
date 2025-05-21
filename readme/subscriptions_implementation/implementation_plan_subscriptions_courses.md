@@ -610,12 +610,133 @@ This phase is deferred from the initial MVP. Expired access to individually purc
 3.  **Review All RLS and Security Settings.**
 4.  **Check Logs for any errors.**
 
-## Future Considerations (Post-MVP)
-*   **Subscription Proration Logic**: For handling upgrades/downgrades between tiers (e.g., Premium to Unlimited mid-cycle), understand and implement logic for Stripe's proration behavior.
-*   **Partial Refund Handling**: If customer support scenarios require partial refunds for courses or subscriptions, the webhook might need to handle `charge.refunded` events to update access or records accordingly.
-*   **In-app Selection of Saved Payment Methods**: For new one-time purchases, allowing users to select a previously saved card (managed via Stripe Customer object) directly within the embedded checkout form, rather than always re-entering details. This would require extending the `create-payment-handler`.
-*   **Multi-Course Bundling**: If you plan to offer bundles of courses for a single price in the future, the schema and logic might need adjustments (e.g., a new `bundles` table and linking enrollments to bundles or individual courses within a bundle).
-*   **Custom UI for subscription upgrades/downgrades**: If the Stripe Customer Portal doesn't meet all future needs for managing plan changes, a custom in-app interface might be considered.
+## Phase 8.5: RLS Policy Verification and Update
+
+**Objective**: Ensure database-level Row Level Security (RLS) policies enforce the same entitlement-based course access control that we've implemented at the application level.
+
+**Tasks**:
+
+1. **Audit Existing RLS Policies**:
+   * Review current RLS policies on course-related tables (`courses`, `course_enrollments`, `modules`, `lessons`).
+   * Document gaps between the entitlement logic in CourseAccessGuard and database-enforced access control.
+
+2. **Create or Update Database Function for Course Access**:
+   * **Action**: Create a reusable Postgres function that serves as a single source of truth for course access.
+   * **SQL**:
+     ```sql
+     CREATE OR REPLACE FUNCTION public.has_course_access(course_id UUID)
+     RETURNS BOOLEAN
+     LANGUAGE plpgsql SECURITY DEFINER
+     SET search_path = public
+     AS $$
+     DECLARE
+         unlimited_price_ids TEXT[] := ARRAY[
+             /* These should match the values used in the application */
+             'price_unlimited_monthly', 
+             'price_unlimited_annual'
+         ];
+     BEGIN
+       RETURN EXISTS (
+         -- Check for direct course enrollment
+         SELECT 1 FROM public.course_enrollments 
+         WHERE user_id = auth.uid() 
+           AND course_id = has_course_access.course_id
+           AND status = 'active'
+           AND expires_at > NOW()
+       ) OR EXISTS (
+         -- Check for Unlimited tier subscription
+         SELECT 1 FROM public.user_subscriptions
+         WHERE user_id = auth.uid()
+           AND status = 'active'
+           AND current_period_end > NOW()
+           AND stripe_price_id = ANY(unlimited_price_ids)
+       );
+     END;
+     $$;
+     ```
+
+3. **Update RLS Policies for Course Content**:
+   * **Action**: Apply consistent RLS policies across all course-related tables using the `has_course_access` function.
+   * **For `courses` Table**:
+     ```sql
+     -- Allow any authenticated user to view courses (basic metadata)
+     CREATE POLICY "courses_select_for_authenticated" ON "courses"
+     FOR SELECT TO authenticated
+     USING (true);
+     
+     -- Enable admins to manage courses
+     CREATE POLICY "courses_all_for_admins" ON "courses"
+     FOR ALL TO authenticated
+     USING (is_admin(auth.uid()));
+     ```
+
+   * **For `modules` Table**:
+     ```sql
+     -- Allow viewing modules for courses the user has access to
+     CREATE POLICY "modules_select_if_has_course_access" ON "modules"
+     FOR SELECT TO authenticated
+     USING (has_course_access(course_id));
+     
+     -- Enable admins to manage modules
+     CREATE POLICY "modules_all_for_admins" ON "modules"
+     FOR ALL TO authenticated
+     USING (is_admin(auth.uid()));
+     ```
+
+   * **For `lessons` Table**:
+     ```sql
+     -- Allow viewing lessons for modules in courses the user has access to
+     CREATE POLICY "lessons_select_if_has_course_access" ON "lessons"
+     FOR SELECT TO authenticated
+     USING (
+       has_course_access(
+         (SELECT course_id FROM modules WHERE id = module_id)
+       )
+     );
+     
+     -- Enable admins to manage lessons
+     CREATE POLICY "lessons_all_for_admins" ON "lessons"
+     FOR ALL TO authenticated
+     USING (is_admin(auth.uid()));
+     ```
+
+   * **For `course_enrollments` Table**:
+     ```sql
+     -- Allow users to view their own enrollments
+     CREATE POLICY "course_enrollments_select_own" ON "course_enrollments"
+     FOR SELECT TO authenticated
+     USING (user_id = auth.uid());
+     
+     -- Allow service_role to manage enrollments (for webhook processing)
+     CREATE POLICY "course_enrollments_all_for_service_role" ON "course_enrollments"
+     FOR ALL TO service_role
+     USING (true);
+     
+     -- Enable admins to manage all enrollments
+     CREATE POLICY "course_enrollments_all_for_admins" ON "course_enrollments"
+     FOR ALL TO authenticated
+     USING (is_admin(auth.uid()));
+     ```
+
+4. **Test RLS Policies**:
+   * Test direct API/SQL access to course content as different user types:
+     * Users with direct course enrollment
+     * Users with Unlimited subscription
+     * Users with Premium subscription (should NOT have course access)
+     * Users with no subscription
+     * Admins
+   * Attempt to bypass application-level guards by making direct Supabase client queries to protected content.
+   * Verify that queries respect the same entitlement rules implemented in CourseAccessGuard.
+
+**Testing & Verification**:
+
+1. Create test users with different access scenarios (enrolled in specific course, Unlimited subscription, no access).
+2. Directly query course content tables via SQL while authenticated as each test user.
+3. Verify access is granted/denied according to expected entitlements.
+4. Test edge cases like expired enrollments and canceled subscriptions.
+5. Ensure the access control logic is identical between application-level guards and database-level policies.
+
+**Important Note**: This phase ensures defense-in-depth by enforcing access control at both the application and database levels. Even if a client bypasses the frontend CourseAccessGuard, they will be unable to fetch unauthorized content due to RLS policies.
 
 ## Phase 9: Cleanup (Post-Stabilization)
 
@@ -635,6 +756,14 @@ This phase is deferred from the initial MVP. Expired access to individually purc
 1.  Confirm the application continues to function correctly after removing the `supabase/functions_downloaded/` directory.
 2.  Verify that only necessary and active Edge Functions are deployed and present in the codebase.
 3.  Ensure no critical functionality was accidentally removed.
+
+## Future Considerations (Post-MVP)
+*   **Subscription Proration Logic**: For handling upgrades/downgrades between tiers (e.g., Premium to Unlimited mid-cycle), understand and implement logic for Stripe's proration behavior.
+*   **Partial Refund Handling**: If customer support scenarios require partial refunds for courses or subscriptions, the webhook might need to handle `charge.refunded` events to update access or records accordingly.
+*   **In-app Selection of Saved Payment Methods**: For new one-time purchases, allowing users to select a previously saved card (managed via Stripe Customer object) directly within the embedded checkout form, rather than always re-entering details. This would require extending the `create-payment-handler`.
+*   **Multi-Course Bundling**: If you plan to offer bundles of courses for a single price in the future, the schema and logic might need adjustments (e.g., a new `bundles` table and linking enrollments to bundles or individual courses within a bundle).
+*   **Custom UI for subscription upgrades/downgrades**: If the Stripe Customer Portal doesn't meet all future needs for managing plan changes, a custom in-app interface might be considered.
+*   **Internationalization (i18n)**: Implement full internationalization support for multilingual users using react-i18next.
 
 
 </rewritten_file> 

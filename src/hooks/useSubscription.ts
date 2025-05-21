@@ -12,27 +12,43 @@ export interface SubscriptionDetails {
 }
 
 const fetchSubscriptionStatus = async (): Promise<SubscriptionDetails | null> => {
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError || !session) {
-    // console.error('No active session for fetching subscription status', sessionError);
-    // Return a state indicating no active subscription or user not logged in
-    return {
-        isActive: false,
-        tierName: 'Free',
-        stripe_price_id: null,
-        current_period_end: null,
-        cancel_at_period_end: null,
-    };
-  }
+  try {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      // User not logged in, return free tier
+      return {
+          isActive: false,
+          tierName: 'Free',
+          stripe_price_id: null,
+          current_period_end: null,
+          cancel_at_period_end: null,
+      };
+    }
 
-  const { data, error } = await supabase.functions.invoke('get-user-subscription', {
-    method: 'GET', // Ensure this matches the Edge Function if it expects GET (or POST if it expects body)
-  });
+    // Use supabase.functions.invoke instead of fetch for better CORS and auth handling
+    const { data, error } = await supabase.functions.invoke(
+      'get-user-subscription',
+      {
+        method: 'GET',
+      }
+    );
 
-  if (error) {
+    if (error) {
+      console.warn(`Subscription API error:`, error);
+      // Return free tier on error
+      return {
+          isActive: false,
+          tierName: 'Free',
+          stripe_price_id: null,
+          current_period_end: null,
+          cancel_at_period_end: null,
+      };
+    }
+
+    return data;
+  } catch (error) {
     console.error('Error fetching subscription status:', error);
-    // Decide how to handle errors, e.g., throw or return a specific error state
-    // For now, returning a 'Free' tier status on error might be safest for UI
+    // Return free tier on any error
     return {
         isActive: false,
         tierName: 'Free',
@@ -41,7 +57,6 @@ const fetchSubscriptionStatus = async (): Promise<SubscriptionDetails | null> =>
         cancel_at_period_end: null,
     };
   }
-  return data as SubscriptionDetails;
 };
 
 export const useSubscription = () => {
@@ -50,16 +65,21 @@ export const useSubscription = () => {
 
   const queryKey = ['subscriptionStatus', user?.id];
 
-  const { data, isLoading, isError, error, refetch } = useQuery<SubscriptionDetails | null, Error>(
+  // React Query v5 requires object parameter syntax
+  const { 
+    data, 
+    isLoading, 
+    isError, 
+    error, 
+    refetch 
+  } = useQuery({
     queryKey,
-    fetchSubscriptionStatus,
-    {
-      enabled: !!user && !isAuthLoading, // Only run query if user is loaded and authenticated
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
-      refetchOnWindowFocus: true,
-    }
-  );
+    queryFn: fetchSubscriptionStatus,
+    enabled: !!user && !isAuthLoading,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+    refetchOnWindowFocus: true
+  });
 
   // Function to manually invalidate and refetch subscription
   const refreshSubscription = () => {

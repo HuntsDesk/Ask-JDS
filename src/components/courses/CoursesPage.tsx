@@ -41,9 +41,9 @@ export default function CoursesPage() {
       {/* Navbar at the top */}
       <CourseNavbar />
       
-      {/* Main content - Using default maxWidth to match other pages */}
+      {/* Main content - Using full maxWidth to push scrollbar to edge */}
       <div className="flex-1 overflow-auto w-full">
-        <PageContainer disablePadding={false} className="pt-2 pb-32 md:pb-12 mx-auto" maxWidth="default">
+        <PageContainer disablePadding={false} className="pt-2 pb-32 md:pb-12 mx-auto px-4" maxWidth="6xl">
           <Routes>
             {/* Course routes */}
             <Route path="/" element={<SuspenseDashboard />} />

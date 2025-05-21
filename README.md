@@ -585,21 +585,29 @@ The application follows an 8px spacing system (using Tailwind's default spacing 
 
 ### Subscription Tiers
 
-#### Free Tier
+#### Free
 - **Price**: $0/month
 - **Features**:
-  - 10 AI chat messages per month
-  - Create and manage personal flashcards
+  - 10 Ask JDS chat messages per month
+  - Create and manage unlimited personal flashcards
   - Access to sample flashcards only
   - No course access
 
-#### Premium Tier
+#### Premium
 - **Price**: $10/month
 - **Features**:
-  - Unlimited AI chat messages
-  - Create and manage personal flashcards
-  - Full access to premium flashcards
+  - Unlimited Ask JDS chat messages per month
+  - Create and manage unlimited personal flashcards
+  - Full access to all premium flashcards
   - No course access
+
+#### Unlimited
+- **Price**: $30/month
+- **Features**:
+  - Unlimited Ask JDS chat messages per month
+  - Create and manage unlimited personal flashcards
+  - Full access to all premium flashcards
+  - Unlimited access to ALL courses
 
 #### Per-Course Purchase
 - **Price**: Varies per course (stored in `courses.price` column)
@@ -608,14 +616,6 @@ The application follows an 8px spacing system (using Tailwind's default spacing 
   - Access to specific purchased course content
   - Course materials, videos, and assessments
   - Does not include premium flashcards or unlimited chat
-
-#### Unlimited Tier
-- **Price**: $30/month
-- **Features**:
-  - Unlimited AI chat messages
-  - Create and manage personal flashcards
-  - Full access to premium flashcards
-  - Access to ALL courses
 
 ### Database Implementation
 
@@ -1209,6 +1209,38 @@ Row Level Security (RLS) is used extensively to ensure data security:
    )}
    ```
 
+### Testing Subscription Activation (Development Only)
+
+For development and testing purposes, there are several tools to manually activate subscriptions without processing payments:
+
+1. **Using Direct SQL in Supabase Dashboard**
+   ```sql
+   UPDATE user_subscriptions
+   SET 
+       status = 'active',
+       stripe_price_id = 'price_1RGYI5BAYVpTe3LyxrZuofBR',
+       current_period_end = NOW() + interval '30 days',
+       updated_at = NOW()
+   WHERE user_id = 'your-user-id';
+   ```
+
+2. **Using HTML+JS Activation Tool**
+   - Open `quick-subscription-activator.html` in a browser
+   - Enter the user ID and price ID
+   - Click "Activate Subscription"
+   - Tool will create or update subscription records directly
+
+3. **Using the Edge Function**
+   ```bash
+   # Deploy the function locally
+   supabase functions serve activate-subscription-minimal
+   
+   # In another terminal, run the test script
+   node test-subscription-activation.js
+   ```
+
+> ⚠️ **Warning**: These tools are for development and testing only. They bypass normal payment flows and should never be deployed to production environments. See `readme/subscriptions_implementation/subscription_activation_tools.md` for detailed documentation and removal instructions.
+
 ### Working with the Database
 
 1. **Querying data with Supabase client**
@@ -1631,3 +1663,11 @@ const { hasAccess, isLoading } = useCourseAccess(courseId);
 - **Access Expiry Notifications**: Notify users before their course access expires
 - **Internationalization (i18n)**: Add multi-language support using react-i18next
 - **Access History**: Track and display user's access history and engagement with courses
+
+## Subscription Activation Tools (Development)
+
+Added tools to activate subscriptions for testing and development purposes without requiring Stripe payment processing. See [Subscription Activation Tools](readme/subscriptions_implementation/subscription_activation_tools.md) for details.
+
+## Chat Message Rendering Fix
+
+Fixed an issue where messages would occasionally disappear during AI response generation. See [Message Rendering Improvements](readme/chat_improvements/message_rendering_fix.md) for details.

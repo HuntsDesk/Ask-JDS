@@ -3,12 +3,12 @@
 # Use with REST Client extension in VS Code or other HTTP client tools
 
 ### Variables
-@baseUrl = http://localhost:54321/functions/v1/stripe-webhook
+@baseUrl = https://localhost:54321/functions/v1/stripe-webhook
 @stripeSignature = dummy_signature
 
 ### Test OPTIONS request (CORS)
 OPTIONS {{baseUrl}}
-Origin: http://localhost:3000
+Origin: https://localhost:3000
 Access-Control-Request-Method: POST
 
 ### Test payment_intent.succeeded
