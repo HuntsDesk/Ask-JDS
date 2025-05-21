@@ -73,7 +73,6 @@ export default function MyCoursesPage() {
           console.log('No active enrollments found');
           setCourses([]);
           setLoading(false);
-          updateCount(0);
           return;
         }
 
@@ -110,7 +109,6 @@ export default function MyCoursesPage() {
         const sortedCourses = coursesWithExpiryData.sort((a, b) => (a.expiresIn || 0) - (b.expiresIn || 0));
         
         setCourses(sortedCourses);
-        updateCount(sortedCourses.length);
       } catch (error) {
         console.error('Error fetching user courses:', error);
         setError('Failed to load your courses. Please try again later.');
@@ -120,7 +118,12 @@ export default function MyCoursesPage() {
     }
 
     fetchUserCourses();
-  }, [user, updateCount]);
+  }, [user]);
+  
+  // Separate effect to update the count when courses change
+  useEffect(() => {
+    updateCount(courses.length);
+  }, [courses, updateCount]);
 
   if (loading) {
     return (
@@ -199,6 +202,7 @@ export default function MyCoursesPage() {
               is_featured={course.is_featured}
               status={course.status}
               _count={{ modules: 0, lessons: 0 }} // You may want to fetch actual module/lesson counts
+              enrolled={true} // User is enrolled in all courses shown here
             />
           ))}
         </div>

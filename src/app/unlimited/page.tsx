@@ -6,65 +6,52 @@ import { CardContent } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth';
 import { trackEvent, AnalyticsEventType } from '@/lib/flotiq/analytics';
 import { supabase } from '@/lib/supabase';
+import { useSubscriptionContext } from '@/contexts/SubscriptionContext';
+import { StripePaymentForm } from '@/components/stripe/StripePaymentForm';
+import { Elements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { toast } from '@/hooks/use-toast';
+
+// Load Stripe outside component to avoid recreating on render
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
 
 const UnlimitedPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [hasSubscription, setHasSubscription] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { isActive: hasActiveSubscription, tierName, isLoading: subscriptionLoading } = useSubscriptionContext();
   const [checkoutLoading, setCheckoutLoading] = useState<boolean>(false);
   const [courseCount, setCourseCount] = useState<number>(0);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
+  
+  // Simple state for displaying messages within the component
+  const [message, setMessage] = useState<string | null>(null);
   
   // Check if there was a cancelled checkout
   const checkoutCancelled = new URLSearchParams(location.search).get('checkout_cancelled') === 'true';
   
   useEffect(() => {
-    const checkSubscription = async () => {
-      if (!user?.id) {
-        setHasSubscription(false);
-        setLoading(false);
-        return;
-      }
-      
-      setLoading(true);
-      
+    const getCourseCount = async () => {
       try {
-        // Check if user has an active unlimited subscription
-        const { data: subscription, error: subscriptionError } = await supabase
-          .from('user_subscriptions')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .eq('tier', 'unlimited')
-          .maybeSingle();
-          
-        if (subscriptionError && subscriptionError.code !== 'PGRST116') {
-          console.error('Error checking subscription:', subscriptionError);
-        }
-        
-        // Get course count
-        const { data: courses, error: coursesError } = await supabase
+        const { count, error } = await supabase
           .from('courses')
-          .select('id', { count: 'exact' });
-          
-        if (coursesError) {
-          console.error('Error getting course count:', coursesError);
+          .select('id', { count: 'exact', head: true });
+
+        if (error) {
+          console.error('Error getting course count:', error);
         } else {
-          setCourseCount(courses.length);
+          setCourseCount(count ?? 0);
         }
-        
-        setHasSubscription(!!subscription);
       } catch (error) {
-        console.error('Error checking subscription status:', error);
-      } finally {
-        setLoading(false);
+        console.error('Error fetching course count:', error);
       }
     };
-    
-    checkSubscription();
-    
-    // Track page view
+    getCourseCount();
+  }, []);
+  
+  useEffect(() => {
     if (user?.id) {
       trackEvent(
         AnalyticsEventType.PAGE_VIEW,
@@ -72,19 +59,22 @@ const UnlimitedPage: React.FC = () => {
         {
           page: 'unlimited',
           checkout_cancelled: checkoutCancelled,
+          current_tier: tierName,
         }
       );
     }
-  }, [user?.id, checkoutCancelled]);
+  }, [user?.id, checkoutCancelled, tierName]);
   
-  const handleSubscribe = async () => {
+  const handleSubscribe = async (priceId: string) => {
     if (!user) {
       navigate('/login?redirectTo=' + encodeURIComponent('/unlimited'));
       return;
     }
     
     setCheckoutLoading(true);
-    
+    setClientSecret(null);
+    setMessage(null);
+
     try {
       // Track checkout initiation
       trackEvent(
@@ -93,33 +83,39 @@ const UnlimitedPage: React.FC = () => {
         {
           checkout_type: 'subscription',
           subscription_type: 'unlimited',
+          target_stripe_price_id: priceId,
         }
       );
       
-      // Create checkout session
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: 'subscription',
-          subscription: {
-            tier: 'unlimited',
+      // Call the new Edge Function
+      const { data, error } = await supabase.functions.invoke(
+        'create-payment-handler',
+        {
+          body: {
+            purchaseType: 'subscription',
+            subscriptionTier: 'unlimited',
+            planInterval: priceId.includes('month') ? 'month' : 'year',
           },
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create checkout session');
+        }
+      );
+
+      if (error) {
+        throw new Error(error.message || 'Failed to initialize payment.');
       }
-      
-      const { url } = await response.json();
-      
-      // Redirect to checkout
-      window.location.href = url;
-    } catch (error) {
+      if (!data?.client_secret) {
+        throw new Error('Failed to retrieve client secret from server.');
+      }
+
+      setClientSecret(data.client_secret);
+      setShowPaymentModal(true);
+
+    } catch (error: any) {
       console.error('Error initiating checkout:', error);
+      toast({
+        title: "Checkout Error",
+        description: error.message || "Could not start the subscription process. Please try again.",
+        variant: "destructive",
+      });
       
       // Track checkout error
       if (user) {
@@ -129,6 +125,7 @@ const UnlimitedPage: React.FC = () => {
           {
             checkout_type: 'subscription',
             subscription_type: 'unlimited',
+            target_stripe_price_id: priceId,
             error_message: error instanceof Error ? error.message : 'Unknown error',
           }
         );
@@ -138,6 +135,14 @@ const UnlimitedPage: React.FC = () => {
     }
   };
   
+  // Get the correct Stripe Price ID from env vars (ensure these exist)
+  // Using VITE_ prefix for client-side access
+  const unlimitedMonthlyPriceId = import.meta.env.VITE_UNLIMITED_MONTHLY_PRICE_ID;
+  const unlimitedAnnualPriceId = import.meta.env.VITE_UNLIMITED_ANNUAL_PRICE_ID; // If you have an annual plan
+
+  // Options for the Elements provider
+  const stripeElementsOptions = clientSecret ? { clientSecret } : undefined;
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
@@ -159,12 +164,8 @@ const UnlimitedPage: React.FC = () => {
             <h2 className="text-2xl font-bold mb-4">What You Get</h2>
             <ul className="space-y-3">
               <li className="flex items-start">
-                <svg className="h-6 w-6 text-green-500 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>
-                  <strong>Unlimited Access</strong> to all {courseCount} courses
-                </span>
+                <svg className="h-6 w-6 text-green-500 mr-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                <span><strong>Unlimited Access</strong> to all {courseCount} courses</span>
               </li>
               <li className="flex items-start">
                 <svg className="h-6 w-6 text-green-500 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -201,35 +202,39 @@ const UnlimitedPage: React.FC = () => {
                 </div>
                 <h3 className="text-2xl font-bold mb-2">Unlimited Subscription</h3>
                 <div className="mb-4">
-                  <span className="text-4xl font-bold">$29</span>
+                  <span className="text-4xl font-bold">$30</span>
                   <span className="text-gray-500">/month</span>
                 </div>
                 <p className="text-gray-600 dark:text-gray-300 mb-6">
                   Access everything for less than the price of a single course
                 </p>
                 
-                {loading ? (
+                {subscriptionLoading ? (
                   <div className="flex justify-center mb-4">
                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
                   </div>
-                ) : hasSubscription ? (
+                ) : hasActiveSubscription && tierName === 'Unlimited' ? (
                   <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg mb-4">
                     <p className="text-green-800 dark:text-green-300">
                       You already have an active unlimited subscription!
                     </p>
                   </div>
                 ) : (
-                  <Button 
-                    onClick={handleSubscribe}
-                    disabled={checkoutLoading}
-                    size="lg"
-                    className="w-full"
-                  >
-                    {checkoutLoading ? 'Processing...' : 'Subscribe Now'}
-                  </Button>
+                  <>
+                    {unlimitedMonthlyPriceId && (
+                      <Button
+                        onClick={() => handleSubscribe(unlimitedMonthlyPriceId)}
+                        disabled={checkoutLoading}
+                        size="lg"
+                        className="w-full"
+                      >
+                        {checkoutLoading ? 'Processing...' : 'Subscribe Now (Monthly)'}
+                      </Button>
+                    )}
+                  </>
                 )}
                 
-                {!loading && !hasSubscription && (
+                {!subscriptionLoading && !(hasActiveSubscription && tierName === 'Unlimited') && (
                   <p className="text-sm text-gray-500 mt-2">
                     Secure payment via Stripe
                   </p>
@@ -291,18 +296,23 @@ const UnlimitedPage: React.FC = () => {
           </div>
         </div>
         
-        {!loading && !hasSubscription && (
-          <div className="text-center">
-            <Button 
-              onClick={handleSubscribe}
-              disabled={checkoutLoading}
-              size="lg"
-              className="px-8"
-            >
-              {checkoutLoading ? 'Processing...' : 'Get Unlimited Access Now'}
-            </Button>
-          </div>
-        )}
+        <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Complete Your Subscription</DialogTitle>
+              <DialogDescription>
+                Enter your payment details below to start your Unlimited subscription.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              {clientSecret && stripePromise && stripeElementsOptions && (
+                <Elements options={stripeElementsOptions} stripe={stripePromise}>
+                  <StripePaymentForm clientSecret={clientSecret} />
+                </Elements>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

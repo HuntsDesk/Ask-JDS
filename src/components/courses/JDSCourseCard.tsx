@@ -1,10 +1,12 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BookOpen, Clock, Layers, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { toast } from 'react-hot-toast';
+import { StripeCheckoutDialog } from '@/components/stripe/StripeCheckoutDialog';
+import useCourseAccess from '@/hooks/useCourseAccess';
 
 // Get Supabase URL from environment variable
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -37,12 +39,24 @@ export default function JDSCourseCard({
 }: CourseCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
   // Ensure module and lesson counts are numbers
   const modulesCount = _count?.modules || 0;
   const lessonsCount = _count?.lessons || 0;
+  
+  // Add effect to check for reopenPayment parameter
+  useEffect(() => {
+    const reopenPayment = searchParams.get('reopenPayment');
+    // Only reopen if this card matches the current course ID in the URL
+    if (reopenPayment === 'true' && window.location.pathname.includes(`/courses/${id}`)) {
+      setShowPaymentModal(true);
+    }
+  }, [searchParams, id]);
   
   // Handle rent button click
   const handleRent = async (e: React.MouseEvent) => {
@@ -69,15 +83,19 @@ export default function JDSCourseCard({
         return;
       }
       
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/create-checkout-session`, {
+      // Use the new create-payment-handler Edge Function 
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/create-payment-handler`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          courseId: id,
-          isRenewal: false,
+          purchaseType: 'course_purchase',  // Specifies this is a course purchase
+          courseId: id,                     // The ID of the course being purchased
+          userId: session.user.id,          // Using consistent camelCase for userId
+          isRenewal: false,                 // Not a renewal
+          coursePurchaseType: 'standard'    // Indicate this is a standard course purchase
         }),
       });
       
@@ -91,15 +109,29 @@ export default function JDSCourseCard({
         return;
       }
       
-      const { url: checkoutUrl } = await response.json();
+      const data = await response.json();
+      console.log('Payment handler response:', data);
       
-      if (checkoutUrl) {
-        console.log(`Redirecting to checkout: ${checkoutUrl}`);
-        window.location.href = checkoutUrl;
-      } else {
-        console.error('No checkout URL returned');
-        toast.error('Failed to create checkout session');
+      // Handle Payment Elements Flow (client_secret response)
+      if (data.client_secret) {
+        console.log(`Got client_secret, showing payment form`);
+        setClientSecret(data.client_secret);
+        setShowPaymentModal(true);
+        setIsLoading(false);
+        return;
       }
+      
+      // Legacy handling for URL response
+      if (data.url) {
+        console.log(`Redirecting to checkout: ${data.url}`);
+        window.location.href = data.url;
+        return;
+      }
+      
+      // If we get here, we didn't get a valid response
+      console.error('No client_secret or URL returned');
+        toast.error('Failed to create checkout session');
+      setIsLoading(false);
     } catch (error) {
       console.error('Error creating checkout session:', error);
       toast.error('An error occurred. Please try again.');
@@ -107,8 +139,17 @@ export default function JDSCourseCard({
       setIsLoading(false);
     }
   };
+
+  // Handle close of payment modal
+  const handleClosePaymentModal = () => {
+    setShowPaymentModal(false);
+  };
+  
+  // Use the hook to check access for this specific course
+  const { hasAccess, isLoading: accessLoading } = useCourseAccess(id);
   
   return (
+    <>
     <div 
       className={cn(
         "premium-card h-full flex flex-col bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm transition-all duration-300 relative",
@@ -195,12 +236,6 @@ export default function JDSCourseCard({
               Draft
             </span>
           )}
-          
-          {enrolled && (
-            <span className="bg-gradient-to-r from-green-500 to-green-600 text-white px-3 py-1 rounded-full text-xs font-medium shadow-sm">
-              Enrolled
-            </span>
-          )}
         </div>
         
         {status?.toLowerCase() === 'coming soon' ? (
@@ -232,53 +267,90 @@ export default function JDSCourseCard({
               )}
             </button>
           </div>
-        ) : enrolled ? (
-          <div className="mt-4">
-            <Link 
-              to={`/course/${id}`}
-              className={cn(
-                "block w-full py-2 rounded-md text-center transition-all duration-200",
-                "bg-jdblue hover:bg-blue-800 text-white font-medium",
-                "dark:bg-jdblue/90 dark:hover:bg-jdblue"
-              )}
-            >
-              Continue Learning
-            </Link>
-          </div>
         ) : (
-          <div className="mt-4 flex flex-col gap-2">
-            <Link 
-              to={`/course-detail/${id}`}
-              className={cn(
-                "block w-full py-2 rounded-md text-center transition-all duration-200",
-                "bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium",
-                "dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
-              )}
-            >
-              View Details
-            </Link>
-            <button
-              onClick={handleRent}
-              disabled={isLoading}
-              className={cn(
-                "w-full py-2 rounded-md text-center transition-all duration-200",
-                "bg-jdorange hover:bg-orange-600 text-white font-medium",
-                "dark:bg-jdorange/90 dark:hover:bg-jdorange",
-                "disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
-              )}
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center">
-                  <Clock className="animate-spin h-4 w-4 mr-2" />
-                  Processing...
-                </span>
-              ) : (
-                <>Get Access <Ticket className="inline h-4 w-4 ml-1" /></>
-              )}
-            </button>
+          <div className="mt-4">
+            {accessLoading ? (
+              <div className="mt-4 h-9 w-full bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse"></div>
+            ) : hasAccess ? (
+              <Link
+                to={`/course/${id}`}
+                className={cn(
+                  "block w-full py-2 rounded-md text-center transition-all duration-200",
+                  "bg-jdorange hover:bg-orange-600 text-white font-medium",
+                  "dark:bg-jdorange/90 dark:hover:bg-jdorange"
+                )}
+              >
+                Access Course
+              </Link>
+            ) : is_featured ? (
+              <div className="grid grid-cols-2 gap-3">
+                <Link 
+                  to={`/course-detail/${id}`}
+                  className="px-4 py-2 text-center border border-jdblue dark:border-blue-300 text-jdblue dark:text-blue-300 rounded-lg font-medium hover:bg-jdblue hover:text-white dark:hover:bg-blue-600 transition-all duration-300"
+                >
+                  Details
+                </Link>
+                <button 
+                  className={cn(
+                    "px-4 py-2 rounded-lg font-medium flex items-center justify-center shadow-sm transition-all duration-300",
+                    "bg-gradient-to-r from-jdorange to-jdorange-dark text-white hover:opacity-90",
+                    "disabled:bg-gray-400 disabled:hover:bg-gray-500 disabled:text-white disabled:cursor-not-allowed disabled:opacity-80"
+                  )}
+                  disabled={isLoading}
+                  onClick={handleRent}
+                >
+                  {isLoading ? (
+                    <span className="flex items-center justify-center">
+                      <Clock className="animate-spin h-4 w-4 mr-2" />
+                      Processing...
+                    </span>
+                  ) : (
+                    <>Purchase</>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <Link 
+                  to={`/course-detail/${id}`}
+                  className="px-4 py-2 text-center border border-jdblue dark:border-blue-300 text-jdblue dark:text-blue-300 rounded-lg font-medium hover:bg-jdblue hover:text-white dark:hover:bg-blue-600 transition-all duration-300"
+                >
+                  Details
+                </Link>
+                <Link
+                  to={`/course/${id}`}
+                  className={cn(
+                    "px-4 py-2 rounded-lg font-medium flex items-center justify-center shadow-sm transition-all duration-300",
+                    "bg-gray-100 hover:bg-gray-200 text-gray-800",
+                    "dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
+                  )}
+                >
+                  Access Free
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </div>
     </div>
+
+      {/* Payment Modal using the shared component */}
+      {clientSecret && (
+        <StripeCheckoutDialog
+          open={showPaymentModal}
+          onClose={handleClosePaymentModal}
+          clientSecret={clientSecret}
+          title="Complete your purchase"
+          description={`Purchase access to "${title}"`}
+          onError={(error) => {
+            console.error('Payment error:', error);
+            toast.error(error.message || 'Payment failed');
+          }}
+        />
+      )}
+    </>
   );
-} 
+}
+
+// Add a named export as well
+export { JDSCourseCard };

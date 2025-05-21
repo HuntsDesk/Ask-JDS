@@ -32,7 +32,7 @@ export const SidebarLayout = ({ children, sidebarProps = {} }: SidebarLayoutProp
   
   // Calculate the main content padding/margin based on sidebar state
   const contentPadding = isDesktop ? 
-    (isExpanded ? 'pl-6' : 'pl-4') : 
+    (isExpanded ? 'pl-6' : '') : 
     'pl-0';
   
   // Handle pin change

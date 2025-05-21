@@ -35,7 +35,7 @@ export function useLayoutState() {
         : 'px-12' // Collapsed pinned sidebar
       : isExpanded
         ? 'px-6'  // Expanded but not pinned
-        : 'px-4'  // Collapsed and not pinned
+        : 'pr-4'  // Collapsed and not pinned
     : 'px-4';     // Mobile view: consistent padding
   
   // Calculate left margin/padding for fixed elements to align with sidebar

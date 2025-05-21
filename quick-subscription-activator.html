@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Development Tool: Quick Subscription Activator</title>
+    <style>
+        body { 
+            font-family: system-ui, sans-serif; 
+            max-width: 650px; 
+            margin: 2rem auto; 
+            padding: 1.5rem; 
+            line-height: 1.6;
+        }
+        pre { 
+            background: #f5f5f5; 
+            padding: 1rem; 
+            border-radius: 4px; 
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font-size: 13px;
+        }
+        button { 
+            padding: 0.5rem 1rem; 
+            background: #4f46e5; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #4338ca; }
+        .warning { 
+            background: #fdba74; 
+            color: #7c2d12;
+            padding: 0.75rem; 
+            border-radius: 4px; 
+            margin: 1.5rem 0;
+            border-left: 5px solid #c2410c;
+        }
+        input {
+            width: 100%;
+            padding: 0.5rem; 
+            margin: 0.5rem 0 1rem 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        h1 {
+            border-bottom: 2px solid #f5f5f5;
+            padding-bottom: 0.5rem;
+        }
+        label {
+            font-weight: bold;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .dev-badge {
+            background: #f87171;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Quick Subscription Activator</h1>
+        <span class="dev-badge">DEVELOPMENT ONLY</span>
+    </div>
+    
+    <div class="warning">
+        <strong>⚠️ WARNING: This tool is for development and testing purposes only!</strong>
+        <p>This directly modifies database records and bypasses payment processing. Never use in production environments.</p>
+    </div>
+    
+    <p>This tool directly updates your subscription status in the database without requiring Stripe payment processing.</p>
+    
+    <div>
+        <label for="userId">User ID:</label>
+        <input type="text" id="userId" value="a3a0fd64-7c2b-4f2f-968c-5fc91e73d576">
+        <small>User ID from Supabase Auth</small>
+    </div>
+    
+    <div>
+        <label for="priceId">Price ID:</label>
+        <input type="text" id="priceId" value="price_1RGYI5BAYVpTe3LyxrZuofBR">
+        <small>Stripe Price ID for the Unlimited tier subscription</small>
+    </div>
+    
+    <button id="activateBtn">Activate Subscription</button>
+    
+    <h3>Response:</h3>
+    <pre id="response">Click button to activate...</pre>
+    
+    <script>
+        document.getElementById('activateBtn').addEventListener('click', async () => {
+            const userId = document.getElementById('userId').value.trim();
+            const priceId = document.getElementById('priceId').value.trim();
+            const responseEl = document.getElementById('response');
+            
+            if (!userId || !priceId) {
+                responseEl.textContent = 'Error: User ID and Price ID are required';
+                return;
+            }
+            
+            responseEl.textContent = 'Processing...';
+            
+            try {
+                // Get the Supabase URL and anon key - replace with your project values
+                const SUPABASE_URL = 'https://prbbuxgirnecbkpdpgcb.supabase.co';
+                const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByYmJ1eGdpcm5lY2JrcGRwZ2NiIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTE5MzkwOTcsImV4cCI6MjAwNzUxNTA5N30.RZbdXPGCRlAZE43O4F31sWKujRO2xYq1n-YY-YyCpjA';
+                
+                // Get auth token from localStorage
+                let token = '';
+                try {
+                    const authStorage = localStorage.getItem('ask-jds-auth-storage');
+                    if (authStorage) {
+                        const authData = JSON.parse(authStorage);
+                        if (authData.access_token) {
+                            token = authData.access_token;
+                        }
+                    }
+                } catch (e) {
+                    responseEl.textContent = 'Error retrieving token: ' + e.message;
+                    return;
+                }
+                
+                if (!token) {
+                    responseEl.textContent = 'No authentication token found. Please log in first.';
+                    return;
+                }
+                
+                // Prepare the update data
+                const periodEnd = new Date();
+                periodEnd.setDate(periodEnd.getDate() + 30);
+                
+                // First, get the existing subscription record
+                const getResponse = await fetch(
+                    `${SUPABASE_URL}/rest/v1/user_subscriptions?user_id=eq.${userId}&select=id`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${token}`
+                        }
+                    }
+                );
+                
+                if (!getResponse.ok) {
+                    throw new Error(`Failed to fetch subscription: ${getResponse.status} ${getResponse.statusText}`);
+                }
+                
+                const subscriptions = await getResponse.json();
+                
+                if (subscriptions.length === 0) {
+                    responseEl.textContent = 'No subscription found for this user. Creating new subscription...';
+                    
+                    // Create new subscription
+                    const createResponse = await fetch(
+                        `${SUPABASE_URL}/rest/v1/user_subscriptions`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'apikey': SUPABASE_ANON_KEY,
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json',
+                                'Prefer': 'return=representation'
+                            },
+                            body: JSON.stringify({
+                                user_id: userId,
+                                status: 'active',
+                                stripe_price_id: priceId,
+                                current_period_end: periodEnd.toISOString(),
+                                cancel_at_period_end: false,
+                                created_at: new Date().toISOString(),
+                                updated_at: new Date().toISOString()
+                            })
+                        }
+                    );
+                    
+                    if (!createResponse.ok) {
+                        throw new Error(`Failed to create subscription: ${createResponse.status} ${createResponse.statusText}`);
+                    }
+                    
+                    const result = await createResponse.json();
+                    responseEl.textContent = 'Subscription created successfully!\n\n' + JSON.stringify(result, null, 2);
+                } else {
+                    // Update existing subscription
+                    const subscriptionId = subscriptions[0].id;
+                    
+                    const updateResponse = await fetch(
+                        `${SUPABASE_URL}/rest/v1/user_subscriptions?id=eq.${subscriptionId}`,
+                        {
+                            method: 'PATCH',
+                            headers: {
+                                'apikey': SUPABASE_ANON_KEY,
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json',
+                                'Prefer': 'return=representation'
+                            },
+                            body: JSON.stringify({
+                                status: 'active',
+                                stripe_price_id: priceId,
+                                current_period_end: periodEnd.toISOString(),
+                                updated_at: new Date().toISOString()
+                            })
+                        }
+                    );
+                    
+                    if (!updateResponse.ok) {
+                        throw new Error(`Failed to update subscription: ${updateResponse.status} ${updateResponse.statusText}`);
+                    }
+                    
+                    const result = await updateResponse.json();
+                    responseEl.textContent = 'Subscription updated successfully!\n\n' + JSON.stringify(result, null, 2);
+                }
+            } catch (error) {
+                responseEl.textContent = 'Error: ' + error.message;
+            }
+        });
+    </script>
+    
+    <hr style="margin-top: 2rem;">
+    <footer style="font-size: 0.8rem; color: #666;">
+        <p>This tool is intended for development and testing only. Remove before deploying to production.</p>
+    </footer>
+</body>
+</html> 

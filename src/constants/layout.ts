@@ -50,7 +50,8 @@ export const MARGIN = {
 export const MAX_WIDTH = {
   default: '1280px',
   narrow: '960px',
-  wide: '1440px'
+  wide: '1440px',
+  '6xl': '1152px'
 };
 
 /**

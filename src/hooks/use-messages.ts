@@ -4,7 +4,7 @@ import { supabase, logError } from '@/lib/supabase';
 import { Message } from '@/types';
 import { createAIProvider } from '@/lib/ai/provider-factory';
 import { useCloseContext } from '@/contexts/close-context';
-import { validateSessionToken } from '@/lib/auth';
+import { validateSessionToken, handleSessionExpiration } from '@/lib/auth';
 import {
   getUserMessageCount,
   incrementUserMessageCount,
@@ -14,7 +14,6 @@ import {
 import { useSettings } from './use-settings';
 import { usePaywall } from '@/contexts/paywall-context';
 import { useAuth } from '@/lib/auth';
-import { useSupabaseClient } from '@supabase/auth-helpers-react';
 import { AIProvider } from '@/types/ai';
 
 // Free tier message limit
@@ -82,7 +81,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
   const { settings } = useSettings();
   
   // Get the auth context
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
 
   // Update the last valid threadId ref
   useEffect(() => {
@@ -97,22 +96,6 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       aiProvider.current = createAIProvider(settings);
     }
   }, [settings]);
-
-  // Handle session expiration during message send
-  const handleSessionExpiration = useCallback((messageContent: string) => {
-    // Save the user's message to localStorage so it can be restored after login
-    if (messageContent && messageContent.trim()) {
-      localStorage.setItem('preservedMessage', messageContent);
-      
-      // Also save the thread ID so we can restore the right conversation
-      if (threadId) {
-        localStorage.setItem('preservedThreadId', threadId);
-      }
-    }
-    
-    // Sign the user out, which will redirect to login
-    signOut(true);
-  }, [signOut, threadId]);
 
   // Load user data (message count and subscription status) on mount
   useEffect(() => {
@@ -150,30 +133,39 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     }
   };
 
-  // Create a function to check if the user has reached the message limit
+  // Check if the user has reached their message limit
   const checkMessageLimit = useCallback(async (content: string) => {
+    if (!user) return false;
+    
     try {
-      const count = await getUserMessageCount();
-      const hasSubscription = await hasActiveSubscription();
+      const count = await getUserMessageCount(user.id);
+      const hasReachedLimit = count >= FREE_MESSAGE_LIMIT;
       
-      if (!hasSubscription && count >= FREE_MESSAGE_LIMIT) {
+      if (hasReachedLimit) {
         console.log(`User has reached message limit (${count}/${FREE_MESSAGE_LIMIT})`);
         
-        // Save the message they were trying to send
-        setPreservedMessage(content);
+        // Check if user has an active subscription - using user.id directly
+        const hasSubscription = await hasActiveSubscription(user.id);
         
-        // Show the paywall
-        setShowPaywall(true);
+        if (!hasSubscription) {
+          console.log('User has reached message limit');
+          // Save the message they were trying to send
+          setPreservedMessage(content);
+          setShowPaywall(true);
+          return true;
+        }
         
-        return true;
+        // User has subscription, bypassing message limit
+        console.log('User has subscription, bypassing message limit');
+        return false;
       }
       
       return false;
-    } catch (error) {
-      console.error('Error checking message limit:', error);
+    } catch (err) {
+      console.error('Error checking message limit:', err);
       return false;
     }
-  }, []);
+  }, [user]);
 
   // Function to refresh messages - defining with stable identity
   const refreshMessages = useCallback(async () => {
@@ -294,10 +286,11 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     if (!threadId) return;
     
     // Subscribe to real-time message inserts for this thread
-    let subscription: { subscription?: { unsubscribe?: () => void } } | null = null;
+    // Use a generic 'any' type to avoid TypeScript errors with RealtimeChannel
+    let channel: any = null;
     
     try {
-      subscription = supabase
+      channel = supabase
         .channel(`messages:thread_id=eq.${threadId}`)
         .on(
           'postgres_changes',
@@ -313,8 +306,9 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
               console.debug('[useMessages] Real-time message received:', newMessage.id);
             }
             
-            // Only add the message if we haven't already added it
+            // Only process if we haven't seen this message ID before
             if (!addedMessageIds.current.has(newMessage.id)) {
+              // Add to our tracking set immediately to prevent duplicate processing
               addedMessageIds.current.add(newMessage.id);
               
               // Update the user message counter for title generation
@@ -322,7 +316,33 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
                 userMessageCountRef.current++;
               }
               
-              setMessages(currentMessages => [...currentMessages, newMessage]);
+              // Use a more robust update logic that preserves optimistic messages until replaced
+              setMessages(currentMessages => {
+                // 1. Find any optimistic message that this server message might be replacing
+                // Use a time window to ensure we're matching the correct message
+                const matchingOptimistic = currentMessages.find(msg => 
+                  msg.id.startsWith('optimistic-') && 
+                  msg.role === newMessage.role &&
+                  msg.content === newMessage.content &&
+                  // Add a 10-second window to match created_at times
+                  Math.abs(new Date(msg.created_at).getTime() - new Date(newMessage.created_at).getTime()) < 10000
+                );
+                
+                // 2. Remove any messages with the same server ID (deduplication)
+                const withoutDuplicates = currentMessages.filter(msg => msg.id !== newMessage.id);
+                
+                // 3. If we found a matching optimistic message, remove it
+                let withoutOptimistic = withoutDuplicates;
+                if (matchingOptimistic) {
+                  withoutOptimistic = withoutDuplicates.filter(msg => msg.id !== matchingOptimistic.id);
+                }
+                
+                // 4. Add the server message and ensure proper time-based ordering
+                const updatedMessages = [...withoutOptimistic, newMessage];
+                return updatedMessages.sort((a, b) => 
+                  new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                );
+              });
             }
           }
         )
@@ -333,12 +353,13 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     
     // Cleanup on threadId change or unmount
     return () => {
-      if (subscription && subscription.subscription && typeof subscription.subscription.unsubscribe === 'function') {
+      if (channel) {
         try {
           if (process.env.NODE_ENV === 'development') {
             console.debug('[useMessages] Unsubscribing from real-time messages');
           }
-          subscription.subscription.unsubscribe();
+          // Use supabase.removeChannel for proper cleanup
+          supabase.removeChannel(channel);
         } catch (error) {
           console.error('[useMessages] Error unsubscribing from real-time subscription:', error);
         }
@@ -401,107 +422,15 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     };
   }, [showPaywall, setPaywallActive]);
 
-  const sendMessage = useCallback(async (content: string) => {
-    if (!threadId || !aiProvider.current) return null;
-    
-    // We'll track if this is a new conversation with no messages yet
-    const isFirstLoadForThread = messages.length === 0;
-    
-    // Don't set loading to true when sending a message in an existing conversation
-    // This prevents the "Loading messages..." indicator from appearing
-    
-    // First, immediately dismiss any existing toasts before any checks
-    dismiss();
-    
-    // Validate session token before attempting to send message
+  // Moved original sendMessage logic here, to be run in the background
+  const _handleMessageProcessingAndAIResponse = useCallback(async (
+    content: string, 
+    threadId: string, 
+    user: any, // Supabase User type
+    optimisticUserMessage: Message,
+    initialMessagesState: Message[] // Pass messages state at time of send
+  ) => {
     try {
-      const isValid = await validateSessionToken();
-      if (!isValid) {
-        console.error('🚫 Session token invalid during message sending');
-        
-        // Show a brief toast to explain what's happening
-        toast({
-          title: 'Session expired',
-          description: 'Your session has expired. Please sign in again.',
-          variant: 'default',
-        });
-        
-        // Wait a short moment for the toast to be visible
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Handle the session expiration (redirects to login), passing the message to preserve
-        handleSessionExpiration(content);
-        return null;
-      }
-    } catch (error) {
-      console.error('Error validating session token before sending message:', error);
-      // Continue with the send attempt, as the API call will handle auth errors
-    }
-    
-    // Check if user has reached message limit
-    const hasReachedLimit = await checkMessageLimit(content);
-    if (hasReachedLimit) {
-      console.log('User has reached message limit');
-      return null;
-    }
-    
-    if (!content.trim()) return null;
-
-    // Set the global flag to prevent new toasts
-    setPaywallActive(true);
-
-    // Check if user has reached message limit - do this silently to avoid toast flashes
-    const count = await getUserMessageCount();
-    const hasSubscription = await hasActiveSubscription();
-    
-    // Immediately check for limit and show paywall if needed
-    if (!hasSubscription && count >= FREE_MESSAGE_LIMIT) {
-      // We've hit the limit - preserve message and show paywall without error toasts
-      setPreservedMessage(content);
-      
-      // Ensure all toasts are dismissed before showing paywall
-      dismiss();
-      
-      // Keep the paywall active flag on
-      setPaywallActive(true);
-      
-      // Set a tiny timeout to ensure the dismiss operation completes before showing paywall
-      setTimeout(() => {
-        setShowPaywall(true);
-      }, 0);
-      
-      return null;
-    }
-    
-    // If we reached here, we're not hitting the limit - can allow toasts again
-    setPaywallActive(false);
-    
-    // Update the message count 
-    setMessageCount(count);
-    setIsSubscribed(hasSubscription);
-
-    let optimisticUserMessage: Message | null = null;
-
-    try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      if (!user) throw new Error('No authenticated user');
-
-      // Create optimistic user message
-      optimisticUserMessage = {
-        id: `temp-${crypto.randomUUID()}`,
-        content,
-        thread_id: threadId,
-        role: 'user',
-        user_id: user.id,
-        created_at: new Date().toISOString()
-      };
-      
-      // Add optimistic message to UI
-      setMessages(prev => [...prev, optimisticUserMessage!]);
-      setIsGenerating(true);
-
       // Send user message to server
       const { data: userMessageData, error: userMessageError } = await supabase
         .from('messages')
@@ -518,24 +447,21 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
 
       // Update messages with real user message and track its ID
       if (userMessageData) {
-        // Add the message ID to our tracking set
         addedMessageIds.current.add(userMessageData.id);
-        
-        // Replace the optimistic message with the real one, or skip if it already exists
         setMessages(prev => {
-          // Check if we already have this message (not just the optimistic one)
-          const alreadyExists = prev.some(msg => 
-            msg.id === userMessageData.id && msg.id !== optimisticUserMessage!.id
-          );
-          
-          if (alreadyExists) {
-            // If it exists (not as the optimistic message), remove the optimistic one
-            return prev.filter(msg => msg.id !== optimisticUserMessage!.id);
+          const messagesCopy = [...prev];
+          const optimisticIndex = messagesCopy.findIndex(msg => msg.id === optimisticUserMessage.id);
+          const serverMessageExists = messagesCopy.some(msg => msg.id === userMessageData.id);
+
+          if (serverMessageExists) {
+            return messagesCopy.filter(msg => msg.id !== optimisticUserMessage.id);
           }
-          
-          // Otherwise replace the optimistic message with the real one
-          return prev.map(msg => 
-            msg.id === optimisticUserMessage!.id ? userMessageData : msg
+          if (optimisticIndex >= 0) {
+            messagesCopy[optimisticIndex] = userMessageData;
+            return messagesCopy;
+          }
+          return [...messagesCopy, userMessageData].sort((a, b) => 
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
           );
         });
       }
@@ -543,13 +469,9 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       // Increment user message count in database and update local state
       console.log('Incrementing message count after sending message');
       try {
-        // Use the improved incrementUserMessageCount function directly
-        // This function uses database RPC functions with elevated privileges
         const newCount = await incrementUserMessageCount();
         console.log('Message count updated to:', newCount);
         setMessageCount(newCount);
-        
-        // Update lifetime count separately
         try {
           const newLifetimeCount = await getLifetimeMessageCount();
           setLifetimeMessageCount(newLifetimeCount);
@@ -560,11 +482,15 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
         console.error('Failed to update message count:', countError);
       }
       
-      // Increment local thread message counter
       userMessageCountRef.current++;
 
-      // Generate AI response with conversation history
-      const aiResponse = await aiProvider.current.generateResponse(content, messages);
+      // Generate AI response with conversation history (use initialMessagesState + optimistic message for context)
+      // Ensure the optimistic message is part of the history for the AI.
+      const conversationHistory = initialMessagesState.find(m => m.id === optimisticUserMessage.id) 
+        ? initialMessagesState 
+        : [...initialMessagesState, optimisticUserMessage];
+
+      const aiResponse = await aiProvider.current.generateResponse(content, conversationHistory);
       
       // Send AI response to server
       const { data: aiMessageData, error: aiMessageError } = await supabase
@@ -573,7 +499,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
           content: aiResponse,
           thread_id: threadId,
           role: 'assistant',
-          user_id: user.id
+          user_id: user.id 
         })
         .select()
         .single();
@@ -581,21 +507,18 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       if (aiMessageError) throw aiMessageError;
 
       // If this is the first user message, call the onFirstMessage callback
-      if (isFirstMessageRef.current && onFirstMessage) {
+      // Note: isFirstMessageRef might need to be re-evaluated based on initialMessagesState
+      const currentIsFirstMessage = initialMessagesState.filter(msg => msg.role === 'user').length === 0;
+      if (currentIsFirstMessage && onFirstMessage) {
         onFirstMessage(content);
-        isFirstMessageRef.current = false;
+        // isFirstMessageRef.current = false; // This ref is managed by refreshMessages, avoid direct set here
       }
 
       // Generate and update thread title after 1 user message
       if (userMessageCountRef.current === 1 && onThreadTitleGenerated) {
         try {
-          // Get all user messages for context
-          const userMessages = messages
-            .filter(msg => msg.role === 'user')
-            .concat(optimisticUserMessage ? [optimisticUserMessage] : []);
-          
-          // Generate title based on all user messages
-          const generatedTitle = await generateThreadTitle(userMessages);
+          const userMessagesForTitle = conversationHistory.filter(msg => msg.role === 'user');
+          const generatedTitle = await generateThreadTitle(userMessagesForTitle);
           await onThreadTitleGenerated(generatedTitle);
           console.log(`Generated thread title after 1 message: ${generatedTitle}`);
         } catch (error) {
@@ -603,35 +526,25 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
         }
       }
 
-      // Add AI message to UI and track its ID
       if (aiMessageData) {
-        // Check if this message is already in the list before adding it
+        addedMessageIds.current.add(aiMessageData.id);
         setMessages(prev => {
-          // Check if message with this ID already exists
           const exists = prev.some(msg => msg.id === aiMessageData.id);
-          if (exists) {
-            return prev; // Don't add it again
-          }
-          
-          // Add the message ID to our tracking set
-          addedMessageIds.current.add(aiMessageData.id);
-          return [...prev, aiMessageData];
+          if (exists) return prev;
+          const newMessages = [...prev, aiMessageData];
+          return newMessages.sort((a, b) => 
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
         });
       }
-
-      return userMessageData;
     } catch (error) {
       // Remove optimistic message on error
-      if (optimisticUserMessage) {
-        setMessages(prev => prev.filter(msg => msg.id !== optimisticUserMessage?.id));
-      }
+      setMessages(prev => prev.filter(msg => msg.id !== optimisticUserMessage.id));
       
-      console.error('Error sending message:', error);
-      await logError(error, 'Send Message');
+      console.error('Error in _handleMessageProcessingAndAIResponse:', error);
+      await logError(error, 'Background Message Processing');
       
-      // Display more specific error messages
-      let errorMessage = 'Failed to send message. Please try again.';
-      
+      let errorMessage = 'Failed to process message. Please try again.';
       if (error instanceof Error) {
         if (error.message.includes("Network connection to AI service was lost")) {
           errorMessage = "Network connection to AI service was lost. Please try again.";
@@ -639,17 +552,125 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
           errorMessage = error.message;
         }
       }
-      
       toast({
         title: 'Error',
         description: errorMessage,
         variant: 'destructive',
       });
-      return null;
     } finally {
       setIsGenerating(false);
     }
-  }, [threadId, messages, toast, dismiss, onFirstMessage, checkMessageLimit, generateThreadTitle, onThreadTitleGenerated, handleSessionExpiration, setPaywallActive]);
+  }, [
+    toast, 
+    dismiss, 
+    onFirstMessage, 
+    generateThreadTitle, 
+    onThreadTitleGenerated, 
+    // Removed dependencies that are now passed as arguments: messages (via initialMessagesState)
+    // Retained global dependencies or those related to state updates within this hook
+    aiProvider, // aiProvider is a ref, its .current might change
+    settings, // aiProvider depends on settings
+    setPaywallActive // Though not directly used, part of the broader context
+  ]);
+
+  const sendMessage = useCallback(async (content: string): Promise<Message | null> => {
+    if (content.trim() === '') return null;
+      
+    // Check message limit before attempting to send
+    const hasReachedLimit = await checkMessageLimit(content);
+    if (hasReachedLimit) {
+      console.log('User has reached message limit');
+      return null;
+    }
+    
+    if (!threadId || !aiProvider.current) return null;
+    
+    dismiss();
+    
+    try {
+      const isValid = await validateSessionToken();
+      if (!isValid) {
+        console.error('🚫 Session token invalid during message sending');
+        toast({
+          title: 'Session expired',
+          description: 'Your session has expired. Please sign in again.',
+          variant: 'default',
+        });
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        handleSessionExpiration(content);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error validating session token before sending message:', error);
+    }
+    
+    setPaywallActive(true); // Prevent other toasts
+    setMessageCount(await getUserMessageCount());
+    setIsSubscribed(await hasActiveSubscription());
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('Error fetching user or no user found:', userError);
+      toast({ title: 'Authentication Error', description: 'Could not verify user. Please sign in again.', variant: 'destructive'});
+      // Optionally, trigger session expiration
+      // handleSessionExpiration(content); 
+      return null;
+    }
+
+    const optimisticUserMessage: Message = {
+      id: `optimistic-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      content,
+      thread_id: threadId,
+      role: 'user',
+      user_id: user.id,
+      created_at: new Date().toISOString()
+    };
+      
+    addedMessageIds.current.add(optimisticUserMessage.id);
+    
+    // Capture the current messages state to pass to the background processor
+    // This ensures the AI context is fixed at the time of sending.
+    let currentMessagesState: Message[] = [];
+    setMessages(prev => {
+      currentMessagesState = [...prev, optimisticUserMessage];
+      return currentMessagesState;
+    });
+    setIsGenerating(true);
+
+    // Call the background processing function without awaiting it
+    _handleMessageProcessingAndAIResponse(
+      content, 
+      threadId, 
+      user, 
+      optimisticUserMessage,
+      currentMessagesState // Pass the messages array that includes the optimistic one
+    ).catch(async (error) => {
+      // This catch is for unhandled promise rejections from the background task itself
+      // Errors during the process should ideally be handled within _handleMessageProcessingAndAIResponse
+      // (e.g., removing optimistic message, showing toast)
+      console.error('Unhandled error from background message processing:', error);
+      await logError(error, 'Unhandled Background Send Message');
+      // Ensure optimistic message is cleared if something went really wrong
+      setMessages(prev => prev.filter(msg => msg.id !== optimisticUserMessage.id));
+      setIsGenerating(false); // Ensure loading state is reset
+      toast({
+        title: 'Processing Error',
+        description: 'An unexpected error occurred while processing your message.',
+        variant: 'destructive',
+      });
+    });
+
+    return optimisticUserMessage; // Return optimistic message quickly
+  // The dependencies for sendMessage itself are reduced, as much logic moved to _handleMessageProcessingAndAIResponse
+  }, [
+    threadId, 
+    toast, 
+    dismiss, 
+    checkMessageLimit, 
+    handleSessionExpiration, 
+    setPaywallActive,
+    _handleMessageProcessingAndAIResponse // Added the new internal function
+  ]);
 
   // If no threadId (and if we've called all hooks), return our default object
   if (!threadId) {

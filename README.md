@@ -16,6 +16,7 @@
 - [Contributing](#contributing)
 - [Migration Backlog](#migration-backlog)
 - [Additional Documentation](#additional-documentation)
+- [Course Access Control](#course-access-control)
 
 ## Overview
 
@@ -51,6 +52,10 @@ projectEnv: {
 
 ### Key Architectural Points
 - Deno-native Edge Functions (Deno.serve, npm: specifiers only)
+  - `stripe-webhook`: Handles incoming Stripe events for subscriptions and purchases.
+  - `create-payment-handler`: Creates Stripe PaymentIntents/Subscriptions for Payment Elements flow.
+  - `get-payment-status`: Securely retrieves the status of Stripe PaymentIntents/SetupIntents.
+  - `get-user-subscription`: Fetches current user subscription details for the frontend.
 - Shared ESM-only components
 - Vite dev/build system
 - **No Node.js runtime** - Only used as dev-time tooling
@@ -177,6 +182,10 @@ The application uses several layout components for consistency across features:
    - Dynamic content padding based on sidebar state
 
 3. **CourseLayout**: Specialized layout for course content, includes navigation for modules and lessons.
+   - Proper spacing between sidebar and content
+   - Cross-module navigation between lessons
+   - Rich text content rendering (HTML, Markdown, and plain text with preserved line breaks)
+   - Responsive design that adapts to sidebar state changes
 
 4. **DashboardLayout**: Used for dashboard pages with specialized navigation.
 
@@ -576,21 +585,29 @@ The application follows an 8px spacing system (using Tailwind's default spacing 
 
 ### Subscription Tiers
 
-#### Free Tier
+#### Free
 - **Price**: $0/month
 - **Features**:
-  - 10 AI chat messages per month
-  - Create and manage personal flashcards
+  - 10 Ask JDS chat messages per month
+  - Create and manage unlimited personal flashcards
   - Access to sample flashcards only
   - No course access
 
-#### Premium Tier
+#### Premium
 - **Price**: $10/month
 - **Features**:
-  - Unlimited AI chat messages
-  - Create and manage personal flashcards
-  - Full access to premium flashcards
+  - Unlimited Ask JDS chat messages per month
+  - Create and manage unlimited personal flashcards
+  - Full access to all premium flashcards
   - No course access
+
+#### Unlimited
+- **Price**: $30/month
+- **Features**:
+  - Unlimited Ask JDS chat messages per month
+  - Create and manage unlimited personal flashcards
+  - Full access to all premium flashcards
+  - Unlimited access to ALL courses
 
 #### Per-Course Purchase
 - **Price**: Varies per course (stored in `courses.price` column)
@@ -599,14 +616,6 @@ The application follows an 8px spacing system (using Tailwind's default spacing 
   - Access to specific purchased course content
   - Course materials, videos, and assessments
   - Does not include premium flashcards or unlimited chat
-
-#### Unlimited Tier
-- **Price**: $30/month
-- **Features**:
-  - Unlimited AI chat messages
-  - Create and manage personal flashcards
-  - Full access to premium flashcards
-  - Access to ALL courses
 
 ### Database Implementation
 
@@ -705,17 +714,64 @@ SELECT * FROM has_course_access('user_id', 'course_id');
 
 ### Stripe Integration
 
-#### Products
-1. Course Product (one-time)
-2. Unlimited Subscription (recurring)
-3. Premium Subscription (recurring)
+The application integrates with Stripe for handling payments for course purchases and subscription tiers (Premium, Unlimited). Key components include:
 
-#### Checkout Flows
-- `createCourseCheckout()`
-- `createCourseRenewalCheckout()`
-- `createUnlimitedSubscriptionCheckout()`
+#### Products & Prices
+Stripe is configured with Products for each subscription tier and individual courses, each having corresponding Prices (recurring for subscriptions, one-time for courses).
 
-All Stripe metadata includes user_id, course_id, and isRenewal flags.
+#### Payment Flow (Stripe Payment Elements)
+1.  **Client-Side Request**: The frontend calls the `create-payment-handler` Edge Function with purchase details (user ID, price ID, type, etc.).
+2.  **Intent Creation**: The Edge Function interacts with the Stripe API to create a `PaymentIntent` (for courses) or a `Subscription` (which generates an initial `PaymentIntent` for its first invoice).
+3.  **Client Secret**: The function returns the `client_secret` of the relevant `PaymentIntent` to the frontend.
+4.  **Stripe Elements**: The frontend uses the `client_secret` to initialize and mount the Stripe `<PaymentElement>`. The user enters payment details.
+5.  **Confirmation**: The user submits the form, triggering `stripe.confirmPayment()` on the client-side. Stripe handles authentication (e.g., 3D Secure) and redirects the user to a specified `return_url` (handled by `CheckoutConfirmationPage`).
+6.  **Status Check**: The `CheckoutConfirmationPage` extracts the intent's client secret from the URL and calls the `get-payment-status` Edge Function to securely fetch the final payment status from Stripe.
+7.  **UI Update**: The confirmation page displays success, failure, or processing status to the user.
+8.  **Webhook Fulfillment**: Asynchronously, the `stripe-webhook` Edge Function receives events from Stripe (e.g., `payment_intent.succeeded`, `customer.subscription.created`) and updates the database (creates enrollments, updates subscriptions).
+
+#### Key Backend Functions
+- `create-payment-handler`: Initiates the payment/subscription process.
+- `get-payment-status`: Verifies the outcome after redirect.
+- `stripe-webhook`: Handles asynchronous updates from Stripe events.
+- `get-user-subscription`: Provides subscription status to the frontend.
+
+#### Key Frontend Components/Hooks
+- Payment form using `@stripe/react-stripe-js` and `<PaymentElement>`.
+- `CheckoutConfirmationPage`: Handles the redirect and displays payment outcome.
+- `useSubscription` / `SubscriptionProvider`: Manages and provides subscription state globally using React Query.
+
+### Phase 4: Self-Hosted Checkout Implementation
+
+This phase completes the subscription and course enrollment system by implementing a self-hosted checkout flow using Stripe Payment Elements, providing a seamless payment experience without redirecting to Stripe Checkout.
+
+#### New Edge Functions
+- **create-payment-handler**: Creates Stripe PaymentIntents for course purchases or subscriptions and returns the client_secret
+- **get-payment-status**: Securely verifies payment status after completion, supporting various payment states
+- **get-user-subscription**: Provides real-time subscription data to the frontend
+
+#### Frontend Components
+- **SubscriptionProvider/Context**: Global subscription state management with React Query
+- **CheckoutConfirmationPage**: Handles payment confirmation redirects with appropriate success/error states
+- **JDSCourseCard/CourseDetail**: Updated to use the new payment flow with Payment Elements
+
+#### Subscription Hook
+The `useSubscription` hook provides a centralized, cached subscription state:
+- Automatically refreshes when user logs in/out
+- Handles anonymous users gracefully
+- Provides convenient status flags (isActive, tierName)
+- Manages retry logic for API failures
+
+#### Integration Points
+Course purchase and subscription upgrade flows now use the Payment Elements approach:
+- User initiates payment (course purchase or subscription)
+- Frontend calls create-payment-handler Edge Function
+- Edge Function creates appropriate Stripe objects and returns client_secret
+- User completes payment directly on the site
+- User is redirected to CheckoutConfirmationPage
+- Confirmation page verifies payment status
+- Webhook handler processes successful payments asynchronously
+
+These changes eliminate the need for redirects to Stripe Checkout, providing a more integrated user experience and better conversion rates.
 
 ### Webhook Logic
 
@@ -760,17 +816,19 @@ Edge function stripe-webhook handles:
    - Never conditionally skip or reorder hooks
 
 2. **Custom Hooks**
+   - Encapsulate related stateful logic and effects within custom hooks (e.g., `useSubscription`).
+   - Follow the Rules of Hooks within custom hooks.
    ```js
-   export function useX(someId?: string) {
-     const [state, setState] = useState(defaultValue);
-     const ref = useRef(null);
-     
-     // Early return only after all hooks are called
-     if (!someId) {
-       return { state: defaultValue, fetcher: async () => {} };
-     }
-     
-     return { state, fetcher: async () => {} };
+   // Example: useSubscription hook using React Query
+   import { useQuery } from '@tanstack/react-query';
+   import { fetchSubscriptionData } from './api'; // Your API call
+
+   export function useSubscription(userId: string) {
+     const queryKey = ['subscription', userId];
+     return useQuery(queryKey, () => fetchSubscriptionData(userId), {
+       enabled: !!userId,
+       staleTime: 5 * 60 * 1000, // 5 minutes
+     });
    }
    ```
 
@@ -1151,6 +1209,38 @@ Row Level Security (RLS) is used extensively to ensure data security:
    )}
    ```
 
+### Testing Subscription Activation (Development Only)
+
+For development and testing purposes, there are several tools to manually activate subscriptions without processing payments:
+
+1. **Using Direct SQL in Supabase Dashboard**
+   ```sql
+   UPDATE user_subscriptions
+   SET 
+       status = 'active',
+       stripe_price_id = 'price_1RGYI5BAYVpTe3LyxrZuofBR',
+       current_period_end = NOW() + interval '30 days',
+       updated_at = NOW()
+   WHERE user_id = 'your-user-id';
+   ```
+
+2. **Using HTML+JS Activation Tool**
+   - Open `quick-subscription-activator.html` in a browser
+   - Enter the user ID and price ID
+   - Click "Activate Subscription"
+   - Tool will create or update subscription records directly
+
+3. **Using the Edge Function**
+   ```bash
+   # Deploy the function locally
+   supabase functions serve activate-subscription-minimal
+   
+   # In another terminal, run the test script
+   node test-subscription-activation.js
+   ```
+
+> ⚠️ **Warning**: These tools are for development and testing only. They bypass normal payment flows and should never be deployed to production environments. See `readme/subscriptions_implementation/subscription_activation_tools.md` for detailed documentation and removal instructions.
+
 ### Working with the Database
 
 1. **Querying data with Supabase client**
@@ -1482,17 +1572,102 @@ This component automatically:
 - Applies consistent styling across mobile navigation bars
 - Shows highlight color for the active navigation item
 
-```tsx
-import { MobileNavLink } from '@/components/common/MobileNavLink';
+# Course Access Control
 
-<MobileNavLink 
-  to="/courses" 
-  icon={<BookOpen className="h-5 w-5" />} 
-  text="Courses" 
-/>
+The application uses an entitlement-based approach for controlling access to courses, rather than domain-based restrictions:
+
+## Key Components
+
+### 1. `useCourseAccess` Hook
+
+The `useCourseAccess` hook provides a reusable way to check if a user has access to a specific course:
+
+```tsx
+const { hasAccess, isLoading } = useCourseAccess(courseId);
 ```
 
-This component automatically:
-- Tracks active state based on the current route
-- Applies consistent styling across mobile navigation bars
-- Shows highlight color for the active navigation item
+This hook:
+- Checks for direct course enrollment in the `course_enrollments` table
+- Falls back to checking unlimited subscription status
+- Uses React Query for efficient caching and data fetching
+- Returns loading state for better UX during checks
+- Supports checking multiple courses with `useCourseAccess(courseIds: string[])`
+
+### 2. `CourseAccessGuard` Component
+
+The `CourseAccessGuard` component is used in route definitions to protect course content routes:
+
+```tsx
+<Route path="/course/:courseId" element={
+  <CourseAccessGuard>
+    <CourseLayout>
+      <CourseContent />
+    </CourseLayout>
+  </CourseAccessGuard>
+} />
+```
+
+This component:
+- Uses the `useCourseAccess` hook to check entitlements
+- Shows a loading spinner while checking access
+- Redirects unauthorized users to the courses page
+- Redirects unauthenticated users to the login page
+
+### 3. `permissions.ts` Utility
+
+The permissions utility provides a centralized place for access control logic:
+
+```tsx
+// Direct server-side access check
+const { hasAccess } = await hasCourseAccess(userId, courseId);
+
+// Check multiple courses at once
+const accessMap = await hasCourseAccessMultiple(userId, [courseId1, courseId2]);
+```
+
+This utility:
+- Serves as a single source of truth for access control logic
+- Can be used in both client and server code
+- Provides detailed access information including the reason for access (enrollment vs. subscription)
+
+## Benefits of This Approach
+
+- **Domain-Agnostic**: Users can access courses from any domain if they have the proper entitlements
+- **Simplified Access Logic**: Uses a single source of truth for access control
+- **Improved Performance**: React Query provides caching to prevent redundant API calls
+- **Consistent UX**: Users see appropriate UI based on their entitlements
+- **Better Error Handling**: Graceful handling of API failures
+
+## Example Usage in Components
+
+The `JDSCourseCard` component uses the `useCourseAccess` hook to conditionally render the appropriate button:
+
+```tsx
+const { hasAccess, isLoading } = useCourseAccess(courseId);
+
+// In the render:
+{isLoading ? (
+  <LoadingSpinner />
+) : hasAccess ? (
+  <Link to={`/course/${courseId}`}>Access Course</Link>
+) : (
+  <Link to={`/purchase/course/${courseId}`}>Purchase Access</Link>
+)}
+```
+
+## Future Enhancements
+
+### Planned Improvements
+
+- **Multi-course Bundling**: Support for course bundles with shared access control
+- **Access Expiry Notifications**: Notify users before their course access expires
+- **Internationalization (i18n)**: Add multi-language support using react-i18next
+- **Access History**: Track and display user's access history and engagement with courses
+
+## Subscription Activation Tools (Development)
+
+Added tools to activate subscriptions for testing and development purposes without requiring Stripe payment processing. See [Subscription Activation Tools](readme/subscriptions_implementation/subscription_activation_tools.md) for details.
+
+## Chat Message Rendering Fix
+
+Fixed an issue where messages would occasionally disappear during AI response generation. See [Message Rendering Improvements](readme/chat_improvements/message_rendering_fix.md) for details.

@@ -14,7 +14,7 @@ import { useCreateThread, useUpdateThread, useDeleteThread } from '@/hooks/use-q
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import PageContainer from '@/components/layout/PageContainer';
 import type { Thread } from '@/types';
-import { useChatFSM, ChatFSMVisualizer } from '@/hooks/use-chat-fsm';
+import { useChatFSM } from '@/hooks/use-chat-fsm';
 import { cn } from '@/lib/utils';
 
 export function ChatContainer() {
@@ -352,7 +352,7 @@ export function ChatContainer() {
   // =========== Render logic based on FSM state ===========
   
   // FSM visualizer in development
-  const devTools = process.env.NODE_ENV === 'development' ? <ChatFSMVisualizer /> : null;
+  const devTools = null; // No longer showing debug UI
   
   // Auth loading state
   if (chatFSM.state.status === 'loading' && chatFSM.state.phase === 'auth') {

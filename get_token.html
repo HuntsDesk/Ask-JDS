@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Extract Auth Token</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .token-box {
+      background-color: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+      word-break: break-all;
+      margin: 20px 0;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .copied {
+      color: green;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Authentication Token Extractor</h1>
+  <p>This tool extracts your authentication token from localStorage for use in testing:</p>
+  
+  <div>
+    <button id="extractBtn">Extract Token</button>
+  </div>
+  
+  <div id="tokenContainer" style="display: none;">
+    <h2>Your Auth Token:</h2>
+    <pre id="tokenDisplay" class="token-box"></pre>
+    <button id="copyBtn">Copy to Clipboard</button>
+    <span id="copiedMessage" class="copied">✓ Copied!</span>
+    
+    <h3>Use this token with the test script:</h3>
+    <pre class="token-box">node test_subscription.js http://localhost:54321/functions/v1/activate-subscription YOUR_TOKEN_HERE</pre>
+    
+    <h3>Or with curl:</h3>
+    <pre class="token-box">curl -X POST http://localhost:54321/functions/v1/activate-subscription \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -d '{"priceId": "price_1RGYI5BAYVpTe3LyxrZuofBR"}'</pre>
+  </div>
+
+  <script>
+    document.getElementById('extractBtn').addEventListener('click', () => {
+      try {
+        // Get token from localStorage
+        const authStorage = localStorage.getItem('ask-jds-auth-storage');
+        if (!authStorage) {
+          alert('No authentication storage found! Please log in first.');
+          return;
+        }
+        
+        const authData = JSON.parse(authStorage);
+        if (!authData.access_token) {
+          alert('No access token found in authentication storage!');
+          return;
+        }
+        
+        // Display the token
+        const tokenDisplay = document.getElementById('tokenDisplay');
+        tokenDisplay.textContent = authData.access_token;
+        
+        // Show the token container
+        document.getElementById('tokenContainer').style.display = 'block';
+      } catch (error) {
+        alert('Error extracting token: ' + error.message);
+      }
+    });
+    
+    document.getElementById('copyBtn').addEventListener('click', () => {
+      const tokenDisplay = document.getElementById('tokenDisplay');
+      
+      // Copy to clipboard
+      navigator.clipboard.writeText(tokenDisplay.textContent)
+        .then(() => {
+          // Show "copied" message
+          const copiedMessage = document.getElementById('copiedMessage');
+          copiedMessage.style.display = 'inline';
+          
+          // Hide after 2 seconds
+          setTimeout(() => {
+            copiedMessage.style.display = 'none';
+          }, 2000);
+        })
+        .catch(err => {
+          alert('Failed to copy: ' + err);
+        });
+    });
+  </script>
+</body>
+</html> 

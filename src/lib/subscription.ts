@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { withTimeout, fetchWithRetry } from './auth-utils';
 
 // Constants
-export const FREE_MESSAGE_LIMIT = 10;
+export const FREE_MESSAGE_LIMIT = import.meta.env.VITE_FREE_MESSAGE_LIMIT ? parseInt(import.meta.env.VITE_FREE_MESSAGE_LIMIT) : 10;
 export const SUBSCRIPTION_PRICE_ID = 'price_1R8lN7BdYlmFidIZPfXpSHxN'; // Actual Stripe price ID
 
 // Subscription types
@@ -477,10 +477,25 @@ export async function getUserSubscription(
               
               // Log token expiration if available
               if (authData.expires_at) {
-                const expiresAt = new Date(authData.expires_at);
-                const now = new Date();
-                const minutesRemaining = Math.round((expiresAt.getTime() - now.getTime()) / (60 * 1000));
-                console.log(`Token expires in approximately ${minutesRemaining} minutes`);
+                try {
+                  // Handle different date formats
+                  let expiresAt;
+                  if (typeof authData.expires_at === 'number') {
+                    expiresAt = new Date(authData.expires_at * 1000); // Convert seconds to milliseconds if needed
+                  } else {
+                    expiresAt = new Date(authData.expires_at);
+                  }
+                  
+                  if (!isNaN(expiresAt.getTime())) {
+                    const now = new Date();
+                    const minutesRemaining = Math.round((expiresAt.getTime() - now.getTime()) / (60 * 1000));
+                    console.log(`Token expires in approximately ${minutesRemaining} minutes`);
+                  } else {
+                    console.warn('Invalid token expiration date:', authData.expires_at);
+                  }
+                } catch (dateError) {
+                  console.warn('Error parsing token expiration:', dateError);
+                }
               }
             } else {
               console.warn('No access_token found in auth storage');
@@ -684,6 +699,17 @@ async function ensureValidSession(): Promise<boolean> {
       return false;
     }
     
+    // Add rate limiting - if we've tried to refresh too recently, just return success
+    // to prevent infinite refresh loops and rate limiting
+    const lastRefreshAttempt = parseInt(localStorage.getItem('last_refresh_attempt') || '0');
+    const now = Date.now();
+    const TEN_SECONDS = 10 * 1000;
+    
+    if (lastRefreshAttempt && now - lastRefreshAttempt < TEN_SECONDS) {
+      console.log('Last refresh attempt was less than 10 seconds ago, skipping');
+      return true; // Assume valid to prevent refresh loops
+    }
+    
     const authStorage = localStorage.getItem('ask-jds-auth-storage');
     if (!authStorage) {
       console.warn('No auth storage found in localStorage');
@@ -698,22 +724,55 @@ async function ensureValidSession(): Promise<boolean> {
       }
       
       // Check if token is expired
-      const expiresAt = new Date(authData.expires_at);
-      const now = new Date();
-      
-      // If token expires in less than 5 minutes, refresh it
-      const fiveMinutes = 5 * 60 * 1000;
-      if (expiresAt.getTime() - now.getTime() < fiveMinutes) {
-        console.log('Token expires soon, refreshing session');
-        const { data, error } = await supabase.auth.refreshSession();
-        
-        if (error || !data?.session) {
-          console.error('Failed to refresh session:', error);
-          return false;
+      let expiresAt: Date;
+      try {
+        // Handle numeric timestamp or ISO string
+        if (typeof authData.expires_at === 'number') {
+          expiresAt = new Date(authData.expires_at * 1000); // Convert seconds to milliseconds
+        } else {
+          expiresAt = new Date(authData.expires_at);
         }
         
-        console.log('Session refreshed successfully');
-        return true;
+        // Validate the date is actually valid
+        if (isNaN(expiresAt.getTime())) {
+          console.warn('Invalid expiration date, using fallback expiration');
+          // Set a fallback 1 hour from now
+          expiresAt = new Date(now + 60 * 60 * 1000);
+        }
+      } catch (dateError) {
+        console.warn('Error parsing expiration date:', dateError);
+        // Set a fallback 1 hour from now
+        expiresAt = new Date(now + 60 * 60 * 1000);
+      }
+      
+      // Log actual expiration for debugging
+      const minutesRemaining = Math.round((expiresAt.getTime() - now) / (60 * 1000));
+      console.log(`Token actually expires in: ${minutesRemaining} minutes`);
+      
+      // If token expires in less than 5 minutes, refresh it, but only if we haven't refreshed recently
+      const fiveMinutes = 5 * 60 * 1000;
+      if (expiresAt.getTime() - now < fiveMinutes) {
+        console.log('Token expires soon, refreshing session');
+        
+        // Record this refresh attempt time
+        localStorage.setItem('last_refresh_attempt', now.toString());
+        
+        try {
+          const { data, error } = await supabase.auth.refreshSession();
+          
+          if (error || !data?.session) {
+            console.error('Failed to refresh session:', error);
+            return false;
+          }
+          
+          console.log('Session refreshed successfully');
+          return true;
+        } catch (refreshError) {
+          console.error('Error during session refresh:', refreshError);
+          // If we hit an error, still return true to prevent cascading failures
+          // on subsequent calls
+          return true;
+        }
       }
       
       // Token is still valid
@@ -732,6 +791,8 @@ async function ensureValidSession(): Promise<boolean> {
  * Check if the user has an active subscription
  */
 export async function hasActiveSubscription(userId?: string): Promise<boolean> {
+  console.log(`hasActiveSubscription called for userId: ${userId || 'undefined'}`);
+  
   // DEV ONLY: Enable force subscription flag via localStorage
   if (process.env.NODE_ENV === 'development') {
     const forceSubscription = localStorage.getItem('forceSubscription');
@@ -745,57 +806,81 @@ export async function hasActiveSubscription(userId?: string): Promise<boolean> {
     }
   }
 
+  // Prevent redirect loops - only redirect once every 30 seconds at most
+  const now = Date.now();
+  const lastRedirectAttempt = parseInt(localStorage.getItem('last_auth_redirect_attempt') || '0');
+  const THIRTY_SECONDS = 30 * 1000;
+  
   // First ensure we have a valid session
-  const hasValidSession = await ensureValidSession();
-  if (!hasValidSession) {
-    console.warn('No valid session found, redirecting to authentication');
-    // In case of auth issues, trigger a sign-out/redirect in the next tick
-    setTimeout(() => {
-      if (typeof window !== 'undefined') {
-        window.location.href = '/auth';
-      }
-    }, 0);
-    return false;
-  }
-
-  // No need to check subscription if no user ID provided
-  if (!userId) {
-    console.log('hasActiveSubscription: No user ID provided, returning false');
-    return false;
-  }
-
   try {
-    // Only log this once per session to reduce spam
-    if (!hasLoggedSubscriptionCheck) {
-      console.log(`Checking if user has active subscription for ${userId}`);
-      hasLoggedSubscriptionCheck = true;
+    const hasValidSession = await ensureValidSession();
+    console.log(`hasActiveSubscription: Session validity check result: ${hasValidSession}`);
+    
+    if (!hasValidSession) {
+      console.warn('No valid session found, redirecting to authentication');
+      
+      // Only redirect if we haven't redirected recently
+      if (now - lastRedirectAttempt > THIRTY_SECONDS) {
+        localStorage.setItem('last_auth_redirect_attempt', now.toString());
+        
+        // In case of auth issues, trigger a sign-out/redirect in the next tick
+        setTimeout(() => {
+          if (typeof window !== 'undefined') {
+            window.location.href = '/auth';
+          }
+        }, 0);
+      } else {
+        console.log('Skipping redirect - redirected recently');
+      }
+      
+      return false;
     }
-    
-    // Get the user's subscription information
-    const subscription = await getUserSubscription(userId);
-    
-    // Determine if the subscription is active based on its status and expiry
-    const isActive = (subscription?.status === 'active' || subscription?.status === 'trialing')
-                       && new Date(subscription?.periodEnd || 0) > new Date();
-    
-    // Log subscription status only when it changes to reduce spam
-    if (lastSubscriptionStatus === null || lastSubscriptionStatus !== isActive) {
-      console.log(`Subscription for user ${userId} has status: ${subscription?.status}, isActive: ${isActive}`);
-      lastSubscriptionStatus = isActive;
+
+    // No need to check subscription if no user ID provided
+    if (!userId) {
+      console.log('hasActiveSubscription: No user ID provided, returning false');
+      return false;
     }
-    
-    return isActive;
-    
+
+    try {
+      // Only log this once per session to reduce spam
+      if (!hasLoggedSubscriptionCheck) {
+        console.log(`Checking if user has active subscription for ${userId}`);
+        hasLoggedSubscriptionCheck = true;
+      }
+      
+      // Get the user's subscription information
+      const subscription = await getUserSubscription(userId);
+      console.log(`hasActiveSubscription: Retrieved subscription:`, subscription);
+      
+      // Determine if the subscription is active based on its status and expiry
+      const isActive = (subscription?.status === 'active' || subscription?.status === 'trialing')
+                         && new Date(subscription?.periodEnd || 0) > new Date();
+      
+      // Log subscription status only when it changes to reduce spam
+      if (lastSubscriptionStatus === null || lastSubscriptionStatus !== isActive) {
+        console.log(`Subscription for user ${userId} has status: ${subscription?.status}, isActive: ${isActive}`);
+        lastSubscriptionStatus = isActive;
+      } else {
+        console.log(`Subscription check: returning cached result: ${isActive}`);
+      }
+      
+      return isActive;
+    } catch (error) {
+      console.error('Error checking subscription status:', error);
+      return false; // Default to false on error for better security
+    }
   } catch (error) {
-    console.error('Error checking subscription status:', error);
-    return false; // Default to false on error for better security
+    console.error('Session validation or subscription check failed:', error);
+    // Still return false but don't force redirect on unexpected errors
+    return false;
   }
 }
 
 /**
  * Create a Stripe checkout session
  */
-export async function createCheckoutSession(userId?: string): Promise<string | null> {
+export async function createCheckoutSession(userId?: string, tierName: string = 'premium'): Promise<string | null> {
   try {
     // If no userId provided, get the current user
     if (!userId) {
@@ -808,27 +893,106 @@ export async function createCheckoutSession(userId?: string): Promise<string | n
       }
     }
     
+    console.log(`Creating checkout session for user ${userId}, tier: ${tierName}`);
+    
     try {
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+      // Determine the price ID based on the tier name
+      let priceId = '';
+      if (tierName.toLowerCase() === 'unlimited') {
+        priceId = 'price_1RGYI5BAYVpTe3LyxrZuofBR'; // Unlimited tier price ID
+      } else {
+        priceId = 'price_1RGYI5BAYVpTe3LyMK63jgl2'; // Premium tier price ID
+      }
+      
+      // Add debug flag and price ID to see detailed logs
+      console.log(`Sending request to create-payment-handler with: ${JSON.stringify({
+        purchaseType: 'subscription',
+        userId,
+        subscriptionType: tierName.toLowerCase(),
+        debug: true,
+        priceId,
+        metadata: {
+          target_stripe_price_id: priceId
+        }
+      })}`);
+      
+      const { data, error } = await supabase.functions.invoke('create-payment-handler', {
         body: { 
-          priceId: SUBSCRIPTION_PRICE_ID,
-          userId 
+          purchaseType: 'subscription',               // Specify this is a subscription purchase
+          userId: userId,                             // User ID with correct camelCase
+          subscriptionType: tierName.toLowerCase(),   // Type of subscription (premium or unlimited)
+          debug: true,                                // Enable debugging output
+          priceId,                                    // Explicitly provide price ID
+          metadata: {                                 // Add metadata for the checkout session
+            target_stripe_price_id: priceId,          // Include price ID in metadata for webhook
+            tier: tierName.toLowerCase()              // Include tier in metadata
+          }
         }
       });
       
       if (error) {
         console.error('Error creating checkout session:', error);
-        return null;
+        
+        // Try to extract the response body if available
+        let responseBody = null;
+        try {
+          if (error.context && error.context.response) {
+            responseBody = await error.context.response.json();
+            console.error('Error response body:', responseBody);
+            
+            // Log detailed debugging information if available
+            if (responseBody.debug_info) {
+              console.error('Debugging information:', responseBody.debug_info);
+              console.table({
+                'Checked Variables': responseBody.debug_info.checked_variables?.join(', ') || 'None',
+                'Available Variables': responseBody.debug_info.available_variables || 'None',
+                'Environment': responseBody.debug_info.environment || 'Unknown'
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Could not parse error response:', e);
+        }
+        
+        // Try to extract more detailed error if available
+        let errorMessage = error.message || 'Unknown error';
+        if (responseBody && responseBody.error) {
+          errorMessage = responseBody.error;
+          if (responseBody.detail) {
+            errorMessage += `: ${responseBody.detail}`;
+          }
+        } else if (error.message?.includes('Edge Function')) {
+          // Attempt to get a more descriptive error from the Edge Function
+          errorMessage = 'Edge Function error: The server encountered an issue processing the subscription. The Stripe price ID may be invalid or missing.';
+          
+          // Add debugging info
+          console.error(`Edge Function error details: Status: ${error.status}, Context:`, error.context);
+        }
+        
+        throw new Error(errorMessage);
       }
       
-      return data.url;
+      if (!data) {
+        console.error('No data returned from create-payment-handler');
+        throw new Error('No response data from payment handler');
+      }
+      
+      console.log('Checkout session created successfully, response:', data);
+      
+      // The response format may have changed, check for client_secret instead of url
+      if (data.client_secret) {
+        // For Payment Intent flow with redirect
+        return data.client_secret;
+      }
+      
+      return data.url || null;
     } catch (invokeErr) {
-      console.error('Failed to invoke create-checkout-session function:', invokeErr);
-      return null;
+      console.error('Failed to invoke create-payment-handler function:', invokeErr);
+      throw invokeErr; // Re-throw to be handled by the caller
     }
   } catch (err) {
     console.error('Failed to create checkout session:', err);
-    return null;
+    throw err; // Re-throw to be handled by the caller
   }
 }
 
@@ -1504,5 +1668,56 @@ export async function specialUpdateMessageCount(userId?: string, increment: bool
   } catch (err) {
     console.error('DIAGNOSTIC: Special update failed:', err);
     return false;
+  }
+}
+
+/**
+ * Manually activate a user's subscription (use after successful payment if webhooks fail)
+ */
+export async function manuallyActivateSubscription(priceId: string): Promise<boolean> {
+  try {
+    console.log(`Manually activating subscription with price ID: ${priceId}`);
+    
+    // Ensure we have a valid session
+    const hasValidSession = await ensureValidSession();
+    if (!hasValidSession) {
+      console.error('No valid session found for manual subscription activation');
+      return false;
+    }
+    
+    // Call the activate-subscription function
+    const { data, error } = await supabase.functions.invoke('activate-subscription', {
+      body: { priceId }
+    });
+    
+    if (error) {
+      console.error('Error manually activating subscription:', error);
+      return false;
+    }
+    
+    if (!data?.success) {
+      console.error('Manual subscription activation failed:', data?.error || 'Unknown error');
+      return false;
+    }
+    
+    // Clear cached subscription to force a refresh
+    clearCachedSubscription();
+    
+    console.log('Subscription manually activated successfully');
+    return true;
+  } catch (err) {
+    console.error('Failed to manually activate subscription:', err);
+    return false;
+  }
+}
+
+/**
+ * Determine the price ID for a subscription tier
+ */
+export function getPriceIdForTier(tierName: string): string {
+  if (tierName.toLowerCase() === 'unlimited') {
+    return 'price_1RGYI5BAYVpTe3LyxrZuofBR'; // Unlimited tier price ID
+  } else {
+    return 'price_1RGYI5BAYVpTe3LyMK63jgl2'; // Premium tier price ID
   }
 } 

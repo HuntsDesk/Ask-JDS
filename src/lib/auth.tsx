@@ -1,911 +1,219 @@
-import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import type { AuthContextType, User } from '@/types';
-import { withTimeout } from './auth-utils';
-import { useDomain } from './domain-context';
 
-// Create a global key for the auth instance
-const GLOBAL_AUTH_KEY = '__AUTH_INSTANCE__';
-
-// Track auth provider instances in development to detect duplicates
-let AUTH_PROVIDER_INSTANCES = 0;
-const isStrictMode = process.env.NODE_ENV === 'development';
-
-export const AuthContext = createContext<AuthContextType | null>(null);
-
-// Get the global auth instance if it exists
-function getGlobalAuthInstance() {
-  if (typeof window !== 'undefined' && GLOBAL_AUTH_KEY in window) {
-    return (window as any)[GLOBAL_AUTH_KEY];
-  }
-  return null;
+// Define the shape of our auth context
+export interface AuthContextType {
+  user: User | null;
+  session: Session | null;
+  signIn: (email: string, password: string) => Promise<AuthResult>;
+  signUp: (email: string, password: string) => Promise<AuthResult>;
+  signOut: () => Promise<void>;
+  loading: boolean;
+  isAuthResolved: boolean;
 }
 
-// Set the global auth instance
-function setGlobalAuthInstance(instance: any) {
-  if (typeof window !== 'undefined') {
-    (window as any)[GLOBAL_AUTH_KEY] = instance;
-  }
+// Define the result type for auth operations
+export interface AuthResult {
+  success: boolean;
+  error?: string;
+  data?: any;
 }
 
-// Create a singleton instance of the auth provider state
-let authInstance = getGlobalAuthInstance() || {
+// Create the context with a default value
+const AuthContext = createContext<AuthContextType>({
   user: null,
+  session: null,
+  signIn: async () => ({ success: false, error: 'Auth context not initialized' }),
+  signUp: async () => ({ success: false, error: 'Auth context not initialized' }),
+  signOut: async () => {},
   loading: true,
-  authInitialized: false,
-  isAuthResolved: false,
-  status: 'loading'
-};
+  isAuthResolved: false
+});
 
-// Static state to track initialization
-let isAuthInitializing = false;
-let authInitPromise: Promise<void> | null = null;
-let authInitialized = false;
-// Add cancellation reference for session fetch
-let currentSessionFetch: any = null;
-
-// Initialize auth
-export async function initializeAuth() {
-  console.log('Auth initialization requested');
+// Create the provider component
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  console.log('[DEBUG] AuthProvider initializing');
   
-  // If already initialized, return immediately
-  if (authInitialized) {
-    console.log('Auth already initialized, returning');
-    return;
-  }
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isAuthResolved, setIsAuthResolved] = useState(false);
 
-  // If initialization is in progress, return the existing promise
-  if (isAuthInitializing && authInitPromise) {
-    console.log('Auth initialization already in progress, returning existing promise');
-    return authInitPromise;
-  }
+  // Initialize and set up auth state listener
+  useEffect(() => {
+    const handleAuthUpdate = (currentSession: Session | null) => {
+      console.log('[DEBUG] Auth state changed:', currentSession ? 'Active session' : 'No session');
+      setSession(currentSession);
+      setLoading(false);
+      
+      // If there's a session, update the user state
+      if (currentSession?.user) {
+        console.log('[DEBUG] User authenticated:', currentSession.user.id);
+        setUser(currentSession.user);
+      } else {
+        console.log('[DEBUG] No authenticated user');
+        setUser(null);
+      }
+    };
 
-  // If user is already authenticated, don't re-initialize
-  if (authInstance.user && authInstance.status === 'authenticated') {
-    console.log('User already authenticated, skipping initialization');
-    authInitialized = true;
-    return;
-  }
+    // Get the initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      handleAuthUpdate(session);
+      setIsAuthResolved(true);
+    });
 
-  isAuthInitializing = true;
-  
-  authInitPromise = new Promise<void>(async (resolve) => {
+    // Set up a listener for future auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      handleAuthUpdate(session);
+      setIsAuthResolved(true);
+    });
+
+    // Clean up the subscription when the component unmounts
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Sign in with email and password
+  const signIn = async (email: string, password: string): Promise<AuthResult> => {
+    console.log('[DEBUG] Sign in attempt for:', email);
+    setLoading(true);
     try {
-      console.log('Starting auth initialization');
-      
-      // Check for session markers in storage first
-      const { hasSession, userId } = checkSessionStorage();
-      if (hasSession && userId) {
-        console.log(`Found recent session marker for ${userId}, will prioritize this info`);
-      }
-      
-      // Wait for Supabase client to be ready
-      await ensureSupabaseClientReady();
-      
-      console.log('Got Supabase client for auth initialization');
-      
-      // Check localStorage for existing session first
-      let existingSession = null;
-      
-      try {
-        if (typeof window !== 'undefined') {
-          const authStorage = localStorage.getItem('ask-jds-auth-storage');
-          if (authStorage) {
-            const authData = JSON.parse(authStorage);
-            if (authData?.access_token && authData?.expires_at) {
-              // Check if token is still valid (not expired)
-              const expiresAt = new Date(authData.expires_at);
-              if (expiresAt > new Date()) {
-                console.log('Found valid session in localStorage');
-                existingSession = authData;
-              } else {
-                console.log('Found expired session in localStorage');
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Error checking localStorage for session:', e);
-      }
-      
-      // Set up the auth state change listener before fetching initial session
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        console.log(`Auth state change: ${event}`);
-        const prevAuthStatus = authInstance.status;
-        
-        if (event === 'SIGNED_IN') {
-          console.log('User signed in, updating auth instance');
-          const user = session?.user;
-          
-          if (user) {
-            // Create user object with base properties
-            const userData = {
-              id: user.id,
-              email: user.email!,
-              isAdmin: false, // Default to false, will be updated by refreshUser if needed
-              last_sign_in_at: user.last_sign_in_at,
-              user_metadata: user.user_metadata
-            };
-            
-            // Update singleton instance
-            authInstance.user = userData;
-            authInstance.status = 'authenticated';
-            authInstance.initialized = true;
-            authInstance.loading = false;
-            authInstance.isAuthResolved = true;
-            setGlobalAuthInstance(authInstance);
-            
-            // Cancel any in-progress session fetch to prevent race conditions
-            if (currentSessionFetch && typeof currentSessionFetch.cancel === 'function') {
-              console.log('Cancelling in-progress session fetch due to sign-in');
-              currentSessionFetch.cancel();
-              currentSessionFetch = null;
-            }
-            
-            // Mark auth as initialized to prevent redundant checks
-            authInitialized = true;
-            
-            // Refresh user data if needed
-            refreshUserData(userData);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          console.log('User signed out, clearing auth instance');
-          
-          // Update singleton instance
-          authInstance.user = null;
-          authInstance.status = 'unauthenticated';
-          authInstance.initialized = true;
-          authInstance.loading = false;
-          authInstance.isAuthResolved = true;
-          setGlobalAuthInstance(authInstance);
-        } else if (event === 'USER_UPDATED') {
-          console.log('User updated, refreshing user data');
-          const user = session?.user;
-          if (user) {
-            // Refresh user data
-            refreshUserData(user);
-          }
-        } else if (event === 'INITIAL_SESSION') {
-          // Only update if we don't already have a user (prevent overriding a SIGNED_IN event)
-          if (prevAuthStatus === 'loading') {
-            console.log('Initial session received', session?.user ? 'with user' : 'without user');
-            if (session?.user) {
-              // Create user object with base properties
-              const userData = {
-                id: session.user.id,
-                email: session.user.email!,
-                isAdmin: false, // Default to false, will be updated by refreshUser if needed
-                last_sign_in_at: session.user.last_sign_in_at,
-                user_metadata: session.user.user_metadata
-              };
-              
-              // Update singleton instance
-              authInstance.user = userData;
-              authInstance.status = 'authenticated';
-              authInstance.initialized = true;
-              authInstance.loading = false;
-              authInstance.isAuthResolved = true;
-              setGlobalAuthInstance(authInstance);
-              
-              // Refresh user data
-              refreshUserData(userData);
-            } else {
-              // Update singleton instance
-              authInstance.user = null;
-              authInstance.status = 'unauthenticated';
-              authInstance.initialized = true;
-              authInstance.loading = false;
-              authInstance.isAuthResolved = true;
-              setGlobalAuthInstance(authInstance);
-            }
-          } else {
-            console.log(`Ignoring INITIAL_SESSION event because auth status is already ${prevAuthStatus}`);
-          }
-        } else if (event === 'TOKEN_REFRESHED') {
-          console.log('Auth token refreshed');
-          // No need to update state as the user remains the same
-        }
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
       });
-      
-      // If we already have a user (from storage or a previous auth change), skip session fetch
-      if (authInstance.user && authInstance.status === 'authenticated') {
-        console.log('User already authenticated, skipping session fetch');
-        authInitialized = true;
-        resolve();
-        return;
+
+      if (error) {
+        return { success: false, error: error.message };
       }
-      
-      try {
-        // Before fetching from Supabase, check if we have a recently confirmed session
-        const { hasSession, userId } = checkSessionStorage();
-        
-        if (hasSession && userId) {
-          console.log(`Using recent session confirmation for user ${userId}`);
-          
-          // Try to recover user data from local storage
-          try {
-            if (typeof window !== 'undefined') {
-              const authStorage = localStorage.getItem('ask-jds-auth-storage');
-              if (authStorage) {
-                const authData = JSON.parse(authStorage);
-                if (authData?.user?.id === userId) {
-                  console.log('Recovered matching user data from localStorage for session marker');
-                  
-                  // Create user object from storage
-                  const userData = {
-                    id: authData.user.id,
-                    email: authData.user.email,
-                    isAdmin: false, // Default to false, will be updated by refreshUser if needed
-                    last_sign_in_at: authData.user.last_sign_in_at || new Date().toISOString(),
-                    user_metadata: authData.user.user_metadata || {}
-                  };
-                  
-                  // Update singleton instance with recovered data
-                  authInstance.user = userData;
-                  authInstance.status = 'authenticated';
-                  authInstance.initialized = true;
-                  authInstance.loading = false;
-                  authInstance.isAuthResolved = true;
-                  setGlobalAuthInstance(authInstance);
-                  
-                  // Mark as initialized to prevent redundant checks
-                  authInitialized = true;
-                  resolve();
-                  
-                  // Clear session markers to prevent future conflicts
-                  sessionStorage.removeItem('auth-session-detected');
-                  sessionStorage.removeItem('auth-session-user-id');
-                  sessionStorage.removeItem('auth-session-timestamp');
-                  
-                  // Still refresh user data in the background
-                  refreshUserData(userData);
-                  return;
-                }
-              }
-            }
-          } catch (e) {
-            console.warn('Error recovering user data for session marker:', e);
-            // Continue with normal session fetch
-          }
-        }
-      
-        // Use our improved withTimeout utility to fetch the session
-        currentSessionFetch = withTimeout(
-          () => supabase.auth.getSession(),
-          15000, // Use a reasonable timeout
-          'Auth session fetch timed out',
-          2 // Use a reasonable retry count
-        );
-        
-        const response = await currentSessionFetch;
-        const session = response?.data?.session || null;
-        currentSessionFetch = null;
-        
-        // Check if auth state was already set by another process
-        if (authInitialized) {
-          console.log('Auth already initialized by another process, skipping duplicate initialization');
-          resolve();
-          return;
-        }
-        
-        console.log('Initial session fetch successful', session ? 'with session' : 'without session');
-        
-        if (session?.user) {
-          console.log('User found in session, updating auth instance');
-          
-          // Create user object with base properties
-          const userData = {
-            id: session.user.id,
-            email: session.user.email!,
-            isAdmin: false, // Default to false, will be updated by refreshUser if needed
-            last_sign_in_at: session.user.last_sign_in_at,
-            user_metadata: session.user.user_metadata
-          };
-          
-          // Update singleton instance
-          authInstance.user = userData;
-          authInstance.status = 'authenticated';
-          authInstance.initialized = true;
-          authInstance.loading = false;
-          authInstance.isAuthResolved = true;
-          setGlobalAuthInstance(authInstance);
-          
-          // Store session information in a more reliable way
-          try {
-            if (typeof window !== 'undefined') {
-              // Don't replace existing storage, just ensure tokens are there
-              localStorage.setItem('auth-user-id', session.user.id);
-            }
-          } catch (e) {
-            console.warn('Error updating localStorage with session info:', e);
-          }
-          
-          // Refresh user data
-          refreshUserData(userData);
-        } else {
-          console.log('No user in session, setting unauthenticated');
-          
-          // Update singleton instance
-          authInstance.user = null;
-          authInstance.status = 'unauthenticated';
-          authInstance.initialized = true;
-          authInstance.loading = false;
-          authInstance.isAuthResolved = true;
-          setGlobalAuthInstance(authInstance);
-        }
-      } catch (error) {
-        // If error is "Operation cancelled", this is expected behavior due to sign-in
-        if (error.message === 'Operation cancelled') {
-          console.log('Session fetch cancelled due to auth state change');
-          // Auth state should already be set by the process that cancelled this operation
-          resolve();
-          return;
-        }
-        
-        console.error('Error fetching initial session:', error);
-        
-        // Try to recover from localStorage if session fetch failed
-        let recoveredFromStorage = false;
-        try {
-          if (typeof window !== 'undefined') {
-            const userId = localStorage.getItem('auth-user-id');
-            const authStorage = localStorage.getItem('ask-jds-auth-storage');
-            
-            if (userId && authStorage) {
-              const authData = JSON.parse(authStorage);
-              if (authData?.user?.id === userId) {
-                console.log('Recovered user from localStorage after session fetch error');
-                
-                // Create user object from storage
-                const userData = {
-                  id: authData.user.id,
-                  email: authData.user.email,
-                  isAdmin: false, // Default to false, will be updated by refreshUser if needed
-                  last_sign_in_at: authData.user.last_sign_in_at || new Date().toISOString(),
-                  user_metadata: authData.user.user_metadata || {}
-                };
-                
-                // Update singleton instance with recovered data
-                authInstance.user = userData;
-                authInstance.status = 'authenticated';
-                authInstance.initialized = true;
-                authInstance.loading = false;
-                authInstance.isAuthResolved = true;
-                setGlobalAuthInstance(authInstance);
-                
-                recoveredFromStorage = true;
-              }
-            }
-          }
-        } catch (e) {
-          console.error('Error recovering from localStorage:', e);
-        }
-        
-        // If we couldn't recover from storage, set to unauthenticated
-        if (!recoveredFromStorage) {
-          // Update singleton instance
-          authInstance.user = null;
-          authInstance.status = 'unauthenticated';
-          authInstance.initialized = true;
-          authInstance.loading = false;
-          authInstance.isAuthResolved = true;
-          setGlobalAuthInstance(authInstance);
-        }
-      }
-      
-      authInitialized = true;
-      resolve();
-    } catch (error) {
-      console.error('Error during auth initialization:', error);
-      // Even on error, mark as initialized so the app can proceed
-      
-      // Update singleton instance
-      authInstance.user = null;
-      authInstance.status = 'unauthenticated';
-      authInstance.initialized = true;
-      authInstance.loading = false;
-      authInstance.isAuthResolved = true;
-      setGlobalAuthInstance(authInstance);
-      
-      authInitialized = true;
-      resolve();
+
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: err.message };
     } finally {
-      isAuthInitializing = false;
+      setLoading(false);
     }
-  });
-  
-  return authInitPromise;
-}
+  };
 
-/**
- * Ensure Supabase client is ready before proceeding with auth
- */
-async function ensureSupabaseClientReady(): Promise<void> {
-  try {
-    await withTimeout(
-      () => Promise.resolve(supabase),
-      5000,
-      'Supabase client initialization timeout'
-    );
-    console.log('Supabase client ready for auth');
-  } catch (error) {
-    console.error('Error ensuring Supabase client is ready:', error);
-  }
-}
-
-/**
- * Function to refresh user metadata or perform other data fetching after auth
- */
-async function refreshUserData(user: User): Promise<void> {
-  console.log('Refreshing user data for:', user.email);
-  
-  try {
-    // Check if we're in admin domain
-    const isAdminDomain = window.location.hostname.includes('admin') || 
-                         window.location.port === '5175' ||
-                         window.location.pathname.startsWith('/admin');
-    
-    if (isAdminDomain) {
-      console.log('In admin domain, checking admin status');
-      
-      // Check if user is admin from metadata
-      const isAdminFromMetadata = user.user_metadata?.is_admin === true || 
-                                 user.user_metadata?.admin === true;
-      
-      if (isAdminFromMetadata) {
-        console.log('User is admin based on metadata');
-        
-        // Update user object and auth instance
-        if (authInstance.user) {
-          authInstance.user.isAdmin = true;
-          setGlobalAuthInstance(authInstance);
-        }
-        
-        return;
-      }
-      
-      // Check from database via profiles table
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', user.id)
-        .single();
-      
-      if (!error && data && data.is_admin) {
-        console.log('User is admin based on profiles table');
-        
-        // Update user object and auth instance
-        if (authInstance.user) {
-          authInstance.user.isAdmin = true;
-          setGlobalAuthInstance(authInstance);
-        }
-        
-        return;
-      }
-      
-      // Try RPC function as a last resort
-      try {
-        const { data: rpcData, error: rpcError } = await supabase
-          .rpc('is_user_admin', { user_id: user.id });
-        
-        if (!rpcError && rpcData === true) {
-          console.log('User is admin based on RPC function');
-          
-          // Update user object and auth instance
-          if (authInstance.user) {
-            authInstance.user.isAdmin = true;
-            setGlobalAuthInstance(authInstance);
-          }
-        } else {
-          console.log('User is not an admin based on all checks');
-        }
-      } catch (e) {
-        console.error('Error checking admin status via RPC:', e);
-      }
-    }
-  } catch (e) {
-    console.error('Error in refreshUserData:', e);
-  }
-}
-
-/**
- * Function to check if the current session token is still valid
- */
-export async function validateSessionToken(): Promise<boolean> {
-  console.log('Validating session token');
-  try {
-    // Quick check: if we have a session timestamp in localStorage, check it first
-    if (typeof window !== 'undefined') {
-      try {
-        const sessionTimestamp = localStorage.getItem('last_active_timestamp');
-        if (sessionTimestamp) {
-          const lastActive = parseInt(sessionTimestamp, 10);
-          const now = Date.now();
-          // If last activity was more than 3 hours ago, consider session potentially expired
-          // This is a conservative check that avoids unnecessary API calls
-          if (now - lastActive > 3 * 60 * 60 * 1000) { // 3 hours
-            console.log('Session potentially expired: inactive for 3+ hours');
-            // Continue to full validation instead of returning immediately
-            // This way the server check will still happen but we've logged the inactivity
-          } else {
-            // Update the timestamp since the user is active
-            localStorage.setItem('last_active_timestamp', now.toString());
-          }
-        } else {
-          // No timestamp found, set one now
-          localStorage.setItem('last_active_timestamp', Date.now().toString());
-        }
-      } catch (e) {
-        // Ignore localStorage errors, proceed with normal validation
-        console.warn('Error checking session timestamp in localStorage:', e);
-      }
-    }
-
-    // Get the current session
-    const { data: { session }, error } = await supabase.auth.getSession();
-    
-    if (error) {
-      console.error('Error validating session token:', error);
-      return false;
-    }
-    
-    if (!session) {
-      console.log('No active session found during validation');
-      return false;
-    }
-    
-    // Check if the token is expired
-    if (session.expires_at) {
-      const expiresAt = new Date(session.expires_at * 1000);
-      const now = new Date();
-      
-      if (expiresAt <= now) {
-        console.log('Session token has expired');
-        return false;
-      }
-    }
-    
-    // Update the last active timestamp since we have a valid session
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('last_active_timestamp', Date.now().toString());
-    }
-    
-    // Make a lightweight API call to verify the token is accepted by the server
+  // Sign up with email and password
+  const signUp = async (email: string, password: string): Promise<AuthResult> => {
+    setLoading(true);
     try {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !userData.user) {
-        console.error('Token validation failed:', userError);
-        return false;
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
       }
-      
-      console.log('Session token is valid');
-      return true;
-    } catch (apiError) {
-      console.error('API error during token validation:', apiError);
-      return false;
+
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
     }
-  } catch (e) {
-    console.error('Unexpected error during token validation:', e);
-    return false;
-  }
-}
+  };
 
-/**
- * Handle session expiration by clearing the local auth state and redirecting
- */
-export function handleSessionExpiration(preservedMessage?: string) {
-  console.log('Handling session expiration');
-  
-  // Clear the local auth state
-  authInstance.user = null;
-  authInstance.status = 'unauthenticated';
-  setGlobalAuthInstance(authInstance);
-  
-  // Clear any persisted auth data
-  supabase.auth.signOut().catch(error => {
-    console.error('Error signing out after session expiration:', error);
-  });
-  
-  // Show a user-friendly message
-  if (typeof window !== 'undefined') {
-    // Store a message to display after redirect
-    sessionStorage.setItem('auth_redirect_reason', 'session_expired');
-    
-    // If there's a message to preserve, store it in sessionStorage
-    if (preservedMessage) {
-      console.log('Preserving draft message for after login');
-      sessionStorage.setItem('preserved_message', preservedMessage);
+  // Sign out
+  const signOut = async (): Promise<void> => {
+    setLoading(true);
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Error signing out:', err);
+    } finally {
+      setLoading(false);
     }
-    
-    // Store the current path before redirecting (we'll save the full URL for simplicity)
-    const currentPath = window.location.pathname + window.location.search;
-    if (currentPath && currentPath !== '/' && !currentPath.startsWith('/auth') && !currentPath.startsWith('/login')) {
-      localStorage.setItem('ask-jds-last-visited-page', currentPath);
-    }
-    
-    // Redirect to the auth page
-    window.location.href = '/auth';
-  }
-}
+  };
 
-/**
- * Check for any manual session detection
- */
-function checkSessionStorage(): { hasSession: boolean, userId: string | null } {
-  if (typeof window === 'undefined') {
-    return { hasSession: false, userId: null };
-  }
-  
-  try {
-    const sessionDetected = sessionStorage.getItem('auth-session-detected') === 'true';
-    const userId = sessionStorage.getItem('auth-session-user-id');
-    const timestamp = sessionStorage.getItem('auth-session-timestamp');
-    
-    // Check if session was detected recently (within last 30 seconds)
-    if (sessionDetected && userId && timestamp) {
-      const sessionTime = parseInt(timestamp, 10);
-      const now = Date.now();
-      const isRecent = now - sessionTime < 30 * 1000; // 30 seconds
-      
-      if (isRecent) {
-        console.log(`Found recent session marker in storage for user ${userId}`);
-        return { hasSession: true, userId };
-      }
-    }
-    
-    return { hasSession: false, userId: null };
-  } catch (e) {
-    console.warn('Error checking sessionStorage for session marker:', e);
-    return { hasSession: false, userId: null };
-  }
-}
-
-function AuthProviderComponent({ children }: { children: React.ReactNode }) {
-  // Add enhanced logging with timestamp and unique ID for the provider instance
-  const providerId = useRef<string>(Math.random().toString(36).substring(2, 8));
-  const mountCount = useRef<number>(0);
-  
-  // Log provider mount and cleanup
-  useEffect(() => {
-    mountCount.current++;
-    // Increment global instance counter
-    AUTH_PROVIDER_INSTANCES++;
-    
-    // Expected pattern in strict mode: mount twice, then eventually unmount twice
-    console.log(
-      `[AUTH PROVIDER] Instance ${providerId.current} mounted (${mountCount.current}x) at ${new Date().toISOString()}`,
-      `\nTotal provider instances: ${AUTH_PROVIDER_INSTANCES}`
-    );
-    
-    if (AUTH_PROVIDER_INSTANCES > 2 && isStrictMode) {
-      console.warn(
-        `[WARNING] Detected ${AUTH_PROVIDER_INSTANCES} AuthProvider instances. ` +
-        `In StrictMode, you should see at most 2 instances (double mount). ` + 
-        `More than 2 instances indicates you have multiple AuthProviders in your component tree, ` +
-        `which will cause authentication issues.`
-      );
-    } else if (AUTH_PROVIDER_INSTANCES > 1 && !isStrictMode) {
-      console.error(
-        `[ERROR] Detected ${AUTH_PROVIDER_INSTANCES} AuthProvider instances in production mode. ` +
-        `There should only be ONE AuthProvider at the root of your application. ` +
-        `Multiple providers will cause authentication issues and redirect loops.`
-      );
-    }
-    
-    if (isStrictMode) {
-      console.log(
-        '\nNOTE: In React development mode with StrictMode enabled, components are intentionally mounted twice.',
-        '\nThis is expected and helps find side effects. It does NOT indicate a problem in your code.',
-        '\nAny duplicate AuthProvider logs are likely due to StrictMode and not actual duplicate providers.',
-        '\nIn production builds, components will only mount once.'
-      );
-    }
-    
-    return () => {
-      // Decrement global instance counter
-      AUTH_PROVIDER_INSTANCES--;
-      console.log(
-        `[AUTH PROVIDER] Instance ${providerId.current} unmounted at ${new Date().toISOString()}`
-      );
-    };
-  }, []);
-  
-  const [auth, setAuth] = useState<AuthContextType>({
-    user: authInstance.user,
-    loading: authInstance.loading !== false,
-    authInitialized: false,
-    isAuthResolved: false,
-    signIn: async (email: string, password: string) => {
-      try {
-        console.log('Signing in with email:', email);
-        const { data, error } = await supabase.auth.signInWithPassword({ 
-          email, 
-          password 
-        });
-        
-        console.log('Sign in response:', data ? 'has data' : 'no data', error ? 'has error' : 'no error');
-        
-        if (error) {
-          console.error('Sign in error:', error);
-        }
-        
-        return { error };
-      } catch (err) {
-        console.error('Exception during sign in:', err);
-        return { error: err instanceof Error ? err : new Error(String(err)) };
-      }
-    },
-    signUp: async (email: string, password: string) => {
-      try {
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        return { error };
-      } catch (err) {
-        console.error('Sign up error:', err);
-        return { error: err instanceof Error ? err : new Error(String(err)) };
-      }
-    },
-    signOut: async () => {
-      try {
-        const { error } = await supabase.auth.signOut();
-        return { error };
-      } catch (err) {
-        console.error('Sign out error:', err);
-        return { error: err instanceof Error ? err : new Error(String(err)) };
-      }
-    },
-    resetPassword: async (email: string) => {
-      try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email);
-        return { error };
-      } catch (err) {
-        console.error('Reset password error:', err);
-        return { error: err instanceof Error ? err : new Error(String(err)) };
-      }
-    },
-    updatePassword: async (password: string) => {
-      try {
-        const { error } = await supabase.auth.updateUser({ password });
-        return { error };
-      } catch (err) {
-        console.error('Update password error:', err);
-        return { error: err instanceof Error ? err : new Error(String(err)) };
-      }
-    },
-    resendOtp: async (email: string) => {
-      try {
-        const { error } = await supabase.auth.resend({ email, type: 'signup' });
-        return { error };
-      } catch (err) {
-        console.error('Resend OTP error:', err);
-        return { error: err instanceof Error ? err : new Error(String(err)) };
-      }
-    },
-    verifyOtp: async (email: string, token: string) => {
-      try {
-        const { data, error } = await supabase.auth.verifyOtp({ 
-          email, 
-          token, 
-          type: 'signup' 
-        });
-        
-        return !error && !!data.user;
-      } catch (err) {
-        console.error('Verify OTP error:', err);
-        return false;
-      }
-    },
-    refreshUser: async () => null,
-  });
-
-  const cancelRef = useRef<() => void>(() => {});
-  const isProviderMounted = useRef(true);
-
-  useEffect(() => {
-    isProviderMounted.current = true;
-    
-    // On cleanup, set our flag to false to prevent state updates after unmount
-    return () => {
-      isProviderMounted.current = false;
-      
-      // Cancel any in-progress operations
-      if (typeof cancelRef.current === 'function') {
-        cancelRef.current();
-      }
-    };
-  }, []);
-
-  // Initialize auth on mount
-  useEffect(() => {
-    const initialize = async () => {
-      try {
-        await initializeAuth();
-        
-        // Only update state if the provider is still mounted
-        if (isProviderMounted.current) {
-          setAuth(prevAuth => ({
-            ...prevAuth,
-            user: authInstance.user,
-            loading: false,
-            authInitialized: true,
-            isAuthResolved: true,
-          }));
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-        
-        // Even on error, we've resolved the auth state
-        if (isProviderMounted.current) {
-          setAuth(prevAuth => ({
-            ...prevAuth,
-            loading: false,
-            isAuthResolved: true,
-          }));
-        }
-      }
-    };
-
-    initialize();
-  }, []);
-
-  // Add visibilitychange event listener to check token when user returns to tab
-  useEffect(() => {
-    if (!auth.user) return; // Skip if no user
-    
-    const checkSessionOnVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && auth.user && isProviderMounted.current) {
-        console.log('Tab became visible, checking session validity');
-        validateSessionToken().then(isValid => {
-          if (!isValid && isProviderMounted.current) {
-            console.log('Session invalid after visibility change, handling expiration');
-            handleSessionExpiration();
-          }
-        });
-      }
-    };
-    
-    // Set up periodic validation (every 30 mins)
-    const periodicValidationInterval = setInterval(() => {
-      if (auth.user && isProviderMounted.current) {
-        console.log('Performing periodic session validation');
-        validateSessionToken().then(isValid => {
-          if (!isValid && isProviderMounted.current) {
-            console.log('Session invalid during periodic check, handling expiration');
-            handleSessionExpiration();
-          }
-        });
-      }
-    }, 30 * 60 * 1000); // 30 minutes
-    
-    document.addEventListener('visibilitychange', checkSessionOnVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', checkSessionOnVisibilityChange);
-      clearInterval(periodicValidationInterval);
-    };
-  }, [auth.user]);
-  
-  // Create the auth context value
-  const value = {
-    ...auth,
-    isAuthResolved: auth.isAuthResolved,
+  // Provide the context value
+  const contextValue: AuthContextType = {
+    user,
+    session,
+    signIn,
+    signUp,
+    signOut,
+    loading,
+    isAuthResolved
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
 }
 
+// Custom hook to use the auth context
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  return <AuthProviderComponent>{children}</AuthProviderComponent>;
+// Function to validate session token
+export async function validateSessionToken(): Promise<boolean> {
+  try {
+    // Check for recent validations to prevent excessive calls
+    const now = Date.now();
+    const lastValidation = parseInt(localStorage.getItem('last_token_validation') || '0');
+    const THREE_SECONDS = 3 * 1000;
+    
+    if (lastValidation && now - lastValidation < THREE_SECONDS) {
+      // If we validated very recently, use the cached result
+      const cachedResult = localStorage.getItem('last_validation_result');
+      if (cachedResult) {
+        return cachedResult === 'true';
+      }
+    }
+    
+    // Store this validation time
+    localStorage.setItem('last_token_validation', now.toString());
+    
+    // Add a timeout to prevent hanging
+    const timeoutPromise = new Promise<{data: {user: null}, error: Error}>((resolve) => {
+      setTimeout(() => {
+        resolve({
+          data: {user: null},
+          error: new Error('Session validation timed out')
+        });
+      }, 5000); // 5 seconds timeout
+    });
+    
+    const { data, error } = await Promise.race([
+      supabase.auth.getUser(),
+      timeoutPromise
+    ]);
+    
+    if (error) {
+      console.error('Session token validation failed:', error);
+      localStorage.setItem('last_validation_result', 'false');
+      return false;
+    }
+    
+    const result = !!data.user;
+    localStorage.setItem('last_validation_result', result.toString());
+    return result;
+  } catch (err) {
+    console.error('Error validating session token:', err);
+    localStorage.setItem('last_validation_result', 'false');
+    return false;
+  }
 }
+
+// Function to handle session expiration and preserve user data
+export const handleSessionExpiration = (messageContent?: string) => {
+  console.log('[DEBUG] Session expired, preserving message and redirecting');
+  if (messageContent && messageContent.trim()) {
+    localStorage.setItem('preservedMessage', messageContent);
+    // Optional: consider if preservedThreadId also needs to be saved from localStorage if available
+    const threadId = localStorage.getItem('currentThreadId');
+    if (threadId) localStorage.setItem('preservedThreadId', threadId);
+  }
+  // For now, this will just redirect. A more robust solution might involve the AuthContext's signOut.
+  if (typeof window !== 'undefined') {
+    window.location.href = '/auth'; // Or your designated login/auth page
+  }
+}; 

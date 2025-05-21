@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import {
   Card,
@@ -30,6 +30,9 @@ import {
 import { useAuth } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { StripeCheckoutDialog } from '@/components/stripe/StripeCheckoutDialog';
+import ForceSubscriptionRefresh from '@/components/subscription/ForceSubscriptionRefresh';
 
 // Constants
 const FREE_TIER_LIMIT = FREE_MESSAGE_LIMIT;
@@ -41,10 +44,20 @@ export function SubscriptionSettings() {
   const [subscription, setSubscription] = useState<any>(null);
   const [messageCount, setMessageCount] = useState(0);
   const [diagnosticResult, setDiagnosticResult] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [currentTierName, setCurrentTierName] = useState<string | null>(null);
   const { toast } = useToast();
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { user } = useAuth();
   const messageCountCache = new Map<string | undefined, { count: number; timestamp: number }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Handle closing payment modal
+  const handleClosePaymentModal = () => {
+    setShowPaymentModal(false);
+  };
 
   useEffect(() => {
     async function loadSubscriptionData() {
@@ -107,31 +120,34 @@ export function SubscriptionSettings() {
     };
   }, [toast, user?.id]);
   
-  // Handle subscribe button click
-  const handleSubscribe = async () => {
-    try {
-      setIsActionLoading(true);
-      
-      const url = await createCheckoutSession(user?.id);
-      if (url) {
-        window.location.href = url;
-      } else {
-        toast({
-          title: 'Error',
-          description: 'Failed to create checkout session. Please try again later.',
-          variant: 'destructive',
-        });
+  // Check for upgrade parameter in URL
+  useEffect(() => {
+    if (isLoading) return;
+    
+    const searchParams = new URLSearchParams(location.search);
+    const upgradeParam = searchParams.get('upgrade');
+    
+    if (upgradeParam && user) {
+      // Handle the upgrade request
+      if (upgradeParam === 'premium' || upgradeParam === 'unlimited') {
+        // Use window.history to remove the parameter without navigation
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('upgrade');
+        window.history.replaceState({}, '', newUrl.toString());
+
+        // Trigger the subscription flow for the requested tier AFTER modifying the URL
+        initiateSubscription(upgradeParam);
       }
-    } catch (error) {
-      console.error('Error creating checkout session:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create checkout session. Please try again later.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsActionLoading(false);
     }
+  }, [isLoading, location.search, user, navigate]);
+
+  // Handle subscribe button click
+  const handleSubscribe = () => {
+    if (!user) {
+      navigate('/login?redirectTo=/pricing');
+      return;
+    }
+    navigate('/pricing');
   };
   
   // Handle manage subscription button click
@@ -410,6 +426,64 @@ export function SubscriptionSettings() {
     }
   };
 
+  // Function to initiate subscription
+  const initiateSubscription = async (tierName: string) => {
+    try {
+      setIsActionLoading(true);
+      setCurrentTierName(tierName);
+      
+      console.log(`Initiating subscription for tier: ${tierName}`);
+      
+      const redirectUrlOrClientSecret = await createCheckoutSession(user?.id, tierName.toLowerCase());
+      console.log(`Response from createCheckoutSession:`, redirectUrlOrClientSecret);
+      
+      if (redirectUrlOrClientSecret) {
+        // Check if the result is a URL or a client secret
+        if (redirectUrlOrClientSecret.startsWith('/checkout-confirmation')) {
+          console.log('Received checkout-confirmation URL, redirecting...');
+          window.location.href = redirectUrlOrClientSecret;
+        } else if (redirectUrlOrClientSecret.startsWith('http')) {
+          console.log('Received direct URL, redirecting...');
+          window.location.href = redirectUrlOrClientSecret;
+        } else {
+          console.log('Received client secret, showing payment modal...');
+          setClientSecret(redirectUrlOrClientSecret);
+          setShowPaymentModal(true);
+        }
+      } else {
+        console.error('No response from createCheckoutSession');
+        toast({
+          title: 'Error',
+          description: 'Failed to create checkout session. Please try again later.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      
+      // Show more detailed error to the user
+      let errorMessage = 'Failed to create checkout session. Please try again later.';
+      if (error instanceof Error) {
+        errorMessage = `Error: ${error.message}`;
+      }
+      
+      toast({
+        title: 'Checkout Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      
+      // Log additional diagnostic information
+      console.log('Diagnostic information:', {
+        tier: tierName.toLowerCase(),
+        userId: user?.id,
+        // Don't log any sensitive information
+      });
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
   // Render loading state
   if (isLoading) {
     return (
@@ -462,7 +536,7 @@ export function SubscriptionSettings() {
               ) : (
                 <CreditCard className="w-4 h-4 mr-2" />
               )}
-              {isFreeTier() ? `Upgrade to Premium (${SUBSCRIPTION_PRICE}/month)` : 'Manage Subscription'}
+              {isFreeTier() ? `Upgrade Your Account` : 'Manage Subscription'}
             </Button>
           </div>
         </CardContent>
@@ -511,39 +585,75 @@ export function SubscriptionSettings() {
       </Card>
       
       {/* Developer Tools Section */}
-      <Card className="border dark:border-gray-700 shadow-sm dark:bg-gray-800">
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
-            Developer Tools
-            <Badge className="ml-2 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 font-normal" variant="outline">
-              Dev Only
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <Button onClick={refreshMessageCount} variant="outline" size="sm" className="flex items-center dark:border-gray-600 dark:hover:bg-gray-700">
-              <RefreshCw className="w-4 h-4 mr-1" /> Refresh Count
-            </Button>
-            <Button onClick={incrementCount} variant="outline" size="sm" className="flex items-center dark:border-gray-600 dark:hover:bg-gray-700">
-              <span className="mr-1">+</span> Increment Count
-            </Button>
-            <Button onClick={resetMessageCount} variant="outline" size="sm" className="flex items-center dark:border-gray-600 dark:hover:bg-gray-700">
-              <span className="mr-1">↺</span> Reset Count
-            </Button>
-            <Button onClick={runDatabaseTest} variant="outline" size="sm" className="flex items-center dark:border-gray-600 dark:hover:bg-gray-700">
-              <span className="mr-1">⚙</span> Test DB Access
-            </Button>
-          </div>
+      {process.env.NODE_ENV === 'development' && (
+        <Card className="border dark:border-gray-700 shadow-sm dark:bg-gray-800">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">Developer Tools</CardTitle>
+            <CardDescription className="text-gray-500 dark:text-gray-300">
+              Testing tools for developers
+            </CardDescription>
+          </CardHeader>
           
-          {diagnosticResult && (
-            <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-700 rounded overflow-auto text-xs text-gray-900 dark:text-gray-300">
-              <pre>{diagnosticResult}</pre>
+          <CardContent className="space-y-4">
+            <p className="text-amber-600 bg-amber-50 p-3 rounded-md border border-amber-200 text-sm">
+              Warning: These tools are for development and debugging purposes only.
+            </p>
+            
+            <div className="flex flex-col gap-2 mt-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  onClick={incrementCount}
+                  variant="outline"
+                  size="sm"
+                  disabled={isActionLoading}
+                  className="flex items-center gap-1"
+                >
+                  {isActionLoading ? <LoadingSpinner className="w-4 h-4" /> : null}
+                  Increment Message Count
+                </Button>
+                
+                <Button
+                  onClick={runDatabaseTest}
+                  variant="outline"
+                  size="sm"
+                  disabled={isActionLoading}
+                  className="flex items-center gap-1"
+                >
+                  {isActionLoading ? <LoadingSpinner className="w-4 h-4" /> : null}
+                  Test Database Access
+                </Button>
+                
+                <Button
+                  onClick={resetMessageCount}
+                  variant="outline"
+                  size="sm"
+                  disabled={isActionLoading}
+                  className="flex items-center gap-1"
+                >
+                  {isActionLoading ? <LoadingSpinner className="w-4 h-4" /> : null}
+                  Reset Count
+                </Button>
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            
+            {diagnosticResult && (
+              <pre className="p-3 bg-gray-100 dark:bg-gray-700 rounded text-xs overflow-auto max-h-40">
+                {diagnosticResult}
+              </pre>
+            )}
+            
+            {/* Add the ForceSubscriptionRefresh component */}
+            <div className="mt-6">
+              <h3 className="text-base font-medium mb-2 text-gray-900 dark:text-white">Subscription Testing</h3>
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <React.Suspense fallback={<div className="py-4 flex justify-center"><LoadingSpinner className="w-6 h-6" /></div>}>
+                  <ForceSubscriptionRefresh />
+                </React.Suspense>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       
       {/* Optional - additional upgrade button at the bottom for quick access */}
       {isFreeTier() && (
@@ -557,6 +667,25 @@ export function SubscriptionSettings() {
             Upgrade to Premium
           </Button>
         </div>
+      )}
+
+      {/* Payment modal */}
+      {clientSecret && (
+        <StripeCheckoutDialog
+          open={showPaymentModal}
+          onClose={handleClosePaymentModal}
+          clientSecret={clientSecret}
+          title={`Complete your ${currentTierName} subscription`}
+          description="This will give you unlimited access to Ask JDS features"
+          onError={(error) => {
+            console.error('Payment error:', error);
+            toast({
+              title: "Error",
+              description: error.message || 'Payment failed',
+              variant: "destructive",
+            });
+          }}
+        />
       )}
     </div>
   );

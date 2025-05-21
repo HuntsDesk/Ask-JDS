@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Create return URL based on the origin
-    const origin = req.headers.get('origin') || process.env.APP_URL || 'http://localhost:3000';
+    const origin = req.headers.get('origin') || process.env.APP_URL || 'https://localhost:3000';
     const returnUrl = `${origin}/account`;
     
     // Create Stripe portal session

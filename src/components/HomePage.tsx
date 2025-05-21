@@ -113,12 +113,17 @@ export function HomePage() {
     const checkSubscription = async () => {
       if (user) {
         try {
+          setLoading(true);
           const hasActiveSubResult = await hasActiveSubscription(user.id);
           if (isMounted) {
             setHasSubscription(hasActiveSubResult);
           }
         } catch (error) {
           console.error("Error checking subscription:", error);
+        } finally {
+          if (isMounted) {
+            setLoading(false);
+          }
         }
       }
     };
@@ -131,7 +136,7 @@ export function HomePage() {
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user]); // Only rerun if user changes
 
   const handleSignOut = async () => {
     console.log('HomePage: Sign out button clicked');

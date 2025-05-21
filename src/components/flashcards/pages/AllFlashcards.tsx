@@ -115,13 +115,17 @@ export default function AllFlashcards() {
     queryKey: ['user', user?.id, 'subscription'],
     queryFn: async () => {
       if (!user) return false;
-      return hasActiveSubscription(user.id);
+      console.log('AllFlashcards: Checking subscription status for user:', user.id);
+      const status = await hasActiveSubscription(user.id);
+      console.log('AllFlashcards: Subscription status result:', status);
+      return status;
     },
     enabled: !!user,
     staleTime: 60 * 1000, // Reduce to 1 minute
     refetchOnMount: 'always', // Always fetch fresh data on component mount
     refetchOnWindowFocus: true, // Refetch when window regains focus
     onSuccess: (data) => {
+      console.log('AllFlashcards: Setting hasSubscription to:', data);
       setHasSubscription(data);
     }
   });
@@ -138,8 +142,11 @@ export default function AllFlashcards() {
     }
 
     if (user) {
+      console.log('AllFlashcards: User changed, invalidating subscription query');
       // Invalidate subscription query when user changes
-      queryClient.invalidateQueries(['user', user.id, 'subscription']);
+      queryClient.invalidateQueries({queryKey: ['user', user.id, 'subscription']});
+      // Force an immediate refetch
+      queryClient.fetchQuery({queryKey: ['user', user.id, 'subscription']});
     } else {
       // Reset subscription status when no user
       setHasSubscription(false);

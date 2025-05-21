@@ -74,7 +74,20 @@ export default function FlashcardStudy() {
     const checkSubscription = async () => {
       if (user) {
         try {
+          console.log('FlashcardStudy: Checking subscription for user:', user.id);
+          
+          // First check if dev override is enabled
+          if (process.env.NODE_ENV === 'development') {
+            const forceSubscription = localStorage.getItem('forceSubscription');
+            if (forceSubscription === 'true') {
+              console.log('DEV OVERRIDE: Forcing subscription to true in FlashcardStudy');
+              setHasSubscription(true);
+              return;
+            }
+          }
+          
           const hasAccess = await hasActiveSubscription(user.id);
+          console.log('FlashcardStudy: Subscription check result:', hasAccess);
           setHasSubscription(hasAccess);
         } catch (err) {
           console.error('Error checking subscription:', err);
