@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { SidebarLayout } from './SidebarLayout';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
@@ -15,7 +15,16 @@ export const CourseLayout = ({ children, title }: CourseLayoutProps) => {
   const { signOut } = useAuth();
   const { threads: originalThreads, createThread } = useThreads();
 
-  // Define handlers for sidebar actions in the course context
+  // Debug when CourseLayout renders
+  useEffect(() => {
+    console.log('CourseLayout rendering with params:', params);
+    
+    return () => {
+      console.log('CourseLayout unmounting');
+    };
+  }, [params]);
+
+  // Define handlers for course context actions
   const handleNewChat = async () => {
     try {
       const thread = await createThread();
@@ -36,10 +45,8 @@ export const CourseLayout = ({ children, title }: CourseLayoutProps) => {
     }
   };
 
-  // Navigation handler that keeps user in the course context
+  // Navigation handler for sidebar
   const handleSetActiveThread = (threadId: string) => {
-    // In course context, we might want to handle this differently
-    // For now, just navigate to the thread
     navigate(`/chat/${threadId}`);
   };
 
@@ -53,17 +60,13 @@ export const CourseLayout = ({ children, title }: CourseLayoutProps) => {
       created_at: thread.created_at
     })),
     setActiveTab: handleSetActiveThread,
-    // No current session in course context
     currentSession: null,
-    // We could add course-specific sidebar props here
   };
 
+  // Return with SidebarLayout wrapper to maintain the universal sidebar
   return (
     <SidebarLayout sidebarProps={sidebarProps}>
-      <div className="p-6 bg-white dark:bg-gray-900 min-h-screen w-full">
-        {title && <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">{title}</h1>}
-        {children}
-      </div>
+      {children}
     </SidebarLayout>
   );
 };

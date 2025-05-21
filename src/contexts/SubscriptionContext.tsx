@@ -15,29 +15,51 @@ interface SubscriptionContextType {
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
 
 export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
-  const {
-    subscription,
-    isLoading,
-    isError,
-    error,
-    refreshSubscription,
-    isActive,
-    tierName,
-  } = useSubscription();
+  // Default fallback values in case of errors
+  const fallbackValues = {
+    subscription: null,
+    isLoading: false,
+    isError: true,
+    error: new Error("Failed to load subscription data"),
+    refreshSubscription: () => console.warn("Refresh unavailable due to error"),
+    isActive: false,
+    tierName: "Free",
+  };
 
-  return (
-    <SubscriptionContext.Provider value={{
+  try {
+    const {
       subscription,
       isLoading,
       isError,
       error,
       refreshSubscription,
       isActive,
-      tierName
-    }}>
-      {children}
-    </SubscriptionContext.Provider>
-  );
+      tierName,
+    } = useSubscription();
+
+    return (
+      <SubscriptionContext.Provider value={{
+        subscription,
+        isLoading,
+        isError,
+        error,
+        refreshSubscription,
+        isActive,
+        tierName
+      }}>
+        {children}
+      </SubscriptionContext.Provider>
+    );
+  } catch (e) {
+    console.error("Error in SubscriptionProvider:", e);
+    
+    // Return fallback values if useSubscription throws an error
+    return (
+      <SubscriptionContext.Provider value={fallbackValues}>
+        {children}
+      </SubscriptionContext.Provider>
+    );
+  }
 };
 
 export const useSubscriptionContext = () => {

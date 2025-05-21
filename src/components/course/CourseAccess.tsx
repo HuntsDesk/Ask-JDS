@@ -46,7 +46,7 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
   const [checkoutLoading, setCheckoutLoading] = useState<boolean>(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
-
+  
   useEffect(() => {
     const checkDirectEnrollment = async () => {
       if (!user?.id || !courseId) {
@@ -72,7 +72,7 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
           setEnrollmentStatus({
             hasDirectEnrollment: !!data,
             enrollmentExpiresAt: data?.expires_at,
-          });
+        });
         }
       } catch (error) {
         console.error('Error checking direct enrollment:', error);
@@ -91,10 +91,10 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
   const hasUnlimitedAccess = isSubscriptionActive && tierName === 'Unlimited';
   const hasDirectAccess = enrollmentStatus.hasDirectEnrollment;
   const hasAccess = isPreview || hasUnlimitedAccess || hasDirectAccess;
-
+  
   const handlePurchase = async () => {
     if (!user || !stripePriceId) {
-      if (!user) {
+    if (!user) {
           navigate('/login?redirectTo=' + encodeURIComponent(`/course-detail/${courseId}`));
       } else {
           toast({ title: "Error", description: "Course price information is missing.", variant: "destructive" });
@@ -104,7 +104,7 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
     
     setCheckoutLoading(true);
     setClientSecret(null);
-
+    
     try {
       trackEvent(
         AnalyticsEventType.CHECKOUT_INITIATED,
@@ -123,13 +123,12 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
         {
           body: {
             purchaseType: 'course_purchase',
-            targetStripePriceId: stripePriceId,
             courseId: courseId,
             days_of_access: daysOfAccess,
           },
         }
       );
-
+      
       if (error) {
         throw new Error(error.message || 'Failed to initialize payment.');
       }
@@ -167,16 +166,16 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
       return;
     }
     if (user.id) {
-        trackEvent(
-          AnalyticsEventType.CHECKOUT_INITIATED,
-          user.id,
-          {
-            checkout_type: 'subscription',
-            subscription_type: 'unlimited',
-            from_component: 'CourseAccess',
-            course_id: courseId,
-          }
-        );
+      trackEvent(
+        AnalyticsEventType.CHECKOUT_INITIATED,
+        user.id,
+        {
+          checkout_type: 'subscription',
+          subscription_type: 'unlimited',
+          from_component: 'CourseAccess',
+          course_id: courseId,
+        }
+      );
     }
     navigate('/unlimited');
   };
@@ -184,11 +183,11 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
   const formatDate = (dateString?: string | null): string => {
     if (!dateString) return 'N/A';
     try {
-        return new Date(dateString).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
     } catch { 
         return 'Invalid Date';
     }
@@ -306,8 +305,8 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
       </Card>
     );
   }
-
-  return (
+  
+    return (
     <>
       <Card className="w-full">
         <CardHeader>

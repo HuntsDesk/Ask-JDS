@@ -12,14 +12,19 @@ END $$;
 CREATE OR REPLACE FUNCTION has_course_access(user_id uuid, course_id uuid)
 RETURNS BOOLEAN AS $$
 DECLARE
-    -- These should match your environment variables in a production setting.
-    -- For the migration, we're hardcoding them, but they will be checked dynamically
-    -- against the actual subscription price_id values.
+    -- These are examples, we'll use a dynamic approach to check price IDs
     unlimited_price_ids TEXT[] := ARRAY[
         'price_unlimited_monthly', 
-        'price_unlimited_annual'
+        'price_unlimited_annual',
+        -- Add current environment variables if defined
+        COALESCE(current_setting('app.stripe_unlimited_monthly_price_id', TRUE), ''),
+        COALESCE(current_setting('app.stripe_unlimited_annual_price_id', TRUE), ''),
+        -- Include the IDs from environment variables if running in production
+        COALESCE(current_setting('app.stripe_live_unlimited_monthly_price_id', TRUE), ''),
+        COALESCE(current_setting('app.stripe_live_unlimited_annual_price_id', TRUE), '')
     ];
 BEGIN
+  -- Also look for price IDs that might contain 'unlimited' in their name
   RETURN EXISTS (
     -- Check for direct course enrollment (unchanged logic)
     SELECT 1 FROM public.course_enrollments 
@@ -28,17 +33,16 @@ BEGIN
       AND expires_at > NOW()
       AND status = 'active'
   ) OR EXISTS (
-    -- Check for Unlimited tier subscription specifically
-    -- This used to check for ANY active subscription but now checks for Unlimited tier only
+    -- Check for Unlimited tier subscription with more flexible matching
     SELECT 1 FROM public.user_subscriptions
     WHERE user_id = has_course_access.user_id
       AND status = 'active'
       AND current_period_end > NOW()
-      -- Check if the price ID matches any of the Unlimited tier prices
+      -- Check if the price ID matches any of the Unlimited tier prices OR contains 'unlimited'
       AND (
         stripe_price_id = ANY(unlimited_price_ids)
+        OR stripe_price_id ILIKE '%unlimited%'
         -- Fallback for subscriptions migrated before stripe_price_id was added
-        -- Remove this condition after migration is complete and all subscriptions have price IDs
         OR (
           stripe_price_id IS NULL AND
           (current_setting('app.unlimited_subscription_fallback', TRUE)::boolean IS TRUE)

@@ -13,6 +13,11 @@ import { queryClient } from '@/lib/query-client';
 import { ThemeProvider } from '@/lib/theme-provider';
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 
+// Debugging utility
+const debugLog = (message: string, data?: any) => {
+  console.log(`[App Debug] ${message}`, data || '');
+};
+
 // Direct imports for homepage components
 import { HomePage } from '@/components/HomePage';
 import { HomePage as JDSHomePage } from '@/components/jds/HomePage';
@@ -85,6 +90,9 @@ import { JDSDashboardWrapper } from '@/components/jds/JDSDashboardWrapper';
 // Import the checkout confirmation page
 const CheckoutConfirmationPage = lazy(() => import('@/pages/CheckoutConfirmationPage').then(module => ({ default: module.CheckoutConfirmationPage })));
 
+// Import the pricing page
+const PricingPage = lazy(() => import('@/pages/PricingPage').then(module => ({ default: module.PricingPage })));
+
 // Check if admin setup is allowed from environment variables
 const allowSetupAdmin = import.meta.env.VITE_ALLOW_ADMIN_SETUP === 'true';
 
@@ -116,6 +124,18 @@ export const SelectedThreadContext = createContext<SelectedThreadContextType>({
 const SimpleRedirect = ({ to }: { to: string }) => {
   return <Navigate to={to} replace />;
 };
+
+// Add a wrapper component for debugging
+const DebuggedCourseContent = () => {
+  React.useEffect(() => {
+    debugLog("Rendering CourseContent for /course/:courseId route");
+  }, []);
+  
+  return <CourseContent />;
+};
+
+// Add import for CourseAccessGuard
+import CourseAccessGuard from './components/guards/CourseAccessGuard';
 
 // Create router with domain-aware routes
 function AppRoutes() {
@@ -241,6 +261,15 @@ function AppRoutes() {
         <AuthPage />
       } />
       
+      {/* Pricing Page */}
+      <Route path="/pricing" element={
+        <ProtectedRoute>
+          <Suspense fallback={<PageLoader message="Loading pricing..." />}>
+            <PricingPage />
+          </Suspense>
+        </ProtectedRoute>
+      } />
+      
       {/* Checkout Confirmation Page (Standalone) */}
       <Route path="/checkout-confirmation" element={
         <Suspense fallback={<PageLoader message="Loading confirmation..." />}>
@@ -268,11 +297,6 @@ function AppRoutes() {
             <CoursesPage />
           </Suspense>
         } />
-        <Route path="/course/:courseId/*" element={
-          <Suspense fallback={<PageLoader message="Loading course content..." />}>
-            <CourseContent />
-          </Suspense>
-        } />
         <Route path="/course-detail/:id" element={
           <Suspense fallback={<PageLoader message="Loading course details..." />}>
             <PublicCourseDetail />
@@ -283,32 +307,40 @@ function AppRoutes() {
             <SubscriptionSuccess />
           </Suspense>
         } />
-        
-        {/* JDS Course Routes */}
-        <Route path="/course/:courseId" element={
-          <SimplifiedMode>
-            <CourseLayout>
-              <JDSDashboard />
-            </CourseLayout>
-          </SimplifiedMode>
-        } />
-        
-        <Route path="/course/:courseId/module/:moduleId" element={
-          <SimplifiedMode>
-            <CourseLayout>
-              <JDSDashboard />
-            </CourseLayout>
-          </SimplifiedMode>
-        } />
-        
-        <Route path="/course/:courseId/module/:moduleId/lesson/:lessonId" element={
-          <SimplifiedMode>
-            <CourseLayout>
-              <JDSDashboard />
-            </CourseLayout>
-          </SimplifiedMode>
-        } />
       </Route>
+      
+      {/* Course Routes (access controlled by entitlement) - Outside of PersistentLayout */}
+      <Route path="/course/:courseId" element={
+        <ProtectedRoute>
+          <CourseAccessGuard>
+            <CourseLayout>
+              <React.Fragment>
+                <DebuggedCourseContent />
+              </React.Fragment>
+            </CourseLayout>
+          </CourseAccessGuard>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/course/:courseId/module/:moduleId" element={
+        <ProtectedRoute>
+          <CourseAccessGuard>
+            <CourseLayout>
+              <CourseContent />
+            </CourseLayout>
+          </CourseAccessGuard>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/course/:courseId/module/:moduleId/lesson/:lessonId" element={
+        <ProtectedRoute>
+          <CourseAccessGuard>
+            <CourseLayout>
+              <CourseContent />
+            </CourseLayout>
+          </CourseAccessGuard>
+        </ProtectedRoute>
+      } />
     </Routes>
   );
 }

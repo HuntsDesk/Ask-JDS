@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { supabase } from '@/lib/supabase';
 import { BookOpen, ArrowRight } from 'lucide-react';
-import JDSCourseCard from '../JDSCourseCard';
+import { JDSCourseCard } from '../JDSCourseCard';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { isPast } from 'date-fns';
@@ -268,18 +268,26 @@ export default function AllCoursesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {availableCourses.map((course) => (
-              <JDSCourseCard
-                key={course.id}
-                id={course.id}
-                title={course.title}
-                description={course.description}
-                image_url={course.image_url}
-                is_featured={course.is_featured}
-                status={course.status}
-                _count={course._count}
-              />
-            ))}
+            {availableCourses.map((course) => {
+              // Check if the user is enrolled in this course
+              const isEnrolled = myActiveCourses.some(
+                enrollment => enrollment.course_id === course.id
+              );
+              
+              return (
+                <JDSCourseCard
+                  key={course.id}
+                  id={course.id}
+                  title={course.title}
+                  description={course.description}
+                  image_url={course.image_url}
+                  is_featured={course.is_featured}
+                  status={course.status}
+                  _count={course._count}
+                  enrolled={isEnrolled}
+                />
+              );
+            })}
           </div>
         )}
       </section>

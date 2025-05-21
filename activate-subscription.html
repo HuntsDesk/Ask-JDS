@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activate Subscription</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .response {
+            margin-top: 20px;
+        }
+        .environment-toggle {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Activate Subscription</h1>
+    <p>Click the button below to manually activate your subscription with the unlimited price ID:</p>
+    
+    <button id="activateBtn">Activate Unlimited Subscription</button>
+    <div class="environment-toggle">
+        <label>
+            <input type="checkbox" id="useLocalEnv" checked> Use Local Environment
+        </label>
+    </div>
+    <div class="environment-toggle">
+        <label>
+            <input type="checkbox" id="useTestFunction" checked> Use Test Function (No Stripe)
+        </label>
+    </div>
+    
+    <div class="response">
+        <h2>Response:</h2>
+        <pre id="response">Click the button to see the response...</pre>
+    </div>
+
+    <script>
+        document.getElementById('activateBtn').addEventListener('click', async () => {
+            try {
+                const responseElement = document.getElementById('response');
+                responseElement.textContent = 'Loading...';
+                
+                // Get token from local storage
+                let token = '';
+                try {
+                    const authStorage = localStorage.getItem('ask-jds-auth-storage');
+                    if (authStorage) {
+                        const authData = JSON.parse(authStorage);
+                        if (authData.access_token) {
+                            token = authData.access_token;
+                        }
+                    }
+                } catch (e) {
+                    responseElement.textContent = 'Error retrieving token: ' + e.message;
+                    return;
+                }
+                
+                if (!token) {
+                    responseElement.textContent = 'No authentication token found in localStorage. Please log in first.';
+                    return;
+                }
+                
+                // Determine if we should use local or production URL
+                const useLocal = document.getElementById('useLocalEnv').checked;
+                const useTestFn = document.getElementById('useTestFunction').checked;
+                
+                // Construct the base URL
+                let baseUrl;
+                if (useLocal) {
+                    baseUrl = useTestFn 
+                        ? 'http://localhost:54321/functions/v1/activate-subscription-test'
+                        : 'http://localhost:54321/functions/v1/activate-subscription';
+                } else {
+                    baseUrl = 'https://prbbuxgirnecbkpdpgcb.supabase.co/functions/v1/activate-subscription';
+                }
+                
+                responseElement.textContent = `Using ${useLocal ? 'LOCAL' : 'PRODUCTION'} environment with ${useTestFn ? 'TEST' : 'REGULAR'} function: ${baseUrl}`;
+                
+                // Call the activate-subscription function
+                const response = await fetch(baseUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        priceId: 'price_1RGYI5BAYVpTe3LyxrZuofBR'
+                    })
+                });
+                
+                const result = await response.json();
+                responseElement.textContent = JSON.stringify(result, null, 2);
+                
+                // Reload page after 2 seconds to see changes
+                if (result.success) {
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                }
+            } catch (error) {
+                document.getElementById('response').textContent = 'Error: ' + error.message;
+            }
+        });
+    </script>
+</body>
+</html> 

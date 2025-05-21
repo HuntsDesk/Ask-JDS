@@ -93,7 +93,8 @@ const UnlimitedPage: React.FC = () => {
         {
           body: {
             purchaseType: 'subscription',
-            targetStripePriceId: priceId,
+            subscriptionTier: 'unlimited',
+            planInterval: priceId.includes('month') ? 'month' : 'year',
           },
         }
       );
