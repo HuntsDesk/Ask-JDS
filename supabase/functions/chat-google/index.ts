@@ -1,8 +1,7 @@
-import { serve } from "https://deno.land/std/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.8.0';
+import { createClient } from 'npm:@supabase/supabase-js@2.8.0';
 
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
-const GOOGLE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent";
+const GOOGLE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-preview-05-06:generateContent";
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -10,7 +9,7 @@ const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 let cachedSystemPrompt = null;
 
 // Serve the function
-serve(async (req) => {
+Deno.serve(async (req) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { 
@@ -73,6 +72,9 @@ serve(async (req) => {
 
     // Process the request
     const { messages, useSystemPromptFromDb = false } = await req.json();
+    
+    // Log the Google AI model being used
+    console.log(`Using Google AI Model from URL: ${GOOGLE_URL}`);
     
     let systemInstruction = cachedSystemPrompt || `You are Ask JDS, a legal study buddy, designed to help law students and bar exam takers understand complex legal concepts and prepare for exams.
 

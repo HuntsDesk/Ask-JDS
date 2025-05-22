@@ -748,6 +748,7 @@ This phase completes the subscription and course enrollment system by implementi
 - **create-payment-handler**: Creates Stripe PaymentIntents for course purchases or subscriptions and returns the client_secret
 - **get-payment-status**: Securely verifies payment status after completion, supporting various payment states
 - **get-user-subscription**: Provides real-time subscription data to the frontend
+- **chat-google**: Connects to Google's Gemini API (currently using gemini-2.5-pro-preview-05-06) for AI chat functionality
 
 #### Frontend Components
 - **SubscriptionProvider/Context**: Global subscription state management with React Query
