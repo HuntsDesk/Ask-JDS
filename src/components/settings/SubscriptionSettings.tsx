@@ -152,28 +152,81 @@ export function SubscriptionSettings() {
   
   // Handle manage subscription button click
   const handleManageSubscription = async () => {
+    // Create an ID for our loading toast to dismiss it later
+    let loadingToastId: string | undefined;
+    
     try {
-      setIsActionLoading(true);
+      // Show loading toast and save the ID
+      loadingToastId = toast({
+        title: "Loading",
+        description: "Connecting to Stripe...",
+      }).id;
       
       const url = await createCustomerPortalSession(user?.id);
-      if (url) {
-        window.location.href = url;
-      } else {
-        toast({
-          title: 'Error',
-          description: 'Failed to access customer portal. Please try again later.',
-          variant: 'destructive',
-        });
+      
+      // Clear loading toast
+      if (loadingToastId) {
+        toast.dismiss(loadingToastId);
       }
-    } catch (error) {
+      
+      if (!url) {
+        // Check localStorage for testing flag
+        if (process.env.NODE_ENV === 'development' && localStorage.getItem('bypassStripePortal') === 'true') {
+          toast({
+            title: "Success",
+            description: "Dev mode: Bypassing Stripe portal",
+          });
+          return;
+        }
+        
+        // Try to get more specific details from last error
+        // This could be enhanced if we add error details to createCustomerPortalSession
+        const errorDetails = (window as any).lastPortalError || {};
+        
+        if (errorDetails.message?.includes('No subscription found')) {
+          toast({
+            title: "Error",
+            description: "You don't have an active subscription to manage. Please subscribe first.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        toast({
+          title: "Error",
+          description: "Failed to access customer portal. Please try again later.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Redirect to the portal
+      window.location.href = url;
+    } catch (error: any) {
+      // Dismiss loading toast if it exists
+      if (loadingToastId) {
+        toast.dismiss(loadingToastId);
+      }
+      
+      // Store error for future reference
+      (window as any).lastPortalError = error;
+      
+      // Handle specific error messages
+      if (error.message?.includes('No subscription found')) {
+        toast({
+          title: "Error",
+          description: "You don't have an active subscription to manage. Please subscribe first.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       console.error('Error accessing customer portal:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to access customer portal. Please try again later.',
-        variant: 'destructive',
+        title: "Error",
+        description: `Failed to access customer portal: ${error.message || 'Unknown error'}`,
+        variant: "destructive",
       });
-    } finally {
-      setIsActionLoading(false);
     }
   };
   

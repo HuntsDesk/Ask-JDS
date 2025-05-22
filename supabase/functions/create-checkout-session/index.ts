@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.7.1";
 import Stripe from "npm:stripe@12.6.0";
+import { getConfig, validateConfig, STRIPE_API_VERSION } from "../_shared/config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,6 +16,23 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Load configuration based on environment
+    const config = getConfig();
+    console.log(`Running in ${config.isProduction ? 'production' : 'development'} mode`);
+    
+    // Validate configuration
+    const { isValid, missingKeys } = validateConfig(config);
+    if (!isValid) {
+      console.error(`Missing configuration: ${missingKeys.join(', ')}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Server configuration error', 
+          details: `Missing required environment variables: ${missingKeys.join(', ')}` 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Get request body
     const { priceId, userId } = await req.json();
     console.log('Creating checkout session for:', { userId, priceId });
@@ -66,17 +84,8 @@ Deno.serve(async (req) => {
     }
 
     // Initialize Stripe
-    const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
-    if (!stripeSecretKey) {
-      console.error('Missing Stripe secret key');
-      return new Response(
-        JSON.stringify({ error: 'Server configuration error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2023-10-16',
+    const stripe = new Stripe(config.stripeSecretKey, {
+      apiVersion: STRIPE_API_VERSION,
     });
 
     // Check if user already has a Stripe customer ID
@@ -129,8 +138,8 @@ Deno.serve(async (req) => {
           },
         ],
         mode: 'subscription',
-        success_url: `${req.headers.get('origin') || Deno.env.get('PUBLIC_APP_URL')}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${req.headers.get('origin') || Deno.env.get('PUBLIC_APP_URL')}/chat`,
+        success_url: `${req.headers.get('origin') || config.publicAppUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${req.headers.get('origin') || config.publicAppUrl}/chat`,
         metadata: {
           userId,
         },
