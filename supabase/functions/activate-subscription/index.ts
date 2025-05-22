@@ -3,6 +3,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2.38.0";
 import Stripe from "npm:stripe@17.7.0";
+import { getConfig, validateConfig, STRIPE_API_VERSION } from "../_shared/config.ts";
 
 // CORS headers
 const corsHeaders = {
@@ -11,14 +12,8 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Initialize Stripe
-const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY') || '';
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2025-04-30.basil',
-});
-
 // Handler to manually activate a subscription
-async function activateSubscription(userId: string, priceId: string, supabase) {
+async function activateSubscription(userId: string, priceId: string, supabase, stripeInstance: Stripe) {
   console.log(`Manually activating subscription for user ${userId} with price ${priceId}`);
   
   try {
@@ -45,7 +40,7 @@ async function activateSubscription(userId: string, priceId: string, supabase) {
         throw new Error(`Failed to get user email: ${userError?.message || 'No user found'}`);
       }
       
-      const customer = await stripe.customers.create({
+      const customer = await stripeInstance.customers.create({
         email: userData.user.email,
         metadata: { supabase_user_id: userId }
       });
@@ -132,6 +127,28 @@ Deno.serve(async (req) => {
   }
   
   try {
+    // Load configuration based on environment
+    const config = getConfig();
+    console.log(`Running in ${config.isProduction ? 'production' : 'development'} mode`);
+
+    // Validate configuration
+    const { isValid, missingKeys } = validateConfig(config);
+    if (!isValid) {
+      console.error(`Missing configuration: ${missingKeys.join(', ')}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Server configuration error', 
+          details: `Missing required environment variables: ${missingKeys.join(', ')}` 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Initialize Stripe with config
+    const stripe = new Stripe(config.stripeSecretKey, {
+      apiVersion: STRIPE_API_VERSION,
+    });
+
     // Validate request
     const authorization = req.headers.get('Authorization');
     if (!authorization) {
@@ -221,7 +238,7 @@ Deno.serve(async (req) => {
     }
     
     // Activate subscription
-    const result = await activateSubscription(user.id, priceId, supabase);
+    const result = await activateSubscription(user.id, priceId, supabase, stripe);
     
     return new Response(
       JSON.stringify(result),

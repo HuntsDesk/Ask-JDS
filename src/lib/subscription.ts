@@ -1012,24 +1012,94 @@ export async function createCustomerPortalSession(userId?: string): Promise<stri
       }
     }
     
+    console.log(`Creating customer portal session for user: ${userId}`);
+    
     try {
-      const { data, error } = await supabase.functions.invoke('create-customer-portal-session', {
-        body: { userId }
-      });
+      // Add request ID for debugging
+      const requestId = `portal-${Date.now()}`;
+      console.log(`[${requestId}] Invoking create-customer-portal-session function`);
       
-      if (error) {
-        console.error('Error creating customer portal session:', error);
+      // Get current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error(`[${requestId}] Error getting auth session:`, sessionError);
+      }
+      
+      if (!session) {
+        console.warn(`[${requestId}] No active session found, might cause auth issues`);
+      } else {
+        console.log(`[${requestId}] Found active session with token expiry: ${new Date(session.expires_at! * 1000).toISOString()}`);
+      }
+      
+      // Explicitly make the call with direct fetch to control headers
+      const response = await fetch(
+        `${supabase.supabaseUrl}/functions/v1/create-customer-portal-session`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabase.supabaseKey,
+            'Authorization': `Bearer ${session?.access_token || supabase.supabaseKey}`,
+          },
+          body: JSON.stringify({ userId })
+        }
+      );
+      
+      // Attempt to parse the response as JSON, but handle cases where it might not be valid JSON
+      let data = null;
+      let errorText = '';
+      
+      try {
+        const text = await response.text();
+        errorText = text;
+        try {
+          data = JSON.parse(text);
+        } catch (parseError) {
+          console.error(`[${requestId}] Error parsing response as JSON:`, parseError);
+        }
+      } catch (textError) {
+        console.error(`[${requestId}] Error getting response text:`, textError);
+      }
+      
+      if (!response.ok) {
+        console.error(`[${requestId}] Error response from function:`, {
+          status: response.status,
+          text: errorText,
+          data
+        });
+        
+        // Handle special case for admin-granted subscription
+        if (response.status === 403 && data?.details?.includes('admin-granted subscription')) {
+          throw new Error('You have a special subscription granted by an administrator which cannot be managed through the customer portal.');
+        }
+        
+        // For 404 errors with specific message about no subscription
+        if (response.status === 404 && data?.error?.includes('No subscription found')) {
+          throw new Error('No subscription found for this user');
+        }
+        
+        throw new Error(`Function returned status ${response.status}: ${data?.error || errorText}`);
+      }
+      
+      if (!data || !data.url) {
+        console.error(`[${requestId}] Invalid response from create-customer-portal-session:`, data);
         return null;
       }
       
+      console.log(`[${requestId}] Successfully created customer portal session`);
       return data.url;
     } catch (invokeErr) {
       console.error('Failed to invoke create-customer-portal-session function:', invokeErr);
-      return null;
+      // If this is a FunctionsHttpError with a 404 status, the function might not be deployed
+      if (invokeErr.name === 'FunctionsHttpError' && invokeErr.status === 404) {
+        console.error('Edge function returned 404 - verify that create-customer-portal-session function is deployed');
+      }
+      throw invokeErr; // Re-throw to be handled by the caller
     }
   } catch (err) {
     console.error('Failed to create customer portal session:', err);
-    return null;
+    throw err; // Re-throw to be handled by the caller
   }
 }
 

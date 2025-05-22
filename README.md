@@ -71,6 +71,54 @@ VITE_ADMIN_DOMAIN=admin.jdsimplified.com
 BUILD_DOMAIN=askjds|jds|admin
 ```
 
+### Stripe Configuration and Environment Variables (NEW SECTION)
+
+**Centralized Configuration:**
+All Supabase Edge Functions that interact with Stripe (e.g., creating checkouts, managing subscriptions, handling webhooks) **MUST** use the shared configuration module located at `supabase/functions/_shared/config.ts`. This module is responsible for:
+1. Detecting the current environment (production vs. development/test) using the `ENVIRONMENT` environment variable.
+2. Selecting the appropriate Stripe API keys (secret keys and webhook secrets) based on the detected environment.
+3. Providing the standard Stripe API version for backend function initializations.
+
+**Client-Side (Frontend) Configuration:**
+- The frontend **MUST NEVER** access or store Stripe secret keys or webhook secrets. 
+- The frontend should only use the **Stripe Publishable Key** (e.g., `VITE_STRIPE_PUBLISHABLE_KEY`) for initializing Stripe.js.
+- All operations requiring a Stripe secret key MUST be delegated to backend Edge Functions.
+
+**Environment Variable Naming Conventions for Stripe:**
+To maintain clarity and avoid errors, Stripe-related environment variables should follow a consistent naming pattern. This is especially important for Price IDs, which may vary by environment (live/test) and potentially by domain.
+
+- **Secret Keys & Webhook Secrets (Backend - in your `.env` file, set via `supabase secrets set`):**
+  - `STRIPE_SECRET_KEY`: Your Stripe Test Mode Secret Key.
+  - `STRIPE_LIVE_SECRET_KEY`: Your Stripe Live Mode Secret Key.
+  - `STRIPE_TEST_WEBHOOK_SECRET`: Your Stripe Test Mode Webhook Signing Secret.
+  - `STRIPE_LIVE_WEBHOOK_SECRET`: Your Stripe Live Mode Webhook Signing Secret.
+  - `ENVIRONMENT`: Set to `production` for live deployments, otherwise it defaults to development/test.
+
+- **Standard Stripe API Version (Backend):**
+  - All backend Supabase Edge Functions initialize the Stripe SDK with the API version `'2025-04-30.basil'`. This version is defined as a constant `STRIPE_API_VERSION` in `supabase/functions/_shared/config.ts` and should be imported and used by all Edge Functions when creating a Stripe instance.
+
+- **Publishable Keys (Frontend - in your `.env` file, prefixed with `VITE_`):**
+  - `VITE_STRIPE_PUBLISHABLE_KEY`: Your Stripe Test Mode Publishable Key.
+  - `VITE_STRIPE_LIVE_PUBLISHABLE_KEY`: (Optional, if you need to switch publishable keys dynamically on the client, though typically one publishable key is used and the backend handles live/test mode via secret keys). If used, ensure your frontend logic correctly selects it based on `import.meta.env.PROD` or a similar Vite mechanism.
+
+- **Price IDs (Frontend & Backend):**
+  Use a clear, descriptive pattern. A recommended structure is:
+  `[VITE_]STRIPE_[LIVE_][DOMAIN_]TIER_INTERVAL_PRICE_ID`
+  - `VITE_`: Prefix for frontend environment variables.
+  - `STRIPE_`: Standard prefix.
+  - `LIVE_`: (Optional but Recommended) Include if the Price ID is specific to the live environment. Omit for test Price IDs or if Price IDs are the same across environments (less common).
+  - `DOMAIN_`: (Optional) If Price IDs differ per domain (e.g., ASKJDS, JDSIMPLIFIED), include a domain identifier.
+  - `TIER`: The subscription tier name (e.g., PREMIUM, UNLIMITED, COURSE).
+  - `INTERVAL`: (If applicable) Billing interval (e.g., MONTHLY, YEARLY).
+  - `PRICE_ID`: Suffix.
+
+  **Examples:**
+  - `VITE_STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID` (Frontend, AskJDS domain, Premium Tier, Monthly, Test/Default)
+  - `STRIPE_LIVE_JDSIMPLIFIED_UNLIMITED_YEARLY_PRICE_ID` (Backend, Live environment, JDSimplified domain, Unlimited Tier, Yearly)
+  - `STRIPE_COURSE_LEGAL_WRITING_PRICE_ID` (Backend, Test/Default environment, Course specific, no domain distinction if prices are global)
+
+By adhering to these conventions and utilizing the shared configuration module, you can ensure that your Stripe integration is secure, maintainable, and correctly uses the appropriate keys and identifiers for each environment and domain.
+
 ## Build System
 
 ### Development Commands
