@@ -194,7 +194,7 @@ export default function FlashcardsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full">
       {/* Use the NavbarProvider to control the navbar state */}
       <StudyProvider>
         {/* Navbar at the top */}
