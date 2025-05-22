@@ -1,6 +1,5 @@
 // deno-lint-ignore-file
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
+import { createClient } from "npm:@supabase/supabase-js@2.38.0";
 
 // Types
 interface ChatMessage {
@@ -119,7 +118,7 @@ async function handleChatRequest(req: Request): Promise<Response> {
 }
 
 // Main request handler
-serve(async (req) => {
+Deno.serve(async (req) => {
   try {
     // Handle CORS preflight
     if (req.method === "OPTIONS") {
