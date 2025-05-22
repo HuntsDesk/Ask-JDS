@@ -417,7 +417,7 @@ export default function FlashcardCollections() {
   }
 
   return (
-    <div className="w-full">
+    <div className="max-w-6xl mx-auto px-4">
       {/* Page title - only visible on desktop */}
       <div className="hidden md:block mb-6">
         <div className="flex items-center justify-between">
