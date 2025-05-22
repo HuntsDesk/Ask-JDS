@@ -85,7 +85,7 @@ export function PersistentLayout() {
   };
 
   return (
-    <div className="flex h-full bg-gray-50 dark:bg-gray-900 overflow-hidden">
+    <div className="flex h-full bg-gray-50 dark:bg-gray-900">
       {isExpanded && !isDesktop && (
         <div 
           className="fixed inset-0 bg-black/50 z-20"
@@ -134,7 +134,7 @@ export function PersistentLayout() {
         />
       </div>
 
-      <div className="flex-1 overflow-auto w-full h-full" style={{ zIndex: 1 }}>
+      <div className="flex-1 w-full h-full" style={{ zIndex: 1 }}>
         <Outlet />
       </div>
     </div>

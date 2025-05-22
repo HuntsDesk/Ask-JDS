@@ -37,7 +37,7 @@ const SuspenseMyCourses = () => (
 
 export default function CoursesPage() {
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full">
       {/* Navbar at the top */}
       <CourseNavbar />
       
