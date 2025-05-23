@@ -56,10 +56,51 @@ projectEnv: {
   - `create-payment-handler`: Creates Stripe PaymentIntents/Subscriptions for Payment Elements flow.
   - `get-payment-status`: Securely retrieves the status of Stripe PaymentIntents/SetupIntents.
   - `get-user-subscription`: Fetches current user subscription details for the frontend.
+  - `chat-google`: Connects to Google's Gemini API using a tiered model approach for different tasks.
 - Shared ESM-only components
 - Vite dev/build system
 - **No Node.js runtime** - Only used as dev-time tooling
 - Single flat .env file approach (no nested environments)
+
+### AI Model Configuration
+
+The platform uses Google's Gemini API with a tiered approach to optimize both performance and cost:
+
+1. **Tiered Model Structure**
+   - **Primary Chat Model**: A more capable model (`jds-titan`) handles main chat responses
+   - **Secondary Title Model**: A faster, economical model (`jds-flash`) generates thread titles
+
+2. **Security Through Obfuscation**
+   - Model names are obfuscated through a code-name system
+   - Actual model endpoints are never exposed in client code
+   - Code names are mapped to real model names only in secure server-side code
+   - All model configuration is centralized in `_shared/config.ts`
+
+3. **Environment Variables**
+   ```
+   # Development environment
+   AI_MODEL_PRIMARY_DEV=jds-titan    # For main chat responses
+   AI_MODEL_SECONDARY_DEV=jds-flash  # For thread titles
+   
+   # Production environment
+   AI_MODEL_PRIMARY_PROD=jds-titan   # For main chat responses
+   AI_MODEL_SECONDARY_PROD=jds-flash # For thread titles
+   
+   # Logging configuration
+   AI_MODELS_LOGGING=false           # Set to true for development
+   ```
+
+4. **Request Type Detection**
+   - Chat responses and thread title generation use different models
+   - Determined by `X-Request-Type` header or request body parameters
+   - Minimizes latency for title generation while maintaining high quality for chat
+
+5. **API Key Management**
+   - Single `GOOGLE_AI_API_KEY` shared across models
+   - Key is never exposed to client-side code
+   - All API requests are authenticated and verified
+
+This architecture allows for independent scaling of models based on task requirements and protects specific implementation details from being easily discovered by competitors.
 
 ### Environment Variables
 ```

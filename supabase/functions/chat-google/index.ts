@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.8.0';
+import { getConfig, getModelEndpoint } from '../_shared/config.ts';
 
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
-const GOOGLE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-preview-05-06:generateContent";
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Type"
       }
     });
   }
@@ -71,10 +71,29 @@ Deno.serve(async (req) => {
     console.log(`User authenticated: ${user.id} (${user.email})`);
 
     // Process the request
-    const { messages, useSystemPromptFromDb = false } = await req.json();
+    const requestBody = await req.json();
+    const { messages, useSystemPromptFromDb = false, title_generation = false } = requestBody;
     
-    // Log the Google AI model being used
-    console.log(`Using Google AI Model from URL: ${GOOGLE_URL}`);
+    // Get configuration with obfuscated model names
+    const config = getConfig();
+    
+    // Determine which model to use based on the request type
+    // Check both header and body for backward compatibility
+    const isThreadTitleRequest = req.headers.get('X-Request-Type') === 'thread-title' || title_generation;
+    
+    // Select the appropriate model based on request type
+    const modelCodeName = isThreadTitleRequest 
+      ? config.aiSecondaryTitleModel // Use faster model for titles
+      : config.aiPrimaryChatModel;    // Use premium model for chat
+      
+    // Get the actual endpoint URL for the selected model
+    const GOOGLE_URL = getModelEndpoint(modelCodeName);
+    
+    // Only log model details if enabled
+    if (config.aiModelsLoggingEnabled) {
+      console.log(`Using model: ${modelCodeName} for ${isThreadTitleRequest ? 'thread title' : 'chat response'}`);
+      console.log(`Google AI Model endpoint: ${GOOGLE_URL}`);
+    }
     
     let systemInstruction = cachedSystemPrompt || `You are Ask JDS, a legal study buddy, designed to help law students and bar exam takers understand complex legal concepts and prepare for exams.
 
