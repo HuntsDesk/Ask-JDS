@@ -9,7 +9,10 @@ export interface AppConfig {
   stripeSecretKey: string;
   stripeWebhookSecret: string;
   publicAppUrl: string;
-  // Add more environment-specific configuration as needed
+  // AI model configuration
+  aiPrimaryChatModel: string;
+  aiSecondaryTitleModel: string;
+  aiModelsLoggingEnabled: boolean;
 }
 
 // Standard Stripe API Version for backend functions
@@ -33,6 +36,17 @@ export const getConfig = (): AppConfig => {
     
   const publicAppUrl = Deno.env.get('PUBLIC_APP_URL') || '';
   
+  // Model configuration with obfuscated names
+  const aiPrimaryChatModel = isProduction
+    ? Deno.env.get('AI_MODEL_PRIMARY_PROD') || 'jds-titan'
+    : Deno.env.get('AI_MODEL_PRIMARY_DEV') || 'jds-titan';
+    
+  const aiSecondaryTitleModel = isProduction
+    ? Deno.env.get('AI_MODEL_SECONDARY_PROD') || 'jds-flash'
+    : Deno.env.get('AI_MODEL_SECONDARY_DEV') || 'jds-flash';
+    
+  const aiModelsLoggingEnabled = Deno.env.get('AI_MODELS_LOGGING') === 'true';
+  
   // Log which environment we're using (helpful for debugging)
   console.log(`Config loaded for ${isProduction ? 'production' : 'development'} environment`);
   
@@ -41,6 +55,9 @@ export const getConfig = (): AppConfig => {
     stripeSecretKey,
     stripeWebhookSecret,
     publicAppUrl,
+    aiPrimaryChatModel,
+    aiSecondaryTitleModel,
+    aiModelsLoggingEnabled
   };
 };
 
@@ -60,4 +77,28 @@ export const validateConfig = (config: AppConfig): { isValid: boolean; missingKe
     isValid: missingKeys.length === 0,
     missingKeys
   };
+};
+
+/**
+ * Private mapping of code names to actual model names
+ * This prevents exposing the actual model names in the code
+ */
+const _getActualModelName = (codeName: string): string => {
+  const modelMap: Record<string, string> = {
+    'jds-titan': 'gemini-2.5-pro-preview-05-06',
+    'jds-flash': 'gemini-1.5-flash-8b',
+    // Add more mappings as needed for future models
+  };
+  
+  return modelMap[codeName] || codeName; // Fallback to code name if not found
+};
+
+/**
+ * Get the full API endpoint URL for a given model code name
+ * @param modelCodeName The obfuscated code name for the model
+ * @returns The complete endpoint URL for the actual model
+ */
+export const getModelEndpoint = (modelCodeName: string): string => {
+  const actualModelName = _getActualModelName(modelCodeName);
+  return `https://generativelanguage.googleapis.com/v1beta/models/${actualModelName}:generateContent`;
 }; 

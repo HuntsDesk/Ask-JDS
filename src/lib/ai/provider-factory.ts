@@ -4,7 +4,7 @@ import { GeminiProvider } from './gemini-provider';
 
 const DEFAULT_SETTINGS: AISettings = {
   id: 'default',
-  model: 'gemini-1.5-pro',
+  model: 'jds-titan',
   provider: 'google',
   is_active: true,
   created_at: new Date().toISOString(),

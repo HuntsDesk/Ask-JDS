@@ -97,10 +97,10 @@ export class GeminiProvider implements AIProvider {
         headers: {
           "Content-Type": "application/json",
           'Authorization': `Bearer ${session.access_token}`,
+          'X-Request-Type': 'thread-title' // Signal that this is a thread title request
         },
         body: JSON.stringify({ 
-          messages: [{ role: 'user', content: titlePrompt }],
-          title_generation: true // Indicate this is for title generation
+          messages: [{ role: 'user', content: titlePrompt }]
         }),
         signal: controller.signal
       });
