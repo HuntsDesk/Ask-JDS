@@ -74,7 +74,7 @@ export function useCourseAccess(courseIdOrIds?: string | string[]): CourseAccess
     refetchOnWindowFocus: false,
   });
 
-  return {
+  const result = {
     hasAccess: data?.hasAccess || false,
     reason: data?.reason,
     enrollment: data?.enrollment,
@@ -82,6 +82,8 @@ export function useCourseAccess(courseIdOrIds?: string | string[]): CourseAccess
     error: error || data?.error,
     isLoading
   };
+
+  return result;
 }
 
 export default useCourseAccess; 

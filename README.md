@@ -1114,6 +1114,38 @@ If subscription settings show "Current Plan: Unknown" instead of the correct tie
    - Verify frontend is connecting to correct Supabase instance (local vs. remote)
    - Test with both test and live Stripe price IDs
 
+### Course Access with Unlimited Subscription
+
+If unlimited subscription users cannot access courses that should be included:
+
+1. **Common Causes:**
+   - Permissions logic checking wrong property name (`tier` vs `tierName`)
+   - Case sensitivity mismatch in tier name comparison
+   - Missing subscription data in course access validation
+
+2. **Solutions:**
+   - Verify `hasCourseAccess()` function checks `subscriptionData?.tierName === 'Unlimited'` (not `tier`)
+   - Ensure Edge Function returns consistent property names (`tierName`, not `tier`)
+   - Check both direct enrollment and subscription-based access paths
+   - Add fallback for free courses (price = 0 or null)
+
+3. **Access Logic Priority:**
+   ```typescript
+   // 1. Check if course is free
+   if (course.price === 0 || course.price === null) return true;
+   
+   // 2. Check direct enrollment
+   if (hasDirectEnrollment) return true;
+   
+   // 3. Check unlimited subscription
+   if (subscriptionData?.tierName === 'Unlimited') return true;
+   ```
+
+4. **Debugging:**
+   - Check console for subscription data: `tierName: 'Unlimited'`
+   - Verify course access reason: `'subscription'` vs `'enrollment'`
+   - Test with both enrolled and non-enrolled courses
+
 ## Console Commands
 
 These commands can be executed in the browser's developer console during development:
