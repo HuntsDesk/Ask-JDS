@@ -79,7 +79,7 @@ const MessageItem = ({ index, style, data }: MessageItemProps) => {
             : 'bg-primary text-primary-foreground'
         }`}>
           <ReactMarkdown 
-            className="prose dark:prose-invert max-w-none text-sm md:text-base break-words [&>p]:mb-4 [&>p:last-child]:mb-0 [&>ul]:mt-4 [&>ul]:mb-4 [&>ul:last-child]:mb-0 [&>ul]:list-disc [&>ul]:list-outside [&>ul]:pl-6 [&>ol]:list-decimal [&>ol]:list-outside [&>ol]:pl-6 [&>li]:ml-2"
+            className="max-w-none text-xs md:text-sm break-words [&>*]:text-xs [&>*]:md:text-sm [&>p]:mb-4 [&>p:last-child]:mb-0 [&>ul]:mt-4 [&>ul]:mb-4 [&>ul:last-child]:mb-0 [&>ul]:list-disc [&>ul]:list-outside [&>ul]:pl-6 [&>ol]:list-decimal [&>ol]:list-outside [&>ol]:pl-6 [&>li]:ml-2 [&>li]:text-xs [&>li]:md:text-sm [&>strong]:text-xs [&>strong]:md:text-sm [&>em]:text-xs [&>em]:md:text-sm [&>code]:text-xs [&>code]:md:text-sm [&>h1]:text-sm [&>h1]:md:text-base [&>h2]:text-sm [&>h2]:md:text-base [&>h3]:text-xs [&>h3]:md:text-sm [&>h4]:text-xs [&>h4]:md:text-sm [&>h5]:text-xs [&>h5]:md:text-sm [&>h6]:text-xs [&>h6]:md:text-sm"
           >
             {processedContent}
           </ReactMarkdown>

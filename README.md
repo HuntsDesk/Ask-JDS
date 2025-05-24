@@ -2000,6 +2000,34 @@ npx supabase functions deploy chat-google
 node test-chat.js  # Uses test script for quick verification
 ```
 
+### Timeout Resolution & Retry Logic
+
+**Recent Improvements (Latest)**:
+- **Extended Timeouts**: Chat responses timeout increased from 60s to 90s, title generation from 30s to 45s
+- **Automatic Retry**: 2 retry attempts with progressive delays (1s, 2s) for timeout failures
+- **Better Error Messages**: Users see retry progress instead of immediate failure
+- **Enhanced Logging**: Detailed performance metrics and attempt tracking
+
+**Common Timeout Issues**:
+
+4. **"AI service taking too long to respond" Errors**
+   - **Cause**: Network latency, Google API high traffic, or complex requests
+   - **Solution**: System automatically retries up to 2 times with progressive delays
+   - **User Experience**: Shows "Retrying..." message during automatic recovery
+   - **Manual Fix**: If all retries fail, wait 30 seconds and try again
+
+5. **AbortError: Fetch is aborted**
+   - **Cause**: Request timeout after 90 seconds (previously 60s)
+   - **Auto-Resolution**: System retries automatically for timeout errors
+   - **Monitoring**: Check console logs for retry attempt details
+   - **Prevention**: Timeout extended to accommodate API response variations
+
+**Timeout Configuration**:
+- Chat responses: 90 seconds (with 2 retries)
+- Title generation: 45 seconds (with 2 retries)
+- Progressive retry delays: 1s, 2s between attempts
+- Total max time: ~3 minutes for complex requests
+
 ### Performance Monitoring
 
 Normal chat response times:

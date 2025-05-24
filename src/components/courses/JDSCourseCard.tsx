@@ -201,19 +201,21 @@ export default function JDSCourseCard({
       <div className="flex-grow"></div>
       
       {/* Course Info - Fixed position above buttons */}
-      <div className="mb-3 text-sm text-gray-500 dark:text-gray-400">
-        <div className="flex flex-wrap items-center justify-center gap-4">
-          <div className="flex items-center">
-            <Layers className="h-4 w-4 mr-1" />
-            <span>{modulesCount} {modulesCount === 1 ? 'module' : 'modules'}</span>
-          </div>
-          
-          <div className="flex items-center">
-            <BookOpen className="h-4 w-4 mr-1" />
-            <span>{lessonsCount} {lessonsCount === 1 ? 'lesson' : 'lessons'}</span>
+      {status?.toLowerCase() !== 'coming soon' && (
+        <div className="mb-3 text-sm text-gray-500 dark:text-gray-400">
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <div className="flex items-center">
+              <Layers className="h-4 w-4 mr-1" />
+              <span>{modulesCount} {modulesCount === 1 ? 'module' : 'modules'}</span>
+            </div>
+            
+            <div className="flex items-center">
+              <BookOpen className="h-4 w-4 mr-1" />
+              <span>{lessonsCount} {lessonsCount === 1 ? 'lesson' : 'lessons'}</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
       
       {/* Bottom actions */}
       <div>

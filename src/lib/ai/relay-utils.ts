@@ -41,9 +41,9 @@ export async function callAIRelay(
       messagesCount: messages?.length || 0
     });
 
-    // Set up AbortController for timeout
+    // Set up AbortController for timeout - increased to match Gemini provider
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 seconds
 
     try {
       const response = await fetch(url, {
@@ -157,7 +157,7 @@ export async function callAIRelay(
     } catch (error) {
       // Specific handling for AbortController timeout
       if (error instanceof DOMException && error.name === 'AbortError') {
-        console.error('⏱️ AI Relay Timeout: Request aborted after 60 seconds');
+        console.error('⏱️ AI Relay Timeout: Request aborted after 90 seconds');
         throw new Error("The AI service is taking too long to respond. Please try again later.");
       }
       
