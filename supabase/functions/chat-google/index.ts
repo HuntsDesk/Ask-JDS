@@ -1,8 +1,7 @@
-import { serve } from "https://deno.land/std/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.8.0';
+import { createClient } from 'npm:@supabase/supabase-js@2.8.0';
+import { getConfig, getModelEndpoint } from '../_shared/config.ts';
 
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY")!;
-const GOOGLE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent";
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -10,7 +9,7 @@ const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 let cachedSystemPrompt = null;
 
 // Serve the function
-serve(async (req) => {
+Deno.serve(async (req) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { 
@@ -18,7 +17,7 @@ serve(async (req) => {
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Type"
       }
     });
   }
@@ -72,7 +71,41 @@ serve(async (req) => {
     console.log(`User authenticated: ${user.id} (${user.email})`);
 
     // Process the request
-    const { messages, useSystemPromptFromDb = false } = await req.json();
+    const requestBody = await req.json();
+    const { messages, useSystemPromptFromDb = false, title_generation = false } = requestBody;
+    
+    // Enhanced debug logging for thread title requests
+    console.log('Request headers:', {
+      requestType: req.headers.get('X-Request-Type'),
+      contentType: req.headers.get('Content-Type'),
+      bodyTitleGeneration: title_generation,
+    });
+    
+    // Get configuration with obfuscated model names
+    const config = getConfig();
+    
+    // Determine which model to use based on the request type
+    // Check both header and body for backward compatibility
+    const isThreadTitleRequest = req.headers.get('X-Request-Type') === 'thread-title' || title_generation;
+    
+    // Debug log the decision
+    console.log('Thread title detection:', {
+      isThreadTitleRequest,
+      headerValue: req.headers.get('X-Request-Type'),
+      bodyParam: title_generation
+    });
+    
+    // Select the appropriate model based on request type
+    const modelCodeName = isThreadTitleRequest 
+      ? config.aiSecondaryTitleModel // Use faster model for titles
+      : config.aiPrimaryChatModel;    // Use premium model for chat
+      
+    // Get the actual endpoint URL for the selected model
+    const GOOGLE_URL = getModelEndpoint(modelCodeName);
+    
+    // Always log this information for debugging the issue
+    console.log(`Using model: ${modelCodeName} for ${isThreadTitleRequest ? 'thread title' : 'chat response'}`);
+    console.log(`Google AI Model endpoint: ${GOOGLE_URL}`);
     
     let systemInstruction = cachedSystemPrompt || `You are Ask JDS, a legal study buddy, designed to help law students and bar exam takers understand complex legal concepts and prepare for exams.
 

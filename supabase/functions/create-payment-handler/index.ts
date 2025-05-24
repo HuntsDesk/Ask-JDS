@@ -1,9 +1,9 @@
 /// <reference lib="deno.ns" />
-/// <reference types="npm:@types/stripe" />
 
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@^2.39.0';
-import Stripe from 'npm:stripe@^14.0.0'; // Use a recent, stable version
+import Stripe from 'https://esm.sh/stripe@13.10.0?target=deno';
 import { z } from 'npm:zod@^3.22.4';
+import { getCoursePriceId } from '../_shared/config.ts';
 
 // CORS headers
 const corsHeaders = {
@@ -228,61 +228,68 @@ async function determinePriceId(
     try {
       console.log(`Looking up price ID for course: ${courseId}`);
       
-      // Try to get the stripe_price_id from the course record
+      // Try to get the course record with both price IDs
       const { data: course, error: courseError } = await supabase
         .from('courses')
-        .select('stripe_price_id, stripe_price_id_dev')
+        .select('id, stripe_price_id, stripe_price_id_dev')
         .eq('id', courseId)
         .single();
         
       if (courseError) {
         await logError(supabase, `Error fetching course data for price ID`, courseError, userId);
-      } else if (course) {
-        // Use the appropriate price ID based on environment
-        const priceId = environment === 'production' ? 
-          course.stripe_price_id : 
-          (course.stripe_price_id_dev || course.stripe_price_id);
-        
-        if (priceId) {
-          console.log(`Found course price ID in database: ${priceId}`);
-          return priceId;
-        }
+        throw courseError;
+      } 
+      
+      if (!course) {
+        throw new Error(`Course not found: ${courseId}`);
       }
       
-      // If no price ID found in the course record, try environment variables
-      const courseType = coursePurchaseType || 'standard';
-      
-      // Function to resolve course price ID from environment variables
-      const resolveCoursePrice = (): string | null => {
-        // Try finding the course by ID in a mapping
-        const courseMapping: Record<string, string> = {
-          '78b1d8b7-3cb6-4cc5-8dcc-8cf4ac498b66': 'CIVIL_PROCEDURE',
-          'c24190af-bd00-4d6f-b1af-3170f93e61fe': 'EVIDENCE',
-          '913deaf2-aad3-40c3-b487-004e414ca827': 'INTESTACY',
+      // Use the shared config function to get environment-appropriate price ID
+      try {
+        const priceId = getCoursePriceId(course);
+        console.log(`Found course price ID using shared config: ${priceId}`);
+        return priceId;
+      } catch (error) {
+        console.log(`Course price ID not found in database: ${error instanceof Error ? error.message : String(error)}`);
+        
+        // If the database doesn't have the required price ID, try environment variables as fallback
+        const courseType = coursePurchaseType || 'standard';
+        
+        // Function to resolve course price ID from environment variables
+        const resolveCoursePrice = (): string | null => {
+          // Try finding the course by ID in a mapping
+          const courseMapping: Record<string, string> = {
+            '78b1d8b7-3cb6-4cc5-8dcc-8cf4ac498b66': 'CIVIL_PROCEDURE',
+            'c24190af-bd00-4d6f-b1af-3170f93e61fe': 'EVIDENCE',
+            '913deaf2-aad3-40c3-b487-004e414ca827': 'INTESTACY',
+          };
+          
+          if (courseId && courseId in courseMapping) {
+            const courseName = courseMapping[courseId];
+            const courseKey = `STRIPE_${environment === 'production' ? 'LIVE_' : ''}COURSE_${courseName}_${courseType.toUpperCase()}_PRICE_ID`;
+            const fallbackKey = `STRIPE_COURSE_${courseType.toUpperCase()}_FALLBACK_PRICE_ID`;
+            
+            const primaryValue = Deno.env.get(courseKey);
+            const fallbackValue = Deno.env.get(fallbackKey);
+            
+            console.log(`Checking for course price ID with:
+              - Primary key: ${courseKey} (${primaryValue ? 'FOUND' : 'NOT FOUND'})
+              - Fallback key: ${fallbackKey} (${fallbackValue ? 'FOUND' : 'NOT FOUND'})`);
+            
+            return primaryValue || fallbackValue || null;
+          }
+          
+          return null;
         };
         
-        if (courseId && courseId in courseMapping) {
-          const courseName = courseMapping[courseId];
-          const courseKey = `STRIPE_${environment === 'production' ? 'LIVE_' : ''}COURSE_${courseName}_${courseType.toUpperCase()}_PRICE_ID`;
-          const fallbackKey = `STRIPE_COURSE_${courseType.toUpperCase()}_FALLBACK_PRICE_ID`;
-          
-          const primaryValue = Deno.env.get(courseKey);
-          const fallbackValue = Deno.env.get(fallbackKey);
-          
-          console.log(`Checking for course price ID with:
-            - Primary key: ${courseKey} (${primaryValue ? 'FOUND' : 'NOT FOUND'})
-            - Fallback key: ${fallbackKey} (${fallbackValue ? 'FOUND' : 'NOT FOUND'})`);
-          
-          return primaryValue || fallbackValue || null;
+        const coursePrice = resolveCoursePrice();
+        if (coursePrice) {
+          console.log(`Using course price ID from environment: ${coursePrice}`);
+          return coursePrice;
         }
         
-        return null;
-      };
-      
-      const coursePrice = resolveCoursePrice();
-      if (coursePrice) {
-        console.log(`Using course price ID from environment: ${coursePrice}`);
-        return coursePrice;
+        // If we still can't find a price ID, re-throw the original error
+        throw error;
       }
     } catch (e) {
       await logError(supabase, `Error determining course price ID`, e, userId);
@@ -601,8 +608,10 @@ Deno.serve(async (req) => {
     // Ensure Supabase client is available for logging if error happened before its init.
     // This is a simplified error handling for brevity.
     const tempSupabaseClient = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '');
-    await logError(tempSupabaseClient, 'General error in create-payment-handler', { message: e.message, stack: e.stack }, userId || 'unknown');
-    return new Response(JSON.stringify({ error: 'Internal server error', detail: e.message }), {
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    const errorStack = e instanceof Error ? e.stack : undefined;
+    await logError(tempSupabaseClient, 'General error in create-payment-handler', { message: errorMessage, stack: errorStack }, userId || 'unknown');
+    return new Response(JSON.stringify({ error: 'Internal server error', detail: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

@@ -59,7 +59,7 @@ export interface PageContainerProps extends PropsWithChildren {
 export default function PageContainer({ 
   children, 
   disablePadding = false,
-  noOverflow = false,
+  noOverflow = true,
   maxWidth = 'default',
   fullHeight = true,
   noTransitions = false,

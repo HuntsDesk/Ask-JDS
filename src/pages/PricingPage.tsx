@@ -1,9 +1,14 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, MessageSquare, BookOpen, Zap, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { PricingTopBar } from '@/components/pricing/PricingTopBar';
+import { createCheckoutSession } from '@/lib/subscription';
+import { StripeCheckoutDialog } from '@/components/stripe/StripeCheckoutDialog';
+import { useToast } from "@/hooks/use-toast";
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 // Master list of all features
 const masterFeatures = [
@@ -73,6 +78,75 @@ export function PricingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { tierName, isActive: hasActiveSubscription } = useSubscription();
+  const [isLoading, setIsLoading] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [currentTierName, setCurrentTierName] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const handleClosePaymentModal = () => {
+    setShowPaymentModal(false);
+    setClientSecret(null);
+    setCurrentTierName(null);
+  };
+
+  const initiateSubscription = async (tierName: string) => {
+    try {
+      setIsLoading(true);
+      setCurrentTierName(tierName);
+      
+      // Show modal immediately with loading state for better UX
+      setShowPaymentModal(true);
+      
+      console.log(`Initiating subscription for tier: ${tierName}`);
+      
+      const redirectUrlOrClientSecret = await createCheckoutSession(user?.id, tierName.toLowerCase());
+      console.log(`Response from createCheckoutSession:`, redirectUrlOrClientSecret);
+      
+      if (redirectUrlOrClientSecret) {
+        // Check if the result is a URL or a client secret
+        if (redirectUrlOrClientSecret.startsWith('/checkout-confirmation')) {
+          console.log('Received checkout-confirmation URL, redirecting...');
+          setShowPaymentModal(false); // Close modal before redirect
+          window.location.href = redirectUrlOrClientSecret;
+        } else if (redirectUrlOrClientSecret.startsWith('http')) {
+          console.log('Received direct URL, redirecting...');
+          setShowPaymentModal(false); // Close modal before redirect
+          window.location.href = redirectUrlOrClientSecret;
+        } else {
+          console.log('Received client secret, updating modal...');
+          setClientSecret(redirectUrlOrClientSecret);
+          // Modal is already open, just update with client secret
+        }
+      } else {
+        console.error('No response from createCheckoutSession');
+        setShowPaymentModal(false); // Close modal on error
+        toast({
+          title: 'Error',
+          description: 'Failed to create checkout session. Please try again later.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      
+      setShowPaymentModal(false); // Close modal on error
+      
+      // Show more detailed error to the user
+      let errorMessage = 'Failed to create checkout session. Please try again later.';
+      if (error instanceof Error) {
+        errorMessage = `Error: ${error.message}`;
+      }
+      
+      toast({
+        title: 'Checkout Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubscribe = (tierName: string) => {
     if (!user) {
@@ -83,7 +157,8 @@ export function PricingPage() {
       // For Free tier, no action needed as this is already their plan
       return;
     }
-    navigate(`/settings?upgrade=${tierName.toLowerCase()}`);
+    // Call initiateSubscription instead of navigating to settings
+    initiateSubscription(tierName);
   };
 
   return (
@@ -194,21 +269,24 @@ export function PricingPage() {
                       })}
                     </ul>
 
-                                      <Button
-                    onClick={() => handleSubscribe(tier.name)}
-                    variant={tier.buttonVariant as any}
-                    size="lg"
-                    className={`w-full mt-auto ${ 
-                      tier.highlight 
-                        ? 'bg-white text-orange-600 hover:bg-gray-100 dark:bg-gray-100 dark:hover:bg-gray-200' 
-                        : tier.name === 'Free'
-                          ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200'
-                          : 'bg-orange-500 hover:bg-orange-600 text-white dark:bg-orange-600 dark:hover:bg-orange-700'
-                    }`}
-                    disabled={isCurrentTier || (tier.name === 'Free')}
-                  >
-                    {isCurrentTier || tier.name === 'Free' ? 'Current Plan' : tier.buttonText}
-                  </Button>
+                    <Button
+                      onClick={() => handleSubscribe(tier.name)}
+                      variant={tier.buttonVariant as any}
+                      size="lg"
+                      className={`w-full mt-auto ${ 
+                        tier.highlight 
+                          ? 'bg-white text-orange-600 hover:bg-gray-100 dark:bg-gray-100 dark:hover:bg-gray-200' 
+                          : tier.name === 'Free'
+                            ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200'
+                            : 'bg-orange-500 hover:bg-orange-600 text-white dark:bg-orange-600 dark:hover:bg-orange-700'
+                      }`}
+                      disabled={isCurrentTier || (tier.name === 'Free') || isLoading}
+                    >
+                      {isLoading && currentTierName === tier.name.toLowerCase() ? (
+                        <LoadingSpinner className="h-5 w-5 mr-2" />
+                      ) : null}
+                      {isCurrentTier || tier.name === 'Free' ? 'Current Plan' : tier.buttonText}
+                    </Button>
                   </div>
                 );
               })}
@@ -216,6 +294,26 @@ export function PricingPage() {
           </div>
         </div>
       </main>
+
+      {/* Payment modal */}
+      {showPaymentModal && (
+        <StripeCheckoutDialog
+          open={showPaymentModal}
+          onClose={handleClosePaymentModal}
+          clientSecret={clientSecret || 'loading'} // Use 'loading' as placeholder when no client secret yet
+          title={`Complete your ${currentTierName} subscription`}
+          description="This will give you access to Ask JDS premium features."
+          tier={currentTierName}
+          onError={(error) => {
+            console.error('Payment error:', error);
+            toast({
+              title: "Error",
+              description: error.message || 'Payment failed',
+              variant: "destructive",
+            });
+          }}
+        />
+      )}
     </div>
   );
 } 

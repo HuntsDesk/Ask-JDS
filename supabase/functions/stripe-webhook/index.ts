@@ -4,6 +4,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2.38.0";
 import Stripe from "npm:stripe@17.7.0";
+import { STRIPE_API_VERSION } from "../_shared/config.ts";
 
 // Version marker to identify when this code is running
 console.log("Stripe webhook function v2.1 - Enhanced async signature verification");
@@ -31,7 +32,7 @@ if (!stripeSecretKey) {
 
 // Create Stripe instance with API version explicitly set
 const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2025-04-30.basil',
+  apiVersion: STRIPE_API_VERSION,
   typescript: true,
 });
 

@@ -1,9 +1,0 @@
-{
-  "imports": {
-    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.39.3",
-    "stripe": "npm:stripe@17.7.0",
-    "std/": "npm:@std/http@0.220.1/",
-    "../_shared/cors": ".//_shared/cors.ts",
-    "../_shared/database.types": ".//_shared/database.types.ts"
-  }
-}

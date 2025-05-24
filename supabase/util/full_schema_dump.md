@@ -1,1 +1,0 @@
-supabase db dump --file full_dump.sql

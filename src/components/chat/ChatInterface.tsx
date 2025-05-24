@@ -222,7 +222,7 @@ export function ChatInterface({
     }
     
     return (
-      <div className="flex flex-col space-y-1 pb-0 mt-2 md:mb-1 mb-4">
+      <div className="flex flex-col space-y-1 pb-0 mt-2 md:mb-0 mb-2">
         {messages.map((msg) => (
           <div 
             key={msg.id} 
@@ -271,7 +271,7 @@ export function ChatInterface({
   }
 
   return (
-    <div className="flex flex-col h-full min-h-screen chat-interface-root">
+    <div className="flex flex-col h-full min-h-screen">
       {!isDesktop && (
         <header className="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex items-center justify-between">
           <button
@@ -314,7 +314,7 @@ export function ChatInterface({
         </div>
       </div>
       
-      <div className="input-container px-4 py-1 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
+      <div className="input-container px-4 py-2 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-lg">
         <div className="max-w-4xl mx-auto mb-0">
           {sendError && (
             <div className="mb-1 p-2 text-sm rounded bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">

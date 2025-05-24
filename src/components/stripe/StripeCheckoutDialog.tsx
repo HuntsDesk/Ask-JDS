@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { StripePaymentForm } from './StripePaymentForm';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { toast } from 'react-hot-toast';
+import { useTheme } from '@/lib/theme-provider';
 
 // Load Stripe outside component to avoid recreating on render
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
@@ -45,6 +46,11 @@ interface StripeCheckoutDialogProps {
    * Optional callback for payment errors
    */
   onError?: (error: any) => void;
+  
+  /**
+   * Optional tier name for tracking subscription type
+   */
+  tier?: string;
 }
 
 /**
@@ -58,14 +64,18 @@ export function StripeCheckoutDialog({
   title = "Complete your payment",
   description,
   onSuccess,
-  onError
+  onError,
+  tier
 }: StripeCheckoutDialogProps) {
+  const { theme } = useTheme();
+  
   // Log key information when props change
   useEffect(() => {
     console.log('StripeCheckoutDialog:', {
       open,
       hasClientSecret: !!clientSecret,
-      stripeLoaded: !!stripePromise
+      stripeLoaded: !!stripePromise,
+      currentTheme: theme
     });
     
     if (!stripePromise) {
@@ -75,15 +85,52 @@ export function StripeCheckoutDialog({
     if (!clientSecret) {
       console.warn('No client secret provided to StripeCheckoutDialog.');
     }
-  }, [open, clientSecret]);
+  }, [open, clientSecret, theme]);
   
   // Options for the Elements provider
   const stripeElementsOptions = clientSecret ? {
     clientSecret,
     appearance: {
-      theme: 'stripe',
+      theme: theme === 'dark' ? 'night' : 'stripe',
       variables: {
         colorPrimary: '#F37022', // Orange from theme
+        colorBackground: theme === 'dark' ? '#1f2937' : '#ffffff',
+        colorText: theme === 'dark' ? '#e5e7eb' : '#1f2937',
+        colorDanger: theme === 'dark' ? '#ef4444' : '#dc2626',
+        fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        spacingUnit: '4px',
+        borderRadius: '8px',
+      },
+      rules: {
+        '.Label': {
+          color: theme === 'dark' ? '#e5e7eb' : '#1f2937',
+        },
+        '.Input': {
+          color: theme === 'dark' ? '#e5e7eb' : '#1f2937',
+          backgroundColor: theme === 'dark' ? '#374151' : '#ffffff',
+          borderColor: theme === 'dark' ? '#4b5563' : '#e5e7eb',
+        },
+        '.Input:hover': {
+          borderColor: theme === 'dark' ? '#6b7280' : '#d1d5db',
+        },
+        '.Input:focus': {
+          borderColor: '#F37022',
+        },
+        '.Error': {
+          color: theme === 'dark' ? '#f87171' : '#dc2626',
+        },
+        '.Tab': {
+          backgroundColor: theme === 'dark' ? '#374151' : '#f3f4f6',
+          color: theme === 'dark' ? '#e5e7eb' : '#1f2937',
+        },
+        '.Tab:hover': {
+          backgroundColor: theme === 'dark' ? '#4b5563' : '#e5e7eb',
+        },
+        '.Tab--selected': {
+          backgroundColor: theme === 'dark' ? '#4b5563' : '#ffffff',
+          color: theme === 'dark' ? '#ffffff' : '#000000',
+          borderColor: '#F37022',
+        }
       }
     }
   } : undefined;
@@ -107,13 +154,14 @@ export function StripeCheckoutDialog({
         {!stripePromise ? (
           <div className="flex flex-col items-center py-6 space-y-4">
             <LoadingSpinner className="h-8 w-8" />
-            <p className="text-sm text-gray-500">Loading payment form...</p>
-            <p className="text-xs text-red-500">If this persists, check that Stripe API keys are configured correctly.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading payment form...</p>
+            <p className="text-xs text-red-500 dark:text-red-400">If this persists, check that Stripe API keys are configured correctly.</p>
           </div>
-        ) : !clientSecret ? (
-          <div className="text-center text-red-500 py-4">
-            <p>Missing payment information. Please try again.</p>
-            <p className="text-xs mt-2">Error: No client secret provided</p>
+        ) : !clientSecret || clientSecret === 'loading' ? (
+          <div className="flex flex-col items-center py-6 space-y-4">
+            <LoadingSpinner className="h-8 w-8" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">Preparing your payment form...</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">This should only take a moment.</p>
           </div>
         ) : (
           <Elements options={stripeElementsOptions} stripe={stripePromise}>
@@ -121,6 +169,7 @@ export function StripeCheckoutDialog({
               clientSecret={clientSecret}
               onSuccess={onSuccess}
               onError={handleError}
+              tier={tier}
             />
           </Elements>
         )}

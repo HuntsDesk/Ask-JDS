@@ -1,9 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+import App from './App.tsx';
 import './index.css';
-// Import JD Simplified CSS files
-import '../jdsimplified/src/index.css';
+// JD Simplified styles are already included in the main index.css
 import { AuthProvider } from './lib/auth';
 import { initializeTheme } from './lib/theme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

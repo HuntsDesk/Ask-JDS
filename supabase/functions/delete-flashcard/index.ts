@@ -1,6 +1,5 @@
 // deno-lint-ignore-file
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.0";
+import { createClient } from "npm:@supabase/supabase-js@2.38.0";
 
 // Types for request and response
 interface DeleteFlashcardRequest {
@@ -153,7 +152,7 @@ async function handleDeleteFlashcard(req: Request): Promise<Response> {
 }
 
 // Main function to handle requests
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, {

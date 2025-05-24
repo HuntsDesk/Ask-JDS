@@ -16,6 +16,20 @@ import { usePaywall } from '@/contexts/paywall-context';
 import { useAuth } from '@/lib/auth';
 import { AIProvider } from '@/types/ai';
 
+// Type definitions for parallel operations
+interface TitleGenerationResult {
+  success: boolean;
+  title?: string;
+  error?: any;
+  skipped?: boolean;
+}
+
+interface ResponseGenerationResult {
+  success: boolean;
+  response?: string;
+  error?: any;
+}
+
 // Free tier message limit
 export const FREE_MESSAGE_LIMIT = 20;
 
@@ -25,6 +39,7 @@ const defaultUseMessagesReturn = {
   loading: false,
   loadingTimeout: null as NodeJS.Timeout | null,
   isGenerating: false,
+  isTitleGenerating: false,
   sendMessage: async (_content: string) => null,
   refreshMessages: async () => {},
   showPaywall: false,
@@ -56,6 +71,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isTitleGenerating, setIsTitleGenerating] = useState(false);
   const [messageCount, setMessageCount] = useState(0);
   const [lifetimeMessageCount, setLifetimeMessageCount] = useState(0);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -120,16 +136,21 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
   // Function to generate a thread title based on user messages
   const generateThreadTitle = async (userMessages: Message[]): Promise<string> => {
     if (!aiProvider.current || userMessages.length === 0) {
-      return 'New Chat';
+      console.error('Cannot generate thread title: missing AI provider or no user messages');
+      return 'New Conversation';
     }
-    
+
     try {
-      const firstUserMessage = userMessages[0]?.content || '';
+      console.debug(`Starting thread title generation from ${userMessages.length} user messages`);
+      const firstUserMessage = userMessages[0].content;
+      console.debug(`Using first message for title generation: "${firstUserMessage.substring(0, 30)}${firstUserMessage.length > 30 ? '...' : ''}"`);
+      
       const title = await aiProvider.current.generateThreadTitle(firstUserMessage);
-      return title || 'New Chat';
+      console.debug(`Successfully generated title: "${title}"`);
+      return title;
     } catch (error) {
       console.error('Error generating thread title:', error);
-      return 'New Chat';
+      return 'New Conversation';
     }
   };
 
@@ -213,6 +234,9 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
           
           // Update the user message counter for thread title generation
           userMessageCountRef.current = data.filter(msg => msg.role === 'user').length;
+          
+          // Add debug logging for the user message counter
+          console.log(`[Thread ${threadId}] User message count set to ${userMessageCountRef.current}`);
           
           // If we haven't sent any messages yet and there are no messages, flag for thread title generation
           isFirstMessageRef.current = userMessageCountRef.current === 0;
@@ -314,6 +338,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
               // Update the user message counter for title generation
               if (newMessage.role === 'user') {
                 userMessageCountRef.current++;
+                console.log(`[Thread ${threadId}] User message count incremented to ${userMessageCountRef.current}`);
               }
               
               // Use a more robust update logic that preserves optimistic messages until replaced
@@ -431,6 +456,23 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     initialMessagesState: Message[] // Pass messages state at time of send
   ) => {
     try {
+      // Add parameter to get current thread title
+      let currentThreadTitle = 'New Conversation';
+      try {
+        // Try to fetch the current thread title
+        const { data: threadData, error: threadError } = await supabase
+          .from('threads')
+          .select('title')
+          .eq('id', threadId)
+          .single();
+          
+        if (!threadError && threadData) {
+          currentThreadTitle = threadData.title;
+        }
+      } catch (error) {
+        console.error('Error fetching thread title:', error);
+      }
+
       // Send user message to server
       const { data: userMessageData, error: userMessageError } = await supabase
         .from('messages')
@@ -484,59 +526,154 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       
       userMessageCountRef.current++;
 
-      // Generate AI response with conversation history (use initialMessagesState + optimistic message for context)
-      // Ensure the optimistic message is part of the history for the AI.
+      // Create the conversation history once - will be used for both operations
       const conversationHistory = initialMessagesState.find(m => m.id === optimisticUserMessage.id) 
         ? initialMessagesState 
         : [...initialMessagesState, optimisticUserMessage];
 
-      const aiResponse = await aiProvider.current.generateResponse(content, conversationHistory);
+      // Check various conditions for whether we should generate a thread title
+      const isFirstUserMessage = userMessageCountRef.current === 1;
+      const hasDefaultTitle = currentThreadTitle === 'New Conversation';
+      const isRespondingToUserMessage = 
+        conversationHistory.length > 0 && 
+        conversationHistory[conversationHistory.length - 1].role === 'user';
       
-      // Send AI response to server
-      const { data: aiMessageData, error: aiMessageError } = await supabase
-        .from('messages')
-        .insert({
-          content: aiResponse,
-          thread_id: threadId,
-          role: 'assistant',
-          user_id: user.id 
-        })
-        .select()
-        .single();
+      // Determine if we should generate a title based on these conditions
+      const shouldGenerateTitle = 
+        // Only attempt if we have the callback
+        !!onThreadTitleGenerated && 
+        // And at least one of these conditions is true
+        (isFirstUserMessage || 
+         // Thread has messages but still has default title
+         (userMessageCountRef.current > 0 && hasDefaultTitle) ||
+         // Special recovery case: responding to a user in a thread with default title
+         (isRespondingToUserMessage && hasDefaultTitle));
+      
+      console.log(`[Thread ${threadId}] Title generation conditions:`, {
+        isFirstUserMessage,
+        hasDefaultTitle,
+        isRespondingToUserMessage,
+        shouldGenerateTitle,
+        userMessageCount: userMessageCountRef.current,
+        hasCallback: !!onThreadTitleGenerated
+      });
 
-      if (aiMessageError) throw aiMessageError;
+      // Start two parallel processes:
+      // 1. Thread title generation (if needed)
+      // 2. AI response generation
+      const titlePromise: Promise<TitleGenerationResult> = shouldGenerateTitle
+        ? (async () => {
+            try {
+              // Mark title generation as starting
+              setIsTitleGenerating(true);
+              console.log(`[Thread ${threadId}] Starting parallel title generation...`);
+              
+              const userMessagesForTitle = conversationHistory.filter(msg => msg.role === 'user');
+              console.log(`[Thread ${threadId}] Title generation input: ${userMessagesForTitle.length} user messages`);
+              
+              const titleStartTime = Date.now();
+              const generatedTitle = await generateThreadTitle(userMessagesForTitle);
+              const titleElapsedTime = Date.now() - titleStartTime;
+              console.log(`[Thread ${threadId}] Generated title in ${titleElapsedTime}ms: "${generatedTitle}"`);
+              
+              console.log(`[Thread ${threadId}] Updating thread title in database...`);
+              await onThreadTitleGenerated(generatedTitle);
+              console.log(`[Thread ${threadId}] Thread title update completed: "${generatedTitle}"`);
+              
+              return { success: true, title: generatedTitle };
+            } catch (error) {
+              console.error(`[Thread ${threadId}] Error in parallel title generation:`, error);
+              return { success: false, error };
+            } finally {
+              // Always reset title generation state
+              setIsTitleGenerating(false);
+            }
+          })()
+        : Promise.resolve<TitleGenerationResult>({ success: false, skipped: true });
 
-      // If this is the first user message, call the onFirstMessage callback
-      // Note: isFirstMessageRef might need to be re-evaluated based on initialMessagesState
-      const currentIsFirstMessage = initialMessagesState.filter(msg => msg.role === 'user').length === 0;
-      if (currentIsFirstMessage && onFirstMessage) {
-        onFirstMessage(content);
-        // isFirstMessageRef.current = false; // This ref is managed by refreshMessages, avoid direct set here
-      }
-
-      // Generate and update thread title after 1 user message
-      if (userMessageCountRef.current === 1 && onThreadTitleGenerated) {
+      // Generate AI response (always happens)
+      const responsePromise: Promise<ResponseGenerationResult> = (async () => {
         try {
-          const userMessagesForTitle = conversationHistory.filter(msg => msg.role === 'user');
-          const generatedTitle = await generateThreadTitle(userMessagesForTitle);
-          await onThreadTitleGenerated(generatedTitle);
-          console.log(`Generated thread title after 1 message: ${generatedTitle}`);
-        } catch (error) {
-          console.error('Error updating thread title:', error);
-        }
-      }
+          console.log(`[Thread ${threadId}] Starting AI response generation...`);
+          const responseStartTime = Date.now();
+          const aiResponse = await aiProvider.current.generateResponse(content, conversationHistory);
+          const responseElapsedTime = Date.now() - responseStartTime;
+          console.log(`[Thread ${threadId}] Generated AI response in ${responseElapsedTime}ms`);
+          
+          // Send AI response to server
+          const { data: aiMessageData, error: aiMessageError } = await supabase
+            .from('messages')
+            .insert({
+              content: aiResponse,
+              thread_id: threadId,
+              role: 'assistant',
+              user_id: user.id 
+            })
+            .select()
+            .single();
 
-      if (aiMessageData) {
-        addedMessageIds.current.add(aiMessageData.id);
-        setMessages(prev => {
-          const exists = prev.some(msg => msg.id === aiMessageData.id);
-          if (exists) return prev;
-          const newMessages = [...prev, aiMessageData];
-          return newMessages.sort((a, b) => 
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          );
-        });
+          if (aiMessageError) throw aiMessageError;
+
+          // If this is the first user message, call the onFirstMessage callback
+          const currentIsFirstMessage = initialMessagesState.filter(msg => msg.role === 'user').length === 0;
+          if (currentIsFirstMessage && onFirstMessage) {
+            onFirstMessage(content);
+          }
+
+          if (aiMessageData) {
+            addedMessageIds.current.add(aiMessageData.id);
+            setMessages(prev => {
+              const exists = prev.some(msg => msg.id === aiMessageData.id);
+              if (exists) return prev;
+              const newMessages = [...prev, aiMessageData];
+              return newMessages.sort((a, b) => 
+                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              );
+            });
+          }
+          
+          return { success: true, response: aiResponse };
+        } catch (error) {
+          console.error(`[Thread ${threadId}] Error generating AI response:`, error);
+          return { success: false, error };
+        }
+      })();
+
+      // Wait for both promises to complete
+      const [titleResult, responseResult] = await Promise.allSettled([
+        titlePromise as Promise<TitleGenerationResult>,
+        responsePromise as Promise<ResponseGenerationResult>
+      ]);
+      
+      // Log timing results
+      console.log(`[Thread ${threadId}] Parallel operations completed:`, {
+        titleSuccess: titleResult.status === 'fulfilled' && titleResult.value.success,
+        responseSuccess: responseResult.status === 'fulfilled' && responseResult.value.success,
+      });
+      
+      // Handle AI response errors
+      if (responseResult.status === 'rejected' || (responseResult.status === 'fulfilled' && !responseResult.value.success)) {
+        const error = responseResult.status === 'rejected' 
+          ? responseResult.reason 
+          : responseResult.value.error;
+        
+        console.error(`[Thread ${threadId}] AI response failed:`, error);
+        throw error; // Will be caught by outer try/catch
       }
+      
+      // Always reset generating state
+      setIsGenerating(false);
+      
+      // If title generation failed but wasn't skipped, log it (but don't throw - we still got a response)
+      if (
+        titleResult.status === 'fulfilled' && 
+        !titleResult.value.success && 
+        titleResult.value.skipped !== true
+      ) {
+        console.error(`[Thread ${threadId}] Title generation failed but response succeeded:`, 
+          titleResult.value.error);
+      }
+      
     } catch (error) {
       // Remove optimistic message on error
       setMessages(prev => prev.filter(msg => msg.id !== optimisticUserMessage.id));
@@ -557,8 +694,10 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
         description: errorMessage,
         variant: 'destructive',
       });
-    } finally {
+      
+      // Ensure all states are reset in case of errors
       setIsGenerating(false);
+      setIsTitleGenerating(false);
     }
   }, [
     toast, 
@@ -684,6 +823,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     loading: loading && messages.length === 0,
     loadingTimeout: toastTimeoutRef.current,
     isGenerating,
+    isTitleGenerating,
     sendMessage,
     refreshMessages,
     showPaywall,

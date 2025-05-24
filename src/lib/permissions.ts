@@ -25,7 +25,24 @@ export async function hasCourseAccess(
   }
 
   try {
-    // First check for direct course enrollment
+    // First check if course is free
+    const { data: course, error: courseError } = await supabase
+      .from('courses')
+      .select('price')
+      .eq('id', courseId)
+      .maybeSingle();
+
+    if (courseError) {
+      console.error('Error checking course price:', courseError);
+      return { hasAccess: false, reason: 'none' };
+    }
+
+    // If course is free (price is 0 or null), grant access
+    if (course && (course.price === 0 || course.price === null)) {
+      return { hasAccess: true, reason: 'enrollment' };
+    }
+
+    // Check for direct course enrollment
     const { data: enrollment, error: enrollmentError } = await supabase
       .from('course_enrollments')
       .select('*')
@@ -54,9 +71,9 @@ export async function hasCourseAccess(
 
     // If user has unlimited subscription, they have access to all courses
     const hasUnlimitedAccess = 
-      subscriptionData?.tier === 'unlimited' || 
+      subscriptionData?.tierName === 'Unlimited' || 
       // Also check for unlimited price_id formats
-      subscriptionData?.price_id?.includes('unlimited');
+      subscriptionData?.stripe_price_id?.includes('unlimited');
 
     return { 
       hasAccess: hasUnlimitedAccess, 
@@ -93,8 +110,8 @@ export async function hasCourseAccessMultiple(
     );
 
     const hasUnlimitedAccess = 
-      subscriptionData?.tier === 'unlimited' || 
-      subscriptionData?.price_id?.includes('unlimited');
+      subscriptionData?.tierName === 'Unlimited' || 
+      subscriptionData?.stripe_price_id?.includes('unlimited');
 
     // If user has unlimited access, we can return true for all courses immediately
     if (hasUnlimitedAccess) {

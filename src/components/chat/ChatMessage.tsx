@@ -98,7 +98,7 @@ export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
   
   return (
     <div 
-      className={`mb-1 ${isUserMessage ? 'flex justify-end' : 'flex justify-start'} w-full theme-aware-message ${isLastMessage ? 'mb-4 md:mb-2' : ''}`}
+      className={`mb-1 ${isUserMessage ? 'flex justify-end' : 'flex justify-start'} w-full theme-aware-message ${isLastMessage ? 'mb-1' : ''}`}
       style={{ 
         contain: 'content',
         opacity: messageReady ? 1 : 0, 
@@ -116,9 +116,9 @@ export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
           data-user-message={isUserMessage.toString()}
           data-theme-dark={isDarkMode.toString()}
         >
-          <div className="prose dark:prose-invert max-w-none text-xs md:text-sm break-words leading-tight">
+          <div className="max-w-none text-xs md:text-sm break-words leading-tight">
             <ReactMarkdown 
-              className="[&>p]:mb-1 [&>p:last-child]:mb-0 [&>ul]:mt-1 [&>ul]:mb-1 [&>ul:last-child]:mb-0 [&>ul]:list-disc [&>ul]:list-outside [&>ul]:pl-6 [&>ol]:list-decimal [&>ol]:list-outside [&>ol]:pl-6 [&>li]:ml-2 [&>li]:mb-0.5"
+              className="[&>*]:text-xs [&>*]:md:text-sm [&>p]:mb-1 [&>p:last-child]:mb-0 [&>ul]:mt-1 [&>ul]:mb-1 [&>ul:last-child]:mb-0 [&>ul]:list-disc [&>ul]:list-outside [&>ul]:pl-6 [&>ol]:list-decimal [&>ol]:list-outside [&>ol]:pl-6 [&>li]:ml-2 [&>li]:mb-0.5 [&>li]:text-xs [&>li]:md:text-sm [&>strong]:text-xs [&>strong]:md:text-sm [&>em]:text-xs [&>em]:md:text-sm [&>code]:text-xs [&>code]:md:text-sm [&>h1]:text-sm [&>h1]:md:text-base [&>h2]:text-sm [&>h2]:md:text-base [&>h3]:text-xs [&>h3]:md:text-sm [&>h4]:text-xs [&>h4]:md:text-sm [&>h5]:text-xs [&>h5]:md:text-sm [&>h6]:text-xs [&>h6]:md:text-sm"
             >
               {message.content}
             </ReactMarkdown>
@@ -129,7 +129,7 @@ export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
         <div 
           className={`flex items-center text-xs mt-1 ${
             isUserMessage ? 'justify-end mr-1' : 'ml-1'
-          } text-gray-500 dark:text-gray-400 message-timestamp ${isLastMessage ? 'mb-2' : ''}`}
+          } text-gray-500 dark:text-gray-400 message-timestamp ${isLastMessage ? 'mb-1' : ''}`}
         >
           {/* Copy button next to timestamp */}
           <button
