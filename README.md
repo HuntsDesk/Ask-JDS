@@ -1873,3 +1873,143 @@ The application uses a hybrid approach for managing Stripe price IDs that optimi
 - `supabase/functions/_shared/config.ts` - Backend environment detection and price ID logic
 - `src/lib/environment.ts` - Frontend environment utilities
 - Both use consistent `getCoursePriceId(course)` function for type-safe price ID selection
+
+# Course Search Functionality
+
+The course navigation now includes a comprehensive search system similar to the flashcards area:
+
+## Components
+
+### 1. `CourseSearchBar`
+
+Located in the course navigation, provides live search functionality:
+
+```tsx
+import { CourseSearchBar } from '@/components/courses/CourseSearchBar';
+
+<CourseSearchBar />
+```
+
+Features:
+- Live search with 300ms debounce for optimal performance
+- Minimum 2 characters required to trigger search
+- Dropdown results with clickable course links
+- Responsive design that adapts to navigation layout
+- Search queries published courses across multiple fields
+
+### 2. `CourseSearchResults`
+
+Dedicated page for viewing full search results:
+
+```tsx
+// Route: /courses/search?q=query
+<CourseSearchResults />
+```
+
+Features:
+- Grid layout for course results
+- Integration with existing `JDSCourseCard` component
+- URL parameter-based search state
+- Loading and empty states
+
+## Search Fields
+
+The search functionality queries the following course fields:
+- `title` - Course title
+- `overview` - Course description/overview  
+- `tile_description` - Brief course summary
+
+## Implementation Notes
+
+- Search uses Supabase's full-text search capabilities
+- Only searches published courses (`is_published = true`)
+- Results are ordered by relevance
+- Course access permissions are still enforced on individual results
+- Search state is managed through URL parameters for shareable links
+
+# Chat System Architecture & Troubleshooting
+
+## Recent Fixes and Improvements
+
+### Edge Function Environment Variables
+
+The chat system requires specific environment variables to be configured for proper AI model selection:
+
+```bash
+# AI Model Configuration (Set via `npx supabase secrets set`)
+AI_MODEL_PRIMARY_DEV=jds-titan      # Primary chat model for development
+AI_MODEL_SECONDARY_DEV=jds-flash    # Secondary model for titles (development)
+AI_MODEL_PRIMARY_PROD=jds-titan     # Primary chat model for production
+AI_MODEL_SECONDARY_PROD=jds-flash   # Secondary model for titles (production)
+AI_MODELS_LOGGING=true              # Enable model logging for debugging
+```
+
+### CSS Import Resolution
+
+Fixed critical CSS loading error caused by incorrect import path in `main.tsx`. The problematic import:
+```tsx
+// REMOVED - This was causing 500 errors
+import '../jdsimplified/src/index.css';
+```
+
+The main stylesheet is properly imported via:
+```tsx
+import './index.css'; // Correct import path
+```
+
+### Model Obfuscation System
+
+The chat system uses obfuscated model names for security:
+- `jds-titan` - Primary model for comprehensive chat responses
+- `jds-flash` - Secondary model for fast title generation
+- Actual model mappings are handled server-side only
+- Client code never exposes real model identifiers
+
+## Troubleshooting Chat Issues
+
+### Common Error Patterns
+
+1. **502 Bad Gateway on `/chat-google`**
+   - **Cause**: Missing environment variables in Edge Function
+   - **Solution**: Ensure all `AI_MODEL_*` variables are set via `npx supabase secrets set`
+   - **Verification**: Check function logs for "Missing environment variable" errors
+
+2. **CSS Loading 500 Errors**
+   - **Cause**: Incorrect CSS import paths in main.tsx
+   - **Solution**: Use relative imports from component location, never absolute paths
+   - **Prevention**: Run build process to catch import errors early
+
+3. **"Unexpected response structure from Gemini API"**
+   - **Cause**: Model configuration mismatch or API response format changes
+   - **Solution**: Verify model names in `_shared/config.ts` match deployed environment
+   - **Debug**: Enable `AI_MODELS_LOGGING=true` for detailed request/response logging
+
+### Verification Commands
+
+```bash
+# Check deployed Edge Function environment
+npx supabase secrets list
+
+# View Edge Function logs (requires --debug for verbose output)
+npx supabase functions logs chat-google --debug
+
+# Redeploy Edge Function after environment changes
+npx supabase functions deploy chat-google
+
+# Test chat functionality
+node test-chat.js  # Uses test script for quick verification
+```
+
+### Performance Monitoring
+
+Normal chat response times:
+- Title generation: ~2-5 seconds (fast model)
+- Chat responses: ~15-25 seconds (comprehensive model)
+- Database operations: <200ms
+- Authentication: <100ms
+
+Monitor for significant deviations that might indicate:
+- API rate limiting
+- Model availability issues
+- Network connectivity problems
+- Database performance degradation
