@@ -183,37 +183,110 @@ Deno.serve(async (req) => {
       .limit(1)
       .single();
 
-    if (subscriptionError) {
-      console.error('Subscription query error:', subscriptionError);
+    let customerIdToUse = null;
+    
+    // Check if we got a customer ID from the subscription
+    if (subscription?.stripe_customer_id) {
+      customerIdToUse = subscription.stripe_customer_id;
+      console.log(`Found stripe_customer_id in subscription: ${customerIdToUse}`);
+    } else {
+      // If no customer ID found in subscriptions, check the profiles table
+      console.log('No customer ID found in subscriptions, checking profiles table');
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('stripe_customer_id')
+        .eq('id', userId)
+        .single();
+        
+      if (!profileError && profileData?.stripe_customer_id) {
+        customerIdToUse = profileData.stripe_customer_id;
+        console.log(`Found stripe_customer_id in profile: ${customerIdToUse}`);
+      }
+    }
+    
+    // If still no customer ID, create one
+    if (!customerIdToUse) {
+      console.log('No stripe_customer_id found in database, creating new customer');
+      try {
+        // Create a new customer in Stripe
+        const customer = await stripe.customers.create({
+          email: authUser.user.email,
+          metadata: {
+            user_id: userId
+          }
+        });
+        
+        customerIdToUse = customer.id;
+        console.log(`Created new Stripe customer: ${customerIdToUse}`);
+        
+        // Update the profiles table with the new customer ID
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ stripe_customer_id: customerIdToUse })
+          .eq('id', userId);
+          
+        if (updateError) {
+          console.error('Error updating profile with new customer ID:', updateError);
+          // Continue anyway since we have the customer ID
+        } else {
+          console.log('Updated profile with new customer ID');
+        }
+        
+        // Create a placeholder subscription record if needed
+        if (!subscription) {
+          const now = new Date();
+          const futureDate = new Date();
+          futureDate.setDate(now.getDate() + 30); // 30 days from now
+          
+          const { error: insertError } = await supabase
+            .from('user_subscriptions')
+            .insert({
+              user_id: userId,
+              stripe_customer_id: customerIdToUse,
+              status: 'inactive', // Mark as inactive since they haven't paid yet
+              current_period_end: futureDate.toISOString(),
+              cancel_at_period_end: false,
+              created_at: now.toISOString(),
+              updated_at: now.toISOString()
+            });
+            
+          if (insertError) {
+            console.error('Error creating placeholder subscription record:', insertError);
+            // Continue anyway since we have the customer ID
+          } else {
+            console.log('Created placeholder subscription record');
+          }
+        }
+      } catch (stripeError) {
+        console.error('Error creating Stripe customer:', stripeError);
+        return new Response(
+          JSON.stringify({ 
+            error: 'Failed to create Stripe customer', 
+            details: stripeError.message 
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // At this point, we should have a customer ID to use
+    if (!customerIdToUse) {
+      console.error('Could not find or create a Stripe customer ID');
       return new Response(
         JSON.stringify({ 
-          error: 'Error fetching subscription data', 
-          details: subscriptionError.message,
-          code: subscriptionError.code
+          error: 'No subscription found for this user',
+          details: 'Could not find or create a Stripe customer ID'
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Subscription query result:', subscription);
-
-    if (!subscription?.stripe_customer_id) {
-      console.error('No stripe_customer_id found for user');
-      return new Response(
-        JSON.stringify({ 
-          error: 'No subscription found for this user',
-          details: 'The user does not have a stripe_customer_id in the database'
-        }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`Creating portal session for customer: ${subscription.stripe_customer_id}`);
+    console.log(`Creating portal session for customer: ${customerIdToUse}`);
     
     // Create a customer portal session
     try {
       const session = await stripe.billingPortal.sessions.create({
-        customer: subscription.stripe_customer_id,
+        customer: customerIdToUse,
         return_url: `${req.headers.get('origin') || config.publicAppUrl}/chat`,
       });
 

@@ -18,6 +18,36 @@ export interface AppConfig {
 // Standard Stripe API Version for backend functions
 export const STRIPE_API_VERSION = '2025-04-30.basil';
 
+// Course interface for type safety
+export interface Course {
+  id: string;
+  stripe_price_id?: string | null;
+  stripe_price_id_dev?: string | null;
+  [key: string]: any;
+}
+
+/**
+ * Get the appropriate price ID for a course based on the current environment
+ * @param course The course object containing both price IDs
+ * @returns The environment-appropriate price ID
+ * @throws Error if the required price ID is missing for the current environment
+ */
+export const getCoursePriceId = (course: Course): string => {
+  const isProduction = Deno.env.get('ENVIRONMENT') === 'production';
+  
+  if (isProduction) {
+    if (!course.stripe_price_id) {
+      throw new Error(`Missing production price ID for course: ${course.id}`);
+    }
+    return course.stripe_price_id;
+  } else {
+    if (!course.stripe_price_id_dev) {
+      throw new Error(`Missing development price ID for course: ${course.id}`);
+    }
+    return course.stripe_price_id_dev;
+  }
+};
+
 /**
  * Get the application configuration based on the current environment
  */

@@ -896,23 +896,15 @@ export async function createCheckoutSession(userId?: string, tierName: string = 
     console.log(`Creating checkout session for user ${userId}, tier: ${tierName}`);
     
     try {
-      // Determine the price ID based on the tier name
-      let priceId = '';
-      if (tierName.toLowerCase() === 'unlimited') {
-        priceId = 'price_1RGYI5BAYVpTe3LyxrZuofBR'; // Unlimited tier price ID
-      } else {
-        priceId = 'price_1RGYI5BAYVpTe3LyMK63jgl2'; // Premium tier price ID
-      }
-      
-      // Add debug flag and price ID to see detailed logs
+      // Let the edge function determine the price ID based on tier name
+      // This is more secure as price IDs stay on the backend
       console.log(`Sending request to create-payment-handler with: ${JSON.stringify({
         purchaseType: 'subscription',
         userId,
         subscriptionType: tierName.toLowerCase(),
         debug: true,
-        priceId,
         metadata: {
-          target_stripe_price_id: priceId
+          tier: tierName.toLowerCase()
         }
       })}`);
       
@@ -922,9 +914,7 @@ export async function createCheckoutSession(userId?: string, tierName: string = 
           userId: userId,                             // User ID with correct camelCase
           subscriptionType: tierName.toLowerCase(),   // Type of subscription (premium or unlimited)
           debug: true,                                // Enable debugging output
-          priceId,                                    // Explicitly provide price ID
           metadata: {                                 // Add metadata for the checkout session
-            target_stripe_price_id: priceId,          // Include price ID in metadata for webhook
             tier: tierName.toLowerCase()              // Include tier in metadata
           }
         }
@@ -1001,105 +991,137 @@ export async function createCheckoutSession(userId?: string, tierName: string = 
  */
 export async function createCustomerPortalSession(userId?: string): Promise<string | null> {
   try {
-    // If no userId provided, get the current user
+    // Generate a unique ID for this request to track it in logs
+    const requestId = `portal-${Date.now()}`;
+    console.log(`Creating customer portal session for user: ${userId || 'current user'}`);
+    console.log(`[${requestId}] Invoking create-customer-portal-session function`);
+    
+    // If no userId provided, use the current user
     if (!userId) {
-      const { data: { user } } = await supabase.auth.getUser();
-      userId = user?.id;
+      const session = await supabase.auth.getSession();
+      userId = session.data.session?.user?.id;
       
       if (!userId) {
-        console.warn('No user ID available for creating customer portal session');
-        return null;
+        console.error(`[${requestId}] No user ID available and not logged in`);
+        throw new Error('You must be logged in to manage your subscription');
       }
+      
+      console.log(`[${requestId}] Using current user ID: ${userId}`);
     }
     
-    console.log(`Creating customer portal session for user: ${userId}`);
+    // Ensure we have a valid session
+    const hasValidSession = await ensureValidSession();
+    if (!hasValidSession) {
+      console.error(`[${requestId}] No valid session found`);
+      throw new Error('Your session has expired. Please log in again.');
+    }
+    
+    // Get the active session for logging
+    const { data: sessionData } = await supabase.auth.getSession();
+    const sessionExpiry = sessionData.session?.expires_at 
+      ? new Date(sessionData.session.expires_at * 1000).toISOString()
+      : 'unknown';
+    
+    console.log(`[${requestId}] Found active session with token expiry: ${sessionExpiry}`);
+    
+    // Try main approach - using the functions.invoke method
+    try {
+      const { data, error } = await supabase.functions.invoke('create-customer-portal-session', {
+        body: { userId }
+      });
+      
+      if (error) {
+        console.error(`[${requestId}] Error response from function:`, error);
+        // Don't throw yet - we'll try our fallback approach
+      } else if (data?.url) {
+        console.log(`[${requestId}] Successfully created portal session`);
+        return data.url;
+      } else if (data?.error) {
+        console.error(`[${requestId}] Error response from function:`, data);
+        // Don't throw yet - we'll try our fallback approach
+      }
+    } catch (invokeErr) {
+      console.error(`[${requestId}] Exception during function invoke:`, invokeErr);
+      // Continue to fallback
+    }
+    
+    // Fallback approach - direct fetch with explicit headers
+    console.log(`[${requestId}] Trying fallback approach with direct fetch`);
     
     try {
-      // Add request ID for debugging
-      const requestId = `portal-${Date.now()}`;
-      console.log(`[${requestId}] Invoking create-customer-portal-session function`);
+      // Get session for auth token
+      const accessToken = sessionData.session?.access_token;
       
-      // Get current session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error(`[${requestId}] Error getting auth session:`, sessionError);
+      if (!accessToken) {
+        console.error(`[${requestId}] No access token available for fallback`);
+        throw new Error('Authentication error. Please log in again.');
       }
       
-      if (!session) {
-        console.warn(`[${requestId}] No active session found, might cause auth issues`);
-      } else {
-        console.log(`[${requestId}] Found active session with token expiry: ${new Date(session.expires_at! * 1000).toISOString()}`);
-      }
-      
-      // Explicitly make the call with direct fetch to control headers
+      // Make direct fetch request
       const response = await fetch(
         `${supabase.supabaseUrl}/functions/v1/create-customer-portal-session`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': supabase.supabaseKey,
-            'Authorization': `Bearer ${session?.access_token || supabase.supabaseKey}`,
+            'Authorization': `Bearer ${accessToken}`,
+            'apikey': supabase.supabaseKey
           },
           body: JSON.stringify({ userId })
         }
       );
       
-      // Attempt to parse the response as JSON, but handle cases where it might not be valid JSON
-      let data = null;
-      let errorText = '';
-      
+      // Parse response
+      let responseData;
       try {
-        const text = await response.text();
-        errorText = text;
-        try {
-          data = JSON.parse(text);
-        } catch (parseError) {
-          console.error(`[${requestId}] Error parsing response as JSON:`, parseError);
-        }
-      } catch (textError) {
-        console.error(`[${requestId}] Error getting response text:`, textError);
+        responseData = await response.json();
+      } catch (parseErr) {
+        console.error(`[${requestId}] Error parsing portal response:`, parseErr);
+        throw new Error('Error processing the subscription portal response');
       }
+      
+      // Log the response details for debugging
+      console.log(`[${requestId}] Portal response status: ${response.status}`);
       
       if (!response.ok) {
-        console.error(`[${requestId}] Error response from function:`, {
-          status: response.status,
-          text: errorText,
-          data
-        });
+        console.error(`[${requestId}] Error response from function:`, responseData);
         
-        // Handle special case for admin-granted subscription
-        if (response.status === 403 && data?.details?.includes('admin-granted subscription')) {
-          throw new Error('You have a special subscription granted by an administrator which cannot be managed through the customer portal.');
+        // Provide user-friendly error messages based on status codes
+        if (response.status === 404) {
+          throw new Error('No subscription found. Please purchase a subscription first.');
+        } else if (response.status === 401) {
+          throw new Error('Authentication error. Please log in again.');
+        } else if (response.status === 403) {
+          throw new Error('You do not have permission to access the subscription portal.');
+        } else if (response.status === 500) {
+          throw new Error('Server error. Our team has been notified.');
+        } else {
+          throw new Error(responseData?.error || 'Error accessing customer portal');
         }
-        
-        // For 404 errors with specific message about no subscription
-        if (response.status === 404 && data?.error?.includes('No subscription found')) {
-          throw new Error('No subscription found for this user');
-        }
-        
-        throw new Error(`Function returned status ${response.status}: ${data?.error || errorText}`);
       }
       
-      if (!data || !data.url) {
-        console.error(`[${requestId}] Invalid response from create-customer-portal-session:`, data);
-        return null;
+      if (responseData?.url) {
+        console.log(`[${requestId}] Successfully created portal session via fallback`);
+        return responseData.url;
+      } else {
+        console.error(`[${requestId}] Missing URL in successful response:`, responseData);
+        throw new Error('Invalid response from subscription portal');
       }
-      
-      console.log(`[${requestId}] Successfully created customer portal session`);
-      return data.url;
-    } catch (invokeErr) {
-      console.error('Failed to invoke create-customer-portal-session function:', invokeErr);
-      // If this is a FunctionsHttpError with a 404 status, the function might not be deployed
-      if (invokeErr.name === 'FunctionsHttpError' && invokeErr.status === 404) {
-        console.error('Edge function returned 404 - verify that create-customer-portal-session function is deployed');
-      }
-      throw invokeErr; // Re-throw to be handled by the caller
+    } catch (fetchErr) {
+      console.error(`[${requestId}] Failed to invoke create-customer-portal-session function:`, fetchErr);
+      throw fetchErr; // Rethrow for consistent error handling
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to create customer portal session:', err);
-    throw err; // Re-throw to be handled by the caller
+    
+    // Provide a user-friendly error message
+    if (err.message?.includes('stripe_customer_id')) {
+      throw new Error('No subscription found. Please purchase a subscription first.');
+    } else if (err.message?.includes('session has expired') || err.message?.includes('Authentication error')) {
+      throw new Error('Your session has expired. Please log in again.');
+    } else {
+      throw new Error(err.message || 'Failed to access customer portal');
+    }
   }
 }
 
@@ -1746,48 +1768,119 @@ export async function specialUpdateMessageCount(userId?: string, increment: bool
  */
 export async function manuallyActivateSubscription(priceId: string): Promise<boolean> {
   try {
+    console.log(`=== MANUAL ACTIVATION START ===`);
     console.log(`Manually activating subscription with price ID: ${priceId}`);
     
-    // Ensure we have a valid session
-    const hasValidSession = await ensureValidSession();
-    if (!hasValidSession) {
-      console.error('No valid session found for manual subscription activation');
+    // TEMPORARY: Skip session validation to test if that's the issue
+    console.log('TESTING: Skipping session validation temporarily');
+    
+    // Get current user ID for fallback
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    
+    if (!userId) {
+      console.error('Could not determine user ID for activation');
       return false;
     }
     
-    // Call the activate-subscription function
-    const { data, error } = await supabase.functions.invoke('activate-subscription', {
-      body: { priceId }
-    });
+    console.log(`User ID confirmed: ${userId}`);
     
-    if (error) {
-      console.error('Error manually activating subscription:', error);
-      return false;
+    // Try first with standard invocation
+    try {
+      console.log('=== ATTEMPTING EDGE FUNCTION CALL ===');
+      console.log('Calling supabase.functions.invoke with:', { priceId });
+      
+      const { data, error } = await supabase.functions.invoke('activate-subscription', {
+        body: { priceId },
+      });
+
+      console.log('Edge function response:', { data, error });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(`Edge function failed: ${error.message}`);
+      }
+
+      if (data?.success) {
+        console.log('✅ Edge function succeeded');
+        return true;
+      } else {
+        console.error('Edge function returned failure:', data);
+        throw new Error(data?.error || 'Unknown edge function error');
+      }
+    } catch (edgeError) {
+      console.error('Edge function call failed:', edgeError);
+      
+      // Check if it's a network/connection error
+      if (edgeError instanceof Error) {
+        console.error('Error details:', {
+          name: edgeError.name,
+          message: edgeError.message,
+          stack: edgeError.stack
+        });
+      }
+      
+      throw edgeError; // Re-throw to stop here for debugging
     }
-    
-    if (!data?.success) {
-      console.error('Manual subscription activation failed:', data?.error || 'Unknown error');
-      return false;
-    }
-    
-    // Clear cached subscription to force a refresh
-    clearCachedSubscription();
-    
-    console.log('Subscription manually activated successfully');
-    return true;
-  } catch (err) {
-    console.error('Failed to manually activate subscription:', err);
+  } catch (error) {
+    console.error('=== MANUAL ACTIVATION FAILED ===');
+    console.error('Error in manuallyActivateSubscription:', error);
     return false;
   }
 }
 
 /**
+ * Get the price ID for a subscription tier from the backend
+ * This is more secure than hardcoding price IDs in the frontend
+ */
+export async function getPriceIdForTierFromBackend(tierName: string): Promise<string | null> {
+  try {
+    console.log(`Getting price ID for tier: ${tierName} from backend`);
+    
+    const { data, error } = await supabase.functions.invoke('get-price-id', {
+      body: { tier: tierName.toLowerCase() }
+    });
+    
+    if (error) {
+      console.error('Error getting price ID from backend:', error);
+      return null;
+    }
+    
+    if (data?.priceId) {
+      console.log(`Backend returned price ID: ${data.priceId} for tier: ${tierName}`);
+      return data.priceId;
+    }
+    
+    console.warn(`No price ID returned for tier: ${tierName}`);
+    return null;
+  } catch (err) {
+    console.error('Failed to get price ID from backend:', err);
+    return null;
+  }
+}
+
+/**
  * Determine the price ID for a subscription tier
+ * @deprecated Use getPriceIdForTierFromBackend instead for better security
  */
 export function getPriceIdForTier(tierName: string): string {
+  console.warn('getPriceIdForTier is deprecated. Use getPriceIdForTierFromBackend for better security.');
+  
   if (tierName.toLowerCase() === 'unlimited') {
-    return 'price_1RGYI5BAYVpTe3LyxrZuofBR'; // Unlimited tier price ID
+    // Use the monthly unlimited price ID from environment variables
+    const monthlyUnlimitedPriceId = import.meta.env.VITE_STRIPE_UNLIMITED_MONTHLY_PRICE_ID;
+    if (monthlyUnlimitedPriceId) {
+      return monthlyUnlimitedPriceId;
+    }
+    // Fallback to hardcoded value if env var not available
+    return 'price_1RGYI5BAYVpTe3LyMK63jgl2'; // Unlimited tier price ID
   } else {
+    // Use the monthly premium price ID from environment variables
+    const monthlyPremiumPriceId = import.meta.env.VITE_STRIPE_PREMIUM_MONTHLY_PRICE_ID;
+    if (monthlyPremiumPriceId) {
+      return monthlyPremiumPriceId;
+    }
+    // Fallback to hardcoded value if env var not available
     return 'price_1RGYI5BAYVpTe3LyMK63jgl2'; // Premium tier price ID
   }
 } 

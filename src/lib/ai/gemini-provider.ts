@@ -92,6 +92,8 @@ export class GeminiProvider implements AIProvider {
       const baseUrl = new URL(import.meta.env.VITE_SUPABASE_URL).origin;
       const url = `${baseUrl}/functions/v1/chat-google`;
       
+      console.log('Sending thread title generation request with header and body param');
+      
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -100,7 +102,8 @@ export class GeminiProvider implements AIProvider {
           'X-Request-Type': 'thread-title' // Signal that this is a thread title request
         },
         body: JSON.stringify({ 
-          messages: [{ role: 'user', content: titlePrompt }]
+          messages: [{ role: 'user', content: titlePrompt }],
+          title_generation: true // Also include as body parameter for backward compatibility
         }),
         signal: controller.signal
       });

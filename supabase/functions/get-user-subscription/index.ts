@@ -26,19 +26,20 @@ interface SubscriptionDetails {
 function getTierName(stripePriceId: string | null, unlimitedTierPriceIds: string[]): string | null {
   if (!stripePriceId) return 'Free'; // Default to Free if no price ID
 
-  // Example: Check against known Unlimited Tier Price IDs
-  // These IDs should be stored in environment variables and passed to the function
+  // Check against known Unlimited Tier Price IDs
   if (unlimitedTierPriceIds.includes(stripePriceId)) {
     return 'Unlimited';
   }
-  // Add checks for Premium tier, etc.
-  // For now, any other active subscription might be considered 'Premium' or a specific tier name
-  // This part needs to be aligned with actual Stripe Price IDs for Premium, etc.
-  // e.g. Deno.env.get('STRIPE_PREMIUM_MONTHLY_PRICE_ID'), Deno.env.get('STRIPE_PREMIUM_ANNUAL_PRICE_ID')
-  const premiumMonthly = Deno.env.get('STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID') || Deno.env.get('STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID');
-  const premiumAnnual = Deno.env.get('STRIPE_LIVE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID') || Deno.env.get('STRIPE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID');
+  
+  // Check against all premium price IDs (both live and test)
+  const premiumPriceIds = [
+    'price_1R8lN7BdYlmFidIZPfXpSHxN', // Live premium monthly
+    'price_1RGNMkBdYlmFidIZxZCkTCV9', // Live premium annual
+    'price_1QzlzrBAYVpTe3LycwwkNhWV', // Test premium monthly
+    'price_1RGNx1BAYVpTe3LyKCxzi9qB', // Test premium annual
+  ];
 
-  if (stripePriceId === premiumMonthly || stripePriceId === premiumAnnual) {
+  if (premiumPriceIds.includes(stripePriceId)) {
     return 'Premium';
   }
 
@@ -105,9 +106,40 @@ Deno.serve(async (req) => {
       throw dbError;
     }
 
-    const unlimitedMonthly = Deno.env.get('STRIPE_LIVE_UNLIMITED_MONTHLY_PRICE_ID') || Deno.env.get('STRIPE_UNLIMITED_MONTHLY_PRICE_ID');
-    const unlimitedAnnual = Deno.env.get('STRIPE_LIVE_UNLIMITED_ANNUAL_PRICE_ID') || Deno.env.get('STRIPE_UNLIMITED_ANNUAL_PRICE_ID');
-    const unlimitedTierPriceIds = [unlimitedMonthly, unlimitedAnnual].filter(id => !!id) as string[];
+    const unlimitedMonthly = Deno.env.get('STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID') || Deno.env.get('STRIPE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID');
+    const unlimitedAnnual = Deno.env.get('STRIPE_LIVE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID') || Deno.env.get('STRIPE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID');
+    
+    // Temporary hardcoded fallback for testing
+    const unlimitedMonthlyFallback = unlimitedMonthly || 'price_1RGYI5BAYVpTe3LyMK63jgl2'; // TEST
+    const unlimitedAnnualFallback = unlimitedAnnual || 'price_1RGYI5BAYVpTe3LyxrZuofBR'; // TEST
+    
+    // Include both live and test price IDs for unlimited tier
+    const unlimitedTierPriceIds = [
+      'price_1RGYLYBdYlmFidIZ4cCnr4ES', // Live unlimited monthly
+      'price_1RGYMHBdYlmFidIZHeR6iejB', // Live unlimited annual
+      'price_1RGYI5BAYVpTe3LyMK63jgl2', // Test unlimited monthly
+      'price_1RGYI5BAYVpTe3LyxrZuofBR', // Test unlimited annual
+    ] as string[];
+
+    // Debug logging
+    console.log('Debug: Environment variables loaded:');
+    console.log('- unlimitedMonthly (env):', unlimitedMonthly);
+    console.log('- unlimitedAnnual (env):', unlimitedAnnual);
+    console.log('- unlimitedMonthlyFallback:', unlimitedMonthlyFallback);
+    console.log('- unlimitedAnnualFallback:', unlimitedAnnualFallback);
+    console.log('- unlimitedTierPriceIds:', unlimitedTierPriceIds);
+    
+    const premiumMonthly = Deno.env.get('STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID') || Deno.env.get('STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID');
+    const premiumAnnual = Deno.env.get('STRIPE_LIVE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID') || Deno.env.get('STRIPE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID');
+    
+    // Temporary hardcoded fallback for testing
+    const premiumMonthlyFallback = premiumMonthly || 'price_1QzlzrBAYVpTe3LycwwkNhWV'; // TEST
+    const premiumAnnualFallback = premiumAnnual || 'price_1RGNx1BAYVpTe3LyKCxzi9qB'; // TEST
+    
+    console.log('- premiumMonthly (env):', premiumMonthly);
+    console.log('- premiumAnnual (env):', premiumAnnual);
+    console.log('- premiumMonthlyFallback:', premiumMonthlyFallback);
+    console.log('- premiumAnnualFallback:', premiumAnnualFallback);
 
     if (!subscription) {
       const responseDetails: SubscriptionDetails = {
@@ -125,10 +157,12 @@ Deno.serve(async (req) => {
 
     const isActive = (subscription.status === 'active' || subscription.status === 'trialing') &&
                      new Date(subscription.current_period_end || 0) > new Date();
+    
+    const tierName = isActive ? getTierName(subscription.stripe_price_id, unlimitedTierPriceIds) : 'Free';
 
     const responseDetails: SubscriptionDetails = {
       isActive,
-      tierName: isActive ? getTierName(subscription.stripe_price_id, unlimitedTierPriceIds) : 'Free',
+      tierName,
       stripe_price_id: subscription.stripe_price_id,
       current_period_end: subscription.current_period_end,
       cancel_at_period_end: subscription.cancel_at_period_end,
