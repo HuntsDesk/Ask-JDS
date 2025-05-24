@@ -80,14 +80,15 @@ export default function CourseNavbar() {
                 />
               </div>
               
-              {/* Center section - Search bar */}
-              <div className="flex-1 flex justify-center max-w-md mx-auto">
-                <CourseSearchBar />
-              </div>
+              {/* Middle flexible space */}
+              <div className="md:flex-1"></div>
               
-              {/* Right actions - empty for now */}
-              <div className="flex items-center space-x-4">
-                {/* Can add buttons or controls here later */}
+              {/* Right actions - Search bar positioned like flashcards "New Flashcard" button */}
+              <div className="md:grid md:grid-cols-[minmax(40px,1fr)] md:items-center md:gap-3">
+                {/* Course search */}
+                <div className="md:w-full">
+                  <CourseSearchBar />
+                </div>
               </div>
             </div>
           </div>
