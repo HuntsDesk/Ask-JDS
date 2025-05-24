@@ -56,10 +56,51 @@ projectEnv: {
   - `create-payment-handler`: Creates Stripe PaymentIntents/Subscriptions for Payment Elements flow.
   - `get-payment-status`: Securely retrieves the status of Stripe PaymentIntents/SetupIntents.
   - `get-user-subscription`: Fetches current user subscription details for the frontend.
+  - `chat-google`: Connects to Google's Gemini API using a tiered model approach for different tasks.
 - Shared ESM-only components
 - Vite dev/build system
 - **No Node.js runtime** - Only used as dev-time tooling
 - Single flat .env file approach (no nested environments)
+
+### AI Model Configuration
+
+The platform uses Google's Gemini API with a tiered approach to optimize both performance and cost:
+
+1. **Tiered Model Structure**
+   - **Primary Chat Model**: A more capable model (`jds-titan`) handles main chat responses
+   - **Secondary Title Model**: A faster, economical model (`jds-flash`) generates thread titles
+
+2. **Security Through Obfuscation**
+   - Model names are obfuscated through a code-name system
+   - Actual model endpoints are never exposed in client code
+   - Code names are mapped to real model names only in secure server-side code
+   - All model configuration is centralized in `_shared/config.ts`
+
+3. **Environment Variables**
+   ```
+   # Development environment
+   AI_MODEL_PRIMARY_DEV=jds-titan    # For main chat responses
+   AI_MODEL_SECONDARY_DEV=jds-flash  # For thread titles
+   
+   # Production environment
+   AI_MODEL_PRIMARY_PROD=jds-titan   # For main chat responses
+   AI_MODEL_SECONDARY_PROD=jds-flash # For thread titles
+   
+   # Logging configuration
+   AI_MODELS_LOGGING=false           # Set to true for development
+   ```
+
+4. **Request Type Detection**
+   - Chat responses and thread title generation use different models
+   - Determined by `X-Request-Type` header or request body parameters
+   - Minimizes latency for title generation while maintaining high quality for chat
+
+5. **API Key Management**
+   - Single `GOOGLE_AI_API_KEY` shared across models
+   - Key is never exposed to client-side code
+   - All API requests are authenticated and verified
+
+This architecture allows for independent scaling of models based on task requirements and protects specific implementation details from being easily discovered by competitors.
 
 ### Environment Variables
 ```
@@ -70,6 +111,54 @@ VITE_JDSIMPLIFIED_DOMAIN=jdsimplified.com
 VITE_ADMIN_DOMAIN=admin.jdsimplified.com
 BUILD_DOMAIN=askjds|jds|admin
 ```
+
+### Stripe Configuration and Environment Variables (NEW SECTION)
+
+**Centralized Configuration:**
+All Supabase Edge Functions that interact with Stripe (e.g., creating checkouts, managing subscriptions, handling webhooks) **MUST** use the shared configuration module located at `supabase/functions/_shared/config.ts`. This module is responsible for:
+1. Detecting the current environment (production vs. development/test) using the `ENVIRONMENT` environment variable.
+2. Selecting the appropriate Stripe API keys (secret keys and webhook secrets) based on the detected environment.
+3. Providing the standard Stripe API version for backend function initializations.
+
+**Client-Side (Frontend) Configuration:**
+- The frontend **MUST NEVER** access or store Stripe secret keys or webhook secrets. 
+- The frontend should only use the **Stripe Publishable Key** (e.g., `VITE_STRIPE_PUBLISHABLE_KEY`) for initializing Stripe.js.
+- All operations requiring a Stripe secret key MUST be delegated to backend Edge Functions.
+
+**Environment Variable Naming Conventions for Stripe:**
+To maintain clarity and avoid errors, Stripe-related environment variables should follow a consistent naming pattern. This is especially important for Price IDs, which may vary by environment (live/test) and potentially by domain.
+
+- **Secret Keys & Webhook Secrets (Backend - in your `.env` file, set via `supabase secrets set`):**
+  - `STRIPE_SECRET_KEY`: Your Stripe Test Mode Secret Key.
+  - `STRIPE_LIVE_SECRET_KEY`: Your Stripe Live Mode Secret Key.
+  - `STRIPE_TEST_WEBHOOK_SECRET`: Your Stripe Test Mode Webhook Signing Secret.
+  - `STRIPE_LIVE_WEBHOOK_SECRET`: Your Stripe Live Mode Webhook Signing Secret.
+  - `ENVIRONMENT`: Set to `production` for live deployments, otherwise it defaults to development/test.
+
+- **Standard Stripe API Version (Backend):**
+  - All backend Supabase Edge Functions initialize the Stripe SDK with the API version `'2025-04-30.basil'`. This version is defined as a constant `STRIPE_API_VERSION` in `supabase/functions/_shared/config.ts` and should be imported and used by all Edge Functions when creating a Stripe instance.
+
+- **Publishable Keys (Frontend - in your `.env` file, prefixed with `VITE_`):**
+  - `VITE_STRIPE_PUBLISHABLE_KEY`: Your Stripe Test Mode Publishable Key.
+  - `VITE_STRIPE_LIVE_PUBLISHABLE_KEY`: (Optional, if you need to switch publishable keys dynamically on the client, though typically one publishable key is used and the backend handles live/test mode via secret keys). If used, ensure your frontend logic correctly selects it based on `import.meta.env.PROD` or a similar Vite mechanism.
+
+- **Price IDs (Frontend & Backend):**
+  Use a clear, descriptive pattern. A recommended structure is:
+  `[VITE_]STRIPE_[LIVE_][DOMAIN_]TIER_INTERVAL_PRICE_ID`
+  - `VITE_`: Prefix for frontend environment variables.
+  - `STRIPE_`: Standard prefix.
+  - `LIVE_`: (Optional but Recommended) Include if the Price ID is specific to the live environment. Omit for test Price IDs or if Price IDs are the same across environments (less common).
+  - `DOMAIN_`: (Optional) If Price IDs differ per domain (e.g., ASKJDS, JDSIMPLIFIED), include a domain identifier.
+  - `TIER`: The subscription tier name (e.g., PREMIUM, UNLIMITED, COURSE).
+  - `INTERVAL`: (If applicable) Billing interval (e.g., MONTHLY, YEARLY).
+  - `PRICE_ID`: Suffix.
+
+  **Examples:**
+  - `VITE_STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID` (Frontend, AskJDS domain, Premium Tier, Monthly, Test/Default)
+  - `STRIPE_LIVE_JDSIMPLIFIED_UNLIMITED_YEARLY_PRICE_ID` (Backend, Live environment, JDSimplified domain, Unlimited Tier, Yearly)
+  - `STRIPE_COURSE_LEGAL_WRITING_PRICE_ID` (Backend, Test/Default environment, Course specific, no domain distinction if prices are global)
+
+By adhering to these conventions and utilizing the shared configuration module, you can ensure that your Stripe integration is secure, maintainable, and correctly uses the appropriate keys and identifiers for each environment and domain.
 
 ## Build System
 
@@ -748,6 +837,7 @@ This phase completes the subscription and course enrollment system by implementi
 - **create-payment-handler**: Creates Stripe PaymentIntents for course purchases or subscriptions and returns the client_secret
 - **get-payment-status**: Securely verifies payment status after completion, supporting various payment states
 - **get-user-subscription**: Provides real-time subscription data to the frontend
+- **chat-google**: Connects to Google's Gemini API (currently using gemini-2.5-pro-preview-05-06) for AI chat functionality
 
 #### Frontend Components
 - **SubscriptionProvider/Context**: Global subscription state management with React Query
@@ -993,6 +1083,68 @@ useEffect(() => {
   }
 }, [isLoading, chatFSM]);
 ```
+
+### Subscription Status Issues
+
+If subscription settings show "Current Plan: Unknown" instead of the correct tier name:
+
+1. **Common Causes:**
+   - `get-user-subscription` Edge Function missing test environment price IDs
+   - Environment variable mismatches between frontend (`VITE_` prefixed) and backend variables
+   - Price ID mapping only configured for live/production price IDs
+
+2. **Solutions:**
+   - Ensure Edge Function includes both live and test price IDs in tier mapping logic
+   - Add backend versions of Stripe price IDs to `.env` (without `VITE_` prefix)
+   - Deploy updated environment variables: `npx supabase secrets set --env-file .env`
+   - Verify price ID arrays in `get-user-subscription` include all environment variants
+
+3. **Required Environment Variables:**
+   ```bash
+   # Backend versions (for Edge Functions)
+   STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID=price_1R8lN7BdYlmFidIZPfXpSHxN
+   STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID=price_1RGYLYBdYlmFidIZ4cCnr4ES
+   STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID=price_1QzlzrBAYVpTe3LycwwkNhWV
+   STRIPE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID=price_1RGYI5BAYVpTe3LyMK63jgl2
+   ```
+
+4. **Debugging Steps:**
+   - Check user's `stripe_price_id` in `user_subscriptions` table
+   - Add temporary debug logging to Edge Function to see which price IDs are being checked
+   - Verify frontend is connecting to correct Supabase instance (local vs. remote)
+   - Test with both test and live Stripe price IDs
+
+### Course Access with Unlimited Subscription
+
+If unlimited subscription users cannot access courses that should be included:
+
+1. **Common Causes:**
+   - Permissions logic checking wrong property name (`tier` vs `tierName`)
+   - Case sensitivity mismatch in tier name comparison
+   - Missing subscription data in course access validation
+
+2. **Solutions:**
+   - Verify `hasCourseAccess()` function checks `subscriptionData?.tierName === 'Unlimited'` (not `tier`)
+   - Ensure Edge Function returns consistent property names (`tierName`, not `tier`)
+   - Check both direct enrollment and subscription-based access paths
+   - Add fallback for free courses (price = 0 or null)
+
+3. **Access Logic Priority:**
+   ```typescript
+   // 1. Check if course is free
+   if (course.price === 0 || course.price === null) return true;
+   
+   // 2. Check direct enrollment
+   if (hasDirectEnrollment) return true;
+   
+   // 3. Check unlimited subscription
+   if (subscriptionData?.tierName === 'Unlimited') return true;
+   ```
+
+4. **Debugging:**
+   - Check console for subscription data: `tierName: 'Unlimited'`
+   - Verify course access reason: `'subscription'` vs `'enrollment'`
+   - Test with both enrolled and non-enrolled courses
 
 ## Console Commands
 
@@ -1671,3 +1823,221 @@ Added tools to activate subscriptions for testing and development purposes witho
 ## Chat Message Rendering Fix
 
 Fixed an issue where messages would occasionally disappear during AI response generation. See [Message Rendering Improvements](readme/chat_improvements/message_rendering_fix.md) for details.
+
+## 🚀 Tech Stack
+
+- **Frontend**: React 18.2.0+ with TypeScript
+- **Runtime**: Vite + Deno (no Node.js)
+- **Backend**: Supabase Edge Functions (Deno only)
+- **Database**: PostgreSQL (via Supabase)
+- **Authentication**: Supabase Auth
+- **Payments**: Stripe
+- **Build Tool**: Vite 5.4.17+ with ESBuild optimization
+- **State Management**: Tanstack React Query v5.17.19+
+- **Styling**: Tailwind CSS
+- **Environment**: Single flat `.env` (no nesting/overrides)
+
+## 💳 Payment Architecture
+
+### Hybrid Price ID Management
+
+The application uses a hybrid approach for managing Stripe price IDs that optimizes for different use cases:
+
+#### **Courses: Database-Driven Price IDs**
+- Course price IDs are stored directly in the database with environment-specific fields:
+  - `stripe_price_id` (production environment)
+  - `stripe_price_id_dev` (development/testing environment)
+- **Benefits**:
+  - New courses can be added instantly via admin panel
+  - Price changes take effect immediately without redeploy
+  - Admins can manage pricing without developer intervention
+- **Environment Detection**: Uses `ENVIRONMENT=production` (backend) and `import.meta.env.PROD` (frontend)
+
+#### **Subscriptions: Environment Variables**
+- Subscription price IDs are managed via environment (.env) variables:
+  ```bash
+  # LIVE (Production)
+  VITE_STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID=...
+  VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID=...
+  
+  # TEST (Development)
+  VITE_STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID=...
+  VITE_STRIPE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID=...
+  ```
+- **Benefits**:
+  - Simple access pattern for stable subscription tiers
+  - Leverages existing environment configuration
+  - Low maintenance for infrequently changing plans
+
+#### **Shared Configuration**
+- `supabase/functions/_shared/config.ts` - Backend environment detection and price ID logic
+- `src/lib/environment.ts` - Frontend environment utilities
+- Both use consistent `getCoursePriceId(course)` function for type-safe price ID selection
+
+# Course Search Functionality
+
+The course navigation now includes a comprehensive search system similar to the flashcards area:
+
+## Components
+
+### 1. `CourseSearchBar`
+
+Located in the course navigation, provides live search functionality:
+
+```tsx
+import { CourseSearchBar } from '@/components/courses/CourseSearchBar';
+
+<CourseSearchBar />
+```
+
+Features:
+- Live search with 300ms debounce for optimal performance
+- Minimum 2 characters required to trigger search
+- Dropdown results with clickable course links
+- Responsive design that adapts to navigation layout
+- Search queries published courses across multiple fields
+
+### 2. `CourseSearchResults`
+
+Dedicated page for viewing full search results:
+
+```tsx
+// Route: /courses/search?q=query
+<CourseSearchResults />
+```
+
+Features:
+- Grid layout for course results
+- Integration with existing `JDSCourseCard` component
+- URL parameter-based search state
+- Loading and empty states
+
+## Search Fields
+
+The search functionality queries the following course fields:
+- `title` - Course title
+- `overview` - Course description/overview  
+- `tile_description` - Brief course summary
+
+## Implementation Notes
+
+- Search uses Supabase's full-text search capabilities
+- Only searches published courses (`is_published = true`)
+- Results are ordered by relevance
+- Course access permissions are still enforced on individual results
+- Search state is managed through URL parameters for shareable links
+
+# Chat System Architecture & Troubleshooting
+
+## Recent Fixes and Improvements
+
+### Edge Function Environment Variables
+
+The chat system requires specific environment variables to be configured for proper AI model selection:
+
+```bash
+# AI Model Configuration (Set via `npx supabase secrets set`)
+AI_MODEL_PRIMARY_DEV=jds-titan      # Primary chat model for development
+AI_MODEL_SECONDARY_DEV=jds-flash    # Secondary model for titles (development)
+AI_MODEL_PRIMARY_PROD=jds-titan     # Primary chat model for production
+AI_MODEL_SECONDARY_PROD=jds-flash   # Secondary model for titles (production)
+AI_MODELS_LOGGING=true              # Enable model logging for debugging
+```
+
+### CSS Import Resolution
+
+Fixed critical CSS loading error caused by incorrect import path in `main.tsx`. The problematic import:
+```tsx
+// REMOVED - This was causing 500 errors
+import '../jdsimplified/src/index.css';
+```
+
+The main stylesheet is properly imported via:
+```tsx
+import './index.css'; // Correct import path
+```
+
+### Model Obfuscation System
+
+The chat system uses obfuscated model names for security:
+- `jds-titan` - Primary model for comprehensive chat responses
+- `jds-flash` - Secondary model for fast title generation
+- Actual model mappings are handled server-side only
+- Client code never exposes real model identifiers
+
+## Troubleshooting Chat Issues
+
+### Common Error Patterns
+
+1. **502 Bad Gateway on `/chat-google`**
+   - **Cause**: Missing environment variables in Edge Function
+   - **Solution**: Ensure all `AI_MODEL_*` variables are set via `npx supabase secrets set`
+   - **Verification**: Check function logs for "Missing environment variable" errors
+
+2. **CSS Loading 500 Errors**
+   - **Cause**: Incorrect CSS import paths in main.tsx
+   - **Solution**: Use relative imports from component location, never absolute paths
+   - **Prevention**: Run build process to catch import errors early
+
+3. **"Unexpected response structure from Gemini API"**
+   - **Cause**: Model configuration mismatch or API response format changes
+   - **Solution**: Verify model names in `_shared/config.ts` match deployed environment
+   - **Debug**: Enable `AI_MODELS_LOGGING=true` for detailed request/response logging
+
+### Verification Commands
+
+```bash
+# Check deployed Edge Function environment
+npx supabase secrets list
+
+# View Edge Function logs (requires --debug for verbose output)
+npx supabase functions logs chat-google --debug
+
+# Redeploy Edge Function after environment changes
+npx supabase functions deploy chat-google
+
+# Test chat functionality
+node test-chat.js  # Uses test script for quick verification
+```
+
+### Timeout Resolution & Retry Logic
+
+**Recent Improvements (Latest)**:
+- **Extended Timeouts**: Chat responses timeout increased from 60s to 90s, title generation from 30s to 45s
+- **Automatic Retry**: 2 retry attempts with progressive delays (1s, 2s) for timeout failures
+- **Better Error Messages**: Users see retry progress instead of immediate failure
+- **Enhanced Logging**: Detailed performance metrics and attempt tracking
+
+**Common Timeout Issues**:
+
+4. **"AI service taking too long to respond" Errors**
+   - **Cause**: Network latency, Google API high traffic, or complex requests
+   - **Solution**: System automatically retries up to 2 times with progressive delays
+   - **User Experience**: Shows "Retrying..." message during automatic recovery
+   - **Manual Fix**: If all retries fail, wait 30 seconds and try again
+
+5. **AbortError: Fetch is aborted**
+   - **Cause**: Request timeout after 90 seconds (previously 60s)
+   - **Auto-Resolution**: System retries automatically for timeout errors
+   - **Monitoring**: Check console logs for retry attempt details
+   - **Prevention**: Timeout extended to accommodate API response variations
+
+**Timeout Configuration**:
+- Chat responses: 90 seconds (with 2 retries)
+- Title generation: 45 seconds (with 2 retries)
+- Progressive retry delays: 1s, 2s between attempts
+- Total max time: ~3 minutes for complex requests
+
+### Performance Monitoring
+
+Normal chat response times:
+- Title generation: ~2-5 seconds (fast model)
+- Chat responses: ~15-25 seconds (comprehensive model)
+- Database operations: <200ms
+- Authentication: <100ms
+
+Monitor for significant deviations that might indicate:
+- API rate limiting
+- Model availability issues
+- Network connectivity problems
+- Database performance degradation

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { Thread, Message } from '@/types';
 import { useAuth } from '@/lib/auth';
+import { useEffect } from 'react';
 
 // Query keys for better cache management
 export const threadKeys = {
@@ -132,6 +133,7 @@ export function useUpdateThread() {
   
   return useMutation<Thread, Error, { id: string } & Partial<Thread>>({
     mutationFn: async ({ id, ...updates }) => {
+      console.log(`[useUpdateThread] Mutation started for thread ${id}:`, updates);
       const { data, error } = await supabase
         .from('threads')
         .update(updates)
@@ -139,14 +141,21 @@ export function useUpdateThread() {
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error(`[useUpdateThread] Error updating thread ${id}:`, error);
+        throw error;
+      }
+      console.log(`[useUpdateThread] Mutation successful for thread ${id}:`, data);
       return data as Thread;
     },
     // When mutation succeeds, update the thread in the cache
     onSuccess: (updatedThread) => {
+      console.log(`[useUpdateThread] Updating cache for thread ${updatedThread.id}`);
       // Update in the threads list
       const previousThreads = queryClient.getQueryData<Thread[]>(threadKeys.all) || [];
-        queryClient.setQueryData(
+      console.log(`[useUpdateThread] Previous threads count: ${previousThreads.length}`);
+      
+      queryClient.setQueryData(
         threadKeys.all, 
         previousThreads.map(thread => 
           thread.id === updatedThread.id ? updatedThread : thread
@@ -155,6 +164,7 @@ export function useUpdateThread() {
       
       // Update the individual thread cache
       queryClient.setQueryData(threadKeys.thread(updatedThread.id), updatedThread);
+      console.log(`[useUpdateThread] Cache updated for thread ${updatedThread.id}`);
     },
   });
 }
@@ -189,4 +199,69 @@ export function useDeleteThread() {
       queryClient.removeQueries({ queryKey: threadKeys.messages(deletedId) });
       },
   });
+}
+
+// Hook to add realtime subscriptions to threads
+export function useThreadsRealtime() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  
+  useEffect(() => {
+    if (!user) return;
+    
+    console.log('[useThreadsRealtime] Setting up realtime subscription for threads');
+    
+    const channel = supabase
+      .channel('threads-realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'threads',
+        filter: `user_id=eq.${user.id}`
+      }, (payload) => {
+        console.log('[useThreadsRealtime] Received realtime update:', payload.eventType, payload);
+        
+        if (payload.eventType === 'INSERT') {
+          console.log('[useThreadsRealtime] Invalidating threads query due to INSERT');
+          queryClient.invalidateQueries({ queryKey: threadKeys.all });
+        } else if (payload.eventType === 'DELETE') {
+          console.log('[useThreadsRealtime] Invalidating threads query due to DELETE');
+          queryClient.invalidateQueries({ queryKey: threadKeys.all });
+          queryClient.invalidateQueries({ queryKey: threadKeys.thread(payload.old.id) });
+        } else if (payload.eventType === 'UPDATE') {
+          console.log('[useThreadsRealtime] Thread UPDATE received:', payload.new);
+          
+          // Update the thread in the cache directly
+          const previousThreads = queryClient.getQueryData<Thread[]>(threadKeys.all) || [];
+          
+          if (previousThreads.length > 0) {
+            // Update threads list
+            queryClient.setQueryData(
+              threadKeys.all,
+              previousThreads.map(thread => 
+                thread.id === payload.new.id ? payload.new as Thread : thread
+              )
+            );
+            
+            // Update individual thread if it exists in the cache
+            if (queryClient.getQueryData(threadKeys.thread(payload.new.id))) {
+              queryClient.setQueryData(threadKeys.thread(payload.new.id), payload.new);
+            }
+            
+            console.log('[useThreadsRealtime] Thread cache updated for:', payload.new.id);
+          } else {
+            console.log('[useThreadsRealtime] No threads in cache, invalidating queries');
+            queryClient.invalidateQueries({ queryKey: threadKeys.all });
+          }
+        }
+      })
+      .subscribe((status) => {
+        console.log('[useThreadsRealtime] Subscription status:', status);
+      });
+      
+    return () => {
+      console.log('[useThreadsRealtime] Cleaning up realtime subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [user, queryClient]);
 } 

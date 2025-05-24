@@ -58,9 +58,10 @@ export default function AllCoursesPage() {
           return;
         }
         
-        // Filter out any archived courses
+        // Filter out any archived or draft courses
         const filteredCourses = data?.filter(course => 
-          course.status?.toLowerCase() !== 'archived') || [];
+          course.status?.toLowerCase() !== 'archived' && 
+          course.status?.toLowerCase() !== 'draft') || [];
         
         // Sort courses: featured first, then alphabetically
         const sortedCourses = [...filteredCourses].sort((a, b) => {

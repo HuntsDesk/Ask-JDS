@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useContext, useMemo, useCallback } from 'react';
 import { useAuth } from '@/lib/auth';
-import { useThreads } from '@/hooks/use-query-threads';
+import { useThreads, useThreadsRealtime } from '@/hooks/use-query-threads';
 import { useMessages } from '@/hooks/use-messages';
 import { ChatInterface } from './ChatInterface';
 import { useToast } from '@/hooks/use-toast';
@@ -55,6 +55,10 @@ export function ChatContainer() {
   
   // Data fetching and mutations
   const threadQuery = useThreads();
+  
+  // Add realtime subscription to thread updates
+  useThreadsRealtime();
+  
   const originalThreads = threadQuery.data || [];
   const originalThreadsLoading = threadQuery.isLoading || threadQuery.isFetching;
   
@@ -74,16 +78,31 @@ export function ChatContainer() {
   
   const handleThreadTitleUpdate = useCallback(async (title: string) => {
     try {
-      if (activeThread) {
+      // Use urlThreadId as the primary source of truth
+      // This is more reliable as it comes from the URL, not component state
+      const threadIdToUpdate = urlThreadId;
+      
+      if (threadIdToUpdate) {
+        console.log(`[ChatContainer] Updating thread title for ${threadIdToUpdate} to "${title}"`);
+        
+        // If activeThread doesn't match urlThreadId, update it for consistency
+        if (activeThread !== threadIdToUpdate) {
+          console.debug(`[ChatContainer] Fixing activeThread mismatch: current=${activeThread}, should be=${threadIdToUpdate}`);
+          setActiveThread(threadIdToUpdate);
+        }
+        
         await updateThreadMutation.mutateAsync({ 
-          id: activeThread, 
+          id: threadIdToUpdate, 
           title 
         });
+        console.log(`[ChatContainer] Thread title update completed for ${threadIdToUpdate}`);
+      } else {
+        console.error('[ChatContainer] Cannot update thread title: No URL thread ID');
       }
     } catch (error) {
       console.error('[ChatContainer] Failed to update thread title:', error);
     }
-  }, [activeThread, updateThreadMutation]);
+  }, [activeThread, urlThreadId, updateThreadMutation, setActiveThread]);
 
   // =========== Thread ID and messaging logic ===========
   
@@ -349,6 +368,34 @@ export function ChatContainer() {
     }
   }, [location, navigate]);
 
+  // Synchronize activeThread with urlThreadId to ensure title updates work correctly
+  useEffect(() => {
+    if (!urlThreadId) return;
+    
+    if (!activeThread || activeThread !== urlThreadId) {
+      console.debug(`[ChatContainer] Syncing activeThread state to match URL thread ID: ${urlThreadId}`);
+      
+      // Check if threads are loaded
+      if (originalThreadsLoading) {
+        console.debug('[ChatContainer] Waiting for threads to load before syncing activeThread');
+        return;
+      }
+      
+      // Find the thread in our loaded threads
+      const foundThread = originalThreads.find(t => t.id === urlThreadId);
+      
+      if (foundThread) {
+        console.debug(`[ChatContainer] Found matching thread in loaded threads: ${foundThread.id}, title: "${foundThread.title}"`);
+        setActiveThread(foundThread.id);
+      } else if (!originalThreadsLoading && originalThreads.length > 0) {
+        // If threads are loaded but we didn't find a match, set it anyway
+        // This handles cases where the thread might be new and not in our cache yet
+        console.debug(`[ChatContainer] Thread not found in loaded threads, setting activeThread to URL ID: ${urlThreadId}`);
+        setActiveThread(urlThreadId);
+      }
+    }
+  }, [urlThreadId, activeThread, originalThreads, originalThreadsLoading]);
+
   // =========== Render logic based on FSM state ===========
   
   // FSM visualizer in development
@@ -469,7 +516,7 @@ export function ChatContainer() {
       */}
       <div className="flex flex-col h-screen w-full overflow-hidden" ref={chatRef}>
         <ChatInterface 
-          threadId={urlThreadId || activeThread}
+          threadId={urlThreadId}
           messages={threadMessages}
           // Only pass loading=true for initial message loading, not during message generation
           loading={chatFSM.state.status === 'loading' && threadMessages.length === 0}

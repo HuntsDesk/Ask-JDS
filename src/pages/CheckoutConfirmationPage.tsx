@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase'; // Adjust path if needed
 import { LoadingSpinner } from '@/components/LoadingSpinner'; // Adjust path if needed
@@ -6,6 +6,7 @@ import { AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'; // Adjust path if needed
 import { Button } from '@/components/ui/button'; // Adjust path if needed
 import { useSubscriptionContext } from '@/contexts/SubscriptionContext'; // Adjust path if needed
+import { useAuth } from '@/lib/auth'; // Add this import
 import { manuallyActivateSubscription, getPriceIdForTier } from '@/lib/subscription'; // Import functions
 
 // Type for the response from the get-payment-status function
@@ -17,182 +18,170 @@ interface PaymentStatusResponse {
   metadata?: Record<string, string>;
 }
 
+// Global guards to prevent multiple simultaneous activation attempts and payment reprocessing
+let activationInProgress = false;
+const processedPaymentIntents = new Set<string>();
+
+// Helper function to add retry logic for subscription activation
+async function attemptSubscriptionActivation(priceId: string, maxRetries = 1): Promise<boolean> {
+  // Prevent multiple simultaneous activation attempts
+  if (activationInProgress) {
+    console.log('Activation already in progress, skipping...');
+    return false;
+  }
+  
+  console.log(`Attempting to activate subscription with price ID: ${priceId}, max retries: ${maxRetries}`);
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      activationInProgress = true;
+      console.log(`Activation attempt #${attempt} for price ID: ${priceId}`);
+      
+      const success = await manuallyActivateSubscription(priceId);
+      if (success) {
+        console.log(`Subscription successfully activated on attempt #${attempt}`);
+        return true;
+      } else {
+        console.log(`Activation attempt #${attempt} failed`);
+      }
+    } catch (error) {
+      console.error(`Error during activation attempt #${attempt}:`, error);
+    } finally {
+      activationInProgress = false;
+    }
+  }
+  
+  console.log(`All ${maxRetries} activation attempts failed for price ID: ${priceId}`);
+  return false;
+}
+
 export function CheckoutConfirmationPage() {
   const [searchParams] = useSearchParams();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'processing' | 'requires_action'>('loading');
+  const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'processing' | 'requires_action' | 'waiting_auth'>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [courseId, setCourseId] = useState<string | null>(null);
   const [priceId, setPriceId] = useState<string | null>(null);
   const { refreshSubscription } = useSubscriptionContext(); // Get refresh function from context
   const navigate = useNavigate(); // Add this for programmatic navigation
+  const { user } = useAuth(); // Add this to access user information
+  const [isActivating, setIsActivating] = useState(false);
 
   useEffect(() => {
-    // Extract course ID from search params if available
-    const courseIdParam = searchParams.get('course_id');
-    if (courseIdParam) {
-      setCourseId(courseIdParam);
-    }
-
-    // Check for tier parameter that might indicate which subscription was purchased
-    const tierParam = searchParams.get('tier');
-    if (tierParam) {
-      // Set the correct price ID for the tier
-      setPriceId(getPriceIdForTier(tierParam));
-      console.log(`Setting price ID for tier ${tierParam}: ${getPriceIdForTier(tierParam)}`);
-    }
-
-    const clientSecret = searchParams.get('payment_intent_client_secret') || searchParams.get('setup_intent_client_secret');
-    const redirectStatus = searchParams.get('redirect_status');
-
-    if (!clientSecret) {
-      setStatus('error');
-      setErrorMessage('Missing payment confirmation details.');
-      return;
-    }
-
     const checkStatus = async () => {
-      try {
-        // Determine the type of intent based on what query param was provided
-        let intentIdPayload: { payment_intent_id?: string; setup_intent_id?: string } = {};
-        const paymentIntentSecret = searchParams.get('payment_intent_client_secret');
-        const setupIntentSecret = searchParams.get('setup_intent_client_secret');
+      // Wait for authentication if needed
+      if (!user) {
+        console.log('User not yet authenticated, waiting...');
+        setStatus('waiting_auth');
         
-        if (paymentIntentSecret) {
-          // Extract payment intent ID from client secret or use the full secret
-          // Example format: pi_3NqVtVBdYlm3idIZ0M3XdjeK_secret_9HkZpQw32Bz00l8MJiPKNyU4s
-          const matches = paymentIntentSecret.match(/^(pi_[a-zA-Z0-9]+)_secret/);
-          const paymentIntentId = matches ? matches[1] : undefined;
-          
-          intentIdPayload = { payment_intent_id: paymentIntentId || paymentIntentSecret };
-        } else if (setupIntentSecret) {
-          // Extract setup intent ID from client secret
-          const matches = setupIntentSecret.match(/^(seti_[a-zA-Z0-9]+)_secret/);
-          const setupIntentId = matches ? matches[1] : undefined;
-          
-          intentIdPayload = { setup_intent_id: setupIntentId || setupIntentSecret };
-        } else {
-          throw new Error('Invalid client secret format.');
-        }
-
-        console.log('Checking payment status with:', intentIdPayload);
-
-        const { data, error } = await supabase.functions.invoke<PaymentStatusResponse>(
-          'get-payment-status',
-          {
-            method: 'POST',
-            body: intentIdPayload,
-          }
-        );
-
-        if (error) {
-            console.error('Edge function error:', error);
-            throw new Error(error.message || 'Failed to fetch payment status.');
-        }
-
-        console.log('Payment status response:', data);
-
-        if (!data) {
-            throw new Error('Empty response from payment status check.');
-        }
-
-        // Handle both formats of response
-        const paymentStatus = data.status || (typeof data === 'object' && 'status' in data ? data.status : undefined);
+        const authTimeout = setTimeout(() => {
+          setStatus('error');
+          setErrorMessage('Authentication timeout. Please log in and try again.');
+          setTimeout(() => {
+            navigate('/login?redirectTo=' + encodeURIComponent(window.location.pathname + window.location.search));
+          }, 2000);
+        }, 10000); // 10 second timeout
         
-        if (!paymentStatus) {
-            throw new Error('Invalid response format: No status found');
-        }
+        return () => clearTimeout(authTimeout);
+      }
 
-        // Extract metadata and price ID from the payment intent response if available
-        if (data && typeof data === 'object') {
-          // Try to extract course_id and price_id from metadata or other fields
-          if ('metadata' in data && data.metadata && typeof data.metadata === 'object') {
-            const metadata = data.metadata as Record<string, string>;
-            if (metadata.course_id) {
-              setCourseId(metadata.course_id);
-            }
-            // Get the price ID for subscription activation
-            if (metadata.target_stripe_price_id) {
-              setPriceId(metadata.target_stripe_price_id);
-              console.log(`Found price ID in metadata: ${metadata.target_stripe_price_id}`);
-            }
-          }
-        }
-
-        switch (paymentStatus) {
-          case 'succeeded':
-            setStatus('success');
-            
-            // Handle subscription activation manually
-            if (priceId) {
-              console.log(`Attempting to manually activate subscription with price ID: ${priceId}`);
-              const activated = await manuallyActivateSubscription(priceId);
-              if (activated) {
-                console.log('Subscription manually activated successfully');
-              } else {
-                console.warn('Manual subscription activation failed - trying with hardcoded price ID');
-                // Try with hardcoded price ID for unlimited tier as fallback
-                const fallbackPriceId = getPriceIdForTier('unlimited');
-                const fallbackActivated = await manuallyActivateSubscription(fallbackPriceId);
-                if (fallbackActivated) {
-                  console.log('Subscription manually activated with fallback price ID');
-                } else {
-                  console.error('Both manual activation attempts failed');
-                }
-              }
-            } else {
-              console.warn('No price ID found for manual subscription activation - using hardcoded price ID');
-              // Try with hardcoded price ID for unlimited tier as fallback
-              const fallbackPriceId = getPriceIdForTier('unlimited');
-              const fallbackActivated = await manuallyActivateSubscription(fallbackPriceId);
-              if (fallbackActivated) {
-                console.log('Subscription manually activated with hardcoded price ID');
-              } else {
-                console.error('Manual activation with hardcoded price ID failed');
-              }
-            }
-            
-            // Refresh subscription state after successful payment
-            await refreshSubscription();
-            break;
-          case 'processing':
-            setStatus('processing');
-            break;
-          case 'requires_payment_method':
-            setStatus('error');
-            setErrorMessage('Your payment method was declined. Please try again with a different payment method.');
-            break;
-          case 'requires_action':
-            setStatus('requires_action');
-            setErrorMessage('Your payment requires additional verification. Please check your email or banking app for instructions.');
-            break;
-          case 'canceled': 
-            setStatus('error');
-            setErrorMessage('The payment was canceled. Please try again.');
-            break;
-          case 'requires_capture': 
-            setStatus('processing');
-            setErrorMessage('Your payment is awaiting capture. This usually happens automatically.');
-            break;
-          case 'requires_confirmation': 
-            setStatus('error');
-            setErrorMessage('Your payment requires confirmation. Please try again.');
-            break;
-          default:
-            setStatus('error');
-            setErrorMessage(`An unexpected payment status occurred: ${paymentStatus}`);
-            break;
-        }
-      } catch (err: any) {
+      console.log('User authenticated, proceeding with payment verification');
+      
+      const paymentIntentId = searchParams.get('payment_intent');
+      const redirectStatus = searchParams.get('redirect_status');
+      
+      // Check if this payment intent has already been processed
+      if (paymentIntentId && processedPaymentIntents.has(paymentIntentId)) {
+        console.log(`Payment intent ${paymentIntentId} already processed, skipping...`);
+        setStatus('success');
+        return;
+      }
+      
+      // Extract tier and set price ID if available
+      const tier = searchParams.get('tier');
+      if (tier) {
+        const mappedPriceId = getPriceIdForTier(tier as any);
+        console.log(`Setting price ID for tier ${tier}: ${mappedPriceId}`);
+        setPriceId(mappedPriceId);
+      }
+      
+      // Check for course ID as well
+      const courseIdParam = searchParams.get('course_id');
+      if (courseIdParam) {
+        setCourseId(courseIdParam);
+      }
+      
+      // For manual activation or payment verification
+      if (!paymentIntentId) {
+        console.log('No payment intent ID found');
         setStatus('error');
-        setErrorMessage(err.message || 'An error occurred while verifying your payment.');
-        console.error('Checkout confirmation error:', err);
+        setErrorMessage('No payment information found');
+        return;
+      }
+      
+      try {
+        console.log(`Checking payment status with: {payment_intent_id: '${paymentIntentId}'}`);
+        
+        const response = await supabase.functions.invoke('get-payment-status', {
+          body: { payment_intent_id: paymentIntentId }
+        });
+        
+        console.log('Payment status response:', response.data);
+        
+        if (response.error) {
+          console.error('Error checking payment status:', response.error);
+          setStatus('error');
+          setErrorMessage(response.error.message || 'Failed to verify payment');
+          return;
+        }
+        
+        const { status: paymentStatus, error } = response.data;
+        
+        if (error) {
+          console.error('Payment status error:', error);
+          setStatus('error');
+          setErrorMessage(error.message || 'Payment verification failed');
+          return;
+        }
+        
+        if (paymentStatus === 'succeeded') {
+          console.log('Payment succeeded, activating subscription with price ID:', priceId);
+          
+          if (!priceId) {
+            console.error('No price ID found for subscription activation');
+            setStatus('error');
+            setErrorMessage('Unable to activate subscription: missing price information');
+            return;
+          }
+          
+          // Mark this payment intent as being processed
+          processedPaymentIntents.add(paymentIntentId);
+          
+          const activationSuccess = await attemptSubscriptionActivation(priceId, 1);
+          
+          if (activationSuccess) {
+            console.log('Subscription activated successfully');
+            setStatus('success');
+            // Refresh the subscription status
+            await refreshSubscription();
+          } else {
+            console.log('Subscription activation failed, but payment succeeded');
+            setStatus('manual'); // Show manual activation option
+          }
+        } else {
+          console.log(`Payment status: ${paymentStatus}`);
+          setStatus('error');
+          setErrorMessage(`Payment ${paymentStatus}`);
+        }
+      } catch (error) {
+        console.error('Error during payment verification:', error);
+        setStatus('error');
+        setErrorMessage('Failed to verify payment');
       }
     };
-
+    
+    // Only run once per payment intent
     checkStatus();
-
-    // No dependencies array needed if it should only run once on mount based on searchParams
-  }, [searchParams, refreshSubscription, priceId]);
+  }, [searchParams, refreshSubscription, priceId, user]);
 
   // Handle retry payment
   const handleRetryPayment = () => {
@@ -304,13 +293,22 @@ export function CheckoutConfirmationPage() {
             </div>
           </div>
         );
+      case 'waiting_auth':
+        return (
+          <div className="text-center">
+            <LoadingSpinner className="mx-auto mb-4 h-12 w-12" />
+            <CardTitle className="mb-2">Verifying Authentication</CardTitle>
+            <CardDescription className="mb-6">Please wait while we verify your login status...</CardDescription>
+            <p className="text-xs text-muted-foreground">If this takes more than a few seconds, you may need to log in again.</p>
+          </div>
+        );
       default:
         return null;
     }
   };
 
   return (
-    <div className="container mx-auto flex min-h-[calc(100vh-150px)] items-center justify-center py-12">
+    <div className="container mx-auto flex min-h-[calc(100vh-150px)] items-center justify-center py-12 bg-white dark:bg-gray-900">
       <Card className="w-full max-w-md">
         <CardHeader>
           {/* Header can be dynamic based on status if needed */}

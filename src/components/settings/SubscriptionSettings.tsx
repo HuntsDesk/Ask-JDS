@@ -14,7 +14,6 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { CreditCard, Info, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
-  getUserSubscription,
   getUserMessageCount,
   FREE_MESSAGE_LIMIT,
   createCheckoutSession,
@@ -33,6 +32,7 @@ import { supabase } from '@/lib/supabase';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { StripeCheckoutDialog } from '@/components/stripe/StripeCheckoutDialog';
 import ForceSubscriptionRefresh from '@/components/subscription/ForceSubscriptionRefresh';
+import { useSubscription } from '@/hooks/useSubscription';
 
 // Constants
 const FREE_TIER_LIMIT = FREE_MESSAGE_LIMIT;
@@ -41,7 +41,6 @@ const SUBSCRIPTION_PRICE = '$10';
 export function SubscriptionSettings() {
   const [isLoading, setIsLoading] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
-  const [subscription, setSubscription] = useState<any>(null);
   const [messageCount, setMessageCount] = useState(0);
   const [diagnosticResult, setDiagnosticResult] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -53,6 +52,16 @@ export function SubscriptionSettings() {
   const messageCountCache = new Map<string | undefined, { count: number; timestamp: number }>();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Use the subscription hook for tier information
+  const { 
+    subscription, 
+    isLoading: subscriptionLoading, 
+    isActive, 
+    tierName, 
+    current_period_end,
+    refreshSubscription 
+  } = useSubscription();
 
   // Handle closing payment modal
   const handleClosePaymentModal = () => {
@@ -60,31 +69,9 @@ export function SubscriptionSettings() {
   };
 
   useEffect(() => {
-    async function loadSubscriptionData() {
+    async function loadMessageCount() {
       try {
-        setIsLoading(true);
-        
-        // Set a safety timeout to prevent infinite loading
-        loadingTimeoutRef.current = setTimeout(() => {
-          console.log('Safety timeout triggered for subscription data loading');
-          setIsLoading(false);
-          toast({
-            title: 'Loading timeout',
-            description: 'Subscription data is taking longer than expected to load. Some information may be incomplete.',
-            variant: 'default',
-          });
-        }, 8000); // 8 second timeout
-        
-        // Try to load subscription data with error handling for each promise
-        let subscriptionData = null;
         let count = 0;
-        
-        try {
-          subscriptionData = await getUserSubscription(user?.id);
-          console.log('Subscription data loaded:', subscriptionData);
-        } catch (subError) {
-          console.error('Error loading subscription:', subError);
-        }
         
         try {
           count = await getUserMessageCount(user?.id);
@@ -93,25 +80,21 @@ export function SubscriptionSettings() {
           console.error('Error loading message count:', countError);
         }
         
-        setSubscription(subscriptionData);
         setMessageCount(count);
       } catch (error) {
-        console.error('Error loading subscription data:', error);
+        console.error('Error loading message count:', error);
         toast({
           title: 'Error',
-          description: 'Failed to load subscription information. Please try again later.',
+          description: 'Failed to load message count information. Please try again later.',
           variant: 'destructive',
         });
-      } finally {
-        setIsLoading(false);
-        if (loadingTimeoutRef.current) {
-          clearTimeout(loadingTimeoutRef.current);
-          loadingTimeoutRef.current = null;
-        }
       }
     }
     
-    loadSubscriptionData();
+    // Only load message count, subscription is handled by useSubscription hook
+    if (user?.id) {
+      loadMessageCount();
+    }
     
     return () => {
       if (loadingTimeoutRef.current) {
@@ -122,7 +105,7 @@ export function SubscriptionSettings() {
   
   // Check for upgrade parameter in URL
   useEffect(() => {
-    if (isLoading) return;
+    if (subscriptionLoading) return;
     
     const searchParams = new URLSearchParams(location.search);
     const upgradeParam = searchParams.get('upgrade');
@@ -139,7 +122,7 @@ export function SubscriptionSettings() {
         initiateSubscription(upgradeParam);
       }
     }
-  }, [isLoading, location.search, user, navigate]);
+  }, [subscriptionLoading, location.search, user, navigate]);
 
   // Handle subscribe button click
   const handleSubscribe = () => {
@@ -155,23 +138,55 @@ export function SubscriptionSettings() {
     try {
       setIsActionLoading(true);
       
-      const url = await createCustomerPortalSession(user?.id);
-      if (url) {
-        window.location.href = url;
-      } else {
-        toast({
-          title: 'Error',
-          description: 'Failed to access customer portal. Please try again later.',
-          variant: 'destructive',
-        });
+      try {
+        const portalUrl = await createCustomerPortalSession();
+        
+        if (!portalUrl) {
+          console.error('No portal URL returned');
+          toast({
+            title: "Error",
+            description: "Could not open subscription portal. Please try again later.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Open Stripe portal in new tab
+        window.open(portalUrl, '_blank');
+      } catch (err: any) {
+        console.error('Error creating customer portal session:', err);
+        
+        // Show different error messages based on the error
+        if (err.message?.includes('No subscription found')) {
+          toast({
+            title: "No Subscription Found",
+            description: "You don't have an active subscription to manage. Please subscribe to a plan first.",
+            variant: "destructive",
+            action: <Button onClick={() => navigate('/pricing')}>Subscribe</Button>,
+          });
+        } else if (err.message?.includes('session has expired') || err.message?.includes('log in again')) {
+          toast({
+            title: "Session Expired",
+            description: "Your session has expired. Please log in again to manage your subscription.",
+            variant: "destructive",
+            action: <Button onClick={() => {
+              // Clear auth state and redirect to login
+              supabase.auth.signOut().then(() => {
+                navigate('/login');
+              });
+            }}>Log In</Button>,
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: err.message || "Could not open subscription portal. Please try again later or contact support.",
+            variant: "destructive",
+            action: <Button onClick={() => {
+              window.location.href = 'mailto:support@example.com?subject=Subscription Portal Error';
+            }}>Contact Support</Button>,
+          });
+        }
       }
-    } catch (error) {
-      console.error('Error accessing customer portal:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to access customer portal. Please try again later.',
-        variant: 'destructive',
-      });
     } finally {
       setIsActionLoading(false);
     }
@@ -179,16 +194,16 @@ export function SubscriptionSettings() {
   
   // Check if user is on free tier
   const isFreeTier = () => {
-    return !subscription || subscription.status !== 'active';
+    return !isActive || tierName === 'Free';
   };
   
   // Helper function to format subscription end date
   const formatSubscriptionEndDate = () => {
-    if (!subscription || !subscription.periodEnd) {
+    if (!current_period_end) {
       return 'N/A';
     }
     
-    return format(subscription.periodEnd, 'MMM d, yyyy');
+    return format(new Date(current_period_end), 'MMM d, yyyy');
   };
 
   // Function to refresh message count
@@ -485,7 +500,7 @@ export function SubscriptionSettings() {
   };
 
   // Render loading state
-  if (isLoading) {
+  if (subscriptionLoading) {
     return (
       <div className="flex justify-center py-8">
         <LoadingSpinner className="w-8 h-8 text-jdblue" />
@@ -500,7 +515,7 @@ export function SubscriptionSettings() {
         <CardHeader>
           <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">Subscription</CardTitle>
           <CardDescription className="text-gray-500 dark:text-gray-300">
-            You are currently on the {isFreeTier() ? 'free tier' : 'premium plan'}
+            You are currently on the {isFreeTier() ? 'free tier' : `${tierName?.toLowerCase()} plan`}
           </CardDescription>
         </CardHeader>
         
@@ -508,7 +523,7 @@ export function SubscriptionSettings() {
           <div className="bg-gray-50 dark:bg-gray-700/80 rounded-lg p-6 border border-gray-100 dark:border-gray-600">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Current Plan</h3>
             <p className="text-base text-gray-700 dark:text-gray-300 mb-1">
-              {isFreeTier() ? 'Free Tier' : 'Premium Subscription'}
+              {isFreeTier() ? 'Free Tier' : tierName}
             </p>
             {!isFreeTier() && (
               <p className="text-sm text-gray-500 dark:text-gray-300">
@@ -523,7 +538,7 @@ export function SubscriptionSettings() {
             <p className="text-base text-gray-700 dark:text-gray-300 mb-4">
               {isFreeTier() 
                 ? `Get unlimited messages and priority support` 
-                : `Manage your premium subscription or payment method`}
+                : `Manage your ${tierName?.toLowerCase()} subscription or payment method`}
             </p>
             
             <Button
@@ -578,7 +593,7 @@ export function SubscriptionSettings() {
             <p className="mt-2 text-sm text-gray-500 dark:text-gray-300">
               {isFreeTier() 
                 ? `${messageCount}/${FREE_TIER_LIMIT} monthly limit` 
-                : 'Unlimited messages with your premium subscription'}
+                : `Unlimited messages with your ${tierName?.toLowerCase()} subscription`}
             </p>
           </div>
         </CardContent>

@@ -9,7 +9,7 @@ export function PricingTopBar() {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed w-full z-40 bg-white/80 backdrop-blur-md border-b shadow-sm">
+    <nav className="fixed w-full z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm">
       <div className="mx-auto">
         <div className="flex justify-between items-center h-[80px]">
           {/* Logo with precise positioning to match sidebar */}
@@ -18,7 +18,13 @@ export function PricingTopBar() {
               <OptimizedImage 
                 src="/images/JDSimplified_Logo.png" 
                 alt="JD Simplified Logo" 
-                className="h-[48px] w-auto" 
+                className="h-[48px] w-auto dark:hidden" 
+                priority={true}
+              />
+              <OptimizedImage 
+                src="/images/JDSimplified_Logo_wht.png" 
+                alt="JD Simplified Logo" 
+                className="h-[48px] w-auto hidden dark:block" 
                 priority={true}
               />
             </Link>
