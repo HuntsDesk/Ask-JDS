@@ -74,12 +74,26 @@ Deno.serve(async (req) => {
     const requestBody = await req.json();
     const { messages, useSystemPromptFromDb = false, title_generation = false } = requestBody;
     
+    // Enhanced debug logging for thread title requests
+    console.log('Request headers:', {
+      requestType: req.headers.get('X-Request-Type'),
+      contentType: req.headers.get('Content-Type'),
+      bodyTitleGeneration: title_generation,
+    });
+    
     // Get configuration with obfuscated model names
     const config = getConfig();
     
     // Determine which model to use based on the request type
     // Check both header and body for backward compatibility
     const isThreadTitleRequest = req.headers.get('X-Request-Type') === 'thread-title' || title_generation;
+    
+    // Debug log the decision
+    console.log('Thread title detection:', {
+      isThreadTitleRequest,
+      headerValue: req.headers.get('X-Request-Type'),
+      bodyParam: title_generation
+    });
     
     // Select the appropriate model based on request type
     const modelCodeName = isThreadTitleRequest 
@@ -89,11 +103,9 @@ Deno.serve(async (req) => {
     // Get the actual endpoint URL for the selected model
     const GOOGLE_URL = getModelEndpoint(modelCodeName);
     
-    // Only log model details if enabled
-    if (config.aiModelsLoggingEnabled) {
-      console.log(`Using model: ${modelCodeName} for ${isThreadTitleRequest ? 'thread title' : 'chat response'}`);
-      console.log(`Google AI Model endpoint: ${GOOGLE_URL}`);
-    }
+    // Always log this information for debugging the issue
+    console.log(`Using model: ${modelCodeName} for ${isThreadTitleRequest ? 'thread title' : 'chat response'}`);
+    console.log(`Google AI Model endpoint: ${GOOGLE_URL}`);
     
     let systemInstruction = cachedSystemPrompt || `You are Ask JDS, a legal study buddy, designed to help law students and bar exam takers understand complex legal concepts and prepare for exams.
 

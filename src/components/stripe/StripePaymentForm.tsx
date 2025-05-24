@@ -15,9 +15,10 @@ interface StripePaymentFormProps {
   clientSecret: string; // Passed after creating PaymentIntent/Subscription
   onSuccess?: (paymentIntentId: string) => void; // Optional callback on success
   onError?: (error: any) => void; // Optional callback on error
+  tier?: string; // Optional tier name for tracking subscription type
 }
 
-export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ clientSecret, onSuccess, onError }) => {
+export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ clientSecret, onSuccess, onError, tier }) => {
   const stripe = useStripe();
   const elements = useElements();
   const location = useLocation();
@@ -89,9 +90,14 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ clientSecr
     }
 
     // Build the return URL with courseId parameter if available
-    const returnUrl = courseId 
+    let returnUrl = courseId 
       ? `${window.location.origin}/checkout-confirmation?course_id=${courseId}`
       : `${window.location.origin}/checkout-confirmation`;
+    
+    // Add tier parameter if available
+    if (tier) {
+      returnUrl += (returnUrl.includes('?') ? '&' : '?') + `tier=${encodeURIComponent(tier)}`;
+    }
 
     console.log(`Confirming payment with return URL: ${returnUrl}`);
 
@@ -154,17 +160,17 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ clientSecr
       <PaymentElement id="payment-element" options={paymentElementOptions} />
       
       {message && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="dark:border-red-800 dark:bg-red-950/50">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{message}</AlertDescription>
+          <AlertTitle className="dark:text-red-300">Error</AlertTitle>
+          <AlertDescription className="dark:text-red-300">{message}</AlertDescription>
         </Alert>
       )}
 
       <Button 
         disabled={isLoading || !stripe || !elements} 
         id="submit" 
-        className="w-full bg-jdorange hover:bg-jdorange/90"
+        className="w-full bg-jdorange hover:bg-jdorange/90 dark:bg-jdorange dark:hover:bg-jdorange/90 dark:text-white"
       >
         <span id="button-text">
           {isLoading ? <LoadingSpinner className="h-5 w-5 inline mr-2" /> : "Pay now"}

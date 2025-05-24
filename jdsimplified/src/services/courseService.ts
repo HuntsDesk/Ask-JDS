@@ -11,6 +11,7 @@ import {
   Subject
 } from '@/types/course';
 import { supabase } from '@/lib/supabase';
+import { transformCourseForEnvironment } from '@/lib/environment';
 
 // Mock data for initial development
 const MOCK_SUBJECTS: Subject[] = [
@@ -185,7 +186,7 @@ export const getCourses = async (): Promise<Course[]> => {
       `);
     
     if (modulesError) throw new Error(`Error fetching modules with lessons: ${modulesError.message}`);
-    if (!modulesData) return coursesData;
+    if (!modulesData) return coursesData.map(transformCourseForEnvironment);
     
     // Process the data to get module and lesson counts
     const coursesWithCount = coursesData.map(course => {
@@ -200,8 +201,11 @@ export const getCourses = async (): Promise<Course[]> => {
         return total + (module.lessons ? module.lessons.length : 0);
       }, 0);
       
+      // Transform course for environment and add counts
+      const transformedCourse = transformCourseForEnvironment(course);
+      
       return {
-        ...course,
+        ...transformedCourse,
         _count: {
           modules: moduleCount,
           lessons: lessonCount
