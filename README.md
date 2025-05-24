@@ -1084,6 +1084,36 @@ useEffect(() => {
 }, [isLoading, chatFSM]);
 ```
 
+### Subscription Status Issues
+
+If subscription settings show "Current Plan: Unknown" instead of the correct tier name:
+
+1. **Common Causes:**
+   - `get-user-subscription` Edge Function missing test environment price IDs
+   - Environment variable mismatches between frontend (`VITE_` prefixed) and backend variables
+   - Price ID mapping only configured for live/production price IDs
+
+2. **Solutions:**
+   - Ensure Edge Function includes both live and test price IDs in tier mapping logic
+   - Add backend versions of Stripe price IDs to `.env` (without `VITE_` prefix)
+   - Deploy updated environment variables: `npx supabase secrets set --env-file .env`
+   - Verify price ID arrays in `get-user-subscription` include all environment variants
+
+3. **Required Environment Variables:**
+   ```bash
+   # Backend versions (for Edge Functions)
+   STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID=price_1R8lN7BdYlmFidIZPfXpSHxN
+   STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID=price_1RGYLYBdYlmFidIZ4cCnr4ES
+   STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID=price_1QzlzrBAYVpTe3LycwwkNhWV
+   STRIPE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID=price_1RGYI5BAYVpTe3LyMK63jgl2
+   ```
+
+4. **Debugging Steps:**
+   - Check user's `stripe_price_id` in `user_subscriptions` table
+   - Add temporary debug logging to Edge Function to see which price IDs are being checked
+   - Verify frontend is connecting to correct Supabase instance (local vs. remote)
+   - Test with both test and live Stripe price IDs
+
 ## Console Commands
 
 These commands can be executed in the browser's developer console during development:
@@ -1761,3 +1791,53 @@ Added tools to activate subscriptions for testing and development purposes witho
 ## Chat Message Rendering Fix
 
 Fixed an issue where messages would occasionally disappear during AI response generation. See [Message Rendering Improvements](readme/chat_improvements/message_rendering_fix.md) for details.
+
+## 🚀 Tech Stack
+
+- **Frontend**: React 18.2.0+ with TypeScript
+- **Runtime**: Vite + Deno (no Node.js)
+- **Backend**: Supabase Edge Functions (Deno only)
+- **Database**: PostgreSQL (via Supabase)
+- **Authentication**: Supabase Auth
+- **Payments**: Stripe
+- **Build Tool**: Vite 5.4.17+ with ESBuild optimization
+- **State Management**: Tanstack React Query v5.17.19+
+- **Styling**: Tailwind CSS
+- **Environment**: Single flat `.env` (no nesting/overrides)
+
+## 💳 Payment Architecture
+
+### Hybrid Price ID Management
+
+The application uses a hybrid approach for managing Stripe price IDs that optimizes for different use cases:
+
+#### **Courses: Database-Driven Price IDs**
+- Course price IDs are stored directly in the database with environment-specific fields:
+  - `stripe_price_id` (production environment)
+  - `stripe_price_id_dev` (development/testing environment)
+- **Benefits**:
+  - New courses can be added instantly via admin panel
+  - Price changes take effect immediately without redeploy
+  - Admins can manage pricing without developer intervention
+- **Environment Detection**: Uses `ENVIRONMENT=production` (backend) and `import.meta.env.PROD` (frontend)
+
+#### **Subscriptions: Environment Variables**
+- Subscription price IDs are managed via environment (.env) variables:
+  ```bash
+  # LIVE (Production)
+  VITE_STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID=...
+  VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID=...
+  
+  # TEST (Development)
+  VITE_STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID=...
+  VITE_STRIPE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID=...
+  ```
+- **Benefits**:
+  - Simple access pattern for stable subscription tiers
+  - Leverages existing environment configuration
+  - Low maintenance for infrequently changing plans
+
+#### **Shared Configuration**
+- `supabase/functions/_shared/config.ts` - Backend environment detection and price ID logic
+- `src/lib/environment.ts` - Frontend environment utilities
+- Both use consistent `getCoursePriceId(course)` function for type-safe price ID selection
