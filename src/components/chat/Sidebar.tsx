@@ -402,9 +402,9 @@ export function Sidebar({
     },
     {
       name: 'Settings',
-      href: '/settings',
+      href: '/settings/account',
       icon: Settings,
-      current: location.pathname === '/settings',
+      current: location.pathname.startsWith('/settings'),
     },
   ];
 
