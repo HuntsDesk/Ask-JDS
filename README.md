@@ -17,6 +17,7 @@
 - [Migration Backlog](#migration-backlog)
 - [Additional Documentation](#additional-documentation)
 - [Course Access Control](#course-access-control)
+- [Flashcard Subscription System](#flashcard-subscription-system)
 
 ## Overview
 
@@ -2041,3 +2042,103 @@ Monitor for significant deviations that might indicate:
 - Model availability issues
 - Network connectivity problems
 - Database performance degradation
+
+# Flashcard Subscription System
+
+## Tier-Based Access Control
+
+The flashcard system implements tier-based subscription checking to properly control access to premium content:
+
+### Subscription Tiers
+- **Free**: Access to public sample flashcards only
+- **Premium**: Access to all flashcards including premium content
+- **Unlimited**: Full access to flashcards + all courses
+
+### Implementation Overview
+
+All flashcard components use the `useSubscription()` hook for consistent tier-based access control:
+
+```tsx
+import { useSubscription } from '@/hooks/useSubscription';
+
+// In component
+const { tierName, isLoading: subscriptionLoading } = useSubscription();
+
+// Determine premium access
+const hasPremiumAccess = tierName === 'Premium' || tierName === 'Unlimited';
+```
+
+### Recent Fix: Unlimited Subscription Access
+
+**Issue**: Users with Unlimited subscriptions were incorrectly being told to upgrade for premium flashcard access.
+
+**Root Cause**: Flashcard components were using the deprecated `hasActiveSubscription()` function, which only checked for any active subscription without distinguishing between subscription tiers.
+
+**Solution**: Updated all flashcard components to use tier-based subscription checking:
+
+#### Updated Components:
+- `AllFlashcards.tsx` - Main flashcards page
+- `FlashcardsPage.tsx` - Entry point with navigation
+- `FlashcardStudy.tsx` - Individual card study mode
+- `EnhancedFlashcardItem.tsx` - Enhanced card display component
+- `FlashcardItem.tsx` - Basic card display component
+- `UnifiedStudyMode.tsx` - Comprehensive study interface
+
+#### Key Changes:
+1. **Replaced** `hasActiveSubscription()` calls with `useSubscription()` hook
+2. **Updated** premium access logic to check `tierName === 'Premium' || tierName === 'Unlimited'`
+3. **Maintained** development override functionality for testing
+4. **Removed** unused `hasActiveSubscription` imports
+5. **Verified** build passes successfully with tier-based system
+
+### Development Testing
+
+The system maintains development override capabilities:
+
+```javascript
+// In browser console or localStorage
+localStorage.setItem('forceSubscription', 'true');  // Override subscription checks
+localStorage.removeItem('forceSubscription');       // Remove override
+```
+
+This allows developers to test premium content access without requiring actual subscriptions.
+
+### Subscription Checking Flow
+
+```typescript
+// 1. Hook retrieves tier information
+const { tierName } = useSubscription();
+
+// 2. Components determine access level
+const hasPremiumAccess = tierName === 'Premium' || tierName === 'Unlimited';
+
+// 3. Content visibility controlled
+const shouldBlurContent = isPremium && !hasPremiumAccess;
+
+// 4. Actions filtered based on access
+if (shouldBlurContent) {
+  // Show paywall or upgrade prompt
+} else {
+  // Allow full access to content
+}
+```
+
+### Troubleshooting Subscription Issues
+
+**Users Can't Access Premium Flashcards**:
+1. Verify user's subscription tier in database (`user_subscriptions` table)
+2. Check that `tierName` correctly returns 'Premium' or 'Unlimited'
+3. Confirm `get-user-subscription` Edge Function is working
+4. Test with development override: `localStorage.setItem('forceSubscription', 'true')`
+
+**Inconsistent Access Behavior**:
+1. Clear browser cache and localStorage
+2. Force refresh subscription data via `refreshSubscription()` function
+3. Check console for subscription-related errors
+4. Verify environment variables for subscription price IDs are correct
+
+### Related Files
+- `src/hooks/useSubscription.ts` - Main subscription hook
+- `supabase/functions/get-user-subscription/index.ts` - Backend subscription service
+- `src/lib/subscription.ts` - Legacy subscription utilities (being phased out)
+- `src/contexts/SubscriptionContext.tsx` - React context wrapper
