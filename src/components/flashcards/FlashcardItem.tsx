@@ -171,7 +171,7 @@ const FlashcardItem = React.memo(({
             </button>
             
             {/* Premium indicator with JD Simplified favicon */}
-            {(isPremium || isReadOnly) && !hasSubscription && (
+            {(isPremium || isReadOnly) && (
               <Tooltip text="Premium Content" position="top">
                 <div className="text-[#F37022]">
                   <img 

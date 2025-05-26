@@ -2091,6 +2091,26 @@ const hasPremiumAccess = tierName === 'Premium' || tierName === 'Unlimited';
 4. **Removed** unused `hasActiveSubscription` imports
 5. **Verified** build passes successfully with tier-based system
 
+### Recent Fix: Premium Icon Visibility
+
+**Issue**: Premium icons on flashcard components were disappearing for subscribed users, making it difficult to identify premium content.
+
+**Root Cause**: Premium icon display logic was checking subscription status and hiding icons when users had subscriptions.
+
+**Solution**: Modified premium icon display logic to show icons for all premium content regardless of subscription status:
+
+#### Updated Components:
+- `FlashcardItem.tsx` - Basic flashcard item component used on main flashcards page
+
+#### Key Changes:
+1. **Removed** `&& !hasSubscription` condition from premium icon display logic
+2. **Maintained** content access restrictions and premium banners based on subscription status
+3. **Ensured** subscribed users can identify premium content while having full access
+
+**Behavior**:
+- **Free users**: See premium icons + blurred content + premium banners
+- **Subscribed users**: See premium icons + full content + no premium banners
+
 ### Development Testing
 
 The system maintains development override capabilities:
