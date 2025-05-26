@@ -11,7 +11,6 @@ import ErrorMessage from '../ErrorMessage';
 import DeleteConfirmation from '../DeleteConfirmation';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { hasActiveSubscription } from '@/lib/subscription';
 import { Button } from '@/components/ui/button';
 import { FlashcardPaywall } from '../../FlashcardPaywall';
 import { useFlashcardRelationships } from '@/hooks/useFlashcardRelationships';
@@ -21,6 +20,7 @@ import { Tooltip, TooltipProvider } from '@/components/ui/tooltip';
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { SkeletonFlashcardGrid } from '../SkeletonFlashcard';
 import { enrichFlashcardWithRelationships, processRelationshipData, isFlashcardReadOnly } from '@/utils/flashcard-utils';
+import { useSubscription } from '@/hooks/useSubscription';
 
 // Debug flag - set to false to disable most console logs
 // Set to localStorage.getItem('enableFlashcardDebug') === 'true' to control via localStorage
@@ -83,23 +83,34 @@ export default function AllFlashcards() {
   
   // UI state
   const [cardToDelete, setCardToDelete] = useState<Flashcard | null>(null);
-  const [hasSubscription, setHasSubscription] = useState<boolean>(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const { updateTotalCardCount, updateCount } = useNavbar();
   const [masteringCardId, setMasteringCardId] = useState<string | null>(null);
   const [pageSize] = useState(30); // Number of cards to fetch per page
 
-  // DEV ONLY: Check for forced subscription
+  // Use the new subscription hook with tier-based access
+  const { tierName, isLoading: subscriptionLoading } = useSubscription();
+  
+  // Determine if user has premium access (Premium or Unlimited tier)
+  const hasPremiumAccess = tierName === 'Premium' || tierName === 'Unlimited';
+
+  // DEV ONLY: Check for forced subscription override
+  const [devHasPremiumAccess, setDevHasPremiumAccess] = useState(false);
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       const forceSubscription = localStorage.getItem('forceSubscription');
       if (forceSubscription === 'true') {
-        console.log('DEV OVERRIDE: Forcing subscription to true in AllFlashcards component');
-        setHasSubscription(true);
+        console.log('DEV OVERRIDE: Forcing premium access to true in AllFlashcards component');
+        setDevHasPremiumAccess(true);
+      } else {
+        setDevHasPremiumAccess(false);
       }
     }
   }, []);
+
+  // Final premium access determination (dev override or actual premium access)
+  const hasSubscription = process.env.NODE_ENV === 'development' ? (devHasPremiumAccess || hasPremiumAccess) : hasPremiumAccess;
 
   // Persisted user preferences
   const [showMastered, setShowMastered] = usePersistedState<boolean>('flashcards-show-mastered', true);
@@ -109,49 +120,6 @@ export default function AllFlashcards() {
 
   // Filter state
   const [filter, setFilter] = useState<'all' | 'official' | 'my'>('all');
-
-  // Fetch subscription status
-  const { data: subscriptionStatus = false, isLoading: subscriptionLoading } = useQuery({
-    queryKey: ['user', user?.id, 'subscription'],
-    queryFn: async () => {
-      if (!user) return false;
-      console.log('AllFlashcards: Checking subscription status for user:', user.id);
-      const status = await hasActiveSubscription(user.id);
-      console.log('AllFlashcards: Subscription status result:', status);
-      return status;
-    },
-    enabled: !!user,
-    staleTime: 60 * 1000, // Reduce to 1 minute
-    refetchOnMount: 'always', // Always fetch fresh data on component mount
-    refetchOnWindowFocus: true, // Refetch when window regains focus
-    onSuccess: (data) => {
-      console.log('AllFlashcards: Setting hasSubscription to:', data);
-      setHasSubscription(data);
-    }
-  });
-
-  // Ensure subscription status is refreshed when user changes
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      const forceSubscription = localStorage.getItem('forceSubscription');
-      if (forceSubscription === 'true') {
-        console.log('DEV OVERRIDE: Forcing subscription to true in useEffect user change handler');
-        setHasSubscription(true);
-        return; // Skip the rest of the effect
-      }
-    }
-
-    if (user) {
-      console.log('AllFlashcards: User changed, invalidating subscription query');
-      // Invalidate subscription query when user changes
-      queryClient.invalidateQueries({queryKey: ['user', user.id, 'subscription']});
-      // Force an immediate refetch
-      queryClient.fetchQuery({queryKey: ['user', user.id, 'subscription']});
-    } else {
-      // Reset subscription status when no user
-      setHasSubscription(false);
-    }
-  }, [user, queryClient]);
 
   // Fetch subjects for filtering
   const { data: subjects = [] } = useQuery({
