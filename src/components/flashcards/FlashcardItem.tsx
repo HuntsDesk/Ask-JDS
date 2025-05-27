@@ -61,7 +61,7 @@ const FlashcardItem = React.memo(({
       }
     }
   }, []);
-
+  
   // Final premium access determination (dev override or actual premium access)
   const hasSubscription = process.env.NODE_ENV === 'development' ? (devHasPremiumAccess || hasPremiumAccess) : hasPremiumAccess;
 

@@ -819,6 +819,27 @@ Stripe is configured with Products for each subscription tier and individual cou
 7.  **UI Update**: The confirmation page displays success, failure, or processing status to the user.
 8.  **Webhook Fulfillment**: Asynchronously, the `stripe-webhook` Edge Function receives events from Stripe (e.g., `payment_intent.succeeded`, `customer.subscription.created`) and updates the database (creates enrollments, updates subscriptions).
 
+#### Subscription Activation Flow (Enhanced)
+
+**Issue Resolved**: Subscription activation wasn't working because tier information was lost during the Stripe payment redirect process.
+
+**Solution**: Enhanced the payment flow to preserve tier information throughout the entire process:
+
+1. **Tier Preservation**: Modified `StripeCheckoutDialog.tsx` and `StripePaymentForm.tsx` to accept and pass through a `tier` prop
+2. **Return URL Enhancement**: Updated return URL to include tier parameter: `/checkout-confirmation?payment_intent=pi_...&tier=unlimited`
+3. **Activation Trigger**: `CheckoutConfirmationPage` now extracts tier from URL, maps it to price ID via `getPriceIdForTier()`, and calls `manuallyActivateSubscription(priceId)`
+4. **Edge Function Invocation**: The `activate-subscription` Edge Function is now properly called with debugging logs for troubleshooting
+
+**Fixed Flow**:
+- PricingPage → StripeCheckoutDialog → StripePaymentForm → Stripe Payment → CheckoutConfirmationPage
+- Tier parameter flows through: `PricingPage.tier` → `StripeCheckoutDialog.tier` → `StripePaymentForm.tier` → URL → `CheckoutConfirmationPage`
+- Activation function: `manuallyActivateSubscription(priceId)` → `activate-subscription` Edge Function
+
+**Debugging Features**:
+- Enhanced logging in `manuallyActivateSubscription()` function
+- Console logs track tier extraction, price ID mapping, and function calls
+- Edge Function logs now appear in Supabase dashboard for monitoring
+
 #### Key Backend Functions
 - `create-payment-handler`: Initiates the payment/subscription process.
 - `get-payment-status`: Verifies the outcome after redirect.

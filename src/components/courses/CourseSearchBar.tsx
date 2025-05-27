@@ -108,7 +108,7 @@ export default function CourseSearchBar({ isMobileOverlay = false, onSearchResul
       }, 50);
       onSearchResultClick();
     } else {
-      navigate(`/course/${result.id}`);
+    navigate(`/course/${result.id}`);
     }
   };
 
@@ -144,15 +144,15 @@ export default function CourseSearchBar({ isMobileOverlay = false, onSearchResul
           
           {/* For md screens: clickable search icon that expands on click - NOT SHOWN IN MOBILE OVERLAY */}
           {!isMobileOverlay && (
-            <button 
+          <button 
               className="hidden md:block lg:hidden absolute inset-0 flex items-center justify-center z-20"
-              onClick={() => {
-                setIsExpanded(true);
-                setShowResults(true);
-              }}
-            >
-              <span className="sr-only">Search</span>
-            </button>
+            onClick={() => {
+              setIsExpanded(true);
+              setShowResults(true);
+            }}
+          >
+            <span className="sr-only">Search</span>
+          </button>
           )}
           
           <input
@@ -230,9 +230,9 @@ export default function CourseSearchBar({ isMobileOverlay = false, onSearchResul
                 <div className="border-t border-gray-200 dark:border-gray-600">
                   <button
                     className="w-full px-4 py-2 text-sm text-[#F37022] hover:bg-gray-100 dark:hover:bg-gray-700 text-center"
-                    onClick={handleViewAllResults}
-                  >
-                    View all results
+                  onClick={handleViewAllResults}
+                >
+                  View all results
                   </button>
                 </div>
               )}

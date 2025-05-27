@@ -89,7 +89,7 @@ export default function FlashcardsPage() {
 
   // Final premium access determination (dev override or actual premium access)
   const hasSubscription = process.env.NODE_ENV === 'development' ? (devHasPremiumAccess || hasPremiumAccess) : hasPremiumAccess;
-  
+    
   // Function to check if a collection is a user collection or premium one
   const checkAccessToCollection = async (collectionId: string) => {
     try {

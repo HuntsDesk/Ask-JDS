@@ -182,7 +182,7 @@ export function SubscriptionSettings() {
             description: err.message || "Could not open subscription portal. Please try again later or contact support.",
             variant: "destructive",
             action: <Button onClick={() => {
-              window.location.href = 'mailto:support@example.com?subject=Subscription Portal Error';
+              window.location.href = 'mailto:support@jdsimplified.com?subject=Subscription Portal Error';
             }}>Contact Support</Button>,
           });
         }

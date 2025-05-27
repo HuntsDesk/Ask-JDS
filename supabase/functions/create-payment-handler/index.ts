@@ -248,44 +248,44 @@ async function determinePriceId(
       try {
         const priceId = getCoursePriceId(course);
         console.log(`Found course price ID using shared config: ${priceId}`);
-        return priceId;
+          return priceId;
       } catch (error) {
         console.log(`Course price ID not found in database: ${error instanceof Error ? error.message : String(error)}`);
         
         // If the database doesn't have the required price ID, try environment variables as fallback
-        const courseType = coursePurchaseType || 'standard';
-        
-        // Function to resolve course price ID from environment variables
-        const resolveCoursePrice = (): string | null => {
-          // Try finding the course by ID in a mapping
-          const courseMapping: Record<string, string> = {
-            '78b1d8b7-3cb6-4cc5-8dcc-8cf4ac498b66': 'CIVIL_PROCEDURE',
-            'c24190af-bd00-4d6f-b1af-3170f93e61fe': 'EVIDENCE',
-            '913deaf2-aad3-40c3-b487-004e414ca827': 'INTESTACY',
-          };
-          
-          if (courseId && courseId in courseMapping) {
-            const courseName = courseMapping[courseId];
-            const courseKey = `STRIPE_${environment === 'production' ? 'LIVE_' : ''}COURSE_${courseName}_${courseType.toUpperCase()}_PRICE_ID`;
-            const fallbackKey = `STRIPE_COURSE_${courseType.toUpperCase()}_FALLBACK_PRICE_ID`;
-            
-            const primaryValue = Deno.env.get(courseKey);
-            const fallbackValue = Deno.env.get(fallbackKey);
-            
-            console.log(`Checking for course price ID with:
-              - Primary key: ${courseKey} (${primaryValue ? 'FOUND' : 'NOT FOUND'})
-              - Fallback key: ${fallbackKey} (${fallbackValue ? 'FOUND' : 'NOT FOUND'})`);
-            
-            return primaryValue || fallbackValue || null;
-          }
-          
-          return null;
+      const courseType = coursePurchaseType || 'standard';
+      
+      // Function to resolve course price ID from environment variables
+      const resolveCoursePrice = (): string | null => {
+        // Try finding the course by ID in a mapping
+        const courseMapping: Record<string, string> = {
+          '78b1d8b7-3cb6-4cc5-8dcc-8cf4ac498b66': 'CIVIL_PROCEDURE',
+          'c24190af-bd00-4d6f-b1af-3170f93e61fe': 'EVIDENCE',
+          '913deaf2-aad3-40c3-b487-004e414ca827': 'INTESTACY',
         };
         
-        const coursePrice = resolveCoursePrice();
-        if (coursePrice) {
-          console.log(`Using course price ID from environment: ${coursePrice}`);
-          return coursePrice;
+        if (courseId && courseId in courseMapping) {
+          const courseName = courseMapping[courseId];
+          const courseKey = `STRIPE_${environment === 'production' ? 'LIVE_' : ''}COURSE_${courseName}_${courseType.toUpperCase()}_PRICE_ID`;
+          const fallbackKey = `STRIPE_COURSE_${courseType.toUpperCase()}_FALLBACK_PRICE_ID`;
+          
+          const primaryValue = Deno.env.get(courseKey);
+          const fallbackValue = Deno.env.get(fallbackKey);
+          
+          console.log(`Checking for course price ID with:
+            - Primary key: ${courseKey} (${primaryValue ? 'FOUND' : 'NOT FOUND'})
+            - Fallback key: ${fallbackKey} (${fallbackValue ? 'FOUND' : 'NOT FOUND'})`);
+          
+          return primaryValue || fallbackValue || null;
+        }
+        
+        return null;
+      };
+      
+      const coursePrice = resolveCoursePrice();
+      if (coursePrice) {
+        console.log(`Using course price ID from environment: ${coursePrice}`);
+        return coursePrice;
         }
         
         // If we still can't find a price ID, re-throw the original error

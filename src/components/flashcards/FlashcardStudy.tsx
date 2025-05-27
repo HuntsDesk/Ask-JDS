@@ -65,7 +65,7 @@ export default function FlashcardStudy() {
 
   // Final premium access determination (dev override or actual premium access)
   const hasSubscription = process.env.NODE_ENV === 'development' ? (devHasPremiumAccess || hasPremiumAccess) : hasPremiumAccess;
-
+  
   const [collection, setCollection] = useState<FlashcardCollection | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
