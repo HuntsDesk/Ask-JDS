@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3'
 import Stripe from 'npm:stripe@14.21.0'
 
 const corsHeaders = {
@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     let event: Stripe.Event;
 
     try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
     } catch (err) {
       console.error('Webhook signature verification failed:', err.message);
       return new Response(`Webhook signature verification failed: ${err.message}`, { status: 400 });
