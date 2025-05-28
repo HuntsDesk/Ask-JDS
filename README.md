@@ -64,6 +64,12 @@ A modern React application built with Vite, TypeScript, and Supabase that provid
 ### Recent Security Updates (January 2025)
 
 - ✅ **Removed hardcoded Stripe webhook secrets** from git history using `git filter-branch`
+- ✅ **CRITICAL: Completely removed exposed Supabase service keys** from entire git history
+  - Removed script files containing hardcoded service keys (`rls_policy_comparison.sh`, `quick_schema_check.sh`, `detailed_schema_comparison.sh`)
+  - Removed `.env` and `.env.blank` files from git tracking to prevent future leaks
+  - Used `git filter-branch` to eradicate all traces from git history
+  - Force-pushed cleaned history to remote repository
+  - **Verified**: No exposed keys remain in git history
 - ✅ **Implemented secure environment variable handling** for all secrets
 - ✅ **Updated Edge Functions** to follow latest Supabase best practices:
   - Uses `Deno.serve` instead of deprecated `serve` import
@@ -71,6 +77,7 @@ A modern React application built with Vite, TypeScript, and Supabase that provid
   - Uses async webhook signature verification (`constructEventAsync`) for Deno compatibility
 - ✅ **Force-pushed cleaned git history** to remove exposed credentials
 - ✅ **Deployed and tested** updated webhook function successfully
+- ✅ **Updated Supabase CLI** to latest version (v2.23.4)
 
 ### Environment Variables
 
@@ -80,7 +87,7 @@ Required environment variables (see `.env.example`):
 # Supabase (auto-populated in hosted environment)
 SUPABASE_URL=your_supabase_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key  # REGENERATE if using exposed key
 
 # Stripe
 STRIPE_SECRET_KEY=sk_test_...
@@ -278,4 +285,4 @@ For support and questions:
 
 ---
 
-**Last Updated**: January 2025 - Includes security updates, webhook improvements, and Edge Function modernization 
+**Last Updated**: January 2025 - Includes critical security cleanup (removed exposed Supabase service keys from git history), webhook improvements, and Edge Function modernization 
