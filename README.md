@@ -194,6 +194,35 @@ Following Supabase Edge Function guidelines (as implemented):
 - ✅ Use Web APIs and Deno core APIs when possible
 - ✅ Secure environment variable handling without hardcoded fallbacks
 
+### Edge Functions Sync Status (January 2025)
+
+**✅ Local and Remote Functions are Synchronized**
+
+**Available Functions (16 local + 2 backend-only):**
+- `activate-subscription` - Subscription management
+- `activate-subscription-minimal` - Minimal subscription flow
+- `activate-subscription-test` - Testing subscription flow
+- `chat-google` - Google AI chat integration
+- `chat-openai` - OpenAI chat integration
+- `chat-relay` - Chat relay functionality ✨ *recently synced*
+- `create-checkout-session` - Stripe checkout creation
+- `create-customer-portal-session` - Customer portal access
+- `create-payment-handler` - Payment processing
+- `create-payment-intent` - Payment intent creation ✨ *recently synced*
+- `delete-flashcard` - Flashcard management
+- `get-payment-status` - Payment status checking
+- `get-price-id` - Stripe price retrieval
+- `get-user-subscription` - Subscription status
+- `stripe-webhook` - Secure webhook handling
+- `debug-env` - Development debugging
+
+**Backend-Only Functions (not needed locally):**
+- `process-transcripts` - Server-side transcript processing
+- `process-outlines` - Server-side outline processing
+
+**Deprecated Functions (removed):**
+- ~~`create-portal-session`~~ - Replaced by `create-customer-portal-session`
+
 ### Database
 
 - **PostgreSQL** with Supabase
@@ -216,6 +245,11 @@ Following Supabase Edge Function guidelines (as implemented):
 3. **Build errors**
    - Clear `node_modules` and reinstall: `rm -rf node_modules && npm install`
    - Check TypeScript errors: `npm run type-check`
+
+4. **Supabase CLI issues**
+   - Update to latest version: `npm update supabase --save-dev` or `brew upgrade supabase`
+   - Current recommended version: v2.23.4+
+   - Check version: `supabase --version`
 
 ### Monitoring
 
