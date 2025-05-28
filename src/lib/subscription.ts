@@ -1094,7 +1094,7 @@ export async function createCustomerPortalSession(userId?: string): Promise<stri
         } else if (response.status === 403) {
           throw new Error('You do not have permission to access the subscription portal.');
         } else if (response.status === 500) {
-          throw new Error('Server error. Our team has been notified.');
+          throw new Error('Server error. Please notify support.');
         } else {
           throw new Error(responseData?.error || 'Error accessing customer portal');
         }
