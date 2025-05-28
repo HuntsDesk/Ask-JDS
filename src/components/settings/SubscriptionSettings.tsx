@@ -523,7 +523,7 @@ export function SubscriptionSettings() {
         <CardHeader>
           <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">Current Plan</CardTitle>
           <CardDescription className="text-gray-500 dark:text-gray-300">
-            Your subscription details and status
+            Your subscription details and status:
           </CardDescription>
         </CardHeader>
         
@@ -541,11 +541,11 @@ export function SubscriptionSettings() {
           
           {/* Upgrade Section - moved here */}
           <div className="pt-2">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Upgrade Your Plan</h3>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Manage Your Plan</h3>
             <p className="text-base text-gray-700 dark:text-gray-300 mb-4">
               {isFreeTier() 
                 ? `Get unlimited messages and priority support` 
-                : `Manage your ${tierName?.toLowerCase()} subscription or payment method`}
+                : `Ensure your pop-up blocker is disabled and click below to manage your subscription.`}
             </p>
             
             <Button

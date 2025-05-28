@@ -1,14 +1,60 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 
+// Environment detection
+function getEnvironment(): 'development' | 'production' {
+  // For local development, always use development
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'development';
+  }
+  
+  // Check for explicit environment variable
+  const envMode = import.meta.env.VITE_ENVIRONMENT;
+  if (envMode === 'production') {
+    return 'production';
+  }
+  
+  // Default to development for safety
+  return 'development';
+}
+
+// Environment-aware Supabase configuration
+function getSupabaseConfig() {
+  // Detect environment based on hostname and Vite mode
+  const isProduction = import.meta.env.PROD && (
+    window.location.hostname === 'askjds.com' ||
+    window.location.hostname === 'jdsimplified.com' ||
+    window.location.hostname === 'admin.jdsimplified.com'
+  );
+
+  if (isProduction) {
+    // Production configuration
+    return {
+      url: import.meta.env.VITE_SUPABASE_URL_PROD || 'https://prbbuxgirnecbkpdpgcb.supabase.co',
+      anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY_PROD,
+      environment: 'production'
+    };
+  } else {
+    // Development configuration (fallback to legacy env vars for backward compatibility)
+    return {
+      url: import.meta.env.VITE_SUPABASE_URL_DEV || import.meta.env.VITE_SUPABASE_URL || 'https://prbbuxgirnecbkpdpgcb.supabase.co',
+      anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY_DEV || import.meta.env.VITE_SUPABASE_ANON_KEY,
+      environment: 'development'
+    };
+  }
+}
+
+// Get the configuration
+const supabaseConfig = getSupabaseConfig();
+
 // Create a global key for the Supabase client
 const GLOBAL_SUPABASE_KEY = '__SUPABASE_CLIENT__';
 
 // Define a global type for the window object
 declare global {
   interface Window {
-    [GLOBAL_SUPABASE_KEY]: ReturnType<typeof createClient<Database>>;
-    supabaseClient: ReturnType<typeof createClient<Database>>;
+    [GLOBAL_SUPABASE_KEY]?: ReturnType<typeof createClient<Database>>;
+    supabaseClient?: ReturnType<typeof createClient<Database>>;
   }
 }
 
@@ -28,20 +74,20 @@ if (typeof window !== 'undefined') {
 }
 
 // Debug log
-console.log('Initializing Supabase client with:', {
-  url: import.meta.env.VITE_SUPABASE_URL,
-  hasAnonKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
+console.log(`Initializing Supabase client for ${supabaseConfig.environment} environment:`, {
+  url: supabaseConfig.url,
+  hasAnonKey: !!supabaseConfig.anonKey,
   storage: typeof window !== 'undefined' ? 'localStorage available' : 'no localStorage'
 });
 
-if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-  throw new Error('Missing Supabase environment variables');
+if (!supabaseConfig.url || !supabaseConfig.anonKey) {
+  throw new Error(`Missing Supabase environment variables for ${supabaseConfig.environment} environment`);
 }
 
 // Function to get or create the Supabase client
 function getSupabaseClient() {
   // Check if we already have a client in the global scope
-  if (typeof window !== 'undefined' && GLOBAL_SUPABASE_KEY in window) {
+  if (typeof window !== 'undefined' && GLOBAL_SUPABASE_KEY in window && window[GLOBAL_SUPABASE_KEY]) {
     console.log('Using existing Supabase client from global scope');
     return window[GLOBAL_SUPABASE_KEY];
   }
@@ -51,13 +97,13 @@ function getSupabaseClient() {
     console.warn('Supabase client initialization already in progress, creating temporary client');
     // Return a temporary instance that will be replaced once initialization completes
     return createClient<Database>(
-      import.meta.env.VITE_SUPABASE_URL,
-      import.meta.env.VITE_SUPABASE_ANON_KEY,
+      supabaseConfig.url,
+      supabaseConfig.anonKey,
       {
         auth: {
           persistSession: true,
-          storageKey: 'ask-jds-auth-storage',
-          storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+          storageKey: 'ask-jds-auth-storage', // Keep consistent key to avoid session loss
+          storage: typeof window !== 'undefined' && window.localStorage ? window.localStorage : undefined,
           autoRefreshToken: true,
           detectSessionInUrl: false
         }
@@ -68,15 +114,15 @@ function getSupabaseClient() {
   isInitializing = true;
 
   // Create a new client
-  console.log('Creating new Supabase client instance');
+  console.log(`Creating new Supabase client instance for ${supabaseConfig.environment}`);
   const instance = createClient<Database>(
-    import.meta.env.VITE_SUPABASE_URL,
-    import.meta.env.VITE_SUPABASE_ANON_KEY,
+    supabaseConfig.url,
+    supabaseConfig.anonKey,
     {
       auth: {
         persistSession: true,
-        storageKey: 'ask-jds-auth-storage',
-        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+        storageKey: 'ask-jds-auth-storage', // Keep consistent key to avoid session loss
+        storage: typeof window !== 'undefined' && window.localStorage ? window.localStorage : undefined,
         autoRefreshToken: true,
         detectSessionInUrl: false
       },

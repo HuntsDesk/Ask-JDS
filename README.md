@@ -2183,3 +2183,125 @@ if (shouldBlurContent) {
 - `supabase/functions/get-user-subscription/index.ts` - Backend subscription service
 - `src/lib/subscription.ts` - Legacy subscription utilities (being phased out)
 - `src/contexts/SubscriptionContext.tsx` - React context wrapper
+
+## Development Environment Setup
+
+### Local Development with Supabase
+
+The project now supports **true development/production environment separation** using local Supabase for development:
+
+#### **Development Environment (Local Supabase)**
+- **Database**: Local PostgreSQL instance via Supabase CLI
+- **API**: `http://127.0.0.1:54321`
+- **Studio**: `http://127.0.0.1:54323` (Database management UI)
+- **Edge Functions**: Run locally with development environment variables
+- **Stripe**: Uses test mode keys and test customer IDs
+- **Benefits**: Complete isolation from production data, faster development, no risk of affecting live users
+
+#### **Production Environment (Cloud Supabase)**
+- **Database**: Cloud Supabase instance (`prbbuxgirnecbkpdpgcb.supabase.co`)
+- **Edge Functions**: Deployed to cloud with production environment variables
+- **Stripe**: Uses live mode keys and live customer IDs
+- **Benefits**: Real production environment for live users
+
+#### **Quick Start for Local Development**
+
+1. **Start Local Supabase**:
+   ```bash
+   npx supabase start
+   ```
+   This will:
+   - Start local PostgreSQL database
+   - Apply migrations from `supabase/migrations/`
+   - Start local API server and Studio
+   - Display connection details
+
+2. **Start Development Server**:
+   ```bash
+   npm run dev
+   ```
+   The app automatically detects `localhost` and uses local Supabase configuration.
+
+3. **Access Local Services**:
+   - **App**: `http://localhost:5173`
+   - **Supabase Studio**: `http://127.0.0.1:54323`
+   - **Local API**: `http://127.0.0.1:54321`
+
+#### **Environment Detection**
+
+The application automatically detects the environment:
+
+- **`localhost`** → Development (Local Supabase + Test Stripe)
+- **Production domains** → Production (Cloud Supabase + Live Stripe)
+
+#### **Environment Variables Structure**
+
+```bash
+# Development Environment (LOCAL SUPABASE)
+SUPABASE_URL_DEV=http://127.0.0.1:54321
+SUPABASE_ANON_KEY_DEV=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+VITE_SUPABASE_URL_DEV=http://127.0.0.1:54321
+VITE_SUPABASE_ANON_KEY_DEV=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+VITE_STRIPE_PUBLISHABLE_KEY_DEV=pk_test_...
+
+# Production Environment (CLOUD SUPABASE)
+SUPABASE_URL_PROD=https://prbbuxgirnecbkpdpgcb.supabase.co
+SUPABASE_ANON_KEY_PROD=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+VITE_SUPABASE_URL_PROD=https://prbbuxgirnecbkpdpgcb.supabase.co
+VITE_SUPABASE_ANON_KEY_PROD=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+VITE_STRIPE_PUBLISHABLE_KEY_PROD=pk_live_...
+```
+
+#### **Edge Functions Environment Configuration**
+
+Local Edge Functions use environment variables from `supabase/.env.local`:
+
+```bash
+# supabase/.env.local
+ENVIRONMENT=development
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_LIVE_SECRET_KEY=sk_live_...
+PUBLIC_APP_URL=http://localhost:5173
+```
+
+Production Edge Functions use Supabase secrets:
+```bash
+npx supabase secrets set ENVIRONMENT=production --project-ref prbbuxgirnecbkpdpgcb
+```
+
+#### **Database Schema Management**
+
+- **Local**: Uses migrations in `supabase/migrations/`
+- **Production**: Deploy migrations with `npx supabase db push`
+- **Schema Sync**: Use `npx supabase db pull` to sync production schema to local
+
+#### **Subscription Management Fix**
+
+The recent update fixed the "Manage Subscription" 500 error by:
+
+1. **Environment-Based Stripe Key Selection**: Edge Functions now dynamically choose between test/live Stripe keys based on the `ENVIRONMENT` variable
+2. **Proper Error Handling**: Better error messages for environment mismatches
+3. **Development Safety**: Local development uses test Stripe keys, preventing accidental live charges
+
+#### **Deployment Workflow**
+
+1. **Develop Locally**: Use local Supabase with test data
+2. **Test Features**: Verify subscription flows with test Stripe customers
+3. **Deploy to Production**: 
+   ```bash
+   # Deploy Edge Functions
+   npx supabase functions deploy --project-ref prbbuxgirnecbkpdpgcb
+   
+   # Deploy database changes
+   npx supabase db push --project-ref prbbuxgirnecbkpdpgcb
+   
+   # Deploy frontend
+   npm run build && [deploy to hosting]
+   ```
+
+#### **Troubleshooting Local Development**
+
+- **Reset Local Database**: `npx supabase db reset`
+- **View Logs**: `npx supabase logs`
+- **Check Status**: `npx supabase status`
+- **Stop Services**: `npx supabase stop`
