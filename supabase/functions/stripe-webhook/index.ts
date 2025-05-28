@@ -77,14 +77,14 @@ Deno.serve(async (req) => {
           
           // Update user subscription in database
           const { error } = await supabase
-            .from('user_subscriptions')
-            .upsert({
+      .from('user_subscriptions')
+      .upsert({
               user_id: session.client_reference_id,
               stripe_subscription_id: subscription.id,
               stripe_customer_id: subscription.customer as string,
-              status: subscription.status,
-              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        status: subscription.status,
+        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
               tier: session.metadata?.tier || 'premium',
             });
 
@@ -107,11 +107,11 @@ Deno.serve(async (req) => {
           
           // Update subscription status
           const { error } = await supabase
-            .from('user_subscriptions')
-            .update({
-              status: subscription.status,
-              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      .from('user_subscriptions')
+      .update({
+        status: subscription.status,
+        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
             })
             .eq('stripe_subscription_id', subscription.id);
 
@@ -132,16 +132,16 @@ Deno.serve(async (req) => {
         if (invoice.subscription) {
           // Update subscription status to indicate payment failure
           const { error } = await supabase
-            .from('user_subscriptions')
-            .update({
+      .from('user_subscriptions')
+      .update({
               status: 'past_due',
             })
             .eq('stripe_subscription_id', invoice.subscription as string);
 
           if (error) {
             console.error('Error updating subscription after payment failure:', error);
-            throw error;
-          }
+    throw error;
+  }
 
           console.log('Subscription marked as past_due after payment failure');
         }
@@ -154,8 +154,8 @@ Deno.serve(async (req) => {
         
         // Update subscription in database
         const { error } = await supabase
-          .from('user_subscriptions')
-          .update({
+      .from('user_subscriptions')
+      .update({
             status: subscription.status,
             current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
             current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
@@ -164,8 +164,8 @@ Deno.serve(async (req) => {
 
         if (error) {
           console.error('Error updating subscription:', error);
-          throw error;
-        }
+    throw error;
+  }
 
         console.log('Subscription updated successfully');
         break;

@@ -30,10 +30,12 @@ A modern React application built with Vite, TypeScript, and Supabase that provid
    # Edit .env with your configuration
    ```
 
-4. **Start local development**
+4. **Start development (uses production database)**
    ```bash
    npm run dev
    ```
+
+   **Note**: Development environment now uses the production database directly for a streamlined workflow.
 
 ## 🏗️ Architecture
 
@@ -52,11 +54,26 @@ A modern React application built with Vite, TypeScript, and Supabase that provid
 ├── src/                    # React frontend application
 ├── supabase/
 │   ├── functions/         # Deno Edge Functions
-│   ├── migrations/        # Database migrations
+│   ├── migrations/        # Database migrations (production sync)
 │   └── config.toml        # Supabase configuration
 ├── readme/                # Detailed documentation
 ├── scripts/               # Deployment and utility scripts
 └── public/                # Static assets
+```
+
+### Development Environment
+
+**Streamlined Setup (January 2025):**
+- ✅ **Development uses production database** - No local Supabase required
+- ✅ **Simplified workflow** - One environment, no sync issues
+- ✅ **Instant production readiness** - Development IS production
+- ✅ **Real data testing** - See exactly what users see
+
+**Environment Configuration:**
+```bash
+# Development now points to production for simplicity
+SUPABASE_URL_DEV=https://prbbuxgirnecbkpdpgcb.supabase.co
+VITE_SUPABASE_URL_DEV=https://prbbuxgirnecbkpdpgcb.supabase.co
 ```
 
 ## 🔐 Security & Environment
@@ -78,16 +95,22 @@ A modern React application built with Vite, TypeScript, and Supabase that provid
 - ✅ **Force-pushed cleaned git history** to remove exposed credentials
 - ✅ **Deployed and tested** updated webhook function successfully
 - ✅ **Updated Supabase CLI** to latest version (v2.23.4)
+- ✅ **Streamlined development workflow** to use production database directly
 
 ### Environment Variables
 
 Required environment variables (see `.env.example`):
 
 ```bash
-# Supabase (auto-populated in hosted environment)
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key  # REGENERATE if using exposed key
+# Supabase (Development now uses production)
+SUPABASE_URL_DEV=https://prbbuxgirnecbkpdpgcb.supabase.co
+SUPABASE_ANON_KEY_DEV=your_production_anon_key
+SUPABASE_SERVICE_ROLE_KEY_DEV=your_production_service_role_key
+
+# Production (same as development for streamlined workflow)
+SUPABASE_URL_PROD=https://prbbuxgirnecbkpdpgcb.supabase.co
+SUPABASE_ANON_KEY_PROD=your_production_anon_key
+SUPABASE_SERVICE_ROLE_KEY_PROD=your_production_service_role_key
 
 # Stripe
 STRIPE_SECRET_KEY=sk_test_...
@@ -98,7 +121,8 @@ VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
 
 # Application
 ENVIRONMENT=development
-PUBLIC_APP_URL=http://localhost:5173
+PUBLIC_APP_URL_DEV=http://localhost:5173
+PUBLIC_APP_URL_PROD=https://askjds.com
 ```
 
 ## 💳 Stripe Integration
@@ -143,25 +167,23 @@ The Stripe webhook function (`supabase/functions/stripe-webhook/index.ts`) imple
 
 ### Supabase Edge Functions
 
-**Local Development vs Online Deployment:**
-- **Local changes**: Made to files in `supabase/functions/`
-- **Online deployment**: Use `supabase functions deploy <function-name>`
-- **Sync requirement**: Local changes must be deployed to take effect online
+**Development vs Production:**
+- **Development**: Uses production database directly - no local Supabase needed
+- **Edge Functions**: Deploy to production with `supabase functions deploy <function-name>`
+- **Secrets**: Set in production with `supabase secrets set`
 
 Deploy the webhook function:
 ```bash
 supabase functions deploy stripe-webhook
 ```
 
-Set secrets (applies to online environment):
+Set secrets (applies to production environment):
 ```bash
 supabase secrets set STRIPE_TEST_WEBHOOK_SECRET=whsec_...
 supabase secrets set STRIPE_LIVE_WEBHOOK_SECRET=whsec_...
 supabase secrets set STRIPE_TEST_SECRET_KEY=sk_test_...
 supabase secrets set STRIPE_LIVE_SECRET_KEY=sk_live_...
 ```
-
-**Note**: Environment variables set via `supabase secrets set` only affect the online Supabase environment. Local development uses `.env` file.
 
 ### Frontend Deployment
 
@@ -183,6 +205,25 @@ Detailed documentation is available in the `readme/` directory:
 
 ## 🔧 Development
 
+### Streamlined Development Workflow
+
+**Start developing:**
+```bash
+npm run dev
+```
+
+**Benefits:**
+- ✅ **No local Supabase setup required**
+- ✅ **No database sync issues**
+- ✅ **Instant production readiness**
+- ✅ **Real data during development**
+- ✅ **Single source of truth**
+
+**Important Notes:**
+- Development uses the production database directly
+- Be careful with test data - use test email addresses
+- Consider adding development flags to distinguish dev vs prod usage in UI
+
 ### Code Quality
 
 - **ESLint** for code linting
@@ -203,19 +244,19 @@ Following Supabase Edge Function guidelines (as implemented):
 
 ### Edge Functions Sync Status (January 2025)
 
-**✅ Local and Remote Functions are Synchronized**
+**✅ Functions Deployed and Synchronized**
 
-**Available Functions (16 local + 2 backend-only):**
+**Available Functions (16 active):**
 - `activate-subscription` - Subscription management
 - `activate-subscription-minimal` - Minimal subscription flow
 - `activate-subscription-test` - Testing subscription flow
 - `chat-google` - Google AI chat integration
 - `chat-openai` - OpenAI chat integration
-- `chat-relay` - Chat relay functionality ✨ *recently synced*
+- `chat-relay` - Chat relay functionality
 - `create-checkout-session` - Stripe checkout creation
 - `create-customer-portal-session` - Customer portal access
 - `create-payment-handler` - Payment processing
-- `create-payment-intent` - Payment intent creation ✨ *recently synced*
+- `create-payment-intent` - Payment intent creation
 - `delete-flashcard` - Flashcard management
 - `get-payment-status` - Payment status checking
 - `get-price-id` - Stripe price retrieval
@@ -223,44 +264,44 @@ Following Supabase Edge Function guidelines (as implemented):
 - `stripe-webhook` - Secure webhook handling
 - `debug-env` - Development debugging
 
-**Backend-Only Functions (not needed locally):**
+**Backend-Only Functions:**
 - `process-transcripts` - Server-side transcript processing
 - `process-outlines` - Server-side outline processing
-
-**Deprecated Functions (removed):**
-- ~~`create-portal-session`~~ - Replaced by `create-customer-portal-session`
-
-### Database
-
-- **PostgreSQL** with Supabase
-- **Row Level Security (RLS)** for data protection
-- **Real-time subscriptions** for live updates
-- **Migrations** for schema management
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-1. **Webhook signature verification fails**
+1. **Environment connection issues**
+   - Verify production database credentials in `.env`
+   - Check that SUPABASE_URL_DEV points to production
+   - Ensure anon key is up to date
+
+2. **Webhook signature verification fails**
    - Ensure `STRIPE_TEST_WEBHOOK_SECRET` is set correctly
    - Check that the webhook URL is configured in Stripe dashboard
-
-2. **Environment variable not found**
-   - Verify all required variables are set in `.env`
-   - For Edge Functions, ensure secrets are set via `supabase secrets set`
 
 3. **Build errors**
    - Clear `node_modules` and reinstall: `rm -rf node_modules && npm install`
    - Check TypeScript errors: `npm run type-check`
 
-4. **Supabase CLI issues**
-   - Update to latest version: `npm update supabase --save-dev` or `brew upgrade supabase`
-   - Current recommended version: v2.23.4+
-   - Check version: `supabase --version`
+4. **Data concerns during development**
+   - Use test email addresses for user registration
+   - Add development flags to distinguish dev vs prod usage
+   - Be mindful that you're working with production data
+
+### Development Best Practices
+
+Since development uses production database:
+
+- **Use test accounts** - Don't create production users during development
+- **Test carefully** - Changes affect real data
+- **Use feature flags** - Distinguish development vs production usage
+- **Backup regularly** - Ensure production data is backed up
 
 ### Monitoring
 
-- **Supabase Dashboard**: Monitor Edge Function logs
+- **Supabase Dashboard**: Monitor database activity and Edge Function logs
 - **Stripe Dashboard**: View webhook delivery attempts
 - **Browser DevTools**: Debug frontend issues
 
@@ -271,6 +312,8 @@ Following Supabase Edge Function guidelines (as implemented):
 3. Commit changes: `git commit -m 'Add amazing feature'`
 4. Push to branch: `git push origin feature/amazing-feature`
 5. Open a Pull Request
+
+**Note**: Since development uses production database, be extra careful with database changes.
 
 ## 📄 License
 
@@ -285,4 +328,4 @@ For support and questions:
 
 ---
 
-**Last Updated**: January 2025 - Includes critical security cleanup (removed exposed Supabase service keys from git history), webhook improvements, and Edge Function modernization 
+**Last Updated**: January 2025 - Streamlined development workflow to use production database directly, eliminating local Supabase setup and sync issues. Includes critical security cleanup and Edge Function modernization. 
