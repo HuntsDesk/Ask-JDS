@@ -63,10 +63,14 @@ A modern React application built with Vite, TypeScript, and Supabase that provid
 
 ### Recent Security Updates (January 2025)
 
-- ✅ **Removed hardcoded Stripe webhook secrets** from git history
+- ✅ **Removed hardcoded Stripe webhook secrets** from git history using `git filter-branch`
 - ✅ **Implemented secure environment variable handling** for all secrets
-- ✅ **Updated Edge Functions** to follow Supabase best practices
+- ✅ **Updated Edge Functions** to follow latest Supabase best practices:
+  - Uses `Deno.serve` instead of deprecated `serve` import
+  - Uses `npm:` specifiers with pinned versions (`npm:@supabase/supabase-js@2.39.3`, `npm:stripe@14.21.0`)
+  - Uses async webhook signature verification (`constructEventAsync`) for Deno compatibility
 - ✅ **Force-pushed cleaned git history** to remove exposed credentials
+- ✅ **Deployed and tested** updated webhook function successfully
 
 ### Environment Variables
 
@@ -132,16 +136,25 @@ The Stripe webhook function (`supabase/functions/stripe-webhook/index.ts`) imple
 
 ### Supabase Edge Functions
 
+**Local Development vs Online Deployment:**
+- **Local changes**: Made to files in `supabase/functions/`
+- **Online deployment**: Use `supabase functions deploy <function-name>`
+- **Sync requirement**: Local changes must be deployed to take effect online
+
 Deploy the webhook function:
 ```bash
 supabase functions deploy stripe-webhook
 ```
 
-Set secrets:
+Set secrets (applies to online environment):
 ```bash
 supabase secrets set STRIPE_TEST_WEBHOOK_SECRET=whsec_...
 supabase secrets set STRIPE_LIVE_WEBHOOK_SECRET=whsec_...
+supabase secrets set STRIPE_TEST_SECRET_KEY=sk_test_...
+supabase secrets set STRIPE_LIVE_SECRET_KEY=sk_live_...
 ```
+
+**Note**: Environment variables set via `supabase secrets set` only affect the online Supabase environment. Local development uses `.env` file.
 
 ### Frontend Deployment
 
@@ -172,13 +185,14 @@ Detailed documentation is available in the `readme/` directory:
 
 ### Edge Function Best Practices
 
-Following Supabase Edge Function guidelines:
+Following Supabase Edge Function guidelines (as implemented):
 
 - ✅ Use `Deno.serve` instead of deprecated `serve` import
-- ✅ Use `npm:` and `jsr:` specifiers for dependencies
-- ✅ Pin dependency versions
-- ✅ Minimize external CDN usage
+- ✅ Use `npm:` and `jsr:` specifiers with pinned versions for dependencies
+- ✅ Use async webhook signature verification (`constructEventAsync`) for Deno compatibility
+- ✅ Minimize external CDN usage (migrated from `esm.sh` to `npm:`)
 - ✅ Use Web APIs and Deno core APIs when possible
+- ✅ Secure environment variable handling without hardcoded fallbacks
 
 ### Database
 
@@ -230,4 +244,4 @@ For support and questions:
 
 ---
 
-**Last Updated**: January 2025 - Includes security updates and webhook improvements 
+**Last Updated**: January 2025 - Includes security updates, webhook improvements, and Edge Function modernization 
