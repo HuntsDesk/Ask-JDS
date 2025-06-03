@@ -5,20 +5,32 @@
 -- if Phase 4.1 migration needs to be reverted
 -- =====================================================
 
-RAISE NOTICE 'PHASE 4.1 ROLLBACK: Restoring original course_enrollments policies';
-RAISE NOTICE '==================================================================';
+DO $$
+BEGIN
+    RAISE NOTICE 'PHASE 4.1 ROLLBACK: Restoring original course_enrollments policies';
+    RAISE NOTICE '==================================================================';
+END $$;
 
 -- STEP 1: Drop consolidated policies
-RAISE NOTICE 'Dropping consolidated mega-policies...';
+DO $$
+BEGIN
+    RAISE NOTICE 'Dropping consolidated mega-policies...';
+END $$;
 
 DROP POLICY IF EXISTS "Users and admins can create enrollments" ON course_enrollments;
 DROP POLICY IF EXISTS "Users and admins can view enrollments" ON course_enrollments;  
 DROP POLICY IF EXISTS "Users and admins can update enrollments" ON course_enrollments;
 
-RAISE NOTICE 'Consolidated policies dropped successfully.';
+DO $$
+BEGIN
+    RAISE NOTICE 'Consolidated policies dropped successfully.';
+END $$;
 
 -- STEP 2: Restore original separate policies
-RAISE NOTICE 'Restoring original separate admin and user policies...';
+DO $$
+BEGIN
+    RAISE NOTICE 'Restoring original separate admin and user policies...';
+END $$;
 
 -- Restore admin policy (covers all actions)
 CREATE POLICY "Admins can manage all enrollments" ON course_enrollments
@@ -42,11 +54,17 @@ FOR UPDATE
 USING (user_id = (SELECT auth.uid()))
 WITH CHECK (user_id = (SELECT auth.uid()));
 
-RAISE NOTICE 'Original policies restored successfully.';
+DO $$
+BEGIN
+    RAISE NOTICE 'Original policies restored successfully.';
+END $$;
 
 -- STEP 3: Validation - verify rollback
-RAISE NOTICE 'ROLLBACK VALIDATION: Restored policies';
-RAISE NOTICE '===================================';
+DO $$
+BEGIN
+    RAISE NOTICE 'ROLLBACK VALIDATION: Restored policies';
+    RAISE NOTICE '===================================';
+END $$;
 
 SELECT 
     policyname,
@@ -78,8 +96,11 @@ BEGIN
     END IF;
 END $$;
 
-RAISE NOTICE 'PHASE 4.1 ROLLBACK COMPLETED';
-RAISE NOTICE 'Status: Original policy structure restored';
-RAISE NOTICE 'Impact: 3 warnings → 12 warnings (reverted consolidation)';
-RAISE NOTICE 'Note: Performance Advisor will show original warning count';
-RAISE NOTICE 'Rollback completed successfully! ✅'; 
+DO $$
+BEGIN
+    RAISE NOTICE 'PHASE 4.1 ROLLBACK COMPLETED';
+    RAISE NOTICE 'Status: Original policy structure restored';
+    RAISE NOTICE 'Impact: 3 warnings → 12 warnings (reverted consolidation)';
+    RAISE NOTICE 'Note: Performance Advisor will show original warning count';
+    RAISE NOTICE 'Rollback completed successfully! ✅';
+END $$; 

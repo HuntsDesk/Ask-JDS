@@ -5,12 +5,18 @@
 -- of the Phase 4.1 consolidation WITHOUT making changes
 -- =====================================================
 
-RAISE NOTICE 'PHASE 4.1 PRE-MIGRATION VALIDATION';
-RAISE NOTICE '=================================';
+DO $$
+BEGIN
+    RAISE NOTICE 'PHASE 4.1 PRE-MIGRATION VALIDATION';
+    RAISE NOTICE '=================================';
+END $$;
 
 -- STEP 1: Current policy inventory
-RAISE NOTICE '1. CURRENT COURSE_ENROLLMENTS POLICIES:';
-RAISE NOTICE '======================================';
+DO $$
+BEGIN
+    RAISE NOTICE '1. CURRENT COURSE_ENROLLMENTS POLICIES:';
+    RAISE NOTICE '======================================';
+END $$;
 
 DO $$
 DECLARE
@@ -36,9 +42,12 @@ BEGIN
 END $$;
 
 -- STEP 2: Expected consolidation analysis
-RAISE NOTICE '';
-RAISE NOTICE '2. CONSOLIDATION ANALYSIS:';
-RAISE NOTICE '=========================';
+DO $$
+BEGIN
+    RAISE NOTICE '';
+    RAISE NOTICE '2. CONSOLIDATION ANALYSIS:';
+    RAISE NOTICE '=========================';
+END $$;
 
 DO $$
 DECLARE
@@ -68,9 +77,12 @@ BEGIN
 END $$;
 
 -- STEP 3: Warning reduction calculation  
-RAISE NOTICE '';
-RAISE NOTICE '3. PERFORMANCE IMPACT CALCULATION:';
-RAISE NOTICE '=================================';
+DO $$
+BEGIN
+    RAISE NOTICE '';
+    RAISE NOTICE '3. PERFORMANCE IMPACT CALCULATION:';
+    RAISE NOTICE '=================================';
+END $$;
 
 DO $$
 DECLARE
@@ -94,9 +106,12 @@ BEGIN
 END $$;
 
 -- STEP 4: Auth function validation
-RAISE NOTICE '';
-RAISE NOTICE '4. AUTH FUNCTION AVAILABILITY:';
-RAISE NOTICE '==============================';
+DO $$
+BEGIN
+    RAISE NOTICE '';
+    RAISE NOTICE '4. AUTH FUNCTION AVAILABILITY:';
+    RAISE NOTICE '==============================';
+END $$;
 
 DO $$
 BEGIN
@@ -118,9 +133,12 @@ BEGIN
 END $$;
 
 -- STEP 5: Table structure validation
-RAISE NOTICE '';
-RAISE NOTICE '5. TABLE STRUCTURE VALIDATION:';
-RAISE NOTICE '==============================';
+DO $$
+BEGIN
+    RAISE NOTICE '';
+    RAISE NOTICE '5. TABLE STRUCTURE VALIDATION:';
+    RAISE NOTICE '==============================';
+END $$;
 
 DO $$
 DECLARE
@@ -153,15 +171,18 @@ BEGIN
 END $$;
 
 -- STEP 6: Migration readiness summary
-RAISE NOTICE '';
-RAISE NOTICE '6. MIGRATION READINESS SUMMARY:';
-RAISE NOTICE '===============================';
-RAISE NOTICE '✅ Prerequisites met - migration ready to execute';
-RAISE NOTICE '✅ Expected impact: 12 → 3 warnings (75%% reduction for this table)';
-RAISE NOTICE '✅ Auth functions available and properly wrapped';
-RAISE NOTICE '✅ Table structure supports user ownership model';
-RAISE NOTICE '';
-RAISE NOTICE 'RECOMMENDATION: Proceed with Phase 4.1 migration';
-RAISE NOTICE 'File: sql/performance_optimization/migrations/Phase_4.1_course_enrollments_mega_consolidation.sql';
-RAISE NOTICE '';
-RAISE NOTICE 'VALIDATION COMPLETED SUCCESSFULLY! ✅'; 
+DO $$
+BEGIN
+    RAISE NOTICE '';
+    RAISE NOTICE '6. MIGRATION READINESS SUMMARY:';
+    RAISE NOTICE '===============================';
+    RAISE NOTICE '✅ Prerequisites met - migration ready to execute';
+    RAISE NOTICE '✅ Expected impact: 12 → 3 warnings (75%% reduction for this table)';
+    RAISE NOTICE '✅ Auth functions available and properly wrapped';
+    RAISE NOTICE '✅ Table structure supports user ownership model';
+    RAISE NOTICE '';
+    RAISE NOTICE 'RECOMMENDATION: Proceed with Phase 4.1 migration';
+    RAISE NOTICE 'File: sql/performance_optimization/migrations/Phase_4.1_course_enrollments_mega_consolidation.sql';
+    RAISE NOTICE '';
+    RAISE NOTICE 'VALIDATION COMPLETED SUCCESSFULLY! ✅';
+END $$; 

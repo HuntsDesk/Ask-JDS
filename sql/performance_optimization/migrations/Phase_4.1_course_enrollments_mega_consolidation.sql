@@ -32,7 +32,10 @@ ORDER BY cmd, policyname;
 -- STEP 1: DROP ALL EXISTING COURSE_ENROLLMENTS POLICIES
 -- =====================================================
 
-RAISE NOTICE 'Dropping existing course_enrollments policies...';
+DO $$
+BEGIN
+    RAISE NOTICE 'Dropping existing course_enrollments policies...';
+END $$;
 
 -- Drop admin policies
 DROP POLICY IF EXISTS "Admins can manage all enrollments" ON course_enrollments;
@@ -46,13 +49,19 @@ DROP POLICY IF EXISTS "Users can update their own enrollments" ON course_enrollm
 DROP POLICY IF EXISTS "Users can delete their own enrollments" ON course_enrollments;
 DROP POLICY IF EXISTS "Admin users can manage all course enrollments" ON course_enrollments;
 
-RAISE NOTICE 'All existing course_enrollments policies dropped successfully.';
+DO $$
+BEGIN
+    RAISE NOTICE 'All existing course_enrollments policies dropped successfully.';
+END $$;
 
 -- =====================================================
 -- STEP 2: CREATE MEGA-CONSOLIDATED POLICIES  
 -- =====================================================
 
-RAISE NOTICE 'Creating consolidated mega-policies...';
+DO $$
+BEGIN
+    RAISE NOTICE 'Creating consolidated mega-policies...';
+END $$;
 
 -- MEGA INSERT POLICY (All roles consolidated)
 CREATE POLICY "Users and admins can create enrollments" ON course_enrollments
@@ -90,14 +99,20 @@ WITH CHECK (
     (user_id = (SELECT auth.uid()))
 );
 
-RAISE NOTICE 'Mega-consolidated policies created successfully.';
+DO $$
+BEGIN
+    RAISE NOTICE 'Mega-consolidated policies created successfully.';
+END $$;
 
 -- =====================================================
 -- STEP 3: VALIDATION - VERIFY NEW POLICY STRUCTURE
 -- =====================================================
 
-RAISE NOTICE 'PHASE 4.1 VALIDATION: New consolidated policies';
-RAISE NOTICE '==============================================';
+DO $$
+BEGIN
+    RAISE NOTICE 'PHASE 4.1 VALIDATION: New consolidated policies';
+    RAISE NOTICE '==============================================';
+END $$;
 
 SELECT 
     policyname,
@@ -132,8 +147,11 @@ END $$;
 -- STEP 4: FUNCTIONAL VALIDATION TESTS
 -- =====================================================
 
-RAISE NOTICE 'PHASE 4.1 FUNCTIONAL VALIDATION';
-RAISE NOTICE '==============================';
+DO $$
+BEGIN
+    RAISE NOTICE 'PHASE 4.1 FUNCTIONAL VALIDATION';
+    RAISE NOTICE '==============================';
+END $$;
 
 -- Test 1: Admin auth function availability
 DO $$
@@ -159,8 +177,11 @@ END $$;
 -- STEP 5: PERFORMANCE OPTIMIZATION VERIFICATION
 -- =====================================================
 
-RAISE NOTICE 'PHASE 4.1 PERFORMANCE VERIFICATION';
-RAISE NOTICE '=================================';
+DO $$
+BEGIN
+    RAISE NOTICE 'PHASE 4.1 PERFORMANCE VERIFICATION';
+    RAISE NOTICE '=================================';
+END $$;
 
 -- Verify auth functions are wrapped for initPlan optimization
 DO $$
@@ -192,16 +213,19 @@ END $$;
 -- STEP 6: EXPECTED IMPACT SUMMARY
 -- =====================================================
 
-RAISE NOTICE 'PHASE 4.1 COMPLETION SUMMARY';
-RAISE NOTICE '============================';
-RAISE NOTICE 'Target achieved: course_enrollments policies consolidated';
-RAISE NOTICE 'Before: 6 policies → 12 warnings (2 policies × 3 actions × 4 roles)';
-RAISE NOTICE 'After:  3 policies → 3 warnings (1 policy per action for all roles)';
-RAISE NOTICE 'Reduction: 9 warnings eliminated (75%% reduction for this table)';
-RAISE NOTICE 'Total impact: 44 → 35 total warnings (20%% improvement)';
-RAISE NOTICE '';
-RAISE NOTICE 'Next recommended phase: 4.2 (Flashcards SELECT optimization)';
-RAISE NOTICE 'Migration completed successfully! ✅';
+DO $$
+BEGIN
+    RAISE NOTICE 'PHASE 4.1 COMPLETION SUMMARY';
+    RAISE NOTICE '============================';
+    RAISE NOTICE 'Target achieved: course_enrollments policies consolidated';
+    RAISE NOTICE 'Before: 6 policies → 12 warnings (2 policies × 3 actions × 4 roles)';
+    RAISE NOTICE 'After:  3 policies → 3 warnings (1 policy per action for all roles)';
+    RAISE NOTICE 'Reduction: 9 warnings eliminated (75%% reduction for this table)';
+    RAISE NOTICE 'Total impact: 44 → 35 total warnings (20%% improvement)';
+    RAISE NOTICE '';
+    RAISE NOTICE 'Next recommended phase: 4.2 (Flashcards SELECT optimization)';
+    RAISE NOTICE 'Migration completed successfully! ✅';
+END $$;
 
 -- =====================================================
 -- ROLLBACK INFORMATION
