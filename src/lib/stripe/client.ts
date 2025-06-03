@@ -5,6 +5,7 @@
  */
 
 import Stripe from 'stripe';
+import { getStripePublishableKey } from '@/lib/environment';
 
 // Get the appropriate environment variables based on environment
 
@@ -26,7 +27,7 @@ export const PREMIUM_SUBSCRIPTION_PRICE_ID = {
 // For client-side usage
 export const loadStripeClient = async () => {
   const stripe = await import('@stripe/stripe-js');
-  return stripe.loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+  return stripe.loadStripe(getStripePublishableKey());
 };
 
 // Helper for generating idempotency keys

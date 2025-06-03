@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -12,9 +12,7 @@ import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from '@/hooks/use-toast';
-
-// Load Stripe outside component to avoid recreating on render
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
+import { getStripePublishableKey } from '@/lib/environment';
 
 const UnlimitedPage: React.FC = () => {
   const { user } = useAuth();
@@ -28,6 +26,17 @@ const UnlimitedPage: React.FC = () => {
   
   // Simple state for displaying messages within the component
   const [message, setMessage] = useState<string | null>(null);
+  
+  // Lazy-load Stripe to avoid module load time errors
+  const stripePromise = useMemo(() => {
+    try {
+      const publishableKey = getStripePublishableKey();
+      return loadStripe(publishableKey);
+    } catch (error) {
+      console.error('Failed to load Stripe:', error);
+      return null;
+    }
+  }, []);
   
   // Check if there was a cancelled checkout
   const checkoutCancelled = new URLSearchParams(location.search).get('checkout_cancelled') === 'true';

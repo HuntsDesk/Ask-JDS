@@ -2385,17 +2385,27 @@ The chat system uses obfuscated model names for security:
 
 ### Common Error Patterns
 
-1. **502 Bad Gateway on `/chat-google`**
+1. **"Invalid API key" Authentication Errors (401)**
+   - **Cause**: Vite development server using expired/invalid Supabase anon key from environment fallback
+   - **Symptoms**: Login fails with "Invalid API key", console shows 401 errors on `/auth/v1/token`
+   - **Root Cause**: Environment variable priority issues - code looks for `VITE_SUPABASE_ANON_KEY_DEV` first, falls back to `VITE_SUPABASE_ANON_KEY`
+   - **Solution**: 
+     1. Verify current valid keys: `supabase projects api-keys --project-ref prbbuxgirnecbkpdpgcb`
+     2. Update all Supabase anon key environment variables with current valid key
+     3. **Critical**: Restart Vite development server to pick up environment variable changes
+   - **Prevention**: Always restart dev server after .env changes, verify keys match Supabase dashboard
+
+2. **502 Bad Gateway on `/chat-google`**
    - **Cause**: Missing environment variables in Edge Function
    - **Solution**: Ensure all `AI_MODEL_*` variables are set via `npx supabase secrets set`
    - **Verification**: Check function logs for "Missing environment variable" errors
 
-2. **CSS Loading 500 Errors**
+3. **CSS Loading 500 Errors**
    - **Cause**: Incorrect CSS import paths in main.tsx
    - **Solution**: Use relative imports from component location, never absolute paths
    - **Prevention**: Run build process to catch import errors early
 
-3. **"Unexpected response structure from Gemini API"**
+4. **"Unexpected response structure from Gemini API"**
    - **Cause**: Model configuration mismatch or API response format changes
    - **Solution**: Verify model names in `_shared/config.ts` match deployed environment
    - **Debug**: Enable `AI_MODELS_LOGGING=true` for detailed request/response logging
@@ -2470,6 +2480,7 @@ Monitor for significant deviations that might indicate:
 - ✅ **Critical Security Cleanup**: Completely removed exposed credentials from git history and implemented secure environment variable handling
 - ✅ **Edge Function Modernization**: Updated all Edge Functions to follow latest Supabase best practices with Deno.serve and npm: specifiers
 - ✅ **Database Performance Optimization**: 60% reduction in performance warnings (111→44), eliminated all Auth RLS initialization warnings, fixed critical subjects table security vulnerability
+- ✅ **Authentication System Fixes**: Resolved "Invalid API key" errors by fixing environment variable loading priority and Vite server restart requirements
 - ✅ **Comprehensive Documentation**: Enhanced README with Quick Start guide, deployment instructions, and complete system architecture documentation
 
 ### Tech Stack Summary
