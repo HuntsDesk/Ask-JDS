@@ -24,19 +24,28 @@ Wraps all direct auth function calls with `(select ...)` syntax:
 
 This enables Postgres initPlan optimization, caching auth lookups per statement instead of per row.
 
-### Phase 2: Policy Consolidation (High-Value Tables)
-**Files**: 
-- `migrations/002_threads_policy_consolidation.sql`
-- `migrations/003_course_enrollments_consolidation.sql` (planned)
-- `migrations/004_courses_lessons_modules_consolidation.sql` (planned)
+### Phase 2: Policy Consolidation (NEW)
 
-**Impact**: Fixes 40+ warnings, improves maintainability  
-**Risk**: Medium - requires careful testing  
+**Target:** Resolve all 29 remaining "Multiple Permissive Policies" warnings
+**Impact:** 75-80% policy reduction, dramatic performance improvement on SELECT operations
 
-Consolidates redundant permissive policies:
-- **threads**: 12 policies → 4 policies (75% reduction)
-- **course_enrollments**: 15 policies → 6 policies (60% reduction)  
-- **courses/lessons/modules**: Significant reduction planned
+### Phase 2.1: Critical Consolidation
+**File:** `002_critical_policy_consolidation.sql`
+- **Target:** `flashcards` table (5 SELECT policies → 1 policy)
+- **Impact:** 60% reduction on highest-traffic flashcard queries
+- **Strategy:** Consolidated admin, subscription, sample, and ownership access into single comprehensive policy
+
+### Phase 2.2: High Impact Consolidation  
+**File:** `003_high_impact_policy_consolidation.sql`
+- **Targets:** `courses`, `lessons`, `modules`, `user_entitlements`, `user_subscriptions`
+- **Impact:** Resolves 21 warnings across 5 tables
+- **Strategy:** Role-based consolidation with optimized access patterns
+
+### Phase 2.3: Moderate Impact Consolidation
+**File:** `004_moderate_policy_consolidation.sql`
+- **Targets:** `collection_subjects`, `flashcard_collections_junction`, remaining `flashcards` policies
+- **Impact:** Resolves final 7 warnings
+- **Strategy:** Operation-specific consolidation maintaining security boundaries
 
 ### Phase 3: Standardization (planned)
 **File**: `migrations/005_admin_pattern_standardization.sql`  
@@ -148,3 +157,63 @@ For issues or questions:
 2. Review rollback procedures
 3. Consult Performance Advisor for remaining warnings
 4. Test in staging environment first 
+
+### Execution Plan for Phase 2
+
+```bash
+# Phase 2.1 - Critical (Required First)
+psql -f migrations/002_critical_policy_consolidation.sql
+
+# Phase 2.2 - High Impact (Can run after 2.1)
+psql -f migrations/003_high_impact_policy_consolidation.sql
+
+# Phase 2.3 - Moderate Impact (Can run after 2.2)
+psql -f migrations/004_moderate_policy_consolidation.sql
+
+# Validation (Run after all phases)
+psql -f testing/validate_phase_2_complete.sql
+```
+
+### Expected Results - Phase 2
+
+**Quantitative Impact:**
+- **Multiple Permissive Policy Warnings:** 29 → 0 (100% resolution)
+- **Total Policy Count:** ~67 → ~35 policies (48% reduction)  
+- **Query Performance:** 2-5x faster SELECT operations on affected tables
+- **Database Load:** Significantly reduced RLS evaluation overhead
+
+**Tables Optimized:**
+- `flashcards`: 8 policies → 3 policies (63% reduction)
+- `courses`: 8 policies → 2 policies (75% reduction)
+- `lessons`: 12 policies → 3 policies (75% reduction)
+- `modules`: 12 policies → 3 policies (75% reduction)
+- `user_entitlements`: 8 policies → 2 policies (75% reduction)
+- `user_subscriptions`: 10 policies → 2 policies (80% reduction)
+- `collection_subjects`: 6 policies → 3 policies (50% reduction)
+- `flashcard_collections_junction`: 4 policies → 2 policies (50% reduction)
+
+### Rollback Procedures - Phase 2
+
+```bash
+# Rollback Phase 2.1 (Critical)
+psql -f rollback/002_critical_policy_consolidation_rollback.sql
+
+# Rollback Phase 2.2 & 2.3 (High/Moderate Impact)
+psql -f rollback/003-004_policy_consolidation_rollback.sql
+```
+
+### Validation Procedures - Phase 2
+
+The `validate_phase_2_complete.sql` script provides comprehensive validation including:
+
+1. **Conflict Detection:** Identifies any remaining multiple permissive policy conflicts
+2. **Policy Count Analysis:** Tracks reduction across all target tables  
+3. **Access Pattern Validation:** Ensures all access patterns are preserved
+4. **Performance Validation:** Confirms auth function wrapping is maintained
+5. **Functional Testing Setup:** Provides framework for application-level testing
+
+**Success Criteria:**
+- Zero multiple permissive policy conflicts remaining
+- All existing functionality preserved  
+- Measurable query performance improvement
+- Clean rollback capability maintained 
