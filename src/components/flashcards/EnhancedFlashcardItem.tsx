@@ -1,9 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Check, FileEdit, Trash2, BookOpen, Layers, Award, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Tooltip from './Tooltip';
 import { formatDate } from '@/lib/utils';
 import { isFlashcardReadOnly } from '@/utils/flashcard-utils';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { 
+  Eye, EyeOff, Edit, Star, StarOff,
+  Play, Volume2, VolumeX
+} from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
+import useAuth from '@/hooks/useFlashcardAuth';
 
 // Create a custom Premium "P" icon component
 const PremiumIcon = () => (
@@ -39,6 +49,34 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
   hasSubscription = false,
   onShowPaywall
 }) => {
+  const { user } = useAuth();
+  
+  // Use the new subscription hook with tier-based access
+  const { tierName } = useSubscription();
+  
+  // Determine if user has premium access (Premium or Unlimited tier)
+  const hasPremiumAccess = tierName === 'Premium' || tierName === 'Unlimited';
+
+  // DEV ONLY: Check for forced subscription override
+  const [devHasPremiumAccess, setDevHasPremiumAccess] = useState(false);
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const forceSubscription = localStorage.getItem('forceSubscription');
+      if (forceSubscription === 'true') {
+        console.log('DEV OVERRIDE: Forcing premium access to true in EnhancedFlashcardItem component');
+        setDevHasPremiumAccess(true);
+      } else {
+        setDevHasPremiumAccess(false);
+      }
+    }
+  }, []);
+
+  // Final premium access determination (dev override or actual premium access)
+  const hasSubscription = process.env.NODE_ENV === 'development' ? (devHasPremiumAccess || hasPremiumAccess) : hasPremiumAccess;
+
+  // Determine if content should be blurred/locked
+  const shouldBlurContent = isPremium && !hasSubscription;
+  
   // Force premium content to be non-editable - Double check with the collection
   const isOfficialCollection = flashcard.collection?.is_official === true;
   const isDefinitelyPremium = isPremium || isOfficialCollection || flashcard.is_official === true;

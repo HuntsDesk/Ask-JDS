@@ -35,8 +35,13 @@ jobs:
 
       - name: Build Ask JDS
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_URL_PROD: ${{ secrets.VITE_SUPABASE_URL_PROD }}
+          VITE_SUPABASE_ANON_KEY_PROD: ${{ secrets.VITE_SUPABASE_ANON_KEY_PROD }}
+          VITE_SUPABASE_URL_DEV: ${{ secrets.VITE_SUPABASE_URL_DEV }}
+          VITE_SUPABASE_ANON_KEY_DEV: ${{ secrets.VITE_SUPABASE_ANON_KEY_DEV }}
+          # Legacy variables for backward compatibility
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL_DEV }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY_DEV }}
         run: npx vite build --mode askjds
 
       - name: Copy build artifacts to proper directory
@@ -104,8 +109,13 @@ jobs:
 
       - name: Build JD Simplified
         env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_URL_PROD: ${{ secrets.VITE_SUPABASE_URL_PROD }}
+          VITE_SUPABASE_ANON_KEY_PROD: ${{ secrets.VITE_SUPABASE_ANON_KEY_PROD }}
+          VITE_SUPABASE_URL_DEV: ${{ secrets.VITE_SUPABASE_URL_DEV }}
+          VITE_SUPABASE_ANON_KEY_DEV: ${{ secrets.VITE_SUPABASE_ANON_KEY_DEV }}
+          # Legacy variables for backward compatibility
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL_DEV }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY_DEV }}
         run: npx vite build --mode jds
 
       - name: Copy build artifacts to proper directory

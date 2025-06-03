@@ -65,7 +65,7 @@ Create a `.env` file in the root directory with the following variables:
 
 ```
 VITE_SUPABASE_URL=https://prbbuxgirnecbkpdpgcb.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByYmJ1eGdpcm5lY2JrcGRwZ2NiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk0NjY1NTAsImV4cCI6MjA1NTA0MjU1MH0.tUE2nfjVbY2NCr0duUyhC5Rx-fe5TMBeCoWlkzAxxds
+VITE_SUPABASE_ANON_KEY=eyJh.....
 VITE_ASKJDS_DOMAIN=askjds.com
 VITE_JDSIMPLIFIED_DOMAIN=jdsimplified.com
 ```

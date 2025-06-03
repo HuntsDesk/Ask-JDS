@@ -50,21 +50,21 @@ export default function CourseNavbar() {
   );
   
   return (
-    <nav className={cn(
-      "bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 sticky top-0 z-20 w-full transition-all duration-300 ease-in-out",
-      // Apply the proper left padding when the sidebar is collapsed and pinned
-      isDesktop && isPinned && !isExpanded && contentMargin
-    )}>
-      <div className="max-w-6xl mx-auto px-4">
+      <nav className={cn(
+        "bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 sticky top-0 z-20 w-full transition-all duration-300 ease-in-out",
+        // Apply the proper left padding when the sidebar is collapsed and pinned
+        isDesktop && isPinned && !isExpanded && contentMargin
+      )}>
+        <div className="max-w-6xl mx-auto px-4">
         <div className="relative flex items-center justify-between h-16">
           {/* Mobile menu button */}
           {isMobile && (
-            <button 
+              <button
               onClick={() => setIsExpanded(!isExpanded)} 
               className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white md:hidden"
-            >
+              >
               <Menu className="h-6 w-6" />
-            </button>
+              </button>
           )}
           
           {/* Main navigation content */}
@@ -90,10 +90,10 @@ export default function CourseNavbar() {
                   <CourseSearchBar />
                 </div>
               </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </nav>
+      </nav>
   );
 } 

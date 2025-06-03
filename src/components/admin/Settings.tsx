@@ -66,7 +66,7 @@ export const AdminSettings = () => {
                   
                   <div className="grid gap-2">
                     <Label htmlFor="support-email">Support Email</Label>
-                    <Input id="support-email" type="email" defaultValue="support@example.com" />
+                    <Input id="support-email" type="email" defaultValue="support@jdsimplified.com" />
                   </div>
                   
                   <div className="flex items-center justify-between space-x-2">

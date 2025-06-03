@@ -182,7 +182,7 @@ export function SubscriptionSettings() {
             description: err.message || "Could not open subscription portal. Please try again later or contact support.",
             variant: "destructive",
             action: <Button onClick={() => {
-              window.location.href = 'mailto:support@example.com?subject=Subscription Portal Error';
+              window.location.href = 'mailto:support@jdsimplified.com?subject=Subscription Portal Error';
             }}>Contact Support</Button>,
           });
         }
@@ -510,19 +510,26 @@ export function SubscriptionSettings() {
 
   return (
     <div className="space-y-8 max-w-4xl">
+      {/* Page Title */}
+      <div className="mb-2">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Subscription</h1>
+        <p className="text-gray-500 dark:text-gray-300">
+          You are currently on the {isFreeTier() ? 'free tier' : `${tierName?.toLowerCase()} plan`}
+        </p>
+      </div>
+      
       {/* Subscription Section */}
       <Card className="border dark:border-gray-700 shadow-sm dark:bg-gray-800">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">Subscription</CardTitle>
+          <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">Current Plan</CardTitle>
           <CardDescription className="text-gray-500 dark:text-gray-300">
-            You are currently on the {isFreeTier() ? 'free tier' : `${tierName?.toLowerCase()} plan`}
+            Your subscription details and status:
           </CardDescription>
         </CardHeader>
         
         <CardContent className="space-y-6">
           <div className="bg-gray-50 dark:bg-gray-700/80 rounded-lg p-6 border border-gray-100 dark:border-gray-600">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Current Plan</h3>
-            <p className="text-base text-gray-700 dark:text-gray-300 mb-1">
+            <p className="text-base text-gray-700 dark:text-gray-300 mb-1 font-medium">
               {isFreeTier() ? 'Free Tier' : tierName}
             </p>
             {!isFreeTier() && (
@@ -534,11 +541,11 @@ export function SubscriptionSettings() {
           
           {/* Upgrade Section - moved here */}
           <div className="pt-2">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Upgrade Your Plan</h3>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Manage Your Plan</h3>
             <p className="text-base text-gray-700 dark:text-gray-300 mb-4">
               {isFreeTier() 
                 ? `Get unlimited messages and priority support` 
-                : `Manage your ${tierName?.toLowerCase()} subscription or payment method`}
+                : `Ensure your pop-up blocker is disabled and click below to manage your subscription.`}
             </p>
             
             <Button

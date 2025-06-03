@@ -96,15 +96,15 @@ export default function SettingsNavbar() {
               {/* Navigation links */}
               <div className="md:flex md:items-center md:space-x-2 lg:space-x-4 xl:space-x-5">
                 <NavLink 
-                  to="/settings" 
-                  icon={<CreditCard className="h-5 w-5" />} 
-                  text="Subscription" 
-                  className="text-base md:mr-2 lg:mr-3 xl:mr-4"
-                />
-                <NavLink 
                   to="/settings/account" 
                   icon={<User className="h-5 w-5" />} 
                   text="Account" 
+                  className="text-base md:mr-2 lg:mr-3 xl:mr-4"
+                />
+                <NavLink 
+                  to="/settings" 
+                  icon={<CreditCard className="h-5 w-5" />} 
+                  text="Subscription" 
                   className="text-base md:mr-2 lg:mr-3 xl:mr-4"
                 />
                 <NavLink 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BookOpen, Lock, PlusCircle, Edit, Trash2, CheckCircle2, Layers, FileText } from 'lucide-react';
+import { BookOpen, PlusCircle, Edit, Trash2, CheckCircle2, Layers, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Tooltip from './Tooltip';
 import { supabase } from '@/lib/supabase';
@@ -253,7 +253,12 @@ export default function SubjectCard({
             {isOfficial && (
               <Tooltip text="Official Subject" position="top">
                 <div className="flex-shrink-0 text-[#F37022]">
-                  <Lock className="h-4 md:h-5 w-4 md:w-5" />
+                  <img 
+                    src="/images/JD Simplified Favicon.svg" 
+                    alt="Official" 
+                    className="h-4 md:h-5 w-4 md:w-5"
+                    style={{ filter: "brightness(0) saturate(100%) invert(57%) sepia(85%) saturate(1661%) hue-rotate(347deg) brightness(98%) contrast(98%)" }}
+                  />
                 </div>
               </Tooltip>
             )}

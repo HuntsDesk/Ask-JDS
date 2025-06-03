@@ -3,7 +3,7 @@
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@^2.39.0';
 import Stripe from 'https://esm.sh/stripe@13.10.0?target=deno';
 import { z } from 'npm:zod@^3.22.4';
-import { getCoursePriceId } from '../_shared/config.ts';
+import { getCoursePriceId, getConfig, validateConfig, STRIPE_API_VERSION } from '../_shared/config.ts';
 
 // CORS headers
 const corsHeaders = {
@@ -36,23 +36,6 @@ const PaymentHandlerRequestSchema = z.object({
 
 type PaymentHandlerRequest = z.infer<typeof PaymentHandlerRequestSchema>;
 
-// Helper for determining if in production/live mode
-function isLiveMode(): boolean {
-  const stripeKey = Deno.env.get('STRIPE_SECRET_KEY') || '';
-  return stripeKey.startsWith('sk_live_');
-}
-
-// Initialize Stripe client
-const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY'); // TEST key by default
-if (!stripeSecretKey) {
-  console.error('Missing STRIPE_SECRET_KEY');
-  // In a real scenario, you might throw or handle this more gracefully
-}
-const stripe = new Stripe(stripeSecretKey || '', {
-  apiVersion: '2023-10-16', // Use a fixed API version
-  httpClient: Stripe.createFetchHttpClient(),
-});
-
 // Shared error logging (simplified)
 async function logError(supabase: SupabaseClient, message: string, errorDetails: unknown, userId?: string) {
   console.error(message, errorDetails);
@@ -71,6 +54,7 @@ async function logError(supabase: SupabaseClient, message: string, errorDetails:
 // Helper to determine price ID based on course ID, purchase type, and environment
 async function determinePriceId(
   supabase: SupabaseClient,
+  config: ReturnType<typeof getConfig>,
   targetStripePriceId: string | undefined,
   purchaseType: string,
   courseId?: string,
@@ -85,54 +69,7 @@ async function determinePriceId(
     return targetStripePriceId;
   }
 
-  // ADD DETAILED DEBUGGING FOR ENVIRONMENT VARIABLES
-  // This will help identify exactly what's happening with variable lookups
-  if (purchaseType === 'subscription' && subscriptionType) {
-    const isLive = isLiveMode();
-    const envMode = isLive ? 'LIVE_' : '';
-    const domain = 'ASKJDS';
-    const tier = subscriptionType.toUpperCase();
-    const varName = `STRIPE_${envMode}${domain}_${tier}_MONTHLY_PRICE_ID`;
-    
-    // If no domain prefix
-    const nodomainVarName = `STRIPE_${envMode}${tier}_MONTHLY_PRICE_ID`;
-
-    const value = Deno.env.get(varName);
-    const nodomainValue = Deno.env.get(nodomainVarName);
-    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
-
-    // Print exactly what you are looking up and what you get
-    console.log('[DEBUG] Environment check:', { 
-      liveMode: isLive,
-      stripeKeyPrefix: stripeKey ? `${stripeKey.substring(0, 8)}...` : 'NOT FOUND',
-      stripeKeyStartsWithLive: stripeKey?.startsWith('sk_live_'),
-      purchaseType,
-      subscriptionType,
-      tier
-    });
-    
-    console.log('[DEBUG] Variable lookup:', { 
-      varName, 
-      value: value ? 'VALUE FOUND' : 'NOT FOUND',
-      nodomainVarName,
-      nodomainValue: nodomainValue ? 'VALUE FOUND' : 'NOT FOUND'
-    });
-    
-    // List all related env vars
-    const allStripeEnvs = Object.keys(Deno.env.toObject())
-      .filter(k => k.includes('STRIPE') && !k.includes('SECRET'));
-    
-    console.log('[DEBUG] All Stripe envs:', allStripeEnvs);
-    
-    // For comparison, try using Object.entries to see actual values (safe way)
-    const safeEnvEntries = Object.entries(Deno.env.toObject())
-      .filter(([k]) => k.includes('STRIPE') && !k.includes('SECRET'))
-      .map(([k, v]) => [k, v ? `${v.substring(0, 4)}...` : 'empty']);
-    
-    console.log('[DEBUG] Env values preview:', safeEnvEntries);
-  }
-
-  const environment = isLiveMode() ? 'production' : 'test';
+  const environment = config.isProduction ? 'production' : 'test';
   console.log(`Environment mode: ${environment}`);
   
   // For subscriptions, use the clean naming pattern
@@ -149,8 +86,6 @@ async function determinePriceId(
       
       // Function to resolve price ID from environment variables using a consistent pattern
       const resolvePriceId = (domain: string, tierName: string): string | null => {
-        const environment = isLiveMode() ? 'production' : 'test';
-        
         // Try multiple naming patterns to handle potential mismatches
         
         // Pattern 1: Domain_Tier_Monthly (primary pattern)
@@ -248,44 +183,44 @@ async function determinePriceId(
       try {
         const priceId = getCoursePriceId(course);
         console.log(`Found course price ID using shared config: ${priceId}`);
-        return priceId;
+          return priceId;
       } catch (error) {
         console.log(`Course price ID not found in database: ${error instanceof Error ? error.message : String(error)}`);
         
         // If the database doesn't have the required price ID, try environment variables as fallback
-        const courseType = coursePurchaseType || 'standard';
-        
-        // Function to resolve course price ID from environment variables
-        const resolveCoursePrice = (): string | null => {
-          // Try finding the course by ID in a mapping
-          const courseMapping: Record<string, string> = {
-            '78b1d8b7-3cb6-4cc5-8dcc-8cf4ac498b66': 'CIVIL_PROCEDURE',
-            'c24190af-bd00-4d6f-b1af-3170f93e61fe': 'EVIDENCE',
-            '913deaf2-aad3-40c3-b487-004e414ca827': 'INTESTACY',
-          };
-          
-          if (courseId && courseId in courseMapping) {
-            const courseName = courseMapping[courseId];
-            const courseKey = `STRIPE_${environment === 'production' ? 'LIVE_' : ''}COURSE_${courseName}_${courseType.toUpperCase()}_PRICE_ID`;
-            const fallbackKey = `STRIPE_COURSE_${courseType.toUpperCase()}_FALLBACK_PRICE_ID`;
-            
-            const primaryValue = Deno.env.get(courseKey);
-            const fallbackValue = Deno.env.get(fallbackKey);
-            
-            console.log(`Checking for course price ID with:
-              - Primary key: ${courseKey} (${primaryValue ? 'FOUND' : 'NOT FOUND'})
-              - Fallback key: ${fallbackKey} (${fallbackValue ? 'FOUND' : 'NOT FOUND'})`);
-            
-            return primaryValue || fallbackValue || null;
-          }
-          
-          return null;
+      const courseType = coursePurchaseType || 'standard';
+      
+      // Function to resolve course price ID from environment variables
+      const resolveCoursePrice = (): string | null => {
+        // Try finding the course by ID in a mapping
+        const courseMapping: Record<string, string> = {
+          '78b1d8b7-3cb6-4cc5-8dcc-8cf4ac498b66': 'CIVIL_PROCEDURE',
+          'c24190af-bd00-4d6f-b1af-3170f93e61fe': 'EVIDENCE',
+          '913deaf2-aad3-40c3-b487-004e414ca827': 'INTESTACY',
         };
         
-        const coursePrice = resolveCoursePrice();
-        if (coursePrice) {
-          console.log(`Using course price ID from environment: ${coursePrice}`);
-          return coursePrice;
+        if (courseId && courseId in courseMapping) {
+          const courseName = courseMapping[courseId];
+          const courseKey = `STRIPE_${environment === 'production' ? 'LIVE_' : ''}COURSE_${courseName}_${courseType.toUpperCase()}_PRICE_ID`;
+          const fallbackKey = `STRIPE_COURSE_${courseType.toUpperCase()}_FALLBACK_PRICE_ID`;
+          
+          const primaryValue = Deno.env.get(courseKey);
+          const fallbackValue = Deno.env.get(fallbackKey);
+          
+          console.log(`Checking for course price ID with:
+            - Primary key: ${courseKey} (${primaryValue ? 'FOUND' : 'NOT FOUND'})
+            - Fallback key: ${fallbackKey} (${fallbackValue ? 'FOUND' : 'NOT FOUND'})`);
+          
+          return primaryValue || fallbackValue || null;
+        }
+        
+        return null;
+      };
+      
+      const coursePrice = resolveCoursePrice();
+      if (coursePrice) {
+        console.log(`Using course price ID from environment: ${coursePrice}`);
+        return coursePrice;
         }
         
         // If we still can't find a price ID, re-throw the original error
@@ -326,6 +261,28 @@ Deno.serve(async (req) => {
   let debugMode = false;
 
   try {
+    // Load and validate configuration
+    const config = getConfig();
+    console.log(`Running in ${config.isProduction ? 'production' : 'development'} mode`);
+    
+    const { isValid, missingKeys } = validateConfig(config);
+    if (!isValid) {
+      console.error(`Missing configuration: ${missingKeys.join(', ')}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Server configuration error', 
+          details: `Missing required environment variables: ${missingKeys.join(', ')}` 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Initialize Stripe with environment-appropriate key
+    const stripe = new Stripe(config.stripeSecretKey, {
+      apiVersion: STRIPE_API_VERSION,
+      httpClient: Stripe.createFetchHttpClient(),
+    });
+
     const authorization = req.headers.get('Authorization');
     if (!authorization || !authorization.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Missing or invalid authorization token' }), {
@@ -392,6 +349,7 @@ Deno.serve(async (req) => {
     // Validate and determine the price ID to use
     const resolvedPriceId = await determinePriceId(
       supabaseClient,
+      config,
       targetStripePriceId,
       purchaseType,
       courseId,
@@ -407,7 +365,7 @@ Deno.serve(async (req) => {
       
       if (purchaseType === 'subscription' && subscriptionType) {
         const tier = subscriptionType.toLowerCase();
-        const environment = isLiveMode() ? 'production' : 'test';
+        const environment = config.isProduction ? 'production' : 'test';
         
         // Add the primary key patterns we would have checked
         checkedVariables.push(`STRIPE_${environment === 'production' ? 'LIVE_' : ''}ASKJDS_${tier.toUpperCase()}_MONTHLY_PRICE_ID`);
@@ -422,7 +380,7 @@ Deno.serve(async (req) => {
         subscriptionType,
         courseId,
         planInterval,
-        environment: isLiveMode() ? 'live' : 'test',
+        environment: config.isProduction ? 'production' : 'test',
         checkedVariables
       }, userId);
       
@@ -437,7 +395,7 @@ Deno.serve(async (req) => {
         debug_info: {
           checked_variables: checkedVariables,
           available_variables: availableEnvVars,
-          environment: isLiveMode() ? 'production' : 'test'
+          environment: config.isProduction ? 'production' : 'test'
         }
       }), {
         status: 400,

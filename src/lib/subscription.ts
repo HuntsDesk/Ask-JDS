@@ -1094,7 +1094,7 @@ export async function createCustomerPortalSession(userId?: string): Promise<stri
         } else if (response.status === 403) {
           throw new Error('You do not have permission to access the subscription portal.');
         } else if (response.status === 500) {
-          throw new Error('Server error. Our team has been notified.');
+          throw new Error('Server error. Please notify support.');
         } else {
           throw new Error(responseData?.error || 'Error accessing customer portal');
         }
@@ -1773,16 +1773,16 @@ export async function manuallyActivateSubscription(priceId: string): Promise<boo
     
     // TEMPORARY: Skip session validation to test if that's the issue
     console.log('TESTING: Skipping session validation temporarily');
-    
+        
     // Get current user ID for fallback
-    const { data: userData } = await supabase.auth.getUser();
-    const userId = userData?.user?.id;
-    
-    if (!userId) {
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData?.user?.id;
+        
+        if (!userId) {
       console.error('Could not determine user ID for activation');
-      return false;
-    }
-    
+          return false;
+        }
+        
     console.log(`User ID confirmed: ${userId}`);
     
     // Try first with standard invocation
@@ -1790,17 +1790,17 @@ export async function manuallyActivateSubscription(priceId: string): Promise<boo
       console.log('=== ATTEMPTING EDGE FUNCTION CALL ===');
       console.log('Calling supabase.functions.invoke with:', { priceId });
       
-      const { data, error } = await supabase.functions.invoke('activate-subscription', {
+        const { data, error } = await supabase.functions.invoke('activate-subscription', {
         body: { priceId },
-      });
+        });
 
       console.log('Edge function response:', { data, error });
-
-      if (error) {
+        
+        if (error) {
         console.error('Edge function error:', error);
         throw new Error(`Edge function failed: ${error.message}`);
-      }
-
+        }
+        
       if (data?.success) {
         console.log('✅ Edge function succeeded');
         return true;
@@ -1825,8 +1825,8 @@ export async function manuallyActivateSubscription(priceId: string): Promise<boo
   } catch (error) {
     console.error('=== MANUAL ACTIVATION FAILED ===');
     console.error('Error in manuallyActivateSubscription:', error);
-    return false;
-  }
+          return false;
+        }
 }
 
 /**
@@ -1844,8 +1844,8 @@ export async function getPriceIdForTierFromBackend(tierName: string): Promise<st
     if (error) {
       console.error('Error getting price ID from backend:', error);
       return null;
-    }
-    
+        }
+        
     if (data?.priceId) {
       console.log(`Backend returned price ID: ${data.priceId} for tier: ${tierName}`);
       return data.priceId;
