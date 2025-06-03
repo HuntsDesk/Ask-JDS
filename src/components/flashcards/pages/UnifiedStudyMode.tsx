@@ -1290,13 +1290,25 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         
         {/* Banner for sample flashcards */}
         {isPublicSample && (
-          <div className="absolute top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-5 font-bold flex items-center justify-center space-x-2">
-            <img 
-              src="/images/JD Simplified Favicon.svg" 
-              alt="Sample" 
-              className="h-5 w-5 brightness-0 invert"
-            />
-            <span>SAMPLE FLASHCARD</span>
+          <div className="absolute top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-5 font-bold flex items-center justify-between px-4">
+            <div className="flex items-center space-x-2">
+              <img 
+                src="/images/JD Simplified Favicon.svg" 
+                alt="Sample" 
+                className="h-5 w-5 brightness-0 invert"
+              />
+              <span>SAMPLE FLASHCARD</span>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate('/pricing');
+              }}
+              className="bg-white text-orange-500 hover:bg-gray-100 px-3 py-1 rounded text-sm font-medium"
+            >
+              <span className="hidden sm:inline">Unlock all cards</span>
+              <span className="sm:hidden">Unlock</span>
+            </button>
           </div>
         )}
         

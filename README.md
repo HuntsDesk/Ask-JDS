@@ -1914,6 +1914,7 @@ The Flashcards module provides a comprehensive study tool with the following fea
 - Premium content access controls
 - Responsive layouts optimized for all screen sizes
 - Ability to create standalone flashcards without assigning them to collections
+- Sample card promotional features with upgrade path integration
 
 ### Component Structure
 
@@ -1925,7 +1926,7 @@ The flashcards module uses the following main components:
 - **AllFlashcards**: Browse all flashcards with filtering options
 - **CreateSet**: Create new flashcard collections
 - **CreateFlashcard**: Create individual flashcards
-- **UnifiedStudyMode**: Combined study interface for reviewing cards
+- **UnifiedStudyMode**: Combined study interface for reviewing cards with sample card promotional banners
 
 ### Infinite Scroll Implementation
 
@@ -2037,6 +2038,12 @@ When browsing flashcards, premium content is handled in two ways:
    - An orange "PREMIUM CONTENT" banner at the top
    - Locked content indication for users without a subscription
    - Protected editing/deletion rights
+
+3. **Sample Card Promotion**: Sample cards include promotional features to encourage subscription upgrades:
+   - Orange "SAMPLE FLASHCARD" banner with JD Simplified branding
+   - "Unlock all cards" button in the banner that navigates to `/pricing`
+   - Responsive button text: "Unlock all cards" on larger screens, "Unlock" on mobile
+   - Button prevents event propagation to avoid triggering card flip functionality
 
 Access control is determined by:
 - `isCardPremium`: Checks if content should be treated as premium based on ownership and subscription status
