@@ -33,23 +33,26 @@ WHERE tablename = 'courses' AND cmd = 'SELECT'
 ORDER BY policyname;
 
 -- =====================================================
--- STEP 2: DROP EXISTING SELECT POLICIES
+-- STEP 2: DROP EXISTING SELECT POLICIES ONLY
 -- =====================================================
 
 DO $$
 BEGIN
-    RAISE NOTICE 'Dropping existing SELECT policies...';
+    RAISE NOTICE 'Dropping existing pure SELECT policies only...';
+    RAISE NOTICE 'NOTE: Preserving "Admins can manage all courses" (FOR ALL operations)';
 END $$;
 
--- Drop the 4 conflicting SELECT policies
-DROP POLICY IF EXISTS "Admins can manage all courses" ON courses;
+-- Drop only the pure SELECT policies - NOT the admin ALL policy
 DROP POLICY IF EXISTS "Anyone can view published course info" ON courses;
 DROP POLICY IF EXISTS "Authenticated users can view all courses" ON courses;
 DROP POLICY IF EXISTS "Users can see published or purchased courses" ON courses;
 
+-- DO NOT DROP: "Admins can manage all courses" - this is FOR ALL operations, not just SELECT
+
 DO $$
 BEGIN
-    RAISE NOTICE 'Existing SELECT policies dropped successfully.';
+    RAISE NOTICE 'Pure SELECT policies dropped successfully.';
+    RAISE NOTICE 'Admin ALL policy preserved for INSERT/UPDATE/DELETE operations.';
 END $$;
 
 -- =====================================================
@@ -93,33 +96,13 @@ BEGIN
 END $$;
 
 -- =====================================================
--- STEP 4: RECREATE ADMIN MANAGEMENT POLICY (NON-SELECT)
+-- STEP 4: VALIDATION - VERIFY POLICY STRUCTURE
 -- =====================================================
 
 DO $$
 BEGIN
-    RAISE NOTICE 'Recreating admin management policy for non-SELECT operations...';
-END $$;
-
--- Admin policy for INSERT/UPDATE/DELETE operations
-CREATE POLICY "Admins can manage courses" ON courses
-FOR ALL TO authenticated
-USING ((SELECT auth.is_admin()) = true)
-WITH CHECK ((SELECT auth.is_admin()) = true);
-
-DO $$
-BEGIN
-    RAISE NOTICE 'Admin management policy recreated successfully.';
-END $$;
-
--- =====================================================
--- STEP 5: VALIDATION - VERIFY NEW POLICY STRUCTURE
--- =====================================================
-
-DO $$
-BEGIN
-    RAISE NOTICE 'PHASE 4.2 VALIDATION: New consolidated policies';
-    RAISE NOTICE '==============================================';
+    RAISE NOTICE 'PHASE 4.2 VALIDATION: Policy structure after consolidation';
+    RAISE NOTICE '=========================================================';
 END $$;
 
 SELECT 
@@ -151,11 +134,12 @@ BEGIN
     WHERE tablename = 'courses';
     
     RAISE NOTICE 'COURSES TABLE: % SELECT policies, % total policies', select_policy_count, total_policy_count;
-    RAISE NOTICE 'TARGET ACHIEVED: 4 SELECT policies → 1 SELECT policy (75%% reduction)';
+    RAISE NOTICE 'TARGET ACHIEVED: 3 pure SELECT policies → 1 SELECT policy (67%% reduction)';
+    RAISE NOTICE 'PRESERVED: "Admins can manage all courses" (FOR ALL operations)';
 END $$;
 
 -- =====================================================
--- STEP 6: SYSTEM-WIDE IMPACT VERIFICATION
+-- STEP 5: SYSTEM-WIDE IMPACT VERIFICATION
 -- =====================================================
 
 DO $$

@@ -1,8 +1,9 @@
 -- =====================================================
 -- Phase 4.2 ROLLBACK: Courses SELECT Mega-Consolidation
 -- =====================================================
--- This script restores the original 4 courses SELECT policies
+-- This script restores the original 3 pure courses SELECT policies
 -- if Phase 4.2 migration needs to be reverted
+-- NOTE: "Admins can manage all courses" (FOR ALL) is preserved in migration
 -- =====================================================
 
 DO $$
@@ -14,28 +15,24 @@ END $$;
 -- STEP 1: Drop consolidated policies
 DO $$
 BEGIN
-    RAISE NOTICE 'Dropping mega-consolidated policies...';
+    RAISE NOTICE 'Dropping mega-consolidated SELECT policy...';
 END $$;
 
 DROP POLICY IF EXISTS "Mega-consolidated courses access" ON courses;
-DROP POLICY IF EXISTS "Admins can manage courses" ON courses;
+
+-- NOTE: NOT dropping "Admins can manage all courses" since it was preserved
 
 DO $$
 BEGIN
-    RAISE NOTICE 'Consolidated policies dropped successfully.';
+    RAISE NOTICE 'Consolidated SELECT policy dropped successfully.';
 END $$;
 
--- STEP 2: Restore original SELECT policies
+-- STEP 2: Restore original pure SELECT policies
 DO $$
 BEGIN
-    RAISE NOTICE 'Restoring original separate SELECT policies...';
+    RAISE NOTICE 'Restoring original pure SELECT policies...';
+    RAISE NOTICE 'NOTE: "Admins can manage all courses" (FOR ALL) was preserved during migration';
 END $$;
-
--- Restore admin policy (ALL operations including SELECT)
-CREATE POLICY "Admins can manage all courses" ON courses
-FOR ALL TO authenticated
-USING ((SELECT auth.is_admin()) = true)
-WITH CHECK ((SELECT auth.is_admin()) = true);
 
 -- Restore public access policy for published courses
 CREATE POLICY "Anyone can view published course info" ON courses
@@ -63,7 +60,7 @@ USING (((status = 'Published'::lesson_status) OR (status = 'Coming Soon'::lesson
 
 DO $$
 BEGIN
-    RAISE NOTICE 'Original policies restored successfully.';
+    RAISE NOTICE 'Original pure SELECT policies restored successfully.';
 END $$;
 
 -- STEP 3: Validation
@@ -86,7 +83,8 @@ BEGIN
     WHERE tablename = 'courses';
     
     RAISE NOTICE 'COURSES TABLE: % SELECT policies, % total policies', select_policy_count, total_policy_count;
-    RAISE NOTICE 'ROLLBACK COMPLETE: Restored 4 original SELECT policies';
+    RAISE NOTICE 'ROLLBACK COMPLETE: Restored 3 original pure SELECT policies';
+    RAISE NOTICE 'PRESERVED: "Admins can manage all courses" (FOR ALL operations)';
 END $$;
 
 SELECT 
