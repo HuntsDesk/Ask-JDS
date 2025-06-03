@@ -1,23 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { Check, FileEdit, Trash2, BookOpen, Loader2 } from 'lucide-react';
+import { Check, FileEdit, Trash2, BookOpen, Loader2, Layers, Award, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Tooltip from './Tooltip';
+import { formatDate } from '@/lib/utils';
+import { isFlashcardReadOnly } from '@/utils/flashcard-utils';
+import { useSubscription } from '@/hooks/useSubscription';
+import useAuth from '@/hooks/useFlashcardAuth';
 
 interface FlashcardItemProps {
   id: string;
   question: string;
   answer: string;
   collectionTitle: string;
-  isPremium: boolean;
-  isLocked: boolean;
-  isReadOnly: boolean;
-  isMastered: boolean;
-  isToggling: boolean;
-  onView: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onToggleMastered: () => void;
-  onUnlock: () => void;
+  isPremium?: boolean;
+  isLocked?: boolean;
+  isReadOnly?: boolean;
+  isMastered?: boolean;
+  isToggling?: boolean;
+  onToggleMastered?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onView?: () => void;
+  onUnlock?: () => void;
 }
 
 const FlashcardItem = React.memo(({
@@ -25,47 +29,50 @@ const FlashcardItem = React.memo(({
   question,
   answer,
   collectionTitle,
-  isPremium,
-  isLocked,
-  isReadOnly,
-  isMastered,
-  isToggling,
-  onView,
+  isPremium = false,
+  isLocked = false,
+  isReadOnly = false,
+  isMastered = false,
+  isToggling = false,
+  onToggleMastered,
   onEdit,
   onDelete,
-  onToggleMastered,
+  onView,
   onUnlock
 }: FlashcardItemProps) => {
-  // Check for development forced subscription
-  const [devForceSubscription, setDevForceSubscription] = useState(false);
+  const { user } = useAuth();
   
+  // Use the new subscription hook with tier-based access
+  const { tierName } = useSubscription();
+  
+  // Determine if user has premium access (Premium or Unlimited tier)
+  const hasPremiumAccess = tierName === 'Premium' || tierName === 'Unlimited';
+
+  // DEV ONLY: Check for forced subscription override
+  const [devHasPremiumAccess, setDevHasPremiumAccess] = useState(false);
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       const forceSubscription = localStorage.getItem('forceSubscription');
       if (forceSubscription === 'true') {
-        console.log('DEV OVERRIDE: Forcing subscription in FlashcardItem');
-        setDevForceSubscription(true);
+        console.log('DEV OVERRIDE: Forcing premium access to true in FlashcardItem component');
+        setDevHasPremiumAccess(true);
+      } else {
+        setDevHasPremiumAccess(false);
       }
-      
-      // Listen for changes to localStorage
-      const handleStorageChange = (e: StorageEvent) => {
-        if (e.key === 'forceSubscription') {
-          setDevForceSubscription(e.newValue === 'true');
-        }
-      };
-      
-      window.addEventListener('storage', handleStorageChange);
-      return () => window.removeEventListener('storage', handleStorageChange);
     }
   }, []);
   
-  // Determine if answer should be hidden (premium content + locked)
-  // In development with forceSubscription, never hide the answer
-  const shouldHideAnswer = isLocked && !devForceSubscription;
-  
-  // In development with forceSubscription, we unlock premium content, but official cards
-  // should still be read-only (no edit/delete) regardless of subscription status
-  const shouldShowEditDelete = !isReadOnly && (!isLocked || devForceSubscription);
+  // Final premium access determination (dev override or actual premium access)
+  const hasSubscription = process.env.NODE_ENV === 'development' ? (devHasPremiumAccess || hasPremiumAccess) : hasPremiumAccess;
+
+  // Determine if content should be blurred/locked
+  const shouldBlurContent = isPremium && !hasSubscription;
+
+  // Truncate text function
+  const truncateText = (text: string, maxLength: number = 100) => {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + '...';
+  };
   
   // Debug mastered status
   console.log(`Card ${id} - isMastered:`, isMastered);
@@ -78,7 +85,7 @@ const FlashcardItem = React.memo(({
       )}
       
       {/* Premium content banner - show for all premium/official content */}
-      {(isPremium || isReadOnly) && !devForceSubscription && (
+      {(isPremium || isReadOnly) && !hasSubscription && (
         <div className="bg-[#F37022] text-white px-4 py-1 text-sm font-medium">
           PREMIUM CONTENT
         </div>
@@ -91,7 +98,7 @@ const FlashcardItem = React.memo(({
           </h3>
         </div>
         
-        {shouldHideAnswer ? (
+        {shouldBlurContent ? (
           <div className="text-gray-700 dark:text-gray-300 mb-4">
             <button
               onClick={onUnlock}
@@ -128,7 +135,7 @@ const FlashcardItem = React.memo(({
         <div className="flex justify-between items-center">
           <div className="flex gap-1 md:gap-2 items-center">
             {/* Only show edit/delete buttons for non-premium content or unlocked premium content */}
-            {shouldShowEditDelete && (
+            {!isReadOnly && !shouldBlurContent && (
               <>
                 <button
                   onClick={onEdit}
@@ -164,7 +171,7 @@ const FlashcardItem = React.memo(({
             </button>
             
             {/* Premium indicator with JD Simplified favicon */}
-            {(isPremium || isReadOnly) && !devForceSubscription && (
+            {(isPremium || isReadOnly) && (
               <Tooltip text="Premium Content" position="top">
                 <div className="text-[#F37022]">
                   <img 
@@ -180,7 +187,7 @@ const FlashcardItem = React.memo(({
           
           {/* Right side Study Now button */}
           <button
-            onClick={isLocked && !devForceSubscription ? onUnlock : onView}
+            onClick={shouldBlurContent ? onUnlock : onView}
             className="bg-[#F37022]/10 text-[#F37022] px-3 py-1 md:px-4 md:py-2 text-sm rounded-md hover:bg-[#F37022]/20 dark:bg-[#F37022]/20 dark:hover:bg-[#F37022]/30"
           >
             Study

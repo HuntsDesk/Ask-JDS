@@ -269,24 +269,24 @@ export function PricingPage() {
                       })}
                     </ul>
 
-                    <Button
-                      onClick={() => handleSubscribe(tier.name)}
-                      variant={tier.buttonVariant as any}
-                      size="lg"
-                      className={`w-full mt-auto ${ 
-                        tier.highlight 
-                          ? 'bg-white text-orange-600 hover:bg-gray-100 dark:bg-gray-100 dark:hover:bg-gray-200' 
-                          : tier.name === 'Free'
-                            ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200'
-                            : 'bg-orange-500 hover:bg-orange-600 text-white dark:bg-orange-600 dark:hover:bg-orange-700'
-                      }`}
+                                      <Button
+                    onClick={() => handleSubscribe(tier.name)}
+                    variant={tier.buttonVariant as any}
+                    size="lg"
+                    className={`w-full mt-auto ${ 
+                      tier.highlight 
+                        ? 'bg-white text-orange-600 hover:bg-gray-100 dark:bg-gray-100 dark:hover:bg-gray-200' 
+                        : tier.name === 'Free'
+                          ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200'
+                          : 'bg-orange-500 hover:bg-orange-600 text-white dark:bg-orange-600 dark:hover:bg-orange-700'
+                    }`}
                       disabled={isCurrentTier || (tier.name === 'Free') || isLoading}
-                    >
+                  >
                       {isLoading && currentTierName === tier.name.toLowerCase() ? (
                         <LoadingSpinner className="h-5 w-5 mr-2" />
                       ) : null}
-                      {isCurrentTier || tier.name === 'Free' ? 'Current Plan' : tier.buttonText}
-                    </Button>
+                    {isCurrentTier || tier.name === 'Free' ? 'Current Plan' : tier.buttonText}
+                  </Button>
                   </div>
                 );
               })}

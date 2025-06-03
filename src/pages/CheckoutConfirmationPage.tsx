@@ -105,19 +105,19 @@ export function CheckoutConfirmationPage() {
       }
       
       // Check for course ID as well
-      const courseIdParam = searchParams.get('course_id');
-      if (courseIdParam) {
-        setCourseId(courseIdParam);
-      }
-      
+    const courseIdParam = searchParams.get('course_id');
+    if (courseIdParam) {
+      setCourseId(courseIdParam);
+    }
+
       // For manual activation or payment verification
       if (!paymentIntentId) {
         console.log('No payment intent ID found');
-        setStatus('error');
+      setStatus('error');
         setErrorMessage('No payment information found');
-        return;
-      }
-      
+      return;
+    }
+
       try {
         console.log(`Checking payment status with: {payment_intent_id: '${paymentIntentId}'}`);
         
@@ -135,7 +135,7 @@ export function CheckoutConfirmationPage() {
         }
         
         const { status: paymentStatus, error } = response.data;
-        
+
         if (error) {
           console.error('Payment status error:', error);
           setStatus('error');
@@ -145,14 +145,14 @@ export function CheckoutConfirmationPage() {
         
         if (paymentStatus === 'succeeded') {
           console.log('Payment succeeded, activating subscription with price ID:', priceId);
-          
+
           if (!priceId) {
             console.error('No price ID found for subscription activation');
             setStatus('error');
             setErrorMessage('Unable to activate subscription: missing price information');
             return;
-          }
-          
+        }
+
           // Mark this payment intent as being processed
           processedPaymentIntents.add(paymentIntentId);
           
@@ -163,13 +163,13 @@ export function CheckoutConfirmationPage() {
             setStatus('success');
             // Refresh the subscription status
             await refreshSubscription();
-          } else {
+                } else {
             console.log('Subscription activation failed, but payment succeeded');
             setStatus('manual'); // Show manual activation option
-          }
-        } else {
+              }
+            } else {
           console.log(`Payment status: ${paymentStatus}`);
-          setStatus('error');
+            setStatus('error');
           setErrorMessage(`Payment ${paymentStatus}`);
         }
       } catch (error) {
@@ -178,7 +178,7 @@ export function CheckoutConfirmationPage() {
         setErrorMessage('Failed to verify payment');
       }
     };
-    
+
     // Only run once per payment intent
     checkStatus();
   }, [searchParams, refreshSubscription, priceId, user]);

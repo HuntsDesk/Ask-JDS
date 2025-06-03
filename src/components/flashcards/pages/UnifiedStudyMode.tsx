@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { 
   ArrowLeft, ArrowRight, Rotate3D as Rotate, BookOpen, Shuffle, 
   Check, Edit, EyeOff, Eye, FileEdit, FolderCog, ChevronLeft, 
@@ -11,13 +11,13 @@ import ErrorMessage from '../ErrorMessage';
 import Toast from '../Toast';
 import useToast from '@/hooks/useFlashcardToast';
 import Tooltip from '../Tooltip';
-import { hasActiveSubscription } from '@/lib/subscription';
 import { FlashcardPaywall } from '@/components/FlashcardPaywall';
 import { useAuth } from '@/lib/auth';
 import { Flashcard, Subject, ExamType, FlashcardCollection } from '@/types';
 import { useNavbar } from '../../../contexts/NavbarContext';
 import { useLayoutState } from '@/hooks/useLayoutState';
 import { SkeletonStudyCard } from '../SkeletonFlashcard';
+import { useSubscription } from '@/hooks/useSubscription';
 
 interface FilterState {
   subjects: string[];
@@ -43,6 +43,30 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   const { toast, showToast, hideToast } = useToast();
   const { updateCount, updateCurrentCardIndex } = useNavbar();
   const { isDesktop } = useLayoutState();
+  const [searchParams] = useSearchParams();
+  
+  // Use the new subscription hook with tier-based access
+  const { tierName, isLoading: subscriptionLoading } = useSubscription();
+  
+  // Determine if user has premium access (Premium or Unlimited tier)
+  const hasPremiumAccess = tierName === 'Premium' || tierName === 'Unlimited';
+
+  // DEV ONLY: Check for forced subscription override
+  const [devHasPremiumAccess, setDevHasPremiumAccess] = useState(false);
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const forceSubscription = localStorage.getItem('forceSubscription');
+      if (forceSubscription === 'true') {
+        console.log('DEV OVERRIDE: Forcing premium access to true in UnifiedStudyMode component');
+        setDevHasPremiumAccess(true);
+      } else {
+        setDevHasPremiumAccess(false);
+      }
+    }
+  }, []);
+
+  // Final premium access determination (dev override or actual premium access)
+  const hasSubscription = process.env.NODE_ENV === 'development' ? (devHasPremiumAccess || hasPremiumAccess) : hasPremiumAccess;
   
   // Data states
   const [cards, setCards] = useState<Flashcard[]>([]);
@@ -59,7 +83,6 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   const [sampleCardsLoaded, setSampleCardsLoaded] = useState(false);
   const [loadingRemainingCards, setLoadingRemainingCards] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasSubscription, setHasSubscription] = useState<boolean | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   
@@ -288,21 +311,12 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         console.log("UnifiedStudyMode: Starting to load data...");
         setLoading(true);
         
-        // Check subscription status
+        // Check subscription status - now using tier-based system
         if (user) {
-          console.log("UnifiedStudyMode: User is logged in, checking subscription status...");
-          try {
-            const hasAccess = await hasActiveSubscription(user.id);
-            console.log("UnifiedStudyMode: User subscription status:", hasAccess);
-            setHasSubscription(hasAccess);
-          } catch (subscriptionError) {
-            console.error("UnifiedStudyMode: Error checking subscription:", subscriptionError);
-            // Default to allowing access if there's an error with subscription check
-            setHasSubscription(true);
-          }
+          console.log("UnifiedStudyMode: User is logged in, using tier-based subscription check...");
+          console.log("UnifiedStudyMode: User subscription status:", hasSubscription);
         } else {
-          console.log("UnifiedStudyMode: No user logged in, setting hasSubscription to false");
-          setHasSubscription(false);
+          console.log("UnifiedStudyMode: No user logged in, no subscription access");
         }
         
         // Load collections
@@ -885,6 +899,49 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       updateCurrentCardIndex(currentIndex);
     }
   }, [filteredCards.length, currentIndex, updateCount, updateCurrentCardIndex]);
+
+  // Function to check if content is premium and requires paywall
+  const checkIfPremiumContent = useCallback((collection) => {
+    if (!collection) return false;
+    
+    // DEV ONLY: Check for forced subscription
+    if (process.env.NODE_ENV === 'development') {
+      const forceSubscription = localStorage.getItem('forceSubscription');
+      if (forceSubscription === 'true') {
+        console.log('DEV OVERRIDE: Bypassing premium check due to forceSubscription');
+        return false;
+      }
+    }
+    
+    // Check if this is official content and user doesn't have subscription
+    const isOfficial = collection.is_official === true;
+    const needsSubscription = isOfficial && !hasSubscription;
+    
+    console.log(`Premium content check: official=${isOfficial}, hasSubscription=${hasSubscription}, needsSubscription=${needsSubscription}`);
+    
+    return needsSubscription;
+  }, [hasSubscription]);
+
+  useEffect(() => {
+    const checkSubscription = async () => {
+      try {
+        // Check if user has subscription using the new tier-based system
+        const needsSubscription = !hasSubscription;
+        
+        if (needsSubscription) {
+          console.log('UnifiedStudyMode: User does not have premium access, may need paywall for premium content');
+        } else {
+          console.log('UnifiedStudyMode: User has premium access');
+        }
+      } catch (err) {
+        console.error('Error checking subscription in UnifiedStudyMode:', err);
+      }
+    };
+
+    if (user) {
+      checkSubscription();
+    }
+  }, [user, hasSubscription]);
 
   // Render function
   if (loading && !sampleCardsLoaded) {

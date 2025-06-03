@@ -262,7 +262,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       if (error instanceof TypeError) {
         // Special handling for the TypeError which was our original issue
         console.error('TypeError in registration process - likely an API integration issue');
-        errorMessage = 'Registration system error. Our team has been notified.';
+        errorMessage = 'Registration system error. Please notify support.';
       } else if (error instanceof Error) {
         // If it's a specific authentication error, show that message
         errorMessage = error.message;
@@ -388,7 +388,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
                 <Tabs 
                   defaultValue={activeTab} 
                   value={activeTab} 
-                  onValueChange={setActiveTab}
+                  onValueChange={(value) => setActiveTab(value as 'signin' | 'signup')}
                   className="w-full"
                 >
                   <TabsList className="grid w-full grid-cols-2 mb-8">

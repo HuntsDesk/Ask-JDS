@@ -74,6 +74,7 @@ export function Navbar({
         "bg-white/80 backdrop-blur-md",
         "border-b shadow-sm",
         showPromo && "top-10",
+        siteName === 'askjds' && "force-light-mode",
         className
       )}
     >
@@ -182,7 +183,10 @@ export function Navbar({
       {/* Mobile menu */}
       {isOpen && (
         <div className="md:hidden">
-          <div className="px-2 pt-2 pb-3 space-y-1 bg-white border-b">
+          <div className={cn(
+            "px-2 pt-2 pb-3 space-y-1 border-b",
+            siteName === 'askjds' ? "bg-white" : "bg-white"
+          )}>
             {navItems.map((item) => (
               <Link
                 key={item.href}

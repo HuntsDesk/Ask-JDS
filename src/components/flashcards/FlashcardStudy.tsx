@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { ArrowLeft, ArrowRight, Check, X, RotateCcw, BookOpen, Lock } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
@@ -8,7 +8,7 @@ import ErrorMessage from './ErrorMessage';
 import useToast from '@/hooks/useFlashcardToast';
 import Toast from './Toast';
 import { useAuth } from '@/lib/auth';
-import { hasActiveSubscription } from '@/lib/subscription';
+import { useSubscription } from '@/hooks/useSubscription';
 
 interface Flashcard {
   id: string;
@@ -41,6 +41,30 @@ export default function FlashcardStudy() {
   const navigate = useNavigate();
   const { toast, showToast, hideToast } = useToast();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  
+  // Use the new subscription hook with tier-based access
+  const { tierName, isLoading: subscriptionLoading } = useSubscription();
+  
+  // Determine if user has premium access (Premium or Unlimited tier)
+  const hasPremiumAccess = tierName === 'Premium' || tierName === 'Unlimited';
+
+  // DEV ONLY: Check for forced subscription override
+  const [devHasPremiumAccess, setDevHasPremiumAccess] = useState(false);
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const forceSubscription = localStorage.getItem('forceSubscription');
+      if (forceSubscription === 'true') {
+        console.log('DEV OVERRIDE: Forcing premium access to true in FlashcardStudy component');
+        setDevHasPremiumAccess(true);
+      } else {
+        setDevHasPremiumAccess(false);
+      }
+    }
+  }, []);
+
+  // Final premium access determination (dev override or actual premium access)
+  const hasSubscription = process.env.NODE_ENV === 'development' ? (devHasPremiumAccess || hasPremiumAccess) : hasPremiumAccess;
   
   const [collection, setCollection] = useState<FlashcardCollection | null>(null);
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -49,7 +73,6 @@ export default function FlashcardStudy() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [studyComplete, setStudyComplete] = useState(false);
-  const [hasSubscription, setHasSubscription] = useState(false);
   const [isPremiumContent, setIsPremiumContent] = useState(false);
   const [stats, setStats] = useState({
     correct: 0,
@@ -57,6 +80,9 @@ export default function FlashcardStudy() {
     remaining: 0,
     mastered: 0
   });
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [collectionTitle, setCollectionTitle] = useState('');
+  const [collectionData, setCollectionData] = useState(null);
 
   // Create a memoized shuffle function
   const shuffleCards = useCallback((cards) => {
@@ -69,38 +95,6 @@ export default function FlashcardStudy() {
       card.progress?.is_mastered || card.is_mastered
     ).length;
   }, [flashcards]);
-
-  useEffect(() => {
-    const checkSubscription = async () => {
-      if (user) {
-        try {
-          console.log('FlashcardStudy: Checking subscription for user:', user.id);
-          
-          // First check if dev override is enabled
-          if (process.env.NODE_ENV === 'development') {
-            const forceSubscription = localStorage.getItem('forceSubscription');
-            if (forceSubscription === 'true') {
-              console.log('DEV OVERRIDE: Forcing subscription to true in FlashcardStudy');
-              setHasSubscription(true);
-              return;
-            }
-          }
-          
-          const hasAccess = await hasActiveSubscription(user.id);
-          console.log('FlashcardStudy: Subscription check result:', hasAccess);
-          setHasSubscription(hasAccess);
-        } catch (err) {
-          console.error('Error checking subscription:', err);
-          // Default to no subscription on error
-          setHasSubscription(false);
-        }
-      } else {
-        setHasSubscription(false);
-      }
-    };
-
-    checkSubscription();
-  }, [user]);
 
   useEffect(() => {
     if (collectionId && user) {

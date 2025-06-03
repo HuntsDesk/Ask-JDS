@@ -4,7 +4,6 @@ import Navbar from './Navbar';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
-import { hasActiveSubscription } from '@/lib/subscription';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { SelectedThreadContext, SidebarContext } from '@/App';
 import { FlashcardPaywall } from '@/components/FlashcardPaywall';
@@ -13,6 +12,9 @@ import { StudyProvider } from '@/contexts/StudyContext';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { useNavbar } from '@/contexts/NavbarContext';
 import PageContainer from '@/components/layout/PageContainer';
+import { Button } from '@/components/ui/button';
+import { Plus, BookOpen, GraduationCap, Filter, Search } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
 
 // Import pages
 import Home from './pages/Home';
@@ -61,10 +63,32 @@ export default function FlashcardsPage() {
   const [loading, setLoading] = useState(false); // Start with not loading
   const [initialLoad, setInitialLoad] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
-  const [hasSubscription, setHasSubscription] = useState<boolean | null>(null);
   const { isMobile, isExpanded, setIsExpanded } = useContext(SidebarContext);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const { setNavbarTitle, updateCount, setShowBackButton, hideBackButton } = useNavbar();
+    
+  // Use the new subscription hook with tier-based access
+  const { tierName, isLoading: subscriptionLoading } = useSubscription();
+  
+  // Determine if user has premium access (Premium or Unlimited tier)
+  const hasPremiumAccess = tierName === 'Premium' || tierName === 'Unlimited';
+
+  // DEV ONLY: Check for forced subscription override
+  const [devHasPremiumAccess, setDevHasPremiumAccess] = useState(false);
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const forceSubscription = localStorage.getItem('forceSubscription');
+      if (forceSubscription === 'true') {
+        console.log('DEV OVERRIDE: Forcing premium access to true in FlashcardsPage component');
+        setDevHasPremiumAccess(true);
+      } else {
+        setDevHasPremiumAccess(false);
+      }
+    }
+  }, []);
+
+  // Final premium access determination (dev override or actual premium access)
+  const hasSubscription = process.env.NODE_ENV === 'development' ? (devHasPremiumAccess || hasPremiumAccess) : hasPremiumAccess;
     
   // Function to check if a collection is a user collection or premium one
   const checkAccessToCollection = async (collectionId: string) => {
@@ -123,7 +147,6 @@ export default function FlashcardsPage() {
       checkUserSubscription();
     } else {
       // If no user, they definitely don't have a subscription
-      setHasSubscription(false);
       setLoading(false);
     }
     
@@ -137,12 +160,10 @@ export default function FlashcardsPage() {
   const checkUserSubscription = async () => {
     try {
       // No need to show loading state for background subscription check
-      const hasAccess = await hasActiveSubscription(user?.id);
-      setHasSubscription(hasAccess);
+      const hasAccess = await hasSubscription;
+      setLoading(false);
     } catch (error) {
       console.error('Error checking subscription:', error);
-      setHasSubscription(false);
-    } finally {
       setLoading(false);
     }
   };
