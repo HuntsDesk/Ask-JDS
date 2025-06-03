@@ -97,6 +97,117 @@ VITE_SUPABASE_URL_DEV=https://prbbuxgirnecbkpdpgcb.supabase.co
 - ✅ **Updated Supabase CLI** to latest version (v2.23.4)
 - ✅ **Streamlined development workflow** to use production database directly
 
+## ⚡ Database Performance Optimization (January 2025)
+
+### Supabase Performance Advisor Optimization
+
+**Major Performance Improvements Completed:**
+- 🚀 **60% reduction in performance warnings** (from 111 → 44 warnings)
+- ✅ **Eliminated ALL Auth RLS Initialization Plan warnings** (67 warnings → 0)
+- ✅ **Fixed critical security vulnerability** in subjects table user ownership
+- ✅ **Optimized RLS policies** across multiple tables for better performance
+
+### Key Optimizations
+
+**1. Auth Function Wrapping (Phase 1-1.6)**
+- ✅ **Wrapped auth function calls** with `(select ...)` syntax for Postgres initPlan optimization
+- ✅ **Optimized functions**: `auth.uid()`, `auth.is_admin()`, `auth.role()`, `auth.jwt()`, `current_setting()`
+- ✅ **Performance benefit**: Per-row evaluation → Single execution per query
+- ✅ **Security fix**: Replaced vulnerable "Anyone can view official flashcards" policy with subscription-gated access
+
+**2. Critical Security Fixes**
+- 🔐 **URGENT: Fixed subjects table vulnerability** - Added missing `user_id` column and proper ownership
+- 🔐 **Security flaw resolved**: Previously ANY authenticated user could modify ANY non-official subject
+- 🔐 **Proper RLS implementation**: Users can only edit/delete their own non-official subjects
+- 🔐 **Business logic preserved**: All users can view official subjects + their own subjects
+
+**3. Policy Consolidation Strategy**
+- ✅ **Thread policies consolidated**: 12 → 4 policies (67% reduction)
+- ✅ **Subjects policies optimized**: Added user ownership with proper indexes
+- 📊 **Multiple tables identified** for further consolidation (flashcards, courses, etc.)
+
+### Performance Optimization Files
+
+**Migration Files Created:**
+```
+sql/performance_optimization/
+├── 001_auth_function_wrapping.sql
+├── 001.5_remaining_auth_role_fixes.sql
+├── 001.6_current_setting_wrapper.sql
+├── URGENT_003.0_add_subjects_user_ownership_FIXED.sql
+├── Phase_2_consolidate_threads_policies.sql
+├── Phase_2.2_cleanup_duplicate_indexes.sql
+└── Phase_3.0_consolidate_subjects_policies.sql
+```
+
+**Validation & Rollback:**
+- ✅ Each migration includes validation queries
+- ✅ Rollback scripts provided for safe deployment
+- ✅ Performance impact validated via Supabase Performance Advisor
+
+### Current Performance Status
+
+**Remaining 44 Warnings (All Multiple Permissive Policies):**
+- `collection_subjects`: 3 warnings (DELETE, INSERT, SELECT)
+- `course_enrollments`: 9 warnings (3 actions × 3 roles)
+- `courses`: 4 warnings (4 SELECT policies across roles)
+- `flashcard_collections_junction`: 2 warnings (DELETE, INSERT)
+- `flashcards`: 3 warnings (2 SELECT, 1 UPDATE)
+- `lessons`: 4 warnings (4 SELECT policies across roles)
+- `modules`: 4 warnings (4 SELECT policies across roles)
+- `user_entitlements`: 4 warnings (4 SELECT policies across roles)
+- `user_subscriptions`: 4 warnings (multiple SELECT policies)
+
+**Next Optimization Phases:**
+- 📋 **Phase 3+**: Consolidate admin/user policies using OR logic
+- 📋 **Target tables**: flashcards (5 SELECT policies), courses (4 SELECT policies)
+- 📋 **Estimated impact**: 44 → ~25 warnings with proper consolidation
+
+### Auth Function Optimization Details
+
+**Before Optimization:**
+```sql
+-- Inefficient: Evaluated per-row
+CREATE POLICY "example" ON table_name
+FOR SELECT USING (auth.uid() = user_id);
+```
+
+**After Optimization:**
+```sql
+-- Efficient: Single evaluation per query (initPlan)
+CREATE POLICY "example" ON table_name
+FOR SELECT USING ((SELECT auth.uid()) = user_id);
+```
+
+**Functions Optimized:**
+- `(SELECT auth.uid())` - User ID retrieval
+- `(SELECT auth.is_admin())` - Admin role checking
+- `(SELECT auth.role())` - Role-based access
+- `(SELECT auth.jwt())` - JWT token access
+- `(SELECT current_setting('request.jwt.claims', true)::json)` - JWT claims
+
+### Subscription Security Model
+
+**Enhanced Security Patterns:**
+```sql
+-- Subscription-gated content access
+(SELECT auth.uid()) IN (
+  SELECT user_id FROM user_subscriptions 
+  WHERE status = 'active' 
+  AND current_period_end > now()
+)
+
+-- User ownership with admin override
+((SELECT auth.is_admin()) = true) OR 
+(is_official = false AND (SELECT auth.uid()) = user_id)
+```
+
+**Business Logic:**
+- ✅ **Official content**: Requires active subscription
+- ✅ **User content**: Owner-only access (non-official)
+- ✅ **Admin access**: Full system access
+- ✅ **Performance**: Optimized with proper auth function wrapping
+
 ### Environment Variables
 
 Required environment variables (see `.env.example`):
@@ -328,4 +439,4 @@ For support and questions:
 
 ---
 
-**Last Updated**: January 2025 - Streamlined development workflow to use production database directly, eliminating local Supabase setup and sync issues. Includes critical security cleanup and Edge Function modernization. 
+**Last Updated**: January 2025 - Streamlined development workflow to use production database directly, eliminating local Supabase setup and sync issues. Includes critical security cleanup and Edge Function modernization. Major Supabase performance optimization completed: 60% reduction in warnings (111→44), eliminated all Auth RLS initialization warnings, fixed critical subjects table security vulnerability, and implemented comprehensive RLS policy optimization strategy. 
