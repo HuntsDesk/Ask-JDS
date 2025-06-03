@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { useEffect, useState, Suspense, useRef } from 'react';
+import { useEffect, useState, Suspense, useRef, startTransition } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
@@ -202,16 +202,18 @@ export function ProtectedRoute({
   // If authenticated via context OR manual session check, render the content
   if (user || hasManualSession) {
     // Wrap children in Suspense boundary to handle lazy-loaded components
-    return <Suspense fallback={
-      <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900">
-        <div className="flex flex-col items-center">
-          <LoadingSpinner size="lg" />
-          <p className="mt-4 text-gray-500 dark:text-gray-400">Loading content...</p>
+    return (
+      <Suspense fallback={
+        <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900">
+          <div className="flex flex-col items-center">
+            <LoadingSpinner size="lg" />
+            <p className="mt-4 text-gray-500 dark:text-gray-400">Loading content...</p>
+          </div>
         </div>
-      </div>
-    }>
-      {children}
-    </Suspense>;
+      }>
+        {children}
+      </Suspense>
+    );
   }
 
   // Redirect if manually prevented
