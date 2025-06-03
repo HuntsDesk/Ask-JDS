@@ -2044,6 +2044,7 @@ When browsing flashcards, premium content is handled in two ways:
    - "Unlock all cards" button in the banner that navigates to `/pricing`
    - Responsive button text: "Unlock all cards" on larger screens, "Unlock" on mobile
    - Button prevents event propagation to avoid triggering card flip functionality
+   - **Subscription-aware display**: Banner only shows for free users, premium subscribers see clean interface
 
 Access control is determined by:
 - `isCardPremium`: Checks if content should be treated as premium based on ownership and subscription status

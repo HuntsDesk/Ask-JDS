@@ -1289,7 +1289,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         )}
         
         {/* Banner for sample flashcards */}
-        {isPublicSample && (
+        {isPublicSample && !hasSubscription && (
           <div className="absolute top-0 left-0 right-0 bg-orange-500 text-white text-center py-2 z-5 font-bold flex items-center justify-between px-4">
             <div className="flex items-center space-x-2">
               <img 
