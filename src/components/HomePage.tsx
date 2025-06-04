@@ -38,7 +38,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import PageLayout from '@/components/askjds/PageLayout';
 import { HomepageFlashcardDemo } from '@/components/home/HomepageFlashcardDemo';
-import { PricingCards } from '@/components/pricing/PricingCards';
+import { HomepagePricingSection } from '@/components/home/HomepagePricingSection';
 
 // Define the benefits array
 const benefits = [
@@ -290,7 +290,7 @@ export function HomePage() {
       </section>
 
       {/* Flashcards Section */}
-      <section className="py-20 relative overflow-hidden">
+      <section id="flashcards" className="py-20 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white" style={{
           background: 'linear-gradient(135deg, rgb(249, 250, 251), rgb(255, 255, 255))'
         }}></div>
@@ -309,22 +309,22 @@ export function HomePage() {
                 <div className="bg-orange-100 p-3 rounded-full mb-4">
                   <CreditCard className="w-8 h-8 text-orange-500" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">400+ Expert-Curated Cards</h3>
-                <p className="text-gray-600">High-yield content crafted by legal experts to focus your study time.</p>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Expert-Curated Cards</h3>
+                <p className="text-gray-600">Skip all the guesswork. Study high-yield flashcards crafted by law school experts.</p>
               </div>
               <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm">
                 <div className="bg-blue-100 p-3 rounded-full mb-4">
                   <BookOpenCheck className="w-8 h-8 text-blue-500" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">All Major Subjects</h3>
-                <p className="text-gray-600">Constitutional Law, Contracts, Torts, Crim Law, and more.</p>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">1-Click Reinforcement</h3>
+                <p className="text-gray-600">Review the trickiest topics with targeted practice—so you'll never blank on the tough stuff again.</p>
               </div>
               <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm">
                 <div className="bg-green-100 p-3 rounded-full mb-4">
                   <GraduationCap className="w-8 h-8 text-green-500" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Progress Tracking</h3>
-                <p className="text-gray-600">Track your mastery and identify areas for improvement.</p>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Anywhere, Any Time</h3>
+                <p className="text-gray-600">Available across all your devices so you can review on the go, between classes, or while waiting for coffee.</p>
               </div>
             </div>
           </div>
@@ -344,7 +344,7 @@ export function HomePage() {
           </p>
         </div>
         <div className="mt-12 px-4 box-border">
-          <PricingCards />
+          <HomepagePricingSection />
         </div>
       </section>
 
