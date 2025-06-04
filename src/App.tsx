@@ -28,6 +28,11 @@ if (import.meta.env.DEV) {
 import { HomePage } from '@/components/HomePage';
 import { HomePage as JDSHomePage } from '@/components/jds/HomePage';
 
+// Import legal pages
+import { TermsOfService } from '@/pages/TermsOfService';
+import { PrivacyPolicy } from '@/pages/PrivacyPolicy';
+import { Disclaimer } from '@/pages/Disclaimer';
+
 // Import our new Navbar components
 import { JDSNavbar } from '@/components/jds/JDSNavbar';
 import { AskJDSNavbar } from '@/components/askjds/AskJDSNavbar';
@@ -347,6 +352,11 @@ function AppRoutes() {
       <Route path="/auth" element={
         <AsyncAuthPage />
       } />
+      
+      {/* Legal Pages - Public Access */}
+      <Route path="/terms" element={<TermsOfService />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/disclaimer" element={<Disclaimer />} />
       
       {/* Pricing Page */}
       <Route path="/pricing" element={

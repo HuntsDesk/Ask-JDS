@@ -63,7 +63,7 @@ export default function Footer() {
                 <Link to="/privacy" className="text-gray-200 hover:text-jdorange transition-colors">Privacy Policy</Link>
               </li>
               <li>
-                <Link to="/cookies" className="text-gray-200 hover:text-jdorange transition-colors">Cookie Policy</Link>
+                <Link to="/privacy" className="text-gray-200 hover:text-jdorange transition-colors">Cookie Policy</Link>
               </li>
               <li>
                 <Link to="/disclaimer" className="text-gray-200 hover:text-jdorange transition-colors">Disclaimer</Link>

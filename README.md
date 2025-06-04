@@ -113,6 +113,39 @@ Each is served via a domain-specific entrypoint with conditional logic driven by
 - ✅ **Deployed and tested** updated webhook function successfully
 - ✅ **Updated Supabase CLI** to latest version (v2.23.4)
 
+### Legal Pages Implementation (January 2025)
+
+- ✅ **Complete legal framework implementation** for AskJDS.com and JDSimplified.com
+- ✅ **Created comprehensive legal pages**:
+  - **Terms of Service** (`/terms`) - Complete T&S covering educational use, AI limitations, subscription terms, and legal disclaimers
+  - **Privacy Policy** (`/privacy`) - GDPR-compliant privacy policy with detailed data collection, usage, and user rights information
+  - **Disclaimer** (`/disclaimer`) - Educational content disclaimers, AI content limitations, and legal advice warnings
+- ✅ **Integrated cookie policy** within Privacy Policy (no separate page per user requirements)
+- ✅ **Added proper routing** for all legal pages in App.tsx with public access
+- ✅ **Updated footer links** in HomePage.tsx to point to actual legal pages instead of placeholder "#" links
+- ✅ **Implemented scroll-to-top functionality** in Ask JDS PageLayout component to ensure users are automatically scrolled to top when navigating to legal pages
+- ✅ **Business address integration**: JD Simplified, LLC, 7901 4TH ST N STE 300, ST PETERSBURG, FL 33702
+- ✅ **App store compliance** language added for future mobile app deployment
+- ✅ **International user considerations** with US/PR law focus disclaimers
+
+### Homepage UX Optimization & Copy Updates (January 2025)
+
+- ✅ **Fixed unwanted upward scrolling issue** on homepage load
+  - **Root cause**: Decorative floating elements with large negative positioning (`-top-40`) and floating animations were creating scrollable space above viewport
+  - **Solution**: Added overflow-hidden containers around background decorative elements to constrain them within viewport bounds
+  - **Logo section fix**: Increased logo container size from `w-32 h-32` to `w-40 h-40` and removed overflow-hidden to prevent clipping of floating icons
+  - **Padding optimization**: Adjusted hero section padding from `pt-20 md:pt-28` to `pt-16 md:pt-20` for better visual balance
+- ✅ **Updated homepage marketing copy** with casual, student-friendly tone
+  - **TL;DR Section**: "TL;DR: It's More Than Just Chat" with "You're not just here to ask questions. You're here to actually learn stuff (maybe at 2am)."
+  - **Chat Section**: "Chat Your Way Through Law School" with emphasis on "no group chat chaos" and "when your outline isn't outlining"
+  - **Flashcards Section**: "Need Help Remembering?" focused on "expert-created cards" and "spaced repetition, zero judgment"
+  - **Courses Section**: "Go Deeper When You're Ready (Courses)" with "Quick refreshers > long lectures" and "Like your professor… but in bullet points"
+  - **Hero section**: Streamlined copy to "Ask JDS is your AI Law Nerd — here for your 2 AM panic, your bar exam meltdown, and yes, when you forget the rule against perpetuities (again)"
+- ✅ **Enhanced visual elements**
+  - Made example question text italic for better visual emphasis
+  - Added supportive taglines under each section for personality and relatability
+  - Maintained technical functionality while improving user experience
+
 ### Tech Stack
 ```
 projectEnv: {

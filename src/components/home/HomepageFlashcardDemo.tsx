@@ -100,26 +100,7 @@ export const HomepageFlashcardDemo: React.FC<HomepageFlashcardDemoProps> = ({
                           >
                             {currentCard.subject}
                           </Badge>
-                          <Badge 
-                            variant="outline"
-                            className={`text-xs ${
-                              currentCard.difficulty === 'foundational' 
-                                ? 'border-green-500 text-green-700'
-                              : currentCard.difficulty === 'intermediate'
-                                ? 'border-yellow-500 text-yellow-700'
-                                : 'border-red-500 text-red-700'
-                            }`}
-                          >
-                            {currentCard.difficulty}
-                          </Badge>
-                          {currentCard.isPremium && (
-                            <Badge className="bg-[#F37022] text-white text-xs">
-                              <Star className="w-3 h-3 mr-1" />
-                              Premium
-                            </Badge>
-                          )}
                         </div>
-                        <BookOpen className="w-5 h-5 text-gray-400" />
                       </div>
                     </div>
 
@@ -195,14 +176,7 @@ export const HomepageFlashcardDemo: React.FC<HomepageFlashcardDemoProps> = ({
                           >
                             {currentCard.subject}
                           </Badge>
-                          {currentCard.isPremium && (
-                            <Badge className="bg-white/20 text-white border-none text-xs">
-                              <Star className="w-3 h-3 mr-1" />
-                              Premium
-                            </Badge>
-                          )}
                         </div>
-                        <BookOpen className="w-5 h-5 text-orange-200" />
                       </div>
                     </div>
 
