@@ -1,3 +1,4 @@
+import React from 'react';
 import { Navbar } from '../shared/Navbar';
 import { Home, BookOpen, DollarSign, MessageSquare } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -28,24 +29,20 @@ export function AskJDSNavbar() {
   
   // Handle direct click on hash links
   const handleHashLink = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    if (href.startsWith('/#')) {
-      e.preventDefault();
-      
-      const id = href.replace('/#', '');
-      
-      // If already on home page, just scroll to the element
-      if (location.pathname === '/') {
-        const element = document.getElementById(id);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth' });
-        } else {
-          // Fallback if element not found
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-      } else {
-        // Navigate to home with hash
-        navigate(href);
+    e.preventDefault();
+    
+    // Extract the hash from the href
+    const hash = href.split('#')[1];
+    
+    if (location.pathname === '/') {
+      // If already on homepage, scroll to section
+      const element = document.getElementById(hash);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
       }
+    } else {
+      // Navigate to homepage with hash
+      navigate(`/#${hash}`);
     }
   };
 
@@ -74,9 +71,9 @@ export function AskJDSNavbar() {
     },
     { 
       label: 'Chat', 
-      href: '/#how-it-works', 
+      href: '/#chat', 
       icon: <MessageSquare size={18} />,
-      onClick: (e: React.MouseEvent<HTMLAnchorElement>) => handleHashLink(e, '/#how-it-works')
+      onClick: (e: React.MouseEvent<HTMLAnchorElement>) => handleHashLink(e, '/#chat')
     },
     { 
       label: 'Flashcards', 
@@ -85,10 +82,10 @@ export function AskJDSNavbar() {
       onClick: (e: React.MouseEvent<HTMLAnchorElement>) => handleHashLink(e, '/#flashcards')
     },
     { 
-      label: 'Pricing', 
-      href: '/#pricing', 
-      icon: <DollarSign size={18} />,
-      onClick: (e: React.MouseEvent<HTMLAnchorElement>) => handleHashLink(e, '/#pricing')
+      label: 'Courses', 
+      href: '/#courses', 
+      icon: <BookOpen size={18} />,
+      onClick: (e: React.MouseEvent<HTMLAnchorElement>) => handleHashLink(e, '/#courses')
     },
   ];
   

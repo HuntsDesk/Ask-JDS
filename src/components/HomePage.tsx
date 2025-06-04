@@ -39,6 +39,9 @@ import { OptimizedImage } from '@/components/ui/optimized-image';
 import PageLayout from '@/components/askjds/PageLayout';
 import { HomepageFlashcardDemo } from '@/components/home/HomepageFlashcardDemo';
 import { HomepagePricingSection } from '@/components/home/HomepagePricingSection';
+import { TLDRSection } from '@/components/home/TLDRSection';
+import { CoursesSection } from '@/components/home/CoursesSection';
+import { SectionDivider } from '@/components/home/SectionDivider';
 
 // Define the benefits array
 const benefits = [
@@ -72,7 +75,7 @@ const benefits = [
   }
 ];
 
-// Define the questions array
+// Define the chat questions array
 const questions = [
   {
     icon: Lightbulb,
@@ -164,14 +167,16 @@ export function HomePage() {
       }}
     >
       {/* Hero Section */}
-        <section id="top" className="pt-20 pb-16 md:pt-28 md:pb-24 relative overflow-hidden">
+        <section id="top" className="pt-16 pb-16 md:pt-20 md:pb-24 relative overflow-hidden">
           <div className="absolute inset-0 animated-gradient opacity-60"></div>
-          <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#F37022]/10 rounded-full filter blur-3xl animate-float-slow"></div>
-          <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-[#00178E]/10 rounded-full filter blur-3xl animate-float-medium"></div>
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#F37022]/10 rounded-full filter blur-3xl animate-float-slow"></div>
+            <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-[#00178E]/10 rounded-full filter blur-3xl animate-float-medium"></div>
+          </div>
           <div className="max-w-4xl mx-auto px-4 box-border relative z-10">
             {/* Hero Logo Section - Larger, vertically stacked */}
             <div className="flex flex-col items-center justify-center mb-8">
-              <div className="relative w-32 h-32 mb-3">
+              <div className="relative w-40 h-40 mb-3">
                 <div className="absolute -top-4 -right-4 animate-float-delayed z-0">
                   <Scale className="w-12 h-12 text-[#F5B111] opacity-60" />
                 </div>
@@ -194,12 +199,8 @@ export function HomePage() {
                 The <i className="text-[#F37022]">Law Study Buddy</i> that won't judge you for procrastinating.
               </h1>
 
-              <h2 className="text-3xl font-bold text-black mb-4">
-                Struggling with law school or the bar exam?
-              </h2>
-
               <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-                Welcome to Ask JDS, where you can throw your burning law school and bar prep questions at a friendly AI Law Nerd who won't shame you for forgetting the rule against perpetuities (again).
+              Ask JDS is your AI Law Nerd — here for your 2 AM panic, your bar exam meltdown, and yes, when you forget the rule against perpetuities (again).
               </p>
 
               <div className="flex flex-col md:flex-row gap-4 mt-8 justify-center">
@@ -225,13 +226,20 @@ export function HomePage() {
           </div>
         </section>
 
-      {/* FAQ */}
-      <section className="py-20 bg-[#00178E]/5 overflow-x-hidden">
+      {/* TL;DR Section */}
+      <TLDRSection />
+
+      {/* What Can You Ask? - Chat Section */}
+      <section className="py-20 bg-gray-50 overflow-x-hidden">
+        <SectionDivider label="Chat" className="mb-20" />
         <div className="max-w-6xl mx-auto px-4 box-border">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-black mb-4">What Can You Ask?</h2>
+            <h2 id="chat" className="text-4xl font-bold text-black mb-4" style={{scrollMarginTop: '6rem'}}>Chat Your Way Through Law School</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              From basic concepts to existential crises, we've got you covered.
+              Get instant answers without group chat chaos. No dumb questions, no side-eyes. Just real explanations when you need them.
+            </p>
+            <p className="text-lg text-gray-500 max-w-xl mx-auto mt-2 italic">
+              Try it when your outline isn't outlining.
             </p>
           </div>
           <div className="grid md:grid-cols-2 gap-8">
@@ -251,7 +259,7 @@ export function HomePage() {
                     <h3 className={`text-2xl font-semibold ${question.color} mb-2`}>
                       {question.category}
                     </h3>
-                    <p className="text-lg text-gray-600 group-hover:text-gray-700 transition-colors">
+                    <p className="text-lg text-gray-600 group-hover:text-gray-700 transition-colors italic">
                       "{question.text}"
                     </p>
                   </div>
@@ -263,7 +271,7 @@ export function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="py-20 bg-gradient-to-b from-[#00178E]/5 to-[#00178E]/5 overflow-x-hidden" style={{
+      <section id="how-it-works" className="py-20 bg-white overflow-x-hidden" style={{
         backgroundImage: "url('/images/grid-pattern.svg')",
         backgroundSize: "cover",
       }}>
@@ -290,15 +298,16 @@ export function HomePage() {
       </section>
 
       {/* Flashcards Section */}
-      <section id="flashcards" className="py-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white" style={{
-          background: 'linear-gradient(135deg, rgb(249, 250, 251), rgb(255, 255, 255))'
-        }}></div>
+      <section className="py-20 bg-orange-50 relative overflow-hidden">
+        <SectionDivider label="Flashcards" className="mb-20" />
         <div className="max-w-6xl mx-auto px-4 relative box-border">
           <div className="text-center mb-4">
-            <h2 className="text-4xl font-bold text-black mb-4">Need help remembering?</h2>
+            <h2 id="flashcards" className="text-4xl font-bold text-black mb-4" style={{scrollMarginTop: '6rem'}}>Need Help Remembering?</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Law school isn't just about reading—it's about remembering. Go from confusion to confidence with flashcards designed to help you master the material, whether you're prepping for class or the bar.
+              Law school isn't just reading. It's remembering. Drill key rules and topics with 400+ expert-created cards. No fluff. Just the stuff you forget on cold calls.
+            </p>
+            <p className="text-lg text-gray-500 max-w-xl mx-auto mt-2 italic">
+              Spaced repetition. Zero judgment.
             </p>
           </div>
           
@@ -335,8 +344,12 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* Courses Section */}
+      <CoursesSection />
+
       {/* Pricing Section */}
       <section id="pricing" className="py-20 bg-gray-50 overflow-x-hidden">
+        <SectionDivider label="Pricing" className="mb-20" />
         <div className="max-w-4xl mx-auto text-center px-4 box-border">
           <h2 className="text-4xl font-bold text-black">Simple, Transparent Pricing</h2>
           <p className="text-lg text-gray-600 mt-2">
@@ -349,10 +362,7 @@ export function HomePage() {
       </section>
 
       {/* Benefits */}
-      <section className="py-20 relative overflow-hidden box-border">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white" style={{
-          background: 'linear-gradient(135deg, rgb(249, 250, 251), rgb(255, 255, 255))'
-        }}></div>
+      <section className="py-20 bg-white relative overflow-hidden box-border">
         <div className="max-w-6xl mx-auto px-4 relative box-border">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-black mb-4">Why Use Ask JDS?</h2>
@@ -390,9 +400,7 @@ export function HomePage() {
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-[#00178E]/5 relative overflow-hidden" style={{
-        backgroundColor: 'rgba(0, 23, 142, 0.05)'
-      }}>
+      <section className="py-20 bg-gray-50 relative overflow-hidden">
         <div className="max-w-4xl mx-auto px-4 text-center relative z-10 box-border">
           <h2 className="text-5xl font-bold text-[#00178E] mb-6">
             {user ? (hasSubscription ? "Thank you for subscribing" : "Upgrade Your Experience") : "Sign Up Now"}
