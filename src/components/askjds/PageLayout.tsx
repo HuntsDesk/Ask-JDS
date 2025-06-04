@@ -1,4 +1,5 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { AskJDSNavbar } from './AskJDSNavbar';
 
 interface PageLayoutProps {
@@ -7,6 +8,13 @@ interface PageLayoutProps {
 }
 
 export default function PageLayout({ children, hideFooter = false }: PageLayoutProps) {
+  const location = useLocation();
+  
+  // Scroll to top on route change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+  
   return (
     <div className="flex flex-col min-h-screen">
       <AskJDSNavbar />

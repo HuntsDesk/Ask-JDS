@@ -497,16 +497,13 @@ export function HomePage() {
               <h3 className="text-lg font-semibold mb-4">Legal</h3>
               <ul className="space-y-2">
                 <li>
-                  <a href="#" className="text-gray-300 hover:text-white transition-colors">Terms of Service</a>
+                  <Link to="/terms" className="text-gray-300 hover:text-white transition-colors">Terms of Service</Link>
                 </li>
                 <li>
-                  <a href="#" className="text-gray-300 hover:text-white transition-colors">Privacy Policy</a>
+                  <Link to="/privacy" className="text-gray-300 hover:text-white transition-colors">Privacy Policy</Link>
                 </li>
                 <li>
-                  <a href="#" className="text-gray-300 hover:text-white transition-colors">Cookie Policy</a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-300 hover:text-white transition-colors">Disclaimer</a>
+                  <Link to="/disclaimer" className="text-gray-300 hover:text-white transition-colors">Disclaimer</Link>
                 </li>
               </ul>
             </div>
