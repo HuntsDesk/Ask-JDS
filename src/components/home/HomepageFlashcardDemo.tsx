@@ -61,7 +61,7 @@ export const HomepageFlashcardDemo: React.FC<HomepageFlashcardDemoProps> = ({
 
   if (!currentCard) {
     return (
-      <div className={`py-16 ${className}`}>
+      <div className={`pt-16 pb-8 ${className}`}>
         <div className="max-w-4xl mx-auto px-4 text-center">
           <div className="w-80 h-48 mx-auto bg-gray-200 rounded-xl animate-pulse"></div>
         </div>
@@ -70,30 +70,11 @@ export const HomepageFlashcardDemo: React.FC<HomepageFlashcardDemoProps> = ({
   }
 
   return (
-    <div className={`py-16 ${className}`}>
+    <div className={`pt-16 pb-8 ${className}`}>
       <div className="max-w-4xl mx-auto px-4">
 
         {/* Demo Container */}
         <div className="max-w-2xl mx-auto">
-          {/* Card Counter */}
-          <div className="text-center mb-4">
-            <div className="inline-flex items-center gap-2 text-sm text-gray-500">
-              <span>{currentIndex + 1} of {demoCards.length}</span>
-              <div className="flex gap-1">
-                {demoCards.map((_, index) => (
-                  <div
-                    key={index}
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      index === currentIndex 
-                        ? 'bg-[#F37022]' 
-                        : 'bg-gray-300'
-                    }`}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-
           {/* Flashcard */}
           <div className="relative mb-8">
             <div className="perspective-1000">

@@ -225,33 +225,6 @@ export function HomePage() {
           </div>
         </section>
 
-      {/* How It Works */}
-      <section id="how-it-works" className="py-20 bg-gradient-to-b from-[#00178E]/5 to-[#00178E]/5 overflow-x-hidden" style={{
-        backgroundImage: "url('/images/grid-pattern.svg')",
-        backgroundSize: "cover",
-      }}>
-        <div className="max-w-6xl mx-auto px-4 box-border">
-          <h2 className="text-4xl font-bold text-center mb-16 text-black">How It Works</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white p-8 rounded-xl shadow-sm">
-              <MessageSquare className="w-12 h-12 text-[#00178E] mb-4" />
-              <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Ask a Question</h3>
-              <p className="text-gray-600">Type in your legal query. Bar prep, case law, general despair—it's all fair game.</p>
-            </div>
-            <div className="bg-white p-8 rounded-xl shadow-sm">
-              <Brain className="w-12 h-12 text-[#00178E] mb-4" />
-              <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Get an Answer</h3>
-              <p className="text-gray-600">Powered by legal outlines, case summaries, and the AI equivalent of an over-caffeinated law nerd.</p>
-            </div>
-            <div className="bg-white p-8 rounded-xl shadow-sm">
-              <Rocket className="w-12 h-12 text-[#00178E] mb-4" />
-              <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Master the Topic</h3>
-              <p className="text-gray-600">We can't guarantee an A, but we can make sure you at least sound like you know what you're talking about.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* FAQ */}
       <section className="py-20 bg-[#00178E]/5 overflow-x-hidden">
         <div className="max-w-6xl mx-auto px-4 box-border">
@@ -289,6 +262,33 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* How It Works */}
+      <section id="how-it-works" className="py-20 bg-gradient-to-b from-[#00178E]/5 to-[#00178E]/5 overflow-x-hidden" style={{
+        backgroundImage: "url('/images/grid-pattern.svg')",
+        backgroundSize: "cover",
+      }}>
+        <div className="max-w-6xl mx-auto px-4 box-border">
+          <h2 className="text-4xl font-bold text-center mb-16 text-black">How It Works</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-white p-8 rounded-xl shadow-sm">
+              <MessageSquare className="w-12 h-12 text-[#00178E] mb-4" />
+              <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Ask a Question</h3>
+              <p className="text-gray-600">Type in your legal query. Bar prep, case law, general despair—it's all fair game.</p>
+            </div>
+            <div className="bg-white p-8 rounded-xl shadow-sm">
+              <Brain className="w-12 h-12 text-[#00178E] mb-4" />
+              <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Get an Answer</h3>
+              <p className="text-gray-600">Powered by legal outlines, case summaries, and the AI equivalent of an over-caffeinated law nerd.</p>
+            </div>
+            <div className="bg-white p-8 rounded-xl shadow-sm">
+              <Rocket className="w-12 h-12 text-[#00178E] mb-4" />
+              <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Master the Topic</h3>
+              <p className="text-gray-600">We can't guarantee an A, but we can make sure you at least sound like you know what you're talking about.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Flashcards Section */}
       <section className="py-20 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white" style={{
@@ -296,15 +296,15 @@ export function HomePage() {
         }}></div>
         <div className="max-w-6xl mx-auto px-4 relative box-border">
           <div className="text-center mb-4">
-            <h2 className="text-4xl font-bold text-black mb-4">Need help remembering the rule against perpetuities?</h2>
+            <h2 className="text-4xl font-bold text-black mb-4">Need help remembering?</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Reinforce your learning with expertly crafted flashcards covering all major law school subjects.
+            Law school isn't just about reading—it's about remembering. Go from confusion to confidence with flashcards designed to help you master the material, whether you're prepping for class or the bar.
             </p>
           </div>
           
           {/* Feature Items */}
-          <div className="text-center mb-12">
-            <div className="grid md:grid-cols-3 gap-8 mb-8">
+          <div className="text-center mb-8">
+            <div className="grid md:grid-cols-3 gap-8 mb-6">
               <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm">
                 <div className="bg-orange-100 p-3 rounded-full mb-4">
                   <CreditCard className="w-8 h-8 text-orange-500" />
@@ -395,11 +395,11 @@ export function HomePage() {
       }}>
         <div className="max-w-4xl mx-auto px-4 text-center relative z-10 box-border">
           <h2 className="text-5xl font-bold text-[#00178E] mb-6">
-            {user ? (hasSubscription ? "You're All Set!" : "Upgrade Your Experience") : "Sign Up Now"}
+            {user ? (hasSubscription ? "Thank you for subscribing" : "Upgrade Your Experience") : "Sign Up Now"}
           </h2>
           <p className="text-2xl text-[#00178E] mb-10">
             {hasSubscription 
-              ? "You're all set with your premium subscription! Head to the chat to start asking questions."
+              ? "You're all set with your premium subscription. Head to the chat to start asking questions."
               : "Skip the overpriced tutors and questionable Reddit advice—Ask JDS is your $10/month legal survival guide."}
           </p>
           <div className="flex flex-col items-center gap-8">
