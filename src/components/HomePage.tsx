@@ -155,7 +155,7 @@ export function HomePage() {
   };
   
   return (
-    <PageLayout>
+    <PageLayout hideFooter>
     <div 
       className="min-h-screen bg-gradient-to-b from-gray-50 to-white force-light-mode"
       style={{ 
@@ -252,7 +252,7 @@ export function HomePage() {
                       {question.category}
                     </h3>
                     <p className="text-lg text-gray-600 group-hover:text-gray-700 transition-colors">
-                      {question.text}
+                      "{question.text}"
                     </p>
                   </div>
                 </div>
