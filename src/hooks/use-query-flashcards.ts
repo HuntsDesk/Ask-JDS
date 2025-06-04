@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
+import { CACHE_DURATIONS } from '@/lib/cache-config';
 
 // Query keys for better cache management
 export const flashcardKeys = {
@@ -232,8 +233,7 @@ export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    // Default options can be overridden
-    staleTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: CACHE_DURATIONS.OFFICIAL_CONTENT, // 72 hours (official collections content)
     ...options,
   });
 }
@@ -370,7 +370,7 @@ export function useSubjects(options = {}) {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: CACHE_DURATIONS.OFFICIAL_CONTENT, // 72 hours (official subjects content)
     ...options,
   });
 }
@@ -382,13 +382,13 @@ export function useExamTypes(options = {}) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('exam_types')
-        .select('id, name, description')
+        .select('id, name')
         .order('name');
       
       if (error) throw error;
       return data || [];
     },
-    staleTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: CACHE_DURATIONS.OFFICIAL_CONTENT, // 72 hours (official exam types content)
     ...options,
   });
 }
@@ -492,6 +492,7 @@ export function useFlashcardsWithProgress(collectionId: string, options = {}) {
       return processedCards;
     },
     enabled: !!collectionId && !!user?.id,
+    staleTime: CACHE_DURATIONS.USER_PROGRESS, // 5 minutes (user progress data)
     ...options,
   });
 }
