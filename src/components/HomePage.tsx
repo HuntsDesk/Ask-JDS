@@ -195,7 +195,7 @@ export function HomePage() {
 
             {/* Hero Content */}
             <div className="text-center mt-16">
-              <h1 className="text-5xl font-bold text-black mb-8">
+              <h1 className="text-3xl md:text-5xl font-bold text-black mb-8">
                 The <i className="text-[#F37022]">Law Study Buddy</i> that won't judge you for procrastinating.
               </h1>
 
