@@ -195,12 +195,12 @@ export function HomePage() {
 
             {/* Hero Content */}
             <div className="text-center mt-16">
-              <h1 className="text-5xl font-bold text-black mb-8">
+              <h1 className="text-3xl md:text-5xl font-bold text-black mb-8">
                 The <i className="text-[#F37022]">Law Study Buddy</i> that won't judge you for procrastinating.
               </h1>
 
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-              Ask JDS is your AI Law Nerd — here for your 2 AM panic, your bar exam meltdown, and yes, when you forget the rule against perpetuities (again).
+              <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-8">
+              Here for your 2 AM panic sessions, your bar exam meltdown, and yes, when you forget the rule against perpetuities (again).
               </p>
 
               <div className="flex flex-col md:flex-row gap-4 mt-8 justify-center">
@@ -214,7 +214,7 @@ export function HomePage() {
                   </button>
                 ) : (
                   <Link 
-                    to="/auth"
+                    to="/auth?tab=signup"
                     className="bg-[#F37022] hover:bg-[#E35D10] text-white font-medium py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
                   >
                     <Rocket className="w-5 h-5" />
@@ -408,7 +408,7 @@ export function HomePage() {
           <p className="text-2xl text-[#00178E] mb-10">
             {hasSubscription 
               ? "You're all set with your premium subscription. Head to the chat to start asking questions."
-              : "Skip the overpriced tutors and questionable Reddit advice—Ask JDS is your $10/month legal survival guide."}
+              : "Skip the overpriced tutors and questionable Reddit advice—Meetyour $10/month legal survival guide."}
           </p>
           <div className="flex flex-col items-center gap-8">
             <div className="flex flex-col md:flex-row gap-4 justify-center">
@@ -422,7 +422,7 @@ export function HomePage() {
                 </button>
               ) : (
                 <Link 
-                  to="/auth"
+                  to="/auth?tab=signup"
                   className="bg-[#F37022] hover:bg-[#E35D10] text-white font-medium py-4 px-8 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-xl"
                 >
                   <Rocket className="w-6 h-6" />
