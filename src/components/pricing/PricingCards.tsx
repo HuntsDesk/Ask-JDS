@@ -11,7 +11,7 @@ const homepageTiers = [
     name: 'Free',
     price: '$0',
     period: 'month',
-    description: 'Perfect for trying out Ask JDS and basic flashcard use.',
+    description: 'Perfect for trying out Ask JDS and basic flashcard use. Additional sample flashcards included.',
     icon: MessageSquare,
     buttonText: 'Sign-up For Free',
     buttonVariant: 'outline',

@@ -2546,28 +2546,36 @@ Monitor for significant deviations that might indicate:
 
 ### Homepage Component System
 
-**Recent Enhancements (January 2025)**:
+**Recent Updates (January 2025):**
+- **Full 3-Tier Pricing Integration**: Homepage now displays complete pricing comparison (Free, Premium, Unlimited) matching the dedicated pricing page
+- **Shared Pricing Data Architecture**: Implemented `src/lib/pricingData.ts` for centralized pricing configuration and feature lists
+- **Enhanced Flashcard Demo**: Updated to match app layout with proper height handling, internal navigation controls, and improved user experience
+- **Navigation Integration**: Updated homepage navigation to scroll to flashcard section instead of redirecting to app
+
+**Architecture:**
 - **Section Reordering**: Implemented optimal user journey flow with Hero → How It Works → What Can You Ask? → Flashcards → CTA → Pricing → Why Use Ask JDS? → Footer
-- **Reusable Pricing Component**: Created `src/components/pricing/PricingCards.tsx` with modern card design, consistent styling across homepage and dedicated pricing page
-- **Interactive Flashcard Demo**: Enhanced homepage flashcard section with 3D flip animations, curated demo content, and conversion-optimized call-to-action
-- **Mobile-First Design**: Responsive layouts with optimized navigation and content presentation
-- **Performance Optimization**: Static demo content with zero API calls for instant loading
+- **Full Pricing Parity**: Homepage pricing section now matches `/pricing` page exactly with all subscription functionality
+- **Interactive Flashcard Demo**: Enhanced homepage flashcard section with app-consistent layout, dynamic height, and internal navigation controls
+- **Shared Data Layer**: All pricing information centralized in reusable data structures
 
-**Component Architecture**:
+**File Structure:**
 ```
-src/components/
-├── pricing/
-│   └── PricingCards.tsx        # Reusable pricing component with modern design
-├── home/
-│   └── HomepageFlashcardDemo.tsx # Interactive demo with curated content
-└── HomePage.tsx                # Main homepage with optimized section flow
+src/
+├── lib/
+│   └── pricingData.ts             # Centralized pricing tiers, features, and TypeScript interfaces
+├── components/
+│   ├── home/
+│   │   ├── HomepageFlashcardDemo.tsx # Interactive demo matching app layout and behavior
+│   │   └── HomepagePricingSection.tsx # Full 3-tier pricing with subscription integration
+│   └── HomePage.tsx               # Main homepage with enhanced sections and navigation anchors
 ```
 
-**Features**:
-- **Consistent Pricing Design**: Unified styling between homepage and `/pricing` route using shared component
-- **Enhanced Visual Hierarchy**: Improved card design with rounded-2xl borders, shadow-xl depth, and premium highlighting
-- **Conversion Optimization**: Strategic section ordering and call-to-action placement for improved user engagement
+**Key Features:**
+- **Pricing Consistency**: Eliminates drift between homepage and pricing page through shared data
+- **App-Consistent Flashcard Demo**: Users experience the actual flashcard interface before signup
+- **Navigation Anchors**: Homepage sections can be directly linked to (e.g., `/#flashcards`, `/#pricing`)
 - **Zero-API Demo**: Homepage flashcard demonstration uses static data for instant loading and better user experience
+- **Full Subscription Integration**: Homepage pricing includes payment modals, subscription logic, and user authentication
 
 ### Tech Stack Summary
 

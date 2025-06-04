@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, XCircle, MessageSquare, BookOpen, Zap, ArrowRight } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -9,70 +9,7 @@ import { createCheckoutSession } from '@/lib/subscription';
 import { StripeCheckoutDialog } from '@/components/stripe/StripeCheckoutDialog';
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from '@/components/LoadingSpinner';
-
-// Master list of all features
-const masterFeatures = [
-  { id: 'chat_messages', displayName: 'Ask JDS chat messages', category: 'Core Features' },
-  { id: 'personal_flashcards', displayName: 'Create & manage unlimited personal flashcards', category: 'Core Features' },
-  { id: 'premium_flashcards', displayName: '400+ Expert Curated Flashcards', category: 'Flashcards' },
-  { id: 'sample_flashcards_note', displayName: 'Sample premium cards included in Free tier', category: 'Flashcards', note: true, noteOnly: true },
-  { id: 'video_courses', displayName: 'Unlimited access to ALL video courses', category: 'Courses' },
-  { id: 'priority_support', displayName: 'Priority Support', category: 'Support' },
-];
-
-const pricingTiers = [
-  {
-    name: 'Free',
-    price: '$0',
-    period: 'month',
-    description: 'Perfect for trying out Ask JDS and basic flashcard use.',
-    icon: MessageSquare,
-    buttonText: 'Current Plan',
-    buttonVariant: 'outline',
-    highlight: false,
-    features: {
-      chat_messages: { included: true, value: '10 per month' },
-      personal_flashcards: { included: true },
-      premium_flashcards: { included: false },
-      video_courses: { included: false },
-      priority_support: { included: false },
-    },
-  },
-  {
-    name: 'Premium',
-    price: '$10',
-    period: 'month',
-    description: 'For serious students needing unlimited chat and all premium flashcards.',
-    icon: Zap,
-    buttonText: 'Upgrade to Premium',
-    buttonVariant: 'default',
-    highlight: true,
-    features: {
-      chat_messages: { included: true, value: 'Unlimited' },
-      personal_flashcards: { included: true },
-      premium_flashcards: { included: true },
-      video_courses: { included: false },
-      priority_support: { included: false },
-    },
-  },
-  {
-    name: 'Unlimited',
-    price: '$30',
-    period: 'month',
-    description: 'Complete access to all features, including every video course and resource.',
-    icon: BookOpen,
-    buttonText: 'Get Unlimited Access',
-    buttonVariant: 'default',
-    highlight: false,
-    features: {
-      chat_messages: { included: true, value: 'Unlimited' },
-      personal_flashcards: { included: true },
-      premium_flashcards: { included: true },
-      video_courses: { included: true },
-      priority_support: { included: true },
-    },
-  },
-];
+import { masterFeatures, pricingTiers } from '@/lib/pricingData';
 
 export function PricingPage() {
   const navigate = useNavigate();

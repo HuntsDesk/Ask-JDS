@@ -80,8 +80,9 @@ export function AskJDSNavbar() {
     },
     { 
       label: 'Flashcards', 
-      href: '/flashcards', 
-      icon: <BookOpen size={18} /> 
+      href: '/#flashcards', 
+      icon: <BookOpen size={18} />,
+      onClick: (e: React.MouseEvent<HTMLAnchorElement>) => handleHashLink(e, '/#flashcards')
     },
     { 
       label: 'Pricing', 
