@@ -21,6 +21,7 @@ import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tansta
 import { SkeletonFlashcardGrid } from '../SkeletonFlashcard';
 import { enrichFlashcardWithRelationships, processRelationshipData, isFlashcardReadOnly } from '@/utils/flashcard-utils';
 import { useSubscription } from '@/hooks/useSubscription';
+import { CACHE_DURATIONS } from '@/lib/cache-config';
 
 // Debug flag - set to false to disable most console logs
 // Set to localStorage.getItem('enableFlashcardDebug') === 'true' to control via localStorage
@@ -133,7 +134,7 @@ export default function AllFlashcards() {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 30 * 60 * 1000 // 30 minutes
+    staleTime: CACHE_DURATIONS.OFFICIAL_CONTENT // 72 hours (official subjects content)
   });
 
   // Fetch collections for filtering
@@ -148,7 +149,7 @@ export default function AllFlashcards() {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 15 * 60 * 1000 // 15 minutes
+    staleTime: CACHE_DURATIONS.OFFICIAL_CONTENT // 72 hours (official collections content)
   });
 
   // Primary flashcards query - basic data only
@@ -533,15 +534,17 @@ export default function AllFlashcards() {
 
   // Helper function to determine if a card is premium
   const isCardPremium = useCallback((card: Flashcard) => {
-    // Get a safer reference to the collection data
-    const cardCollectionData = card.collection || {};
+    // Check if collection exists before accessing properties
+    if (!card.collection) {
+      return false;
+    }
     
     // Determine ownership
     const isCreatedByUser = card.created_by === user?.id;
-    const isUserCollection = cardCollectionData.user_id === user?.id;
+    const isUserCollection = card.collection.user_id === user?.id;
     
     // Check for is_official with strict equality
-    const isOfficial = cardCollectionData.is_official === true;
+    const isOfficial = card.collection.is_official === true;
     
     // DEV ONLY: Check for forced subscription
     if (process.env.NODE_ENV === 'development') {
@@ -554,11 +557,6 @@ export default function AllFlashcards() {
     
     // User's own content is never premium to them (regardless of filter)
     if (isCreatedByUser || isUserCollection || filter === 'my') {
-      return false;
-    }
-    
-    // Cards without collections are never premium
-    if (!card.collection) {
       return false;
     }
     
@@ -833,7 +831,7 @@ export default function AllFlashcards() {
       if (error) throw error;
       
       // Invalidate relevant queries
-      queryClient.invalidateQueries(flashcardKeys.cards());
+      queryClient.invalidateQueries({ queryKey: flashcardKeys.cards() });
       
       // Clear the card to delete
       setCardToDelete(null);
@@ -986,7 +984,7 @@ export default function AllFlashcards() {
 
   // Render our enriched data
   if (showPaywall) {
-    return <FlashcardPaywall onClose={handleClosePaywall} />;
+    return <FlashcardPaywall onCancel={handleClosePaywall} />;
   }
 
   // Show skeleton loaders during initial data loading
@@ -1025,7 +1023,6 @@ export default function AllFlashcards() {
     return (
       <div className="w-full max-w-6xl mx-auto pb-20 md:pb-8 px-4">
         <ErrorMessage 
-          title="Could not load flashcards" 
           message={flashcardsError.message} 
         />
       </div>
@@ -1228,12 +1225,8 @@ export default function AllFlashcards() {
                 : "No flashcards found. Try changing your filters or create a new flashcard."
           }
           icon={<BookOpen className="w-12 h-12 text-gray-400" />}
-          action={
-            <Button onClick={() => navigate('/flashcards/create-flashcard-select')}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Flashcard
-            </Button>
-          }
+          actionText="Create Flashcard"
+          onActionClick={() => navigate('/flashcards/create-flashcard-select')}
         />
       )}
 

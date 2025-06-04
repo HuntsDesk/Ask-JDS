@@ -18,7 +18,8 @@ import {
   Coffee,
   User,
   Settings,
-  CheckCircle
+  CheckCircle,
+  CreditCard
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,8 @@ import { hasActiveSubscription } from '@/lib/subscription';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import PageLayout from '@/components/askjds/PageLayout';
+import { HomepageFlashcardDemo } from '@/components/home/HomepageFlashcardDemo';
+import { PricingCards } from '@/components/pricing/PricingCards';
 
 // Define the benefits array
 const benefits = [
@@ -249,6 +252,102 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* FAQ */}
+      <section className="py-20 bg-[#00178E]/5 overflow-x-hidden">
+        <div className="max-w-6xl mx-auto px-4 box-border">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-black mb-4">What Can You Ask?</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              From basic concepts to existential crises, we've got you covered.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-8">
+            {questions.map((question, index) => (
+              <div 
+                key={index} 
+                className="group relative bg-white rounded-xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden"
+              >
+                {/* Gradient Background */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${question.bgColor} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
+                
+                <div className="relative flex items-start space-x-6">
+                  <div className={`${question.color} p-3 rounded-lg`}>
+                    <question.icon className="w-10 h-10" />
+                  </div>
+                  <div>
+                    <h3 className={`text-2xl font-semibold ${question.color} mb-2`}>
+                      {question.category}
+                    </h3>
+                    <p className="text-lg text-gray-600 group-hover:text-gray-700 transition-colors">
+                      {question.text}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Flashcards Section */}
+      <section className="py-20 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white" style={{
+          background: 'linear-gradient(135deg, rgb(249, 250, 251), rgb(255, 255, 255))'
+        }}></div>
+        <div className="max-w-6xl mx-auto px-4 relative box-border">
+          <div className="text-center mb-4">
+            <h2 className="text-4xl font-bold text-black mb-4">Need help remembering the rule against perpetuities?</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Reinforce your learning with expertly crafted flashcards covering all major law school subjects.
+            </p>
+          </div>
+          
+          {/* Feature Items */}
+          <div className="text-center mb-12">
+            <div className="grid md:grid-cols-3 gap-8 mb-8">
+              <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm">
+                <div className="bg-orange-100 p-3 rounded-full mb-4">
+                  <CreditCard className="w-8 h-8 text-orange-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">400+ Expert-Curated Cards</h3>
+                <p className="text-gray-600">High-yield content crafted by legal experts to focus your study time.</p>
+              </div>
+              <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm">
+                <div className="bg-blue-100 p-3 rounded-full mb-4">
+                  <BookOpenCheck className="w-8 h-8 text-blue-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">All Major Subjects</h3>
+                <p className="text-gray-600">Constitutional Law, Contracts, Torts, Crim Law, and more.</p>
+              </div>
+              <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm">
+                <div className="bg-green-100 p-3 rounded-full mb-4">
+                  <GraduationCap className="w-8 h-8 text-green-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Progress Tracking</h3>
+                <p className="text-gray-600">Track your mastery and identify areas for improvement.</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Interactive Flashcard Demo */}
+          <HomepageFlashcardDemo />
+          
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-20 bg-gray-50 overflow-x-hidden">
+        <div className="max-w-4xl mx-auto text-center px-4 box-border">
+          <h2 className="text-4xl font-bold text-black">Simple, Transparent Pricing</h2>
+          <p className="text-lg text-gray-600 mt-2">
+            Ask JDS. Smarter than your group chat, cheaper than a tutor.
+          </p>
+        </div>
+        <div className="mt-12 px-4 box-border">
+          <PricingCards />
+        </div>
+      </section>
+
       {/* Benefits */}
       <section className="py-20 relative overflow-hidden box-border">
         <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white" style={{
@@ -287,144 +386,6 @@ export function HomePage() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="py-20 bg-[#00178E]/5 overflow-x-hidden">
-        <div className="max-w-6xl mx-auto px-4 box-border">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-black mb-4">What Can You Ask?</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              From basic concepts to existential crises, we've got you covered.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 gap-8">
-            {questions.map((question, index) => (
-              <div 
-                key={index} 
-                className="group relative bg-white rounded-xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden"
-              >
-                {/* Gradient Background */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${question.bgColor} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
-                
-                <div className="relative flex items-start space-x-6">
-                  <div className={`${question.color} p-3 rounded-lg`}>
-                    <question.icon className="w-10 h-10" />
-                  </div>
-                  <div>
-                    <h3 className={`text-2xl font-semibold ${question.color} mb-2`}>
-                      {question.category}
-                    </h3>
-                    <p className="text-lg text-gray-600 group-hover:text-gray-700 transition-colors">
-                      {question.text}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="pricing" className="py-20 bg-gray-50 overflow-x-hidden">
-        <div className="max-w-4xl mx-auto text-center px-4 box-border">
-          <h2 className="text-4xl font-bold text-black">Simple, Transparent Pricing</h2>
-          <p className="text-lg text-gray-600 mt-2">
-            Ask JDS. Smarter than your group chat, cheaper than a tutor.
-          </p>
-        </div>
-        <div className="mt-12 flex flex-col md:flex-row justify-center gap-8 max-w-5xl mx-auto px-4 box-border">
-          {[
-            {
-              title: "Free",
-              price: "$0",
-              tagline: "FREE FOREVER",
-              features: [
-                "10 Messages Per Month",
-                "Create Unlimited Flashcards",
-                "Flashcard Study Mode",
-                "Access From Any Device",
-              ],
-              buttonText: "Sign-up For Free",
-              buttonVariant: "outline",
-              highlight: false,
-            },
-            {
-              title: "Premium",
-              price: "$10",
-              tagline: "MOST POPULAR",
-              features: [
-                "Unlimited Ask JDS Messages",
-                "Create Unlimited Flashcards",
-                "400+ Expert Curated Flashcards",
-                "Flashcard Study Mode",
-                "Access From Any Device",
-                "A Simplified Study Experience",
-              ],
-              buttonText: "Get Premium Access",
-              buttonVariant: "primary",
-              highlight: true,
-            },
-          ].map((plan, index) => (
-            <div
-              key={index}
-              className={`relative flex flex-col p-6 rounded-lg shadow-lg w-full md:w-1/2 transition-transform hover:scale-105
-                ${plan.highlight ? "bg-orange-100 border-2 border-orange-500" : "bg-white"}
-              `}
-            >
-              {plan.highlight && (
-                <div className="absolute top-4 right-4 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                  {plan.tagline}
-                </div>
-              )}
-              <h3 className="text-2xl font-semibold text-gray-900">{plan.title}</h3>
-              <p className="text-5xl font-bold text-black mt-2">{plan.price}
-                <span className="text-lg font-medium text-gray-600">/month</span>
-              </p>
-              <ul className="mt-4 space-y-3">
-                {plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="text-green-500 w-5 h-5" /> {feature}
-                  </li>
-                ))}
-              </ul>
-              {user ? (
-                plan.title === "Basic" ? (
-                  <Button
-                    onClick={() => navigate('/chat')}
-                    className={`mt-6 w-full ${plan.highlight ? "bg-orange-500 hover:bg-orange-600 text-white" : "border-gray-400 hover:bg-gray-100"}`}
-                  >
-                    Start Chatting
-                  </Button>
-                ) : (
-                  hasSubscription ? (
-                    <Button
-                      onClick={() => navigate('/chat')}
-                      className="mt-6 w-full bg-orange-500 hover:bg-orange-600 text-white"
-                    >
-                      Start Chatting
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={() => navigate('/settings')}
-                      className="mt-6 w-full bg-orange-500 hover:bg-orange-600 text-white"
-                    >
-                      Upgrade Now
-                    </Button>
-                  )
-                )
-              ) : (
-                <Button
-                  onClick={() => navigate('/auth?tab=signup')}
-                  className={`mt-6 w-full ${plan.highlight ? "bg-orange-500 hover:bg-orange-600 text-white" : "border-gray-400 hover:bg-gray-100"}`}
-                >
-                  {plan.buttonText}
-                </Button>
-              )}
-            </div>
-          ))}
         </div>
       </section>
 
