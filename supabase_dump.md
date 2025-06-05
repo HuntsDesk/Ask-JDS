@@ -1246,6 +1246,11 @@ Database
             "indexdef": "CREATE INDEX idx_collections_created_at ON public.collections USING btree (created_at DESC)"
           },
           {
+            "tablename": "collections",
+            "indexname": "idx_collections_user_id",
+            "indexdef": "CREATE INDEX idx_collections_user_id ON public.collections USING btree (user_id)"
+          },
+          {
             "tablename": "flashcard_progress",
             "indexname": "flashcard_progress_pkey",
             "indexdef": "CREATE UNIQUE INDEX flashcard_progress_pkey ON public.flashcard_progress USING btree (id)"
@@ -1256,9 +1261,19 @@ Database
             "indexdef": "CREATE UNIQUE INDEX flashcard_progress_user_id_flashcard_id_key ON public.flashcard_progress USING btree (user_id, flashcard_id)"
           },
           {
+            "tablename": "flashcard_progress",
+            "indexname": "idx_flashcard_progress_flashcard_id",
+            "indexdef": "CREATE INDEX idx_flashcard_progress_flashcard_id ON public.flashcard_progress USING btree (flashcard_id)"
+          },
+          {
             "tablename": "error_logs",
             "indexname": "error_logs_pkey",
             "indexdef": "CREATE UNIQUE INDEX error_logs_pkey ON public.error_logs USING btree (id)"
+          },
+          {
+            "tablename": "error_logs",
+            "indexname": "idx_error_logs_user_id",
+            "indexdef": "CREATE INDEX idx_error_logs_user_id ON public.error_logs USING btree (user_id)"
           },
           {
             "tablename": "courses",
@@ -1267,13 +1282,8 @@ Database
           },
           {
             "tablename": "courses",
-            "indexname": "idx_courses_featured",
-            "indexdef": "CREATE INDEX idx_courses_featured ON public.courses USING btree (is_featured) WHERE (is_featured = true)"
-          },
-          {
-            "tablename": "courses",
-            "indexname": "idx_courses_status",
-            "indexdef": "CREATE INDEX idx_courses_status ON public.courses USING btree (status)"
+            "indexname": "idx_courses_created_by",
+            "indexdef": "CREATE INDEX idx_courses_created_by ON public.courses USING btree (created_by)"
           },
           {
             "tablename": "exam_types",
@@ -1291,34 +1301,14 @@ Database
             "indexdef": "CREATE UNIQUE INDEX flashcard_collections_junction_pkey ON public.flashcard_collections_junction USING btree (flashcard_id, collection_id)"
           },
           {
+            "tablename": "flashcard_collections_junction",
+            "indexname": "idx_flashcard_collections_junction_collection_id",
+            "indexdef": "CREATE INDEX idx_flashcard_collections_junction_collection_id ON public.flashcard_collections_junction USING btree (collection_id)"
+          },
+          {
             "tablename": "document_chunks",
             "indexname": "document_chunks_pkey",
             "indexdef": "CREATE UNIQUE INDEX document_chunks_pkey ON public.document_chunks USING btree (id)"
-          },
-          {
-            "tablename": "document_chunks",
-            "indexname": "document_chunks_embedding_idx",
-            "indexdef": "CREATE INDEX document_chunks_embedding_idx ON public.document_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists='100')"
-          },
-          {
-            "tablename": "document_chunks",
-            "indexname": "idx_document_chunks_heading_path",
-            "indexdef": "CREATE INDEX idx_document_chunks_heading_path ON public.document_chunks USING gin (heading_path) WHERE (heading_path IS NOT NULL)"
-          },
-          {
-            "tablename": "document_chunks",
-            "indexname": "idx_document_chunks_outline_source",
-            "indexdef": "CREATE INDEX idx_document_chunks_outline_source ON public.document_chunks USING btree (outline_source) WHERE (outline_source IS NOT NULL)"
-          },
-          {
-            "tablename": "document_chunks",
-            "indexname": "idx_document_chunks_outline_subject",
-            "indexdef": "CREATE INDEX idx_document_chunks_outline_subject ON public.document_chunks USING btree (outline_subject) WHERE (outline_subject IS NOT NULL)"
-          },
-          {
-            "tablename": "document_chunks",
-            "indexname": "idx_document_chunks_type_subject",
-            "indexdef": "CREATE INDEX idx_document_chunks_type_subject ON public.document_chunks USING btree (type, outline_subject) WHERE ((type IS NOT NULL) AND (outline_subject IS NOT NULL))"
           },
           {
             "tablename": "flashcards",
@@ -1332,21 +1322,6 @@ Database
           },
           {
             "tablename": "flashcards",
-            "indexname": "idx_flashcards_is_common_pitfall",
-            "indexdef": "CREATE INDEX idx_flashcards_is_common_pitfall ON public.flashcards USING btree (is_common_pitfall)"
-          },
-          {
-            "tablename": "flashcards",
-            "indexname": "idx_flashcards_is_official",
-            "indexdef": "CREATE INDEX idx_flashcards_is_official ON public.flashcards USING btree (is_official)"
-          },
-          {
-            "tablename": "flashcards",
-            "indexname": "idx_flashcards_is_public_sample",
-            "indexdef": "CREATE INDEX idx_flashcards_is_public_sample ON public.flashcards USING btree (is_public_sample)"
-          },
-          {
-            "tablename": "flashcards",
             "indexname": "idx_flashcards_public_sample",
             "indexdef": "CREATE INDEX idx_flashcards_public_sample ON public.flashcards USING btree (is_public_sample) WHERE (is_public_sample = true)"
           },
@@ -1356,9 +1331,19 @@ Database
             "indexdef": "CREATE UNIQUE INDEX flashcard_subjects_pkey ON public.flashcard_subjects USING btree (flashcard_id, subject_id)"
           },
           {
+            "tablename": "flashcard_subjects",
+            "indexname": "idx_flashcard_subjects_subject_id",
+            "indexdef": "CREATE INDEX idx_flashcard_subjects_subject_id ON public.flashcard_subjects USING btree (subject_id)"
+          },
+          {
             "tablename": "collection_subjects",
             "indexname": "collection_subjects_pkey",
             "indexdef": "CREATE UNIQUE INDEX collection_subjects_pkey ON public.collection_subjects USING btree (collection_id, subject_id)"
+          },
+          {
+            "tablename": "collection_subjects",
+            "indexname": "idx_collection_subjects_subject_id",
+            "indexdef": "CREATE INDEX idx_collection_subjects_subject_id ON public.collection_subjects USING btree (subject_id)"
           },
           {
             "tablename": "course_enrollments",
@@ -1377,18 +1362,8 @@ Database
           },
           {
             "tablename": "course_enrollments",
-            "indexname": "idx_course_enrollments_enrolled_at",
-            "indexdef": "CREATE INDEX idx_course_enrollments_enrolled_at ON public.course_enrollments USING btree (enrolled_at)"
-          },
-          {
-            "tablename": "course_enrollments",
             "indexname": "idx_course_enrollments_expires_at",
             "indexdef": "CREATE INDEX idx_course_enrollments_expires_at ON public.course_enrollments USING btree (expires_at)"
-          },
-          {
-            "tablename": "course_enrollments",
-            "indexname": "idx_course_enrollments_status",
-            "indexdef": "CREATE INDEX idx_course_enrollments_status ON public.course_enrollments USING btree (status)"
           },
           {
             "tablename": "course_enrollments",
@@ -1396,14 +1371,14 @@ Database
             "indexdef": "CREATE INDEX idx_course_enrollments_user ON public.course_enrollments USING btree (user_id)"
           },
           {
-            "tablename": "threads",
-            "indexname": "threads_pkey",
-            "indexdef": "CREATE UNIQUE INDEX threads_pkey ON public.threads USING btree (id)"
+            "tablename": "course_enrollments",
+            "indexname": "idx_course_enrollments_course_id",
+            "indexdef": "CREATE INDEX idx_course_enrollments_course_id ON public.course_enrollments USING btree (course_id)"
           },
           {
             "tablename": "threads",
-            "indexname": "threads_created_at_idx",
-            "indexdef": "CREATE INDEX threads_created_at_idx ON public.threads USING btree (created_at)"
+            "indexname": "threads_pkey",
+            "indexdef": "CREATE UNIQUE INDEX threads_pkey ON public.threads USING btree (id)"
           },
           {
             "tablename": "threads",
@@ -1429,6 +1404,16 @@ Database
             "tablename": "modules",
             "indexname": "idx_modules_position",
             "indexdef": "CREATE INDEX idx_modules_position ON public.modules USING btree (\"position\")"
+          },
+          {
+            "tablename": "modules",
+            "indexname": "idx_modules_course_id",
+            "indexdef": "CREATE INDEX idx_modules_course_id ON public.modules USING btree (course_id)"
+          },
+          {
+            "tablename": "modules",
+            "indexname": "idx_modules_created_by",
+            "indexdef": "CREATE INDEX idx_modules_created_by ON public.modules USING btree (created_by)"
           },
           {
             "tablename": "user_entitlements",
@@ -1467,13 +1452,18 @@ Database
           },
           {
             "tablename": "subjects",
-            "indexname": "subjects_user_id_idx",
-            "indexdef": "CREATE INDEX subjects_user_id_idx ON public.subjects USING btree (user_id)"
+            "indexname": "idx_subjects_user_id",
+            "indexdef": "CREATE INDEX idx_subjects_user_id ON public.subjects USING btree (user_id)"
           },
           {
             "tablename": "system_prompts",
             "indexname": "system_prompts_pkey",
             "indexdef": "CREATE UNIQUE INDEX system_prompts_pkey ON public.system_prompts USING btree (id)"
+          },
+          {
+            "tablename": "system_prompts",
+            "indexname": "idx_system_prompts_created_by",
+            "indexdef": "CREATE INDEX idx_system_prompts_created_by ON public.system_prompts USING btree (created_by)"
           },
           {
             "tablename": "message_counts",
@@ -1491,14 +1481,29 @@ Database
             "indexdef": "CREATE UNIQUE INDEX ai_settings_pkey ON public.ai_settings USING btree (id)"
           },
           {
+            "tablename": "ai_settings",
+            "indexname": "idx_ai_settings_created_by",
+            "indexdef": "CREATE INDEX idx_ai_settings_created_by ON public.ai_settings USING btree (created_by)"
+          },
+          {
             "tablename": "course_subjects",
             "indexname": "course_subjects_pkey",
             "indexdef": "CREATE UNIQUE INDEX course_subjects_pkey ON public.course_subjects USING btree (course_id, subject_id)"
           },
           {
+            "tablename": "course_subjects",
+            "indexname": "idx_course_subjects_subject_id",
+            "indexdef": "CREATE INDEX idx_course_subjects_subject_id ON public.course_subjects USING btree (subject_id)"
+          },
+          {
             "tablename": "flashcard_exam_types",
             "indexname": "flashcard_exam_types_pkey",
             "indexdef": "CREATE UNIQUE INDEX flashcard_exam_types_pkey ON public.flashcard_exam_types USING btree (flashcard_id, exam_type_id)"
+          },
+          {
+            "tablename": "flashcard_exam_types",
+            "indexname": "idx_flashcard_exam_types_exam_type_id",
+            "indexdef": "CREATE INDEX idx_flashcard_exam_types_exam_type_id ON public.flashcard_exam_types USING btree (exam_type_id)"
           },
           {
             "tablename": "lesson_progress",
@@ -1512,8 +1517,8 @@ Database
           },
           {
             "tablename": "lesson_progress",
-            "indexname": "idx_lesson_progress_user",
-            "indexdef": "CREATE INDEX idx_lesson_progress_user ON public.lesson_progress USING btree (user_id)"
+            "indexname": "idx_lesson_progress_lesson_id",
+            "indexdef": "CREATE INDEX idx_lesson_progress_lesson_id ON public.lesson_progress USING btree (lesson_id)"
           },
           {
             "tablename": "lessons",
@@ -1522,13 +1527,28 @@ Database
           },
           {
             "tablename": "lessons",
-            "indexname": "idx_lessons_position",
-            "indexdef": "CREATE INDEX idx_lessons_position ON public.lessons USING btree (\"position\")"
+            "indexname": "idx_lessons_module_id",
+            "indexdef": "CREATE INDEX idx_lessons_module_id ON public.lessons USING btree (module_id)"
+          },
+          {
+            "tablename": "lessons",
+            "indexname": "idx_lessons_created_by",
+            "indexdef": "CREATE INDEX idx_lessons_created_by ON public.lessons USING btree (created_by)"
           },
           {
             "tablename": "messages",
             "indexname": "messages_pkey",
             "indexdef": "CREATE UNIQUE INDEX messages_pkey ON public.messages USING btree (id)"
+          },
+          {
+            "tablename": "messages",
+            "indexname": "idx_messages_thread_id",
+            "indexdef": "CREATE INDEX idx_messages_thread_id ON public.messages USING btree (thread_id)"
+          },
+          {
+            "tablename": "messages",
+            "indexname": "idx_messages_user_id",
+            "indexdef": "CREATE INDEX idx_messages_user_id ON public.messages USING btree (user_id)"
           },
           {
             "tablename": "query_logs",
@@ -2135,13 +2155,43 @@ Database
         "type": "policies",
         "data": [
           {
-            "policyname": "Subscription users can view official flashcards",
-            "tablename": "flashcards",
+            "policyname": "Authenticated users can delete collection_subjects",
+            "tablename": "collection_subjects",
             "permissive": "PERMISSIVE",
             "roles": [
               "authenticated"
             ],
-            "qual": "((is_official = true) AND (( SELECT auth.is_admin() AS is_admin) OR (EXISTS ( SELECT 1\n   FROM user_subscriptions us\n  WHERE ((us.user_id = ( SELECT auth.uid() AS uid)) AND (us.status = 'active'::text) AND (us.current_period_end > now())))) OR (is_public_sample = true)))",
+            "qual": "((( SELECT auth.is_admin() AS is_admin) = true) OR (EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = collection_subjects.collection_id) AND (c.user_id = ( SELECT auth.uid() AS uid))))))",
+            "with_check": null
+          },
+          {
+            "policyname": "Authenticated users can insert collection_subjects",
+            "tablename": "collection_subjects",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "qual": null,
+            "with_check": "((( SELECT auth.is_admin() AS is_admin) = true) OR (EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = collection_subjects.collection_id) AND (c.user_id = ( SELECT auth.uid() AS uid))))))"
+          },
+          {
+            "policyname": "Authenticated users can read collection_subjects",
+            "tablename": "collection_subjects",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "qual": "true",
+            "with_check": null
+          },
+          {
+            "policyname": "Authenticated users can delete flashcard_collections_junction",
+            "tablename": "flashcard_collections_junction",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "qual": "((( SELECT auth.is_admin() AS is_admin) = true) OR (EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = flashcard_collections_junction.collection_id) AND (c.user_id = ( SELECT auth.uid() AS uid))))))",
             "with_check": null
           },
           {
@@ -2153,6 +2203,16 @@ Database
             ],
             "qual": "((is_official = true) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text)))",
             "with_check": null
+          },
+          {
+            "policyname": "Authenticated users can insert flashcard_collections_junction",
+            "tablename": "flashcard_collections_junction",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "qual": null,
+            "with_check": "((( SELECT auth.is_admin() AS is_admin) = true) OR (EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = flashcard_collections_junction.collection_id) AND ((c.user_id = ( SELECT auth.uid() AS uid)) OR (c.is_official = true))))))"
           },
           {
             "policyname": "threads_insert_consolidated",
@@ -2195,6 +2255,82 @@ Database
             "with_check": null
           },
           {
+            "policyname": "Authenticated users can update flashcards",
+            "tablename": "flashcards",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "qual": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = ( SELECT auth.uid() AS uid)) AND (profiles.is_admin = true)))) OR (( SELECT auth.uid() AS uid) = created_by))",
+            "with_check": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = ( SELECT auth.uid() AS uid)) AND (profiles.is_admin = true)))) OR (( SELECT auth.uid() AS uid) = created_by))"
+          },
+          {
+            "policyname": "All users can view courses",
+            "tablename": "courses",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "anon",
+              "authenticated",
+              "authenticator",
+              "dashboard_user"
+            ],
+            "qual": "(((status = 'Published'::lesson_status) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text))) OR ((status = 'Coming Soon'::lesson_status) AND (( SELECT auth.role() AS role) = 'authenticated'::text)) OR ((( SELECT auth.uid() AS uid) IS NOT NULL) AND (EXISTS ( SELECT 1\n   FROM course_enrollments ce\n  WHERE ((ce.course_id = courses.id) AND (ce.user_id = ( SELECT auth.uid() AS uid)) AND (ce.expires_at >= now()))))) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+            "with_check": null
+          },
+          {
+            "policyname": "Admins can insert courses",
+            "tablename": "courses",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "qual": null,
+            "with_check": "(( SELECT auth.is_admin() AS is_admin) = true)"
+          },
+          {
+            "policyname": "Admins can update courses",
+            "tablename": "courses",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "qual": "(( SELECT auth.is_admin() AS is_admin) = true)",
+            "with_check": "(( SELECT auth.is_admin() AS is_admin) = true)"
+          },
+          {
+            "policyname": "Admins can delete courses",
+            "tablename": "courses",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "qual": "(( SELECT auth.is_admin() AS is_admin) = true)",
+            "with_check": null
+          },
+          {
+            "policyname": "All users can view lessons",
+            "tablename": "lessons",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "anon",
+              "authenticated",
+              "authenticator",
+              "dashboard_user"
+            ],
+            "qual": "(((status = 'Published'::lesson_status) AND (module_id IN ( SELECT m.id\n   FROM modules m\n  WHERE (m.course_id IN ( SELECT c.id\n           FROM courses c\n          WHERE (c.status = 'Published'::lesson_status))))) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text))) OR ((( SELECT auth.uid() AS uid) IS NOT NULL) AND (module_id IN ( SELECT m.id\n   FROM modules m\n  WHERE (m.course_id IN ( SELECT ce.course_id\n           FROM course_enrollments ce\n          WHERE ((ce.user_id = ( SELECT auth.uid() AS uid)) AND (ce.expires_at >= now()))))))) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+            "with_check": null
+          },
+          {
+            "policyname": "Admins can insert lessons",
+            "tablename": "lessons",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "qual": null,
+            "with_check": "(( SELECT auth.is_admin() AS is_admin) = true)"
+          },
+          {
             "policyname": "Anyone can read flashcard collections",
             "tablename": "collections",
             "permissive": "PERMISSIVE",
@@ -2202,17 +2338,6 @@ Database
               "authenticated"
             ],
             "qual": "true",
-            "with_check": null
-          },
-          {
-            "policyname": "Anyone can view public sample flashcards",
-            "tablename": "flashcards",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "anon",
-              "authenticated"
-            ],
-            "qual": "((is_official = true) AND (is_public_sample = true))",
             "with_check": null
           },
           {
@@ -2274,26 +2399,6 @@ Database
               "authenticated"
             ],
             "qual": "((( SELECT auth.is_admin() AS is_admin) = true) OR (( SELECT auth.uid() AS uid) = user_id) OR (is_official = true) OR ((user_id IS NULL) AND (is_official = false)))",
-            "with_check": null
-          },
-          {
-            "policyname": "Service role can manage entitlements",
-            "tablename": "user_entitlements",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "public"
-            ],
-            "qual": "true",
-            "with_check": "true"
-          },
-          {
-            "policyname": "Users can access collection subjects",
-            "tablename": "collection_subjects",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "authenticated"
-            ],
-            "qual": "true",
             "with_check": null
           },
           {
@@ -2377,46 +2482,27 @@ Database
             "with_check": "((( SELECT auth.is_admin() AS is_admin) = true) OR (user_id = ( SELECT auth.uid() AS uid)))"
           },
           {
-            "policyname": "Anyone can view published course info",
-            "tablename": "courses",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "anon",
-              "authenticated",
-              "authenticator",
-              "dashboard_user"
-            ],
-            "qual": "((status = 'Published'::lesson_status) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text)))",
-            "with_check": null
-          },
-          {
-            "policyname": "Anyone can view sample flashcards",
-            "tablename": "flashcards",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "anon",
-              "authenticated",
-              "authenticator",
-              "dashboard_user"
-            ],
-            "qual": "((is_official = true) AND (is_public_sample = true) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text)))",
-            "with_check": null
-          },
-          {
-            "policyname": "Anyone can view published lesson titles",
+            "policyname": "Admins can update lessons",
             "tablename": "lessons",
             "permissive": "PERMISSIVE",
             "roles": [
-              "anon",
-              "authenticated",
-              "authenticator",
-              "dashboard_user"
+              "authenticated"
             ],
-            "qual": "((status = 'Published'::lesson_status) AND (module_id IN ( SELECT m.id\n   FROM modules m\n  WHERE (m.course_id IN ( SELECT c.id\n           FROM courses c\n          WHERE (c.status = 'Published'::lesson_status))))) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text)))",
+            "qual": "(( SELECT auth.is_admin() AS is_admin) = true)",
+            "with_check": "(( SELECT auth.is_admin() AS is_admin) = true)"
+          },
+          {
+            "policyname": "Admins can delete lessons",
+            "tablename": "lessons",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "qual": "(( SELECT auth.is_admin() AS is_admin) = true)",
             "with_check": null
           },
           {
-            "policyname": "Anyone can view published module titles",
+            "policyname": "All users can view modules",
             "tablename": "modules",
             "permissive": "PERMISSIVE",
             "roles": [
@@ -2425,18 +2511,18 @@ Database
               "authenticator",
               "dashboard_user"
             ],
-            "qual": "((course_id IN ( SELECT courses.id\n   FROM courses\n  WHERE (courses.status = 'Published'::lesson_status))) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text)))",
+            "qual": "(((course_id IN ( SELECT courses.id\n   FROM courses\n  WHERE (courses.status = 'Published'::lesson_status))) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text))) OR ((( SELECT auth.uid() AS uid) IS NOT NULL) AND (course_id IN ( SELECT ce.course_id\n   FROM course_enrollments ce\n  WHERE ((ce.user_id = ( SELECT auth.uid() AS uid)) AND (ce.expires_at >= now()))))) OR (( SELECT auth.is_admin() AS is_admin) = true))",
             "with_check": null
           },
           {
-            "policyname": "Users can read any collection_subjects",
-            "tablename": "collection_subjects",
+            "policyname": "Admins can insert modules",
+            "tablename": "modules",
             "permissive": "PERMISSIVE",
             "roles": [
               "authenticated"
             ],
-            "qual": "true",
-            "with_check": null
+            "qual": null,
+            "with_check": "(( SELECT auth.is_admin() AS is_admin) = true)"
           },
           {
             "policyname": "Users can read any flashcard_collections_junction",
@@ -2447,6 +2533,16 @@ Database
             ],
             "qual": "true",
             "with_check": null
+          },
+          {
+            "policyname": "Admins can update modules",
+            "tablename": "modules",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "qual": "(( SELECT auth.is_admin() AS is_admin) = true)",
+            "with_check": "(( SELECT auth.is_admin() AS is_admin) = true)"
           },
           {
             "policyname": "Authenticated users can read AI settings and admins can manage",
@@ -2479,6 +2575,16 @@ Database
             "with_check": "(is_official = false)"
           },
           {
+            "policyname": "Admins can delete modules",
+            "tablename": "modules",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "qual": "(( SELECT auth.is_admin() AS is_admin) = true)",
+            "with_check": null
+          },
+          {
             "policyname": "Authenticated users can read system prompts and admins can mana",
             "tablename": "system_prompts",
             "permissive": "PERMISSIVE",
@@ -2489,44 +2595,110 @@ Database
             "with_check": null
           },
           {
-            "policyname": "Users can delete their own collection_subjects",
-            "tablename": "collection_subjects",
+            "policyname": "Anonymous users can view sample flashcards",
+            "tablename": "flashcards",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "anon"
+            ],
+            "qual": "((is_official = true) AND (is_public_sample = true) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text)))",
+            "with_check": null
+          },
+          {
+            "policyname": "Authenticated users can view flashcards",
+            "tablename": "flashcards",
             "permissive": "PERMISSIVE",
             "roles": [
               "authenticated"
             ],
-            "qual": "(EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = collection_subjects.collection_id) AND (c.user_id = ( SELECT auth.uid() AS uid)))))",
+            "qual": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = ( SELECT auth.uid() AS uid)) AND (profiles.is_admin = true)))) OR ((is_official = true) AND (is_public_sample = true)) OR (is_official = true) OR ((is_official = true) AND (( SELECT auth.uid() AS uid) IN ( SELECT user_subscriptions.user_id\n   FROM user_subscriptions\n  WHERE ((user_subscriptions.status = 'active'::text) AND (user_subscriptions.current_period_end > now()))))) OR (( SELECT auth.uid() AS uid) = created_by))",
             "with_check": null
           },
           {
-            "policyname": "Users can insert their own collection_subjects",
-            "tablename": "collection_subjects",
+            "policyname": "Users can view entitlements",
+            "tablename": "user_entitlements",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "anon",
+              "authenticated",
+              "authenticator",
+              "dashboard_user"
+            ],
+            "qual": "((( SELECT auth.uid() AS uid) = user_id) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+            "with_check": null
+          },
+          {
+            "policyname": "Service role can manage entitlements",
+            "tablename": "user_entitlements",
             "permissive": "PERMISSIVE",
             "roles": [
               "authenticated"
             ],
             "qual": null,
-            "with_check": "(EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = collection_subjects.collection_id) AND (c.user_id = ( SELECT auth.uid() AS uid)))))"
+            "with_check": "(( SELECT auth.role() AS role) = 'service_role'::text)"
           },
           {
-            "policyname": "Users can delete their own flashcard_collections_junction",
-            "tablename": "flashcard_collections_junction",
+            "policyname": "Service role can update entitlements",
+            "tablename": "user_entitlements",
             "permissive": "PERMISSIVE",
             "roles": [
               "authenticated"
             ],
-            "qual": "(EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = flashcard_collections_junction.collection_id) AND (c.user_id = ( SELECT auth.uid() AS uid)))))",
+            "qual": "(( SELECT auth.role() AS role) = 'service_role'::text)",
+            "with_check": "(( SELECT auth.role() AS role) = 'service_role'::text)"
+          },
+          {
+            "policyname": "Service role can delete entitlements",
+            "tablename": "user_entitlements",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "qual": "(( SELECT auth.role() AS role) = 'service_role'::text)",
             "with_check": null
           },
           {
-            "policyname": "Users can insert flashcard-collection associations",
-            "tablename": "flashcard_collections_junction",
+            "policyname": "Users can view subscriptions",
+            "tablename": "user_subscriptions",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "anon",
+              "authenticated",
+              "authenticator",
+              "dashboard_user"
+            ],
+            "qual": "((( SELECT auth.uid() AS uid) = user_id) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+            "with_check": null
+          },
+          {
+            "policyname": "Service role can insert subscriptions",
+            "tablename": "user_subscriptions",
             "permissive": "PERMISSIVE",
             "roles": [
               "authenticated"
             ],
             "qual": null,
-            "with_check": "(EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = flashcard_collections_junction.collection_id) AND ((c.user_id = ( SELECT auth.uid() AS uid)) OR (c.is_official = true)))))"
+            "with_check": "(( SELECT auth.role() AS role) = 'service_role'::text)"
+          },
+          {
+            "policyname": "Service role can update subscriptions",
+            "tablename": "user_subscriptions",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "qual": "(( SELECT auth.role() AS role) = 'service_role'::text)",
+            "with_check": "(( SELECT auth.role() AS role) = 'service_role'::text)"
+          },
+          {
+            "policyname": "Service role can delete subscriptions",
+            "tablename": "user_subscriptions",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "authenticated"
+            ],
+            "qual": "(( SELECT auth.role() AS role) = 'service_role'::text)",
+            "with_check": null
           },
           {
             "policyname": "Users can delete their own flashcard progress",
@@ -2579,26 +2751,6 @@ Database
             "with_check": "(( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) OR (EXISTS ( SELECT 1\n   FROM flashcards f\n  WHERE ((f.id = flashcard_subjects.flashcard_id) AND (f.created_by = ( SELECT auth.uid() AS uid))))))"
           },
           {
-            "policyname": "Admins can update any flashcard",
-            "tablename": "flashcards",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "authenticated"
-            ],
-            "qual": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = ( SELECT auth.uid() AS uid)) AND (profiles.is_admin = true))))",
-            "with_check": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = ( SELECT auth.uid() AS uid)) AND (profiles.is_admin = true))))"
-          },
-          {
-            "policyname": "Admins can view all flashcards",
-            "tablename": "flashcards",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "authenticated"
-            ],
-            "qual": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = ( SELECT auth.uid() AS uid)) AND (profiles.is_admin = true))))",
-            "with_check": null
-          },
-          {
             "policyname": "Users can delete their own flashcards",
             "tablename": "flashcards",
             "permissive": "PERMISSIVE",
@@ -2609,16 +2761,6 @@ Database
             "with_check": null
           },
           {
-            "policyname": "Users can update their own flashcards",
-            "tablename": "flashcards",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "authenticated"
-            ],
-            "qual": "(( SELECT auth.uid() AS uid) = created_by)",
-            "with_check": "(( SELECT auth.uid() AS uid) = created_by)"
-          },
-          {
             "policyname": "Only admins can view query logs",
             "tablename": "query_logs",
             "permissive": "PERMISSIVE",
@@ -2626,16 +2768,6 @@ Database
               "authenticated"
             ],
             "qual": "( SELECT auth.is_admin() AS is_admin)",
-            "with_check": null
-          },
-          {
-            "policyname": "Users can view their own flashcards",
-            "tablename": "flashcards",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "authenticated"
-            ],
-            "qual": "(( SELECT auth.uid() AS uid) = created_by)",
             "with_check": null
           },
           {
@@ -2729,46 +2861,6 @@ Database
             "with_check": null
           },
           {
-            "policyname": "Users can read their own entitlements",
-            "tablename": "user_entitlements",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "public"
-            ],
-            "qual": "(( SELECT auth.uid() AS uid) = user_id)",
-            "with_check": null
-          },
-          {
-            "policyname": "Users can view their own subscriptions",
-            "tablename": "user_subscriptions",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "public"
-            ],
-            "qual": "(( SELECT auth.uid() AS uid) = user_id)",
-            "with_check": null
-          },
-          {
-            "policyname": "Admin users can delete any collection_subjects",
-            "tablename": "collection_subjects",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "authenticated"
-            ],
-            "qual": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
-            "with_check": null
-          },
-          {
-            "policyname": "Admin users can insert any collection_subjects",
-            "tablename": "collection_subjects",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "authenticated"
-            ],
-            "qual": null,
-            "with_check": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)"
-          },
-          {
             "policyname": "Admin users can update any collection_subjects",
             "tablename": "collection_subjects",
             "permissive": "PERMISSIVE",
@@ -2776,26 +2868,6 @@ Database
               "authenticated"
             ],
             "qual": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
-            "with_check": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)"
-          },
-          {
-            "policyname": "Admin users can delete any flashcard_collections_junction",
-            "tablename": "flashcard_collections_junction",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "authenticated"
-            ],
-            "qual": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
-            "with_check": null
-          },
-          {
-            "policyname": "Admin users can insert any flashcard_collections_junction",
-            "tablename": "flashcard_collections_junction",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "authenticated"
-            ],
-            "qual": null,
             "with_check": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)"
           },
           {
@@ -2859,46 +2931,6 @@ Database
             "with_check": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)"
           },
           {
-            "policyname": "Admins can view all subscriptions",
-            "tablename": "user_subscriptions",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "authenticated"
-            ],
-            "qual": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
-            "with_check": null
-          },
-          {
-            "policyname": "Admins can manage all courses",
-            "tablename": "courses",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "public"
-            ],
-            "qual": "( SELECT auth.is_admin() AS is_admin)",
-            "with_check": "( SELECT auth.is_admin() AS is_admin)"
-          },
-          {
-            "policyname": "Admins can manage all lessons",
-            "tablename": "lessons",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "public"
-            ],
-            "qual": "( SELECT auth.is_admin() AS is_admin)",
-            "with_check": "( SELECT auth.is_admin() AS is_admin)"
-          },
-          {
-            "policyname": "Admins can manage all modules",
-            "tablename": "modules",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "public"
-            ],
-            "qual": "( SELECT auth.is_admin() AS is_admin)",
-            "with_check": "( SELECT auth.is_admin() AS is_admin)"
-          },
-          {
             "policyname": "Only admins can view error logs",
             "tablename": "error_logs",
             "permissive": "PERMISSIVE",
@@ -2949,56 +2981,6 @@ Database
             "with_check": "( SELECT auth.is_admin() AS is_admin)"
           },
           {
-            "policyname": "Authenticated users can view all courses",
-            "tablename": "courses",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "public"
-            ],
-            "qual": "(( SELECT auth.role() AS role) = 'authenticated'::text)",
-            "with_check": null
-          },
-          {
-            "policyname": "Only service role can insert/update/delete subscriptions",
-            "tablename": "user_subscriptions",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "public"
-            ],
-            "qual": "((( SELECT auth.jwt() AS jwt) ->> 'role'::text) = 'service_role'::text)",
-            "with_check": null
-          },
-          {
-            "policyname": "Users can see published or purchased courses",
-            "tablename": "courses",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "public"
-            ],
-            "qual": "((status = 'Published'::lesson_status) OR (status = 'Coming Soon'::lesson_status) OR (EXISTS ( SELECT 1\n   FROM course_enrollments ce\n  WHERE ((ce.course_id = courses.id) AND (ce.user_id = ( SELECT auth.uid() AS uid)) AND (ce.expires_at >= now())))))",
-            "with_check": null
-          },
-          {
-            "policyname": "Users can view lessons for their enrolled courses",
-            "tablename": "lessons",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "public"
-            ],
-            "qual": "((EXISTS ( SELECT 1\n   FROM ((modules m\n     JOIN courses c ON ((c.id = m.course_id)))\n     LEFT JOIN course_enrollments ce ON ((ce.course_id = c.id)))\n  WHERE ((lessons.module_id = m.id) AND ((c.status = 'Published'::lesson_status) OR ((ce.user_id = ( SELECT auth.uid() AS uid)) AND (ce.expires_at >= now())))))) AND (status = 'Published'::lesson_status))",
-            "with_check": null
-          },
-          {
-            "policyname": "Users can view modules for their enrolled courses",
-            "tablename": "modules",
-            "permissive": "PERMISSIVE",
-            "roles": [
-              "public"
-            ],
-            "qual": "(EXISTS ( SELECT 1\n   FROM (courses c\n     LEFT JOIN course_enrollments ce ON ((ce.course_id = c.id)))\n  WHERE ((c.id = modules.course_id) AND ((c.status = 'Published'::lesson_status) OR ((ce.user_id = ( SELECT auth.uid() AS uid)) AND (ce.expires_at >= now()))))))",
-            "with_check": null
-          },
-          {
             "policyname": "Users can create error logs",
             "tablename": "error_logs",
             "permissive": "PERMISSIVE",
@@ -3011,5 +2993,828 @@ Database
         ]
       }
     ]
+  }
+]
+
+[
+  {
+    "schemaname": "public",
+    "tablename": "ai_settings",
+    "policyname": "Authenticated users can read AI settings and admins can manage",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((is_active = true) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collection_subjects",
+    "policyname": "Admin users can update any collection_subjects",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
+    "with_check_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collection_subjects",
+    "policyname": "Authenticated users can delete collection_subjects",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = collection_subjects.collection_id) AND (c.user_id = ( SELECT auth.uid() AS uid))))))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collection_subjects",
+    "policyname": "Authenticated users can insert collection_subjects",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = collection_subjects.collection_id) AND (c.user_id = ( SELECT auth.uid() AS uid))))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collection_subjects",
+    "policyname": "Authenticated users can read collection_subjects",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collections",
+    "policyname": "Anyone can read flashcard collections",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collections",
+    "policyname": "Users can create flashcard collections",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(is_official = false)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collections",
+    "policyname": "Users can delete non-official flashcard collections",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(is_official = false)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collections",
+    "policyname": "Users can update non-official flashcard collections",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(is_official = false)",
+    "with_check_raw": "(is_official = false)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "course_enrollments",
+    "policyname": "Users and admins can create enrollments",
+    "roles": "{public}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (user_id = ( SELECT auth.uid() AS uid)))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "course_enrollments",
+    "policyname": "Users and admins can update enrollments",
+    "roles": "{public}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (user_id = ( SELECT auth.uid() AS uid)))",
+    "with_check_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (user_id = ( SELECT auth.uid() AS uid)))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "course_enrollments",
+    "policyname": "Users and admins can view enrollments",
+    "roles": "{public}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (user_id = ( SELECT auth.uid() AS uid)))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "course_subjects",
+    "policyname": "Admins can create course-subject relationships",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "( SELECT auth.is_admin() AS is_admin)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "course_subjects",
+    "policyname": "Admins can delete course-subject relationships",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT auth.is_admin() AS is_admin)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "course_subjects",
+    "policyname": "Admins can update course-subject relationships",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT auth.is_admin() AS is_admin)",
+    "with_check_raw": "( SELECT auth.is_admin() AS is_admin)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "course_subjects",
+    "policyname": "Users can access course subjects",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "courses",
+    "policyname": "Admins can delete courses",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.is_admin() AS is_admin) = true)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "courses",
+    "policyname": "Admins can insert courses",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.is_admin() AS is_admin) = true)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "courses",
+    "policyname": "Admins can update courses",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.is_admin() AS is_admin) = true)",
+    "with_check_raw": "(( SELECT auth.is_admin() AS is_admin) = true)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "courses",
+    "policyname": "All users can view courses",
+    "roles": "{anon,authenticated,authenticator,dashboard_user}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(((status = 'Published'::lesson_status) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text))) OR ((status = 'Coming Soon'::lesson_status) AND (( SELECT auth.role() AS role) = 'authenticated'::text)) OR ((( SELECT auth.uid() AS uid) IS NOT NULL) AND (EXISTS ( SELECT 1\n   FROM course_enrollments ce\n  WHERE ((ce.course_id = courses.id) AND (ce.user_id = ( SELECT auth.uid() AS uid)) AND (ce.expires_at >= now()))))) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "document_chunks",
+    "policyname": "Enable read access for all users",
+    "roles": "{anon,authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "error_logs",
+    "policyname": "Only admins can view error logs",
+    "roles": "{public}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT auth.is_admin() AS is_admin)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "error_logs",
+    "policyname": "Users can create error logs",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "exam_types",
+    "policyname": "Authenticated users can access exam types",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_collections_junction",
+    "policyname": "Admin users can update any flashcard_collections_junction",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
+    "with_check_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_collections_junction",
+    "policyname": "Authenticated users can delete flashcard_collections_junction",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = flashcard_collections_junction.collection_id) AND (c.user_id = ( SELECT auth.uid() AS uid))))))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_collections_junction",
+    "policyname": "Authenticated users can insert flashcard_collections_junction",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = flashcard_collections_junction.collection_id) AND ((c.user_id = ( SELECT auth.uid() AS uid)) OR (c.is_official = true))))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_collections_junction",
+    "policyname": "Users can read any flashcard_collections_junction",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_exam_types",
+    "policyname": "Admin users can delete any flashcard_exam_types",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_exam_types",
+    "policyname": "Admin users can insert any flashcard_exam_types",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_exam_types",
+    "policyname": "Admin users can update any flashcard_exam_types",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
+    "with_check_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_exam_types",
+    "policyname": "Users can access flashcard exam types",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_progress",
+    "policyname": "Users can delete their own flashcard progress",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_progress",
+    "policyname": "Users can insert their own flashcard progress",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_progress",
+    "policyname": "Users can update their own flashcard progress",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_progress",
+    "policyname": "Users can view their own flashcard progress",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_subjects",
+    "policyname": "Admin users can delete any flashcard_subjects",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_subjects",
+    "policyname": "Admin users can update any flashcard_subjects",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
+    "with_check_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_subjects",
+    "policyname": "Users can access flashcard subjects",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_subjects",
+    "policyname": "Users can insert flashcard-subject associations",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) OR (EXISTS ( SELECT 1\n   FROM flashcards f\n  WHERE ((f.id = flashcard_subjects.flashcard_id) AND (f.created_by = ( SELECT auth.uid() AS uid))))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcards",
+    "policyname": "Anonymous users can view sample flashcards",
+    "roles": "{anon}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((is_official = true) AND (is_public_sample = true) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text)))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcards",
+    "policyname": "Authenticated users can update flashcards",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = ( SELECT auth.uid() AS uid)) AND (profiles.is_admin = true)))) OR (( SELECT auth.uid() AS uid) = created_by))",
+    "with_check_raw": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = ( SELECT auth.uid() AS uid)) AND (profiles.is_admin = true)))) OR (( SELECT auth.uid() AS uid) = created_by))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcards",
+    "policyname": "Authenticated users can view flashcards",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = ( SELECT auth.uid() AS uid)) AND (profiles.is_admin = true)))) OR ((is_official = true) AND (is_public_sample = true)) OR (is_official = true) OR ((is_official = true) AND (( SELECT auth.uid() AS uid) IN ( SELECT user_subscriptions.user_id\n   FROM user_subscriptions\n  WHERE ((user_subscriptions.status = 'active'::text) AND (user_subscriptions.current_period_end > now()))))) OR (( SELECT auth.uid() AS uid) = created_by))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcards",
+    "policyname": "Users can create flashcards",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "true"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcards",
+    "policyname": "Users can delete their own flashcards",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.uid() AS uid) = created_by) AND (is_official = false))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "lesson_progress",
+    "policyname": "Users can view their own lesson progress",
+    "roles": "{public}",
+    "command": "ALL",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "lessons",
+    "policyname": "Admins can delete lessons",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.is_admin() AS is_admin) = true)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "lessons",
+    "policyname": "Admins can insert lessons",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.is_admin() AS is_admin) = true)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "lessons",
+    "policyname": "Admins can update lessons",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.is_admin() AS is_admin) = true)",
+    "with_check_raw": "(( SELECT auth.is_admin() AS is_admin) = true)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "lessons",
+    "policyname": "All users can view lessons",
+    "roles": "{anon,authenticated,authenticator,dashboard_user}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(((status = 'Published'::lesson_status) AND (module_id IN ( SELECT m.id\n   FROM modules m\n  WHERE (m.course_id IN ( SELECT c.id\n           FROM courses c\n          WHERE (c.status = 'Published'::lesson_status))))) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text))) OR ((( SELECT auth.uid() AS uid) IS NOT NULL) AND (module_id IN ( SELECT m.id\n   FROM modules m\n  WHERE (m.course_id IN ( SELECT ce.course_id\n           FROM course_enrollments ce\n          WHERE ((ce.user_id = ( SELECT auth.uid() AS uid)) AND (ce.expires_at >= now()))))))) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "message_counts",
+    "policyname": "Users can insert their own message counts",
+    "roles": "{public}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "message_counts",
+    "policyname": "Users can update their own message counts",
+    "roles": "{public}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "message_counts",
+    "policyname": "Users can view their own message counts",
+    "roles": "{public}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "messages",
+    "policyname": "Users can create messages in own threads",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(EXISTS ( SELECT 1\n   FROM threads\n  WHERE ((threads.id = messages.thread_id) AND (threads.user_id = ( SELECT auth.uid() AS uid)))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "messages",
+    "policyname": "Users can view messages from own threads",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(EXISTS ( SELECT 1\n   FROM threads\n  WHERE ((threads.id = messages.thread_id) AND (threads.user_id = ( SELECT auth.uid() AS uid)))))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "models",
+    "policyname": "models_access",
+    "roles": "{authenticated}",
+    "command": "ALL",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.is_admin() AS is_admin) OR (is_public = true))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "modules",
+    "policyname": "Admins can delete modules",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.is_admin() AS is_admin) = true)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "modules",
+    "policyname": "Admins can insert modules",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.is_admin() AS is_admin) = true)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "modules",
+    "policyname": "Admins can update modules",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.is_admin() AS is_admin) = true)",
+    "with_check_raw": "(( SELECT auth.is_admin() AS is_admin) = true)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "modules",
+    "policyname": "All users can view modules",
+    "roles": "{anon,authenticated,authenticator,dashboard_user}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(((course_id IN ( SELECT courses.id\n   FROM courses\n  WHERE (courses.status = 'Published'::lesson_status))) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text))) OR ((( SELECT auth.uid() AS uid) IS NOT NULL) AND (course_id IN ( SELECT ce.course_id\n   FROM course_enrollments ce\n  WHERE ((ce.user_id = ( SELECT auth.uid() AS uid)) AND (ce.expires_at >= now()))))) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Users can insert their own profile",
+    "roles": "{public}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Users can update their own profile",
+    "roles": "{public}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = id)",
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Users can view their own profile",
+    "roles": "{public}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "query_logs",
+    "policyname": "Only admins can view query logs",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT auth.is_admin() AS is_admin)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "subjects",
+    "policyname": "Anonymous users can view official subjects",
+    "roles": "{anon}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((is_official = true) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text)))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "subjects",
+    "policyname": "Authenticated users can delete subjects",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR ((is_official = false) AND (( SELECT auth.uid() AS uid) = user_id)))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "subjects",
+    "policyname": "Authenticated users can insert subjects",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR ((is_official = false) AND (( SELECT auth.uid() AS uid) = user_id)))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "subjects",
+    "policyname": "Authenticated users can update subjects",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR ((is_official = false) AND (( SELECT auth.uid() AS uid) = user_id)))",
+    "with_check_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR ((is_official = false) AND (( SELECT auth.uid() AS uid) = user_id)))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "subjects",
+    "policyname": "Authenticated users can view subjects",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (( SELECT auth.uid() AS uid) = user_id) OR (is_official = true) OR ((user_id IS NULL) AND (is_official = false)))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "system_prompts",
+    "policyname": "Authenticated users can read system prompts and admins can mana",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((is_active = true) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "threads",
+    "policyname": "threads_delete_consolidated",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "threads",
+    "policyname": "threads_insert_consolidated",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "threads",
+    "policyname": "threads_select_consolidated",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "threads",
+    "policyname": "threads_update_consolidated",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_entitlements",
+    "policyname": "Service role can delete entitlements",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_entitlements",
+    "policyname": "Service role can manage entitlements",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_entitlements",
+    "policyname": "Service role can update entitlements",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)",
+    "with_check_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_entitlements",
+    "policyname": "Users can view entitlements",
+    "roles": "{anon,authenticated,authenticator,dashboard_user}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.uid() AS uid) = user_id) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_subscriptions",
+    "policyname": "Service role can delete subscriptions",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_subscriptions",
+    "policyname": "Service role can insert subscriptions",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_subscriptions",
+    "policyname": "Service role can update subscriptions",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)",
+    "with_check_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_subscriptions",
+    "policyname": "Users can view subscriptions",
+    "roles": "{anon,authenticated,authenticator,dashboard_user}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.uid() AS uid) = user_id) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+    "with_check_raw": null
   }
 ]

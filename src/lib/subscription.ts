@@ -439,8 +439,8 @@ export async function getUserSubscription(
       // The fallback to supabase client might still work
     }
     
-    const apiKey = supabase.supabaseKey;
-    const baseUrl = supabase.supabaseUrl;
+    const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY_DEV || import.meta.env.VITE_SUPABASE_ANON_KEY_PROD;
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL_DEV || import.meta.env.VITE_SUPABASE_URL_PROD;
     
     // Create timeout with ability to cancel
     let timeoutId: NodeJS.Timeout | null = null;
@@ -1059,13 +1059,13 @@ export async function createCustomerPortalSession(userId?: string): Promise<stri
       
       // Make direct fetch request
       const response = await fetch(
-        `${supabase.supabaseUrl}/functions/v1/create-customer-portal-session`,
+        `${import.meta.env.VITE_SUPABASE_URL_DEV || import.meta.env.VITE_SUPABASE_URL_PROD}/functions/v1/create-customer-portal-session`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`,
-            'apikey': supabase.supabaseKey
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY_DEV || import.meta.env.VITE_SUPABASE_ANON_KEY_PROD
           },
           body: JSON.stringify({ userId })
         }

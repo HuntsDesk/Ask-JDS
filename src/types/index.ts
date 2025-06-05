@@ -65,7 +65,6 @@ export interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<{ error: Error | null }>;
-  refreshUser: () => Promise<void>;
 }
 
 // Flashcard Types

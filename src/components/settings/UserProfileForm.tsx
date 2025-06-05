@@ -14,7 +14,7 @@ interface ProfileData {
 }
 
 export function UserProfileForm() {
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -116,9 +116,6 @@ export function UserProfileForm() {
       }
 
       // Email update logic removed since field is now read-only
-      
-      // Refresh user data
-      await refreshUser();
       
       toast({
         title: 'Success',

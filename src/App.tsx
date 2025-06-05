@@ -1,4 +1,4 @@
-import React, { useEffect, useState, Suspense, lazy, createContext, useContext } from 'react';
+import React, { useEffect, useState, Suspense, lazy, createContext, useContext, startTransition } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as HotToaster } from 'react-hot-toast';
@@ -12,15 +12,26 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/lib/query-client';
 import { ThemeProvider } from '@/lib/theme-provider';
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
+import { logEnvironmentInfo } from '@/lib/environment';
 
 // Debugging utility
 const debugLog = (message: string, data?: any) => {
   console.log(`[App Debug] ${message}`, data || '');
 };
 
+// Log environment information on app startup
+if (import.meta.env.DEV) {
+  logEnvironmentInfo();
+}
+
 // Direct imports for homepage components
 import { HomePage } from '@/components/HomePage';
 import { HomePage as JDSHomePage } from '@/components/jds/HomePage';
+
+// Import legal pages
+import { TermsOfService } from '@/pages/TermsOfService';
+import { PrivacyPolicy } from '@/pages/PrivacyPolicy';
+import { Disclaimer } from '@/pages/Disclaimer';
 
 // Import our new Navbar components
 import { JDSNavbar } from '@/components/jds/JDSNavbar';
@@ -134,6 +145,87 @@ const DebuggedCourseContent = () => {
   return <CourseContent />;
 };
 
+// Create a generic async wrapper for lazy-loaded components
+const createAsyncWrapper = (Component: React.ComponentType, fallbackMessage: string = "Loading...") => {
+  return () => {
+    const [isReady, setIsReady] = useState(false);
+    
+    useEffect(() => {
+      // Use a small delay to ensure the route transition completes first
+      const timeoutId = setTimeout(() => {
+        startTransition(() => {
+          setIsReady(true);
+        });
+      }, 50);
+      
+      return () => clearTimeout(timeoutId);
+    }, []);
+    
+    if (!isReady) {
+      return (
+        <div className="flex justify-center items-center min-h-screen bg-white dark:bg-gray-900">
+          <div className="flex flex-col items-center">
+            <LoadingSpinner className="w-8 h-8" />
+            <p className="mt-4 text-gray-500 dark:text-gray-400">{fallbackMessage}</p>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <Suspense fallback={
+        <div className="flex justify-center items-center min-h-screen bg-white dark:bg-gray-900">
+          <div className="flex flex-col items-center">
+            <LoadingSpinner className="w-8 h-8" />
+            <p className="mt-4 text-gray-500 dark:text-gray-400">{fallbackMessage}</p>
+          </div>
+        </div>
+      }>
+        <Component />
+      </Suspense>
+    );
+  };
+};
+
+// Create a wrapper for CourseAccessGuard that uses startTransition
+const AsyncCourseAccessGuard = ({ children }: { children: React.ReactNode }) => {
+  const [isReady, setIsReady] = useState(false);
+  
+  useEffect(() => {
+    // Use a small delay to ensure the route transition completes first
+    const timeoutId = setTimeout(() => {
+      startTransition(() => {
+        setIsReady(true);
+      });
+    }, 50);
+    
+    return () => clearTimeout(timeoutId);
+  }, []);
+  
+  if (!isReady) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <LoadingSpinner className="w-8 h-8" />
+      </div>
+    );
+  }
+  
+  return (
+    <Suspense fallback={
+      <div className="flex justify-center items-center min-h-screen">
+        <LoadingSpinner className="w-8 h-8" />
+      </div>
+    }>
+      <CourseAccessGuard>{children}</CourseAccessGuard>
+    </Suspense>
+  );
+};
+
+// Create async wrappers for components that may cause suspense issues
+const AsyncAuthPage = createAsyncWrapper(AuthPage, "Loading authentication...");
+const AsyncCheckoutConfirmationPage = createAsyncWrapper(CheckoutConfirmationPage, "Loading confirmation...");
+const AsyncPricingPage = createAsyncWrapper(PricingPage, "Loading pricing...");
+
 // Add import for CourseAccessGuard
 import CourseAccessGuard from './components/guards/CourseAccessGuard';
 
@@ -229,7 +321,7 @@ function AppRoutes() {
           } 
         />
         <Route path="/auth" element={
-          <AuthPage />
+          <AsyncAuthPage />
         } />
         <Route path="admin" element={<AdminDashboard />} />
         <Route path="admin/users" element={<AdminUsers />} />
@@ -258,23 +350,24 @@ function AppRoutes() {
       <Route path="/login" element={<SimpleRedirect to="/auth" />} />
       
       <Route path="/auth" element={
-        <AuthPage />
+        <AsyncAuthPage />
       } />
+      
+      {/* Legal Pages - Public Access */}
+      <Route path="/terms" element={<TermsOfService />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/disclaimer" element={<Disclaimer />} />
       
       {/* Pricing Page */}
       <Route path="/pricing" element={
         <ProtectedRoute>
-          <Suspense fallback={<PageLoader message="Loading pricing..." />}>
-            <PricingPage />
-          </Suspense>
+          <AsyncPricingPage />
         </ProtectedRoute>
       } />
       
       {/* Checkout Confirmation Page (Standalone) */}
       <Route path="/checkout-confirmation" element={
-        <Suspense fallback={<PageLoader message="Loading confirmation..." />}>
-          <CheckoutConfirmationPage />
-        </Suspense>
+        <AsyncCheckoutConfirmationPage />
       } />
       
       {/* Protected routes wrapped in PersistentLayout */}
@@ -312,33 +405,33 @@ function AppRoutes() {
       {/* Course Routes (access controlled by entitlement) - Outside of PersistentLayout */}
       <Route path="/course/:courseId" element={
         <ProtectedRoute>
-          <CourseAccessGuard>
+          <AsyncCourseAccessGuard>
             <CourseLayout>
               <React.Fragment>
                 <DebuggedCourseContent />
               </React.Fragment>
             </CourseLayout>
-          </CourseAccessGuard>
+          </AsyncCourseAccessGuard>
         </ProtectedRoute>
       } />
       
       <Route path="/course/:courseId/module/:moduleId" element={
         <ProtectedRoute>
-          <CourseAccessGuard>
+          <AsyncCourseAccessGuard>
             <CourseLayout>
               <CourseContent />
             </CourseLayout>
-          </CourseAccessGuard>
+          </AsyncCourseAccessGuard>
         </ProtectedRoute>
       } />
       
       <Route path="/course/:courseId/module/:moduleId/lesson/:lessonId" element={
         <ProtectedRoute>
-          <CourseAccessGuard>
+          <AsyncCourseAccessGuard>
             <CourseLayout>
               <CourseContent />
             </CourseLayout>
-          </CourseAccessGuard>
+          </AsyncCourseAccessGuard>
         </ProtectedRoute>
       } />
     </Routes>

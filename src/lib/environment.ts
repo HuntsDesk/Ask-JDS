@@ -12,11 +12,60 @@ export interface Course {
 }
 
 /**
- * Check if the current environment is production
- * @returns true if running in production, false otherwise
+ * Check if we're in production environment
  */
 export const isProduction = (): boolean => {
-  return import.meta.env.PROD;
+  return import.meta.env.PROD && (
+    window.location.hostname === 'askjds.com' ||
+    window.location.hostname === 'jdsimplified.com' ||
+    window.location.hostname === 'admin.jdsimplified.com'
+  );
+};
+
+/**
+ * Get the appropriate Stripe publishable key based on the current environment
+ * @returns The environment-appropriate Stripe publishable key
+ * @throws Error if the required key is missing for the current environment
+ */
+export const getStripePublishableKey = (): string => {
+  const isProd = isProduction();
+  
+  console.log('getStripePublishableKey called:', {
+    isProd,
+    hostname: window.location.hostname,
+    viteMode: import.meta.env.MODE,
+    viteProd: import.meta.env.PROD
+  });
+  
+  if (isProd) {
+    const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_PROD;
+    if (!key) {
+      console.error('Missing production Stripe publishable key');
+      // Fallback to legacy key for backward compatibility
+      const fallbackKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+      if (!fallbackKey) {
+        throw new Error('Missing production Stripe publishable key (VITE_STRIPE_PUBLISHABLE_KEY_PROD)');
+      }
+      console.warn('Using fallback Stripe publishable key for production');
+      return fallbackKey;
+    }
+    console.log('Using production Stripe publishable key');
+    return key;
+  } else {
+    const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_DEV;
+    if (!key) {
+      console.error('Missing development Stripe publishable key');
+      // Fallback to legacy key for backward compatibility
+      const fallbackKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+      if (!fallbackKey) {
+        throw new Error('Missing development Stripe publishable key (VITE_STRIPE_PUBLISHABLE_KEY_DEV)');
+      }
+      console.warn('Using fallback Stripe publishable key for development (this may be the live key!)');
+      return fallbackKey;
+    }
+    console.log('Using development Stripe publishable key');
+    return key;
+  }
 };
 
 /**
@@ -38,6 +87,23 @@ export const getCoursePriceId = (course: Course): string => {
       throw new Error(`Missing development price ID for course: ${course.id}`);
     }
     return course.stripe_price_id_dev;
+  }
+};
+
+/**
+ * Debug helper to log environment information
+ */
+export const logEnvironmentInfo = (): void => {
+  if (import.meta.env.DEV) {
+    console.log('Environment info:', {
+      isProd: isProduction(),
+      hostname: window.location.hostname,
+      viteProd: import.meta.env.PROD,
+      viteMode: import.meta.env.MODE,
+      stripeKeyDev: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_DEV ? 'present' : 'missing',
+      stripeKeyProd: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_PROD ? 'present' : 'missing',
+      stripeKeyLegacy: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ? 'present' : 'missing',
+    });
   }
 };
 

@@ -18,6 +18,7 @@ import { SkeletonFlashcardGrid } from './SkeletonFlashcard';
 import { Button } from '@/components/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePersistedState } from '@/hooks/use-persisted-state';
+import { CACHE_DURATIONS } from '@/lib/cache-config';
 
 // Define skeleton components
 const SkeletonCollectionCard = ({ className = '' }) => (
@@ -116,7 +117,7 @@ export default function FlashcardCollections() {
     isPending,
     isFetching
   } = useFlashcardCollections(filter, selectedSubjectIds, {
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: CACHE_DURATIONS.USER_CONTENT, // 1 hour (was 30 seconds)
     keepPreviousData: true // Keep displaying previous data while fetching new data
   });
   

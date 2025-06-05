@@ -18,7 +18,15 @@ import {
   Coffee,
   User,
   Settings,
-  CheckCircle
+  CheckCircle,
+  CreditCard,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  ZoomIn,
+  BookOpen,
+  Layers,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -36,6 +44,11 @@ import { hasActiveSubscription } from '@/lib/subscription';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import PageLayout from '@/components/askjds/PageLayout';
+import { HomepageFlashcardDemo } from '@/components/home/HomepageFlashcardDemo';
+import { HomepagePricingSection } from '@/components/home/HomepagePricingSection';
+import { TLDRSection } from '@/components/home/TLDRSection';
+import { CoursesSection } from '@/components/home/CoursesSection';
+import { SectionDivider } from '@/components/home/SectionDivider';
 
 // Define the benefits array
 const benefits = [
@@ -69,7 +82,7 @@ const benefits = [
   }
 ];
 
-// Define the questions array
+// Define the chat questions array
 const questions = [
   {
     icon: Lightbulb,
@@ -101,11 +114,116 @@ const questions = [
   }
 ];
 
+// Chat demo images corresponding to the question categories
+const chatDemos = [
+  {
+    id: 'concept-clarification',
+    image: '/images/chat/chat_demo_1.png',
+    title: 'Concept Clarification',
+    description: 'Example: "Explain promissory estoppel like I\'m five."'
+  },
+  {
+    id: 'legal-distinctions', 
+    image: '/images/chat/chat_demo_2.png',
+    title: 'Legal Distinctions',
+    description: 'Example: "What\'s the difference between negligence and strict liability?"'
+  },
+  {
+    id: 'case-analysis',
+    image: '/images/chat/chat_demo_3.png', 
+    title: 'Case Analysis',
+    description: 'Example: "Group project gone wrong. Hadley v. Baxendale—what\'s the damage?"'
+  },
+  {
+    id: 'rapid-summaries',
+    image: '/images/chat/chat_demo_4.png',
+    title: 'Rapid Topic Summaries', 
+    description: 'Example: "For negligence, give me a one-paragraph high-yield summary of key rules."'
+  }
+];
+
+// Define the flashcard demo features array
+const flashcardFeatures = [
+  {
+    icon: Brain,
+    text: "Cut the noise. Focus on what's left. Mark cards as mastered, skip the ones you know, and drill what you don't — all in one seamless view.",
+    category: "Study Mode",
+    color: "text-orange-500",
+    bgColor: "bg-orange-500/5"
+  },
+  {
+    icon: BookOpen,
+    text: "Organize your law life, one subject at a time. Stay organized with built-in subject structure—less mess, more mastery.",
+    category: "Subjects",
+    color: "text-blue-500",
+    bgColor: "bg-blue-500/5"
+  },
+  {
+    icon: Layers,
+    text: "Make your own mini decks. Group flashcards however your brain works — by exam, topic, or your professor's favorite trick questions.",
+    category: "Collections",
+    color: "text-green-500",
+    bgColor: "bg-green-500/5"
+  },
+  {
+    icon: FileText,
+    text: "Study-ready and lightning-fast. Search, filter, mark mastered. Study smarter with a flashcard system designed to keep pace with your busy schedule.",
+    category: "Flashcards",
+    color: "text-purple-500",
+    bgColor: "bg-purple-500/5"
+  },
+  {
+    icon: FileText,
+    text: "Unlimited. Intuitive. Yours. Add as many flashcards as you want with a free account. Tag them, group them, and come back anytime.",
+    category: "Create Flashcards",
+    color: "text-indigo-500",
+    bgColor: "bg-indigo-500/5"
+  }
+];
+
+// Flashcard demo images corresponding to the flashcard features
+const flashcardDemos = [
+  {
+    id: 'core-subject',
+    image: '/images/flashcards/flashcard_demo_1.png',
+    title: 'Study Mode',
+    description: 'Cut the noise. Focus on what\'s left.'
+  },
+  {
+    id: 'concept-breakdown', 
+    image: '/images/flashcards/flashcard_demo_2.png',
+    title: 'Subjects',
+    description: 'Organize your law life, one subject at a time.'
+  },
+  {
+    id: 'exam-focused',
+    image: '/images/flashcards/flashcard_demo_3.png', 
+    title: 'Collections',
+    description: 'Make your own mini decks.'
+  },
+  {
+    id: 'memory-reinforcement',
+    image: '/images/flashcards/flashcard_demo_4.png',
+    title: 'Flashcards', 
+    description: 'Study-ready and lightning-fast.'
+  },
+  {
+    id: 'create-flashcards',
+    image: '/images/flashcards/flashcard_demo_5.png',
+    title: 'Create Flashcards',
+    description: 'Unlimited. Intuitive. Yours.'
+  }
+];
+
 export function HomePage() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [loading, setLoading] = useState(false);
   const [hasSubscription, setHasSubscription] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [currentFlashcardIndex, setCurrentFlashcardIndex] = useState(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFlashcardModalOpen, setIsFlashcardModalOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -138,6 +256,43 @@ export function HomePage() {
     };
   }, [user]); // Only rerun if user changes
 
+  // Keyboard navigation for modal
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (!isModalOpen && !isFlashcardModalOpen) return;
+      
+      switch (e.key) {
+        case 'Escape':
+          if (isModalOpen) closeModal();
+          if (isFlashcardModalOpen) closeFlashcardModal();
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [isModalOpen, isFlashcardModalOpen]);
+
+  // Global keyboard navigation for carousel
+  useEffect(() => {
+    const handleGlobalKeyPress = (e: KeyboardEvent) => {
+      // Only handle if no input/textarea is focused and modal is not open
+      if (isModalOpen || isFlashcardModalOpen || document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      
+      switch (e.key) {
+        case 'ArrowLeft':
+          prevImage();
+          break;
+        case 'ArrowRight':
+          nextImage();
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyPress);
+    return () => document.removeEventListener('keydown', handleGlobalKeyPress);
+  }, [isModalOpen, isFlashcardModalOpen]);
+
   const handleSignOut = async () => {
     console.log('HomePage: Sign out button clicked');
     try {
@@ -150,9 +305,43 @@ export function HomePage() {
       window.location.href = '/';
     }
   };
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % chatDemos.length);
+  };
+
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => (prev - 1 + chatDemos.length) % chatDemos.length);
+  };
+
+  const nextFlashcard = () => {
+    setCurrentFlashcardIndex((prev) => (prev + 1) % flashcardDemos.length);
+  };
+
+  const prevFlashcard = () => {
+    setCurrentFlashcardIndex((prev) => (prev - 1 + flashcardDemos.length) % flashcardDemos.length);
+  };
+
+  const openModal = (index: number) => {
+    setCurrentImageIndex(index);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const openFlashcardModal = (index: number) => {
+    setCurrentFlashcardIndex(index);
+    setIsFlashcardModalOpen(true);
+  };
+
+  const closeFlashcardModal = () => {
+    setIsFlashcardModalOpen(false);
+  };
   
   return (
-    <PageLayout>
+    <PageLayout hideFooter>
     <div 
       className="min-h-screen bg-gradient-to-b from-gray-50 to-white force-light-mode"
       style={{ 
@@ -161,14 +350,16 @@ export function HomePage() {
       }}
     >
       {/* Hero Section */}
-        <section id="top" className="pt-20 pb-16 md:pt-28 md:pb-24 relative overflow-hidden">
+        <section id="top" className="pt-16 pb-16 md:pt-20 md:pb-24 relative overflow-hidden">
           <div className="absolute inset-0 animated-gradient opacity-60"></div>
-          <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#F37022]/10 rounded-full filter blur-3xl animate-float-slow"></div>
-          <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-[#00178E]/10 rounded-full filter blur-3xl animate-float-medium"></div>
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute -top-40 -left-40 w-96 h-96 bg-[#F37022]/10 rounded-full filter blur-3xl animate-float-slow"></div>
+            <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-[#00178E]/10 rounded-full filter blur-3xl animate-float-medium"></div>
+          </div>
           <div className="max-w-4xl mx-auto px-4 box-border relative z-10">
             {/* Hero Logo Section - Larger, vertically stacked */}
             <div className="flex flex-col items-center justify-center mb-8">
-              <div className="relative w-32 h-32 mb-3">
+              <div className="relative w-40 h-40 mb-3">
                 <div className="absolute -top-4 -right-4 animate-float-delayed z-0">
                   <Scale className="w-12 h-12 text-[#F5B111] opacity-60" />
                 </div>
@@ -187,16 +378,12 @@ export function HomePage() {
 
             {/* Hero Content */}
             <div className="text-center mt-16">
-              <h1 className="text-5xl font-bold text-black mb-8">
+              <h1 className="text-3xl md:text-5xl font-bold text-black mb-8">
                 The <i className="text-[#F37022]">Law Study Buddy</i> that won't judge you for procrastinating.
               </h1>
 
-              <h2 className="text-3xl font-bold text-black mb-4">
-                Struggling with law school or the bar exam?
-              </h2>
-
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-                Welcome to Ask JDS, where you can throw your burning law school and bar prep questions at a friendly AI Law Nerd who won't shame you for forgetting the rule against perpetuities (again).
+              <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-8">
+              Here for your 2 AM panic sessions, your bar exam meltdown, and yes, when you forget the rule against perpetuities (again).
               </p>
 
               <div className="flex flex-col md:flex-row gap-4 mt-8 justify-center">
@@ -210,7 +397,7 @@ export function HomePage() {
                   </button>
                 ) : (
                   <Link 
-                    to="/auth"
+                    to="/auth?tab=signup"
                     className="bg-[#F37022] hover:bg-[#E35D10] text-white font-medium py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
                   >
                     <Rocket className="w-5 h-5" />
@@ -222,38 +409,282 @@ export function HomePage() {
           </div>
         </section>
 
-      {/* How It Works */}
-      <section id="how-it-works" className="py-20 bg-gradient-to-b from-[#00178E]/5 to-[#00178E]/5 overflow-x-hidden" style={{
-        backgroundImage: "url('/images/grid-pattern.svg')",
-        backgroundSize: "cover",
-      }}>
+      {/* TL;DR Section */}
+      <TLDRSection />
+
+      {/* What Can You Ask? - Chat Section */}
+      <section className="py-20 bg-gray-50 overflow-x-hidden">
+        <SectionDivider label="Chat" className="mb-20" />
         <div className="max-w-6xl mx-auto px-4 box-border">
-          <h2 className="text-4xl font-bold text-center mb-16 text-black">How It Works</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white p-8 rounded-xl shadow-sm">
-              <MessageSquare className="w-12 h-12 text-[#00178E] mb-4" />
-              <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Ask a Question</h3>
-              <p className="text-gray-600">Type in your legal query. Bar prep, case law, general despair—it's all fair game.</p>
+          <div className="text-center mb-16">
+            <h2 id="chat" className="text-4xl font-bold text-black mb-4" style={{scrollMarginTop: '6rem'}}>Chat Your Way Through Law School</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Get instant answers without group chat chaos. No dumb questions, no side-eyes. Just real explanations when you need them.
+            </p>
+            <p className="text-lg text-gray-500 max-w-xl mx-auto mt-2 italic">
+              Try it when your outline isn't outlining.
+            </p>
+          </div>
+          
+          {/* How It Works - moved from separate section */}
+          <div className="mb-16">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+                <MessageSquare className="w-12 h-12 text-[#00178E] mb-4" />
+                <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Ask a Question</h3>
+                <p className="text-gray-600">Type in your legal query. Bar prep, case law, general despair—it's all fair game.</p>
+              </div>
+              <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+                <Brain className="w-12 h-12 text-[#00178E] mb-4" />
+                <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Get an Answer</h3>
+                <p className="text-gray-600">Powered by legal outlines, case summaries, and the AI equivalent of an over-caffeinated law nerd.</p>
+              </div>
+              <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+                <Rocket className="w-12 h-12 text-[#00178E] mb-4" />
+                <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Master the Topic</h3>
+                <p className="text-gray-600">We can't guarantee an A, but we can make sure you at least sound like you know what you're talking about.</p>
+              </div>
             </div>
-            <div className="bg-white p-8 rounded-xl shadow-sm">
-              <Brain className="w-12 h-12 text-[#00178E] mb-4" />
-              <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Get an Answer</h3>
-              <p className="text-gray-600">Powered by legal outlines, case summaries, and the AI equivalent of an over-caffeinated law nerd.</p>
-            </div>
-            <div className="bg-white p-8 rounded-xl shadow-sm">
-              <Rocket className="w-12 h-12 text-[#00178E] mb-4" />
-              <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Master the Topic</h3>
-              <p className="text-gray-600">We can't guarantee an A, but we can make sure you at least sound like you know what you're talking about.</p>
+          </div>
+          
+          {/* See It in Action Header */}
+          <div className="text-center mb-8">
+            <h3 className="text-2xl font-bold text-black mb-2">See It in Action</h3>
+          </div>
+
+          {/* Single Question Card with Image - Synced */}
+          <div className="max-w-4xl mx-auto mb-12">
+            <div className="group relative bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200">
+              
+              <div className="relative p-8">
+                {/* Gradient Background - only covers content area, not bottom banner */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${questions[currentImageIndex].bgColor} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
+                
+                {/* Question Content */}
+                <div className="relative flex items-start space-x-6 mb-6">
+                  <div className={`${questions[currentImageIndex].color} p-3 rounded-lg`}>
+                    {React.createElement(questions[currentImageIndex].icon, { className: "w-12 h-12" })}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className={`text-2xl font-semibold ${questions[currentImageIndex].color} mb-2`}>
+                      {questions[currentImageIndex].category}
+                    </h3>
+                    <p className="text-lg text-gray-600 group-hover:text-gray-700 transition-colors italic">
+                      "{questions[currentImageIndex].text}"
+                    </p>
+                  </div>
+                </div>
+
+                {/* Integrated Image */}
+                <div className="relative bg-gray-50 rounded-lg overflow-hidden">
+                  <img 
+                    src={chatDemos[currentImageIndex].image} 
+                    alt={chatDemos[currentImageIndex].title}
+                    className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => openModal(currentImageIndex)}
+                  />
+                  <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-lg opacity-0 hover:opacity-100 transition-opacity">
+                    <ZoomIn className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Navigation Bar */}
+              <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex-shrink-0">
+                <div className="flex justify-between items-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={prevImage}
+                    className="flex items-center gap-1 text-gray-600 hover:text-gray-800"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Previous
+                  </Button>
+
+                  <div className="flex space-x-2">
+                    {chatDemos.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentImageIndex(index)}
+                        className={`w-2 h-2 rounded-full transition-colors ${
+                          index === currentImageIndex ? 'bg-[#F37022]' : 'bg-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={nextImage}
+                    className="flex items-center gap-1 text-gray-600 hover:text-gray-800"
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
+      {/* Flashcards Section */}
+      <section className="py-20 bg-orange-50 relative overflow-hidden">
+        <SectionDivider label="Flashcards" className="mb-20" />
+        <div className="max-w-6xl mx-auto px-4 relative box-border">
+          <div className="text-center mb-4">
+            <h2 id="flashcards" className="text-4xl font-bold text-black mb-4" style={{scrollMarginTop: '6rem'}}>Need Help Remembering?</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Law school isn't just reading. It's remembering. Drill key rules and topics with 400+ expert-created cards. No fluff.
+            </p>
+            <p className="text-lg text-gray-500 max-w-xl mx-auto mt-2 italic">
+              Cold-call killers. No shame, just reps.
+            </p>
+          </div>
+          
+          {/* Pop Quiz Header */}
+          <div className="text-center mb-8">
+            <h3 className="text-2xl font-bold text-black mb-2">Pop Quiz!</h3>
+          </div>
+          
+          {/* Interactive Flashcard Demo */}
+          <HomepageFlashcardDemo />
+          
+          {/* Feature Items */}
+          <div className="text-center mt-16 mb-16">
+            <div className="grid md:grid-cols-3 gap-8 mb-6">
+              <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm">
+                <div className="bg-orange-100 p-3 rounded-full mb-4">
+                  <CreditCard className="w-8 h-8 text-orange-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Expert-Curated Cards</h3>
+                <p className="text-gray-600">Skip all the guesswork. Study high-yield flashcards crafted by law school experts.</p>
+              </div>
+              <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm">
+                <div className="bg-blue-100 p-3 rounded-full mb-4">
+                  <BookOpenCheck className="w-8 h-8 text-blue-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">1-Click Reinforcement</h3>
+                <p className="text-gray-600">Review the trickiest topics with targeted practice—so you'll never blank on the tough stuff again.</p>
+              </div>
+              <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm">
+                <div className="bg-green-100 p-3 rounded-full mb-4">
+                  <GraduationCap className="w-8 h-8 text-green-500" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Anywhere, Anytime</h3>
+                <p className="text-gray-600">Available across all your devices so you can review on the go, between classes, or while waiting for coffee.</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* See It in Action for Flashcards */}
+          <div className="mt-20">
+            {/* See It in Action Header */}
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-black mb-2">See It in Action</h3>
+            </div>
+
+            {/* Single Flashcard Feature Card with Image - Synced */}
+            <div className="max-w-4xl mx-auto mb-12">
+              <div className="group relative bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200">
+                
+                <div className="relative p-8">
+                  {/* Gradient Background - only covers content area, not bottom banner */}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${flashcardFeatures[currentFlashcardIndex].bgColor} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
+                  
+                  {/* Feature Content */}
+                  <div className="relative flex items-start space-x-6 mb-6">
+                    <div className={`${flashcardFeatures[currentFlashcardIndex].color} p-3 rounded-lg`}>
+                      {React.createElement(flashcardFeatures[currentFlashcardIndex].icon, { className: "w-12 h-12" })}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className={`text-2xl font-semibold ${flashcardFeatures[currentFlashcardIndex].color} mb-2`}>
+                        {flashcardFeatures[currentFlashcardIndex].category}
+                      </h3>
+                      <p className="text-lg text-gray-600 group-hover:text-gray-700 transition-colors">
+                        {flashcardFeatures[currentFlashcardIndex].text}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Integrated Image */}
+                  <div className="relative bg-gray-50 rounded-lg overflow-hidden">
+                    <img 
+                      src={flashcardDemos[currentFlashcardIndex].image} 
+                      alt={flashcardDemos[currentFlashcardIndex].title}
+                      className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => openFlashcardModal(currentFlashcardIndex)}
+                    />
+                    <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-lg opacity-0 hover:opacity-100 transition-opacity">
+                      <ZoomIn className="w-5 h-5" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Navigation Bar */}
+                <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex-shrink-0">
+                  <div className="flex justify-between items-center">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={prevFlashcard}
+                      className="flex items-center gap-1 text-gray-600 hover:text-gray-800"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </Button>
+
+                    <div className="flex space-x-2">
+                      {flashcardDemos.map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentFlashcardIndex(index)}
+                          className={`w-2 h-2 rounded-full transition-colors ${
+                            index === currentFlashcardIndex ? 'bg-[#F37022]' : 'bg-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={nextFlashcard}
+                      className="flex items-center gap-1 text-gray-600 hover:text-gray-800"
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+
+      {/* Courses Section */}
+      <CoursesSection />
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-20 bg-gray-50 overflow-x-hidden">
+        <SectionDivider label="Pricing" className="mb-20" />
+        <div className="max-w-4xl mx-auto text-center px-4 box-border">
+          <h2 className="text-4xl font-bold text-black">Simple, Transparent Pricing</h2>
+          <p className="text-lg text-gray-600 mt-2">
+            Ask JDS. Smarter than your group chat, cheaper than a tutor.
+          </p>
+        </div>
+        <div className="mt-12 px-4 box-border">
+          <HomepagePricingSection />
+        </div>
+      </section>
+
       {/* Benefits */}
-      <section className="py-20 relative overflow-hidden box-border">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white" style={{
-          background: 'linear-gradient(135deg, rgb(249, 250, 251), rgb(255, 255, 255))'
-        }}></div>
+      <section className="py-20 bg-white relative overflow-hidden box-border">
         <div className="max-w-6xl mx-auto px-4 relative box-border">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-black mb-4">Why Use Ask JDS?</h2>
@@ -290,156 +721,16 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="py-20 bg-[#00178E]/5 overflow-x-hidden">
-        <div className="max-w-6xl mx-auto px-4 box-border">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-black mb-4">What Can You Ask?</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              From basic concepts to existential crises, we've got you covered.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 gap-8">
-            {questions.map((question, index) => (
-              <div 
-                key={index} 
-                className="group relative bg-white rounded-xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden"
-              >
-                {/* Gradient Background */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${question.bgColor} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
-                
-                <div className="relative flex items-start space-x-6">
-                  <div className={`${question.color} p-3 rounded-lg`}>
-                    <question.icon className="w-10 h-10" />
-                  </div>
-                  <div>
-                    <h3 className={`text-2xl font-semibold ${question.color} mb-2`}>
-                      {question.category}
-                    </h3>
-                    <p className="text-lg text-gray-600 group-hover:text-gray-700 transition-colors">
-                      {question.text}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="pricing" className="py-20 bg-gray-50 overflow-x-hidden">
-        <div className="max-w-4xl mx-auto text-center px-4 box-border">
-          <h2 className="text-4xl font-bold text-black">Simple, Transparent Pricing</h2>
-          <p className="text-lg text-gray-600 mt-2">
-            Ask JDS. Smarter than your group chat, cheaper than a tutor.
-          </p>
-        </div>
-        <div className="mt-12 flex flex-col md:flex-row justify-center gap-8 max-w-5xl mx-auto px-4 box-border">
-          {[
-            {
-              title: "Free",
-              price: "$0",
-              tagline: "FREE FOREVER",
-              features: [
-                "10 Messages Per Month",
-                "Create Unlimited Flashcards",
-                "Flashcard Study Mode",
-                "Access From Any Device",
-              ],
-              buttonText: "Sign-up For Free",
-              buttonVariant: "outline",
-              highlight: false,
-            },
-            {
-              title: "Premium",
-              price: "$10",
-              tagline: "MOST POPULAR",
-              features: [
-                "Unlimited Ask JDS Messages",
-                "Create Unlimited Flashcards",
-                "400+ Expert Curated Flashcards",
-                "Flashcard Study Mode",
-                "Access From Any Device",
-                "A Simplified Study Experience",
-              ],
-              buttonText: "Get Premium Access",
-              buttonVariant: "primary",
-              highlight: true,
-            },
-          ].map((plan, index) => (
-            <div
-              key={index}
-              className={`relative flex flex-col p-6 rounded-lg shadow-lg w-full md:w-1/2 transition-transform hover:scale-105
-                ${plan.highlight ? "bg-orange-100 border-2 border-orange-500" : "bg-white"}
-              `}
-            >
-              {plan.highlight && (
-                <div className="absolute top-4 right-4 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                  {plan.tagline}
-                </div>
-              )}
-              <h3 className="text-2xl font-semibold text-gray-900">{plan.title}</h3>
-              <p className="text-5xl font-bold text-black mt-2">{plan.price}
-                <span className="text-lg font-medium text-gray-600">/month</span>
-              </p>
-              <ul className="mt-4 space-y-3">
-                {plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-center gap-2 text-gray-700">
-                    <CheckCircle className="text-green-500 w-5 h-5" /> {feature}
-                  </li>
-                ))}
-              </ul>
-              {user ? (
-                plan.title === "Basic" ? (
-                  <Button
-                    onClick={() => navigate('/chat')}
-                    className={`mt-6 w-full ${plan.highlight ? "bg-orange-500 hover:bg-orange-600 text-white" : "border-gray-400 hover:bg-gray-100"}`}
-                  >
-                    Start Chatting
-                  </Button>
-                ) : (
-                  hasSubscription ? (
-                    <Button
-                      onClick={() => navigate('/chat')}
-                      className="mt-6 w-full bg-orange-500 hover:bg-orange-600 text-white"
-                    >
-                      Start Chatting
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={() => navigate('/settings')}
-                      className="mt-6 w-full bg-orange-500 hover:bg-orange-600 text-white"
-                    >
-                      Upgrade Now
-                    </Button>
-                  )
-                )
-              ) : (
-                <Button
-                  onClick={() => navigate('/auth?tab=signup')}
-                  className={`mt-6 w-full ${plan.highlight ? "bg-orange-500 hover:bg-orange-600 text-white" : "border-gray-400 hover:bg-gray-100"}`}
-                >
-                  {plan.buttonText}
-                </Button>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* CTA */}
-      <section className="py-20 bg-[#00178E]/5 relative overflow-hidden" style={{
-        backgroundColor: 'rgba(0, 23, 142, 0.05)'
-      }}>
+      <section className="py-20 bg-gray-50 relative overflow-hidden">
         <div className="max-w-4xl mx-auto px-4 text-center relative z-10 box-border">
           <h2 className="text-5xl font-bold text-[#00178E] mb-6">
-            {user ? (hasSubscription ? "You're All Set!" : "Upgrade Your Experience") : "Sign Up Now"}
+            {user ? (hasSubscription ? "Thank you for your support." : "Upgrade Your Experience") : "Sign Up Now"}
           </h2>
           <p className="text-2xl text-[#00178E] mb-10">
             {hasSubscription 
-              ? "You're all set with your premium subscription! Head to the chat to start asking questions."
-              : "Skip the overpriced tutors and questionable Reddit advice—Ask JDS is your $10/month legal survival guide."}
+              ? "You're all set with your premium subscription. Head to the chat to start asking questions."
+              : "Skip the overpriced tutors and questionable Reddit advice— Ask JDS."}
           </p>
           <div className="flex flex-col items-center gap-8">
             <div className="flex flex-col md:flex-row gap-4 justify-center">
@@ -453,7 +744,7 @@ export function HomePage() {
                 </button>
               ) : (
                 <Link 
-                  to="/auth"
+                  to="/auth?tab=signup"
                   className="bg-[#F37022] hover:bg-[#E35D10] text-white font-medium py-4 px-8 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-xl"
                 >
                   <Rocket className="w-6 h-6" />
@@ -510,7 +801,7 @@ export function HomePage() {
               <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link to="/" className="text-gray-300 hover:text-white transition-colors">Home</Link>
+                  <a href="#top" className="text-gray-300 hover:text-white transition-colors">Home</a>
                 </li>
                 <li>
                   <Link to="/auth" className="text-gray-300 hover:text-white transition-colors">Sign In</Link>
@@ -536,16 +827,13 @@ export function HomePage() {
               <h3 className="text-lg font-semibold mb-4">Legal</h3>
               <ul className="space-y-2">
                 <li>
-                  <a href="#" className="text-gray-300 hover:text-white transition-colors">Terms of Service</a>
+                  <Link to="/terms" className="text-gray-300 hover:text-white transition-colors">Terms of Service</Link>
                 </li>
                 <li>
-                  <a href="#" className="text-gray-300 hover:text-white transition-colors">Privacy Policy</a>
+                  <Link to="/privacy" className="text-gray-300 hover:text-white transition-colors">Privacy Policy</Link>
                 </li>
                 <li>
-                  <a href="#" className="text-gray-300 hover:text-white transition-colors">Cookie Policy</a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-300 hover:text-white transition-colors">Disclaimer</a>
+                  <Link to="/disclaimer" className="text-gray-300 hover:text-white transition-colors">Disclaimer</Link>
                 </li>
               </ul>
             </div>
@@ -562,6 +850,52 @@ export function HomePage() {
         </div>
       </footer>
     </div>
+
+    {/* Image Enlargement Modal */}
+    {isModalOpen && (
+      <div 
+        className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+        onClick={closeModal}
+      >
+        <div className="relative w-full h-full max-w-[90vw] max-h-[99vh] flex items-center justify-center">
+          <button
+            onClick={closeModal}
+            className="absolute top-6 right-6 bg-black/70 text-white p-3 rounded-full hover:bg-black/90 transition-colors z-10"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={chatDemos[currentImageIndex].image}
+            alt={chatDemos[currentImageIndex].title}
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      </div>
+    )}
+
+    {/* Flashcard Image Enlargement Modal */}
+    {isFlashcardModalOpen && (
+      <div 
+        className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+        onClick={closeFlashcardModal}
+      >
+        <div className="relative w-full h-full max-w-[90vw] max-h-[99vh] flex items-center justify-center">
+          <button
+            onClick={closeFlashcardModal}
+            className="absolute top-6 right-6 bg-black/70 text-white p-3 rounded-full hover:bg-black/90 transition-colors z-10"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={flashcardDemos[currentFlashcardIndex].image}
+            alt={flashcardDemos[currentFlashcardIndex].title}
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      </div>
+    )}
     </PageLayout>
   );
 }

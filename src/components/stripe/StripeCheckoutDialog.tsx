@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -6,9 +6,7 @@ import { StripePaymentForm } from './StripePaymentForm';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { toast } from 'react-hot-toast';
 import { useTheme } from '@/lib/theme-provider';
-
-// Load Stripe outside component to avoid recreating on render
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
+import { getStripePublishableKey } from '@/lib/environment';
 
 interface StripeCheckoutDialogProps {
   /**
@@ -69,6 +67,17 @@ export function StripeCheckoutDialog({
 }: StripeCheckoutDialogProps) {
   const { theme } = useTheme();
   
+  // Lazy-load Stripe to avoid module load time errors
+  const stripePromise = useMemo(() => {
+    try {
+      const publishableKey = getStripePublishableKey();
+      return loadStripe(publishableKey);
+    } catch (error) {
+      console.error('Failed to load Stripe:', error);
+      return null;
+    }
+  }, []);
+  
   // Log key information when props change
   useEffect(() => {
     console.log('StripeCheckoutDialog:', {
@@ -85,7 +94,7 @@ export function StripeCheckoutDialog({
     if (!clientSecret) {
       console.warn('No client secret provided to StripeCheckoutDialog.');
     }
-  }, [open, clientSecret, theme]);
+  }, [open, clientSecret, theme, stripePromise]);
   
   // Options for the Elements provider
   const stripeElementsOptions = clientSecret ? {

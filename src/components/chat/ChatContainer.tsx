@@ -387,14 +387,18 @@ export function ChatContainer() {
       if (foundThread) {
         console.debug(`[ChatContainer] Found matching thread in loaded threads: ${foundThread.id}, title: "${foundThread.title}"`);
         setActiveThread(foundThread.id);
+        // IMPORTANT: Also update the selectedThreadId context for sidebar highlighting
+        setSelectedThreadId(foundThread.id);
       } else if (!originalThreadsLoading && originalThreads.length > 0) {
         // If threads are loaded but we didn't find a match, set it anyway
         // This handles cases where the thread might be new and not in our cache yet
         console.debug(`[ChatContainer] Thread not found in loaded threads, setting activeThread to URL ID: ${urlThreadId}`);
         setActiveThread(urlThreadId);
+        // IMPORTANT: Also update the selectedThreadId context for sidebar highlighting
+        setSelectedThreadId(urlThreadId);
       }
     }
-  }, [urlThreadId, activeThread, originalThreads, originalThreadsLoading]);
+  }, [urlThreadId, activeThread, originalThreads, originalThreadsLoading, setSelectedThreadId]);
 
   // =========== Render logic based on FSM state ===========
   

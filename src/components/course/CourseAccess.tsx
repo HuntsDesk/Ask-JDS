@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Badge } from '@/components/ui';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { trackEvent, AnalyticsEventType } from '@/lib/flotiq/analytics';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
@@ -10,9 +12,7 @@ import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from '@/hooks/use-toast';
-
-// Load Stripe outside component to avoid recreating on render
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
+import { getStripePublishableKey } from '@/lib/environment';
 
 interface CourseAccessProps {
   courseId: string;
@@ -36,7 +36,7 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
   daysOfAccess,
   stripePriceId
 }) => {
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { tierName, isActive: isSubscriptionActive, isLoading: isSubscriptionLoading } = useSubscriptionContext();
 
@@ -46,6 +46,17 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
   const [checkoutLoading, setCheckoutLoading] = useState<boolean>(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
+
+  // Lazy-load Stripe to avoid module load time errors
+  const stripePromise = useMemo(() => {
+    try {
+      const publishableKey = getStripePublishableKey();
+      return loadStripe(publishableKey);
+    } catch (error) {
+      console.error('Failed to load Stripe:', error);
+      return null;
+    }
+  }, []);
   
   useEffect(() => {
     const checkDirectEnrollment = async () => {
@@ -72,7 +83,7 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
           setEnrollmentStatus({
             hasDirectEnrollment: !!data,
             enrollmentExpiresAt: data?.expires_at,
-        });
+          });
         }
       } catch (error) {
         console.error('Error checking direct enrollment:', error);
@@ -82,22 +93,20 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
       }
     };
     
-    if (!isAuthLoading) {
-        checkDirectEnrollment();
-    }
-  }, [user?.id, courseId, isAuthLoading]);
+    checkDirectEnrollment();
+  }, [user?.id, courseId]);
 
-  const isLoading = isAuthLoading || isSubscriptionLoading || isEnrollmentLoading;
+  const isLoading = isSubscriptionLoading || isEnrollmentLoading;
   const hasUnlimitedAccess = isSubscriptionActive && tierName === 'Unlimited';
   const hasDirectAccess = enrollmentStatus.hasDirectEnrollment;
   const hasAccess = isPreview || hasUnlimitedAccess || hasDirectAccess;
   
   const handlePurchase = async () => {
     if (!user || !stripePriceId) {
-    if (!user) {
-          navigate('/login?redirectTo=' + encodeURIComponent(`/course-detail/${courseId}`));
+      if (!user) {
+        navigate('/login?redirectTo=' + encodeURIComponent(`/course-detail/${courseId}`));
       } else {
-          toast({ title: "Error", description: "Course price information is missing.", variant: "destructive" });
+        toast({ title: "Error", description: "Course price information is missing.", variant: "destructive" });
       }
       return;
     }
@@ -183,13 +192,13 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
   const formatDate = (dateString?: string | null): string => {
     if (!dateString) return 'N/A';
     try {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
     } catch { 
-        return 'Invalid Date';
+      return 'Invalid Date';
     }
   };
 
@@ -198,44 +207,47 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
   if (isLoading) {
     return (
       <Card className="w-full">
-        <CardHeader><CardTitle>Course Access</CardTitle><CardDescription>Checking access...</CardDescription></CardHeader>
-        <CardContent><div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div></div></CardContent>
+        <CardHeader>
+          <CardTitle>Course Access</CardTitle>
+          <CardDescription>Checking access...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-center p-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        </CardContent>
       </Card>
     );
   }
 
-  if (isPreview && !hasAccess) {
-    return (
-        <Card className="w-full">
-            <CardHeader><CardTitle>Course Preview</CardTitle><CardDescription>This content is available for preview</CardDescription></CardHeader>
-            <CardContent><p className="text-gray-600 dark:text-gray-400">You're viewing preview content. Purchase this course or get an unlimited subscription to access all lessons.</p></CardContent>
-            <CardFooter className="flex flex-col sm:flex-row gap-3">
-                {stripePriceId && coursePrice > 0 && (
-                    <Button onClick={handlePurchase} disabled={checkoutLoading} variant="default">
-                        {checkoutLoading ? 'Processing...' : `Purchase for $${coursePrice}`}
-                    </Button>
-                )}
-                {tierName !== 'Unlimited' && (
-                    <Button onClick={handleUpgradeClick} variant="outline">
-                        Get Unlimited Access
-                    </Button>
-                )}
-            </CardFooter>
-        </Card>
-    );
-  }
-
   if (!user) {
-      return (
-          <Card className="w-full">
-              <CardHeader><CardTitle>Course Access</CardTitle><CardDescription>Sign in to access this course</CardDescription></CardHeader>
-              <CardContent><p className="text-gray-600 dark:text-gray-400">Please sign in or create an account to purchase this course or get unlimited access to all courses.</p></CardContent>
-              <CardFooter className="flex flex-col sm:flex-row gap-3">
-                  <Button onClick={() => navigate('/login?redirectTo=' + encodeURIComponent(location.pathname))} variant="default">Sign In</Button>
-                  <Button onClick={() => navigate('/signup?redirectTo=' + encodeURIComponent(location.pathname))} variant="outline">Create Account</Button>
-              </CardFooter>
-          </Card>
-      );
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>Course Access</CardTitle>
+          <CardDescription>Sign in to access this course</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-600 dark:text-gray-400">
+            Please sign in or create an account to purchase this course or get unlimited access to all courses.
+          </p>
+        </CardContent>
+        <CardFooter className="flex flex-col sm:flex-row gap-3">
+          <Button 
+            onClick={() => navigate('/login?redirectTo=' + encodeURIComponent(location.pathname))}
+            variant="default"
+          >
+            Sign In
+          </Button>
+          <Button 
+            onClick={() => navigate('/signup?redirectTo=' + encodeURIComponent(location.pathname))}
+            variant="outline"
+          >
+            Create Account
+          </Button>
+        </CardFooter>
+      </Card>
+    );
   }
 
   if (hasAccess) {
@@ -244,7 +256,7 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center">
             Course Access 
-            <Badge variant="success" className="ml-2">
+            <Badge variant="default" className="ml-2 bg-green-600">
               {hasUnlimitedAccess ? 'Unlimited Access' : 'Enrolled'}
             </Badge>
           </CardTitle>
@@ -285,15 +297,15 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
           <Button 
             onClick={() => {
               if (user?.id) {
-                  trackEvent(
-                    AnalyticsEventType.COURSE_VIEW,
-                    user.id,
-                    {
-                      course_id: courseId,
-                      course_title: courseTitle,
-                      has_unlimited: hasUnlimitedAccess,
-                    }
-                  );
+                trackEvent(
+                  AnalyticsEventType.COURSE_VIEW,
+                  user.id,
+                  {
+                    course_id: courseId,
+                    course_title: courseTitle,
+                    has_unlimited: hasUnlimitedAccess,
+                  }
+                );
               }
               navigate(`/course/${courseId}/lessons`);
             }}
@@ -306,7 +318,7 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
     );
   }
   
-    return (
+  return (
     <>
       <Card className="w-full">
         <CardHeader>
@@ -322,188 +334,61 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
             </p>
             
             <div className="flex flex-col space-y-2">
-             {stripePriceId && coursePrice > 0 && (
-                 <div className="flex items-center justify-between p-3 border rounded-lg">
-                   <div>
-                     <h3 className="font-medium">Single Course</h3>
-                     <p className="text-sm text-gray-500">${coursePrice} for {daysOfAccess} days of access</p>
-                   </div>
-                   <Button 
-                     onClick={handlePurchase}
-                     disabled={checkoutLoading}
-                     size="sm"
-                   >
-                     {checkoutLoading ? 'Processing...' : 'Purchase'}
-                   </Button>
-                 </div>
+              {stripePriceId && coursePrice > 0 && (
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <h3 className="font-medium">Single Course</h3>
+                    <p className="text-sm text-gray-500">${coursePrice} for {daysOfAccess} days of access</p>
+                  </div>
+                  <Button 
+                    onClick={handlePurchase}
+                    disabled={checkoutLoading}
+                    size="sm"
+                  >
+                    {checkoutLoading ? 'Processing...' : 'Purchase'}
+                  </Button>
+                </div>
               )}
               
               {tierName !== 'Unlimited' && (
-                  <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50 dark:bg-gray-800">
-                    <div>
-                      <h3 className="font-medium">Unlimited Access</h3>
-          <p className="text-gray-600 dark:text-gray-400">
-            Please sign in or create an account to purchase this course or get unlimited access to all courses.
-          </p>
-        </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row gap-3">
-          <Button 
-            onClick={() => navigate('/login?redirectTo=' + encodeURIComponent(`/courses/${courseId}`))}
-            variant="default"
-          >
-            Sign In
-          </Button>
-          <Button 
-            onClick={() => navigate('/signup?redirectTo=' + encodeURIComponent(`/courses/${courseId}`))}
-            variant="outline"
-          >
-            Create Account
-          </Button>
-        </CardFooter>
-      </Card>
-    );
-  }
-  
-  if (loading) {
-    return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Course Access</CardTitle>
-          <CardDescription>
-            Checking your access...
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-center p-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-  
-  if (!accessStatus?.hasAccess) {
-    return (
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Course Access</CardTitle>
-          <CardDescription>
-            Purchase required to access full content
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <p className="text-gray-600 dark:text-gray-400">
-              You don't currently have access to this course. Choose an option below to get access.
-            </p>
-            
-            <div className="flex flex-col space-y-2">
-              <div className="flex items-center justify-between p-3 border rounded-lg">
-                <div>
-                  <h3 className="font-medium">Single Course</h3>
-                  <p className="text-sm text-gray-500">${coursePrice} for 30 days of access</p>
+                <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50 dark:bg-gray-800">
+                  <div>
+                    <h3 className="font-medium">Unlimited Access</h3>
+                    <p className="text-sm text-gray-500">Access all courses for one monthly fee</p>
+                  </div>
+                  <Button 
+                    onClick={handleUpgradeClick}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Learn More
+                  </Button>
                 </div>
-                <Button 
-                  onClick={handlePurchase}
-                  disabled={checkoutLoading}
-                  size="sm"
-                >
-                  {checkoutLoading ? 'Processing...' : 'Purchase'}
-                </Button>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50 dark:bg-gray-800">
-                <div>
-                  <h3 className="font-medium">Unlimited Access</h3>
-                  <p className="text-sm text-gray-500">Access all courses for one monthly fee</p>
-                </div>
-                <Button 
-                  onClick={handleUpgradeClick}
-                  variant="outline"
-                  size="sm"
-                >
-                  Learn More
-                </Button>
-              </div>
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
-    );
-  }
-  
-  return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          Course Access 
-          <Badge variant="success" className="ml-2">
-            {accessStatus.hasUnlimitedSubscription ? 'Unlimited Access' : 'Enrolled'}
-          </Badge>
-        </CardTitle>
-        <CardDescription>
-          You have access to this course
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {accessStatus.isEnrolled && accessStatus.enrollment && (
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                Enrollment Details
-              </p>
-              <p className="text-base">
-                Enrolled on {formatDate(accessStatus.enrollment.created_at)}
-              </p>
-              <p className="text-sm text-gray-500">
-                Source: {accessStatus.enrollment.source.replace('_', ' ')}
-              </p>
-            </div>
-          )}
-          
-          {accessStatus.hasUnlimitedSubscription && (
-            <div>
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                Unlimited Subscription
-              </p>
-              <p className="text-base">
-                Active subscription - access to all courses
-              </p>
-            </div>
-          )}
-          
-          <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
-            <p className="text-green-800 dark:text-green-300 text-sm">
-              You have full access to all content in this course. Happy learning!
-            </p>
+
+      {/* Payment Modal */}
+      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Complete Your Purchase</DialogTitle>
+            <DialogDescription>
+              Enter your payment details below to purchase access to this course.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {clientSecret && stripePromise && stripeElementsOptions && (
+              <Elements options={stripeElementsOptions} stripe={stripePromise}>
+                <StripePaymentForm clientSecret={clientSecret} />
+              </Elements>
+            )}
           </div>
-        </div>
-      </CardContent>
-      <CardFooter>
-        <Button 
-          onClick={() => {
-            // Track course view
-            if (user?.id) {
-              trackEvent(
-                AnalyticsEventType.COURSE_VIEW,
-                user.id,
-                {
-                  course_id: courseId,
-                  course_title: courseTitle,
-                  has_unlimited: accessStatus.hasUnlimitedSubscription,
-                }
-              );
-            }
-            
-            // Navigate to the first lesson
-            navigate(`/courses/${courseId}/lessons`);
-          }}
-          className="w-full"
-        >
-          Start Learning
-        </Button>
-      </CardFooter>
-    </Card>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
