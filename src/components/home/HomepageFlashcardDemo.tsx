@@ -83,13 +83,14 @@ export const HomepageFlashcardDemo: React.FC<HomepageFlashcardDemoProps> = ({
           <div className="relative mb-6">
             <div className="perspective-1000">
               <div
-                className={`relative w-full min-h-[26rem] transition-transform duration-500 transform-style-preserve-3d ${
+                className={`relative w-full min-h-[26rem] md:min-h-[28rem] transition-transform duration-500 transform-style-preserve-3d ${
                   isFlipped ? 'rotate-y-180' : ''
                 }`}
+                style={{ height: 'auto' }}
               >
                 {/* Front of card (Question) */}
-                <div className="absolute inset-0 w-full h-full backface-hidden">
-                  <div className="bg-white rounded-xl shadow-lg border border-gray-200 h-full flex flex-col">
+                <div className="absolute inset-0 w-full h-auto min-h-full backface-hidden">
+                  <div className="bg-white rounded-xl shadow-lg border border-gray-200 min-h-full flex flex-col">
                     {/* Header */}
                     <div className="p-6 border-b border-gray-200 flex-shrink-0">
                       <div className="flex items-center justify-between">
@@ -109,7 +110,7 @@ export const HomepageFlashcardDemo: React.FC<HomepageFlashcardDemoProps> = ({
                       className="flex flex-1 flex-col overflow-auto px-6 py-8 cursor-pointer hover:bg-gray-50 transition-colors"
                       onClick={showAnswer}
                     >
-                      <div className="flex min-h-[10rem] flex-1 items-center justify-center">
+                      <div className="flex min-h-[8rem] md:min-h-[10rem] flex-1 items-center justify-center mb-4">
                         <div className="prose prose-slate text-center">
                           <h3 className="text-xl md:text-2xl font-semibold text-gray-900 mb-0">
                             {currentCard.question}
@@ -117,8 +118,8 @@ export const HomepageFlashcardDemo: React.FC<HomepageFlashcardDemoProps> = ({
                         </div>
                       </div>
                       
-                      {/* Show Answer Button - positioned at bottom with more space */}
-                      <div className="flex justify-center pt-8 pb-4 flex-shrink-0">
+                      {/* Show Answer Button - positioned at bottom with responsive spacing */}
+                      <div className="flex justify-center pt-4 pb-4 flex-shrink-0">
                         <Button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -170,8 +171,8 @@ export const HomepageFlashcardDemo: React.FC<HomepageFlashcardDemoProps> = ({
                 </div>
 
                 {/* Back of card (Answer) */}
-                <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180">
-                  <div className="bg-[#F37022] text-white rounded-xl shadow-lg h-full flex flex-col">
+                <div className="absolute inset-0 w-full h-auto min-h-full backface-hidden rotate-y-180">
+                  <div className="bg-[#F37022] text-white rounded-xl shadow-lg min-h-full flex flex-col">
                     {/* Header */}
                     <div className="p-6 border-b border-orange-400 flex-shrink-0">
                       <div className="flex items-center justify-between">
@@ -191,7 +192,7 @@ export const HomepageFlashcardDemo: React.FC<HomepageFlashcardDemoProps> = ({
                       className="flex flex-1 flex-col overflow-auto px-6 py-8 cursor-pointer hover:bg-orange-500 transition-colors"
                       onClick={toggleFlip}
                     >
-                      <div className="flex min-h-[10rem] flex-1 items-start justify-start">
+                      <div className="flex min-h-[8rem] md:min-h-[10rem] flex-1 items-start justify-start mb-4">
                         <div className="prose prose-slate text-left">
                           <p className="text-base md:text-lg leading-relaxed text-white mb-0">
                             {currentCard.answer}
@@ -199,8 +200,8 @@ export const HomepageFlashcardDemo: React.FC<HomepageFlashcardDemoProps> = ({
                         </div>
                       </div>
                       
-                      {/* Back to Question Button - positioned at bottom with more space */}
-                      <div className="flex justify-center pt-8 pb-4 flex-shrink-0">
+                      {/* Back to Question Button - positioned at bottom with responsive spacing */}
+                      <div className="flex justify-center pt-4 pb-4 flex-shrink-0">
                         <Button
                           onClick={(e) => {
                             e.stopPropagation();

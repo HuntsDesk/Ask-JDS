@@ -19,6 +19,7 @@ interface NavItem {
   href: string;
   icon?: React.ReactNode;
   onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+  isActive?: boolean;
 }
 
 interface NavbarProps {
@@ -95,19 +96,23 @@ export function Navbar({
           {/* Desktop Navigation - Centered */}
           <div className="hidden md:flex md:flex-1 md:justify-center md:items-center">
             <div className="flex items-center space-x-10">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  className={cn(
-                    "nav-link",
-                    location.pathname === item.href && "text-jdblue after:w-full after:bg-jdblue"
-                  )}
-                  onClick={item.onClick}
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {navItems.map((item) => {
+                const isActiveItem = item.isActive || location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    className={cn(
+                      "nav-link",
+                      isActiveItem && siteName === 'askjds' && "text-[#F37022] after:w-full after:bg-[#F37022]",
+                      isActiveItem && siteName !== 'askjds' && "text-jdblue after:w-full after:bg-jdblue"
+                    )}
+                    onClick={item.onClick}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
             </div>
           </div>
           
@@ -187,20 +192,25 @@ export function Navbar({
             "px-2 pt-2 pb-3 space-y-1 border-b",
             siteName === 'askjds' ? "bg-white" : "bg-white"
           )}>
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={cn(
-                  "flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-jdblue hover:bg-gray-50",
-                  location.pathname === item.href && "text-jdblue bg-gray-50"
-                )}
-                onClick={item.onClick}
-              >
-                {item.icon && <span className="mr-2">{item.icon}</span>}
-                {item.label}
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const isActiveItem = item.isActive || location.pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={cn(
+                    "flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:bg-gray-50",
+                    isActiveItem && siteName === 'askjds' && "text-[#F37022] hover:text-[#F37022]",
+                    isActiveItem && siteName !== 'askjds' && "text-jdblue hover:text-jdblue",
+                    isActiveItem && "bg-gray-50"
+                  )}
+                  onClick={item.onClick}
+                >
+                  {item.icon && <span className="mr-2">{item.icon}</span>}
+                  {item.label}
+                </Link>
+              );
+            })}
             
             {/* Mobile Auth Section */}
             {user ? (

@@ -2601,12 +2601,19 @@ Monitor for significant deviations that might indicate:
 ### Homepage Component System
 
 **Recent Updates (January 2025):**
+- **Scroll-Based Navigation Highlighting**: Implemented dynamic navigation highlighting that changes in real-time as users scroll through homepage sections
+  - **Orange brand color highlighting** (`#F37022`) matches flashcards app navigation system for visual consistency
+  - **Intersection detection system** uses scroll position calculations for accurate section detection in both upward and downward scrolling
+  - **Hash-based navigation support** for direct section linking (e.g., `/#chat`, `/#flashcards`) with proper highlighting
+  - **Cross-page navigation** from flashcards app to homepage sections maintains correct highlighting state
+  - **Mobile & desktop compatibility** with consistent highlighting behavior across all devices
 - **Full 3-Tier Pricing Integration**: Homepage now displays complete pricing comparison (Free, Premium, Unlimited) matching the dedicated pricing page
 - **Shared Pricing Data Architecture**: Implemented `src/lib/pricingData.ts` for centralized pricing configuration and feature lists
 - **Enhanced Flashcard Demo**: Updated to match app layout with proper height handling, internal navigation controls, and improved user experience
 - **Navigation Integration**: Updated homepage navigation to scroll to flashcard section instead of redirecting to app
 
 **Architecture:**
+- **Scroll Detection System**: Advanced scroll position-based detection calculates section boundaries for precise navigation highlighting
 - **Section Reordering**: Implemented optimal user journey flow with Hero → How It Works → What Can You Ask? → Flashcards → CTA → Pricing → Why Use Ask JDS? → Footer
 - **Full Pricing Parity**: Homepage pricing section now matches `/pricing` page exactly with all subscription functionality
 - **Interactive Flashcard Demo**: Enhanced homepage flashcard section with app-consistent layout, dynamic height, and internal navigation controls
@@ -2618,6 +2625,10 @@ src/
 ├── lib/
 │   └── pricingData.ts             # Centralized pricing tiers, features, and TypeScript interfaces
 ├── components/
+│   ├── askjds/
+│   │   └── AskJDSNavbar.tsx       # Homepage navigation with scroll-based highlighting system
+│   ├── shared/
+│   │   └── Navbar.tsx             # Shared navigation component with orange highlighting support
 │   ├── home/
 │   │   ├── HomepageFlashcardDemo.tsx # Interactive demo matching app layout and behavior
 │   │   └── HomepagePricingSection.tsx # Full 3-tier pricing with subscription integration
@@ -2625,6 +2636,9 @@ src/
 ```
 
 **Key Features:**
+- **Real-time Navigation Highlighting**: Orange highlighting updates automatically as users scroll, preventing navigation confusion
+- **Consistent Visual Language**: Uses same orange accent color (`#F37022`) as flashcards app for brand consistency
+- **Precise Section Detection**: Scroll position calculations with viewport offset ensure accurate highlighting regardless of scroll direction
 - **Pricing Consistency**: Eliminates drift between homepage and pricing page through shared data
 - **App-Consistent Flashcard Demo**: Users experience the actual flashcard interface before signup
 - **Navigation Anchors**: Homepage sections can be directly linked to (e.g., `/#flashcards`, `/#pricing`)
