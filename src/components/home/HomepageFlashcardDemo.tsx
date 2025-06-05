@@ -74,7 +74,7 @@ export const HomepageFlashcardDemo: React.FC<HomepageFlashcardDemoProps> = ({
   }
 
   return (
-    <div className={`pt-16 pb-4 ${className}`}>
+    <div className={`pt-4 pb-4 ${className}`}>
       <div className="max-w-4xl mx-auto px-4">
 
         {/* Demo Container */}
@@ -83,7 +83,7 @@ export const HomepageFlashcardDemo: React.FC<HomepageFlashcardDemoProps> = ({
           <div className="relative mb-6">
             <div className="perspective-1000">
               <div
-                className={`relative w-full h-[26rem] transition-transform duration-500 transform-style-preserve-3d ${
+                className={`relative w-full min-h-[26rem] transition-transform duration-500 transform-style-preserve-3d ${
                   isFlipped ? 'rotate-y-180' : ''
                 }`}
               >
@@ -104,20 +104,26 @@ export const HomepageFlashcardDemo: React.FC<HomepageFlashcardDemoProps> = ({
                       </div>
                     </div>
 
-                    {/* Question Content */}
-                    <div className="flex flex-1 flex-col overflow-auto px-6 py-8">
-                      <div className="flex min-h-32 flex-1 items-center justify-center">
-                        <div className="prose prose-slate mx-auto text-center">
+                    {/* Question Content - Clickable and Centered */}
+                    <div 
+                      className="flex flex-1 flex-col overflow-auto px-6 py-8 cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={showAnswer}
+                    >
+                      <div className="flex min-h-[10rem] flex-1 items-center justify-center">
+                        <div className="prose prose-slate text-center">
                           <h3 className="text-xl md:text-2xl font-semibold text-gray-900 mb-0">
                             {currentCard.question}
                           </h3>
                         </div>
                       </div>
                       
-                      {/* Show Answer Button - positioned at bottom */}
-                      <div className="flex justify-center pt-4 flex-shrink-0">
+                      {/* Show Answer Button - positioned at bottom with more space */}
+                      <div className="flex justify-center pt-8 pb-4 flex-shrink-0">
                         <Button
-                          onClick={showAnswer}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            showAnswer();
+                          }}
                           className="bg-[#F37022] hover:bg-[#E35D10] text-white flex items-center gap-2"
                         >
                           <Eye className="w-4 h-4" />
@@ -180,20 +186,26 @@ export const HomepageFlashcardDemo: React.FC<HomepageFlashcardDemoProps> = ({
                       </div>
                     </div>
 
-                    {/* Answer Content */}
-                    <div className="flex flex-1 flex-col overflow-auto px-6 py-8">
-                      <div className="flex min-h-32 flex-1 items-center justify-center">
-                        <div className="prose prose-slate mx-auto text-center">
+                    {/* Answer Content - Clickable */}
+                    <div 
+                      className="flex flex-1 flex-col overflow-auto px-6 py-8 cursor-pointer hover:bg-orange-500 transition-colors"
+                      onClick={toggleFlip}
+                    >
+                      <div className="flex min-h-[10rem] flex-1 items-start justify-start">
+                        <div className="prose prose-slate text-left">
                           <p className="text-base md:text-lg leading-relaxed text-white mb-0">
                             {currentCard.answer}
                           </p>
                         </div>
                       </div>
                       
-                      {/* Back to Question Button - positioned at bottom */}
-                      <div className="flex justify-center pt-4 flex-shrink-0">
+                      {/* Back to Question Button - positioned at bottom with more space */}
+                      <div className="flex justify-center pt-8 pb-4 flex-shrink-0">
                         <Button
-                          onClick={toggleFlip}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFlip();
+                          }}
                           className="bg-white/20 hover:bg-white/30 text-white border border-white/30 flex items-center gap-2"
                         >
                           <RotateCcw className="w-4 h-4" />
