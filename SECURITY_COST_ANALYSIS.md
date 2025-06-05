@@ -93,6 +93,18 @@ Total CloudWatch Annual Cost: $114.36
 
 **Cost Impact**: $0 (within existing plan capacity)
 
+## Third-Party Service Integration
+
+### Security Scanning Tools
+**Optional Security Services**:
+- **SecurityHeaders.com Pro**: $19/month
+- **OWASP ZAP Cloud**: $29/month  
+- **Semgrep Team**: $22/month per developer
+
+**Recommended**: Start with free tiers, upgrade based on needs
+**Initial Cost**: $0/month
+**Potential Future Cost**: $70/month
+
 ## Development & Operational Costs
 
 ### Implementation Time
@@ -214,8 +226,8 @@ Total First Year: $14,590.44
 
 ### Budget Allocation by Category
 - **AWS Services**: 15% ($2,190)
-- **Operational Labor**: 85% ($12,000)
-- **Contingency**: <1% ($438)
+- **Operational Labor**: 82% ($12,000)
+- **Tools & Software**: 3% ($438)
 
 ## Cost Monitoring & Controls
 
