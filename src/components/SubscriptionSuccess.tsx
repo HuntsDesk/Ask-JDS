@@ -40,7 +40,7 @@ export function SubscriptionSuccess() {
             Subscription Successful!
           </CardTitle>
           <CardDescription>
-            Thank you for subscribing to JDS Premium!
+            Thank you for your support. to JDS Premium!
           </CardDescription>
         </CardHeader>
         

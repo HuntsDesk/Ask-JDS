@@ -23,7 +23,10 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  ZoomIn
+  ZoomIn,
+  BookOpen,
+  Layers,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -139,13 +142,88 @@ const chatDemos = [
   }
 ];
 
+// Define the flashcard demo features array
+const flashcardFeatures = [
+  {
+    icon: Brain,
+    text: "Cut the noise. Focus on what's left. Mark cards as mastered, skip the ones you know, and drill what you don't — all in one seamless view.",
+    category: "Study Mode",
+    color: "text-orange-500",
+    bgColor: "bg-orange-500/5"
+  },
+  {
+    icon: BookOpen,
+    text: "Organize your law life, one subject at a time. Stay organized with built-in subject structure—less mess, more mastery.",
+    category: "Subjects",
+    color: "text-blue-500",
+    bgColor: "bg-blue-500/5"
+  },
+  {
+    icon: Layers,
+    text: "Make your own mini decks. Group flashcards however your brain works — by exam, topic, or your professor's favorite trick questions.",
+    category: "Collections",
+    color: "text-green-500",
+    bgColor: "bg-green-500/5"
+  },
+  {
+    icon: FileText,
+    text: "Study-ready and lightning-fast. Search, filter, mark mastered. Study smarter with a flashcard system designed to keep pace with your busy schedule.",
+    category: "Flashcards",
+    color: "text-purple-500",
+    bgColor: "bg-purple-500/5"
+  },
+  {
+    icon: FileText,
+    text: "Unlimited. Intuitive. Yours. Add as many flashcards as you want with a free account. Tag them, group them, and come back anytime.",
+    category: "Create Flashcards",
+    color: "text-indigo-500",
+    bgColor: "bg-indigo-500/5"
+  }
+];
+
+// Flashcard demo images corresponding to the flashcard features
+const flashcardDemos = [
+  {
+    id: 'core-subject',
+    image: '/images/flashcards/flashcard_demo_1.png',
+    title: 'Study Mode',
+    description: 'Cut the noise. Focus on what\'s left.'
+  },
+  {
+    id: 'concept-breakdown', 
+    image: '/images/flashcards/flashcard_demo_2.png',
+    title: 'Subjects',
+    description: 'Organize your law life, one subject at a time.'
+  },
+  {
+    id: 'exam-focused',
+    image: '/images/flashcards/flashcard_demo_3.png', 
+    title: 'Collections',
+    description: 'Make your own mini decks.'
+  },
+  {
+    id: 'memory-reinforcement',
+    image: '/images/flashcards/flashcard_demo_4.png',
+    title: 'Flashcards', 
+    description: 'Study-ready and lightning-fast.'
+  },
+  {
+    id: 'create-flashcards',
+    image: '/images/flashcards/flashcard_demo_5.png',
+    title: 'Create Flashcards',
+    description: 'Unlimited. Intuitive. Yours.'
+  }
+];
+
 export function HomePage() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [loading, setLoading] = useState(false);
   const [hasSubscription, setHasSubscription] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [currentFlashcardIndex, setCurrentFlashcardIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFlashcardModalOpen, setIsFlashcardModalOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -181,24 +259,25 @@ export function HomePage() {
   // Keyboard navigation for modal
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (!isModalOpen) return;
+      if (!isModalOpen && !isFlashcardModalOpen) return;
       
       switch (e.key) {
         case 'Escape':
-          closeModal();
+          if (isModalOpen) closeModal();
+          if (isFlashcardModalOpen) closeFlashcardModal();
           break;
       }
     };
 
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [isModalOpen]);
+  }, [isModalOpen, isFlashcardModalOpen]);
 
   // Global keyboard navigation for carousel
   useEffect(() => {
     const handleGlobalKeyPress = (e: KeyboardEvent) => {
       // Only handle if no input/textarea is focused and modal is not open
-      if (isModalOpen || document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      if (isModalOpen || isFlashcardModalOpen || document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
       
       switch (e.key) {
         case 'ArrowLeft':
@@ -212,7 +291,7 @@ export function HomePage() {
 
     document.addEventListener('keydown', handleGlobalKeyPress);
     return () => document.removeEventListener('keydown', handleGlobalKeyPress);
-  }, [isModalOpen]);
+  }, [isModalOpen, isFlashcardModalOpen]);
 
   const handleSignOut = async () => {
     console.log('HomePage: Sign out button clicked');
@@ -235,6 +314,14 @@ export function HomePage() {
     setCurrentImageIndex((prev) => (prev - 1 + chatDemos.length) % chatDemos.length);
   };
 
+  const nextFlashcard = () => {
+    setCurrentFlashcardIndex((prev) => (prev + 1) % flashcardDemos.length);
+  };
+
+  const prevFlashcard = () => {
+    setCurrentFlashcardIndex((prev) => (prev - 1 + flashcardDemos.length) % flashcardDemos.length);
+  };
+
   const openModal = (index: number) => {
     setCurrentImageIndex(index);
     setIsModalOpen(true);
@@ -242,6 +329,15 @@ export function HomePage() {
 
   const closeModal = () => {
     setIsModalOpen(false);
+  };
+
+  const openFlashcardModal = (index: number) => {
+    setCurrentFlashcardIndex(index);
+    setIsFlashcardModalOpen(true);
+  };
+
+  const closeFlashcardModal = () => {
+    setIsFlashcardModalOpen(false);
   };
   
   return (
@@ -448,8 +544,16 @@ export function HomePage() {
             </p>
           </div>
           
+          {/* Pop Quiz Header */}
+          <div className="text-center mb-8">
+            <h3 className="text-2xl font-bold text-black mb-2">Pop Quiz!</h3>
+          </div>
+          
+          {/* Interactive Flashcard Demo */}
+          <HomepageFlashcardDemo />
+          
           {/* Feature Items */}
-          <div className="text-center mb-16">
+          <div className="text-center mt-16 mb-16">
             <div className="grid md:grid-cols-3 gap-8 mb-6">
               <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm">
                 <div className="bg-orange-100 p-3 rounded-full mb-4">
@@ -469,19 +573,95 @@ export function HomePage() {
                 <div className="bg-green-100 p-3 rounded-full mb-4">
                   <GraduationCap className="w-8 h-8 text-green-500" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Anywhere, Any Time</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Anywhere, Anytime</h3>
                 <p className="text-gray-600">Available across all your devices so you can review on the go, between classes, or while waiting for coffee.</p>
               </div>
             </div>
           </div>
           
-          {/* Pop Quiz Header */}
-          <div className="text-center mb-8">
-            <h3 className="text-2xl font-bold text-black mb-2">Pop Quiz!</h3>
+          {/* See It in Action for Flashcards */}
+          <div className="mt-20">
+            {/* See It in Action Header */}
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-black mb-2">See It in Action</h3>
+            </div>
+
+            {/* Single Flashcard Feature Card with Image - Synced */}
+            <div className="max-w-4xl mx-auto mb-12">
+              <div className="group relative bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200">
+                
+                <div className="relative p-8">
+                  {/* Gradient Background - only covers content area, not bottom banner */}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${flashcardFeatures[currentFlashcardIndex].bgColor} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
+                  
+                  {/* Feature Content */}
+                  <div className="relative flex items-start space-x-6 mb-6">
+                    <div className={`${flashcardFeatures[currentFlashcardIndex].color} p-3 rounded-lg`}>
+                      {React.createElement(flashcardFeatures[currentFlashcardIndex].icon, { className: "w-12 h-12" })}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className={`text-2xl font-semibold ${flashcardFeatures[currentFlashcardIndex].color} mb-2`}>
+                        {flashcardFeatures[currentFlashcardIndex].category}
+                      </h3>
+                      <p className="text-lg text-gray-600 group-hover:text-gray-700 transition-colors">
+                        {flashcardFeatures[currentFlashcardIndex].text}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Integrated Image */}
+                  <div className="relative bg-gray-50 rounded-lg overflow-hidden">
+                    <img 
+                      src={flashcardDemos[currentFlashcardIndex].image} 
+                      alt={flashcardDemos[currentFlashcardIndex].title}
+                      className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => openFlashcardModal(currentFlashcardIndex)}
+                    />
+                    <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-lg opacity-0 hover:opacity-100 transition-opacity">
+                      <ZoomIn className="w-5 h-5" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Navigation Bar */}
+                <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex-shrink-0">
+                  <div className="flex justify-between items-center">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={prevFlashcard}
+                      className="flex items-center gap-1 text-gray-600 hover:text-gray-800"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </Button>
+
+                    <div className="flex space-x-2">
+                      {flashcardDemos.map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentFlashcardIndex(index)}
+                          className={`w-2 h-2 rounded-full transition-colors ${
+                            index === currentFlashcardIndex ? 'bg-[#F37022]' : 'bg-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={nextFlashcard}
+                      className="flex items-center gap-1 text-gray-600 hover:text-gray-800"
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          
-          {/* Interactive Flashcard Demo */}
-          <HomepageFlashcardDemo />
           
         </div>
       </section>
@@ -545,7 +725,7 @@ export function HomePage() {
       <section className="py-20 bg-gray-50 relative overflow-hidden">
         <div className="max-w-4xl mx-auto px-4 text-center relative z-10 box-border">
           <h2 className="text-5xl font-bold text-[#00178E] mb-6">
-            {user ? (hasSubscription ? "Thank you for subscribing" : "Upgrade Your Experience") : "Sign Up Now"}
+            {user ? (hasSubscription ? "Thank you for your support." : "Upgrade Your Experience") : "Sign Up Now"}
           </h2>
           <p className="text-2xl text-[#00178E] mb-10">
             {hasSubscription 
@@ -687,6 +867,29 @@ export function HomePage() {
           <img
             src={chatDemos[currentImageIndex].image}
             alt={chatDemos[currentImageIndex].title}
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      </div>
+    )}
+
+    {/* Flashcard Image Enlargement Modal */}
+    {isFlashcardModalOpen && (
+      <div 
+        className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+        onClick={closeFlashcardModal}
+      >
+        <div className="relative w-full h-full max-w-[90vw] max-h-[99vh] flex items-center justify-center">
+          <button
+            onClick={closeFlashcardModal}
+            className="absolute top-6 right-6 bg-black/70 text-white p-3 rounded-full hover:bg-black/90 transition-colors z-10"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={flashcardDemos[currentFlashcardIndex].image}
+            alt={flashcardDemos[currentFlashcardIndex].title}
             className="max-w-full max-h-full object-contain rounded-lg"
             onClick={(e) => e.stopPropagation()}
           />

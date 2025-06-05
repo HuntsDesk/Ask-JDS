@@ -37,7 +37,7 @@ export function CoursesSection() {
           Quick refreshers. In-depth walk-throughs. It's all inside.
           </p>
           <p className="text-lg text-gray-500 max-w-xl mx-auto mt-2 italic">
-            Like your professor … but without the tears and judgement.
+            Like your professor … but without the tears or judgement.
           </p>
         </div>
         
