@@ -19,7 +19,11 @@ import {
   User,
   Settings,
   CheckCircle,
-  CreditCard
+  CreditCard,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  ZoomIn
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -107,11 +111,41 @@ const questions = [
   }
 ];
 
+// Chat demo images corresponding to the question categories
+const chatDemos = [
+  {
+    id: 'concept-clarification',
+    image: '/images/chat/chat_demo_1.png',
+    title: 'Concept Clarification',
+    description: 'Example: "Explain promissory estoppel like I\'m five."'
+  },
+  {
+    id: 'legal-distinctions', 
+    image: '/images/chat/chat_demo_2.png',
+    title: 'Legal Distinctions',
+    description: 'Example: "What\'s the difference between negligence and strict liability?"'
+  },
+  {
+    id: 'case-analysis',
+    image: '/images/chat/chat_demo_3.png', 
+    title: 'Case Analysis',
+    description: 'Example: "Group project gone wrong. Hadley v. Baxendale—what\'s the damage?"'
+  },
+  {
+    id: 'rapid-summaries',
+    image: '/images/chat/chat_demo_4.png',
+    title: 'Rapid Topic Summaries', 
+    description: 'Example: "For negligence, give me a one-paragraph high-yield summary of key rules."'
+  }
+];
+
 export function HomePage() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [loading, setLoading] = useState(false);
   const [hasSubscription, setHasSubscription] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -144,6 +178,42 @@ export function HomePage() {
     };
   }, [user]); // Only rerun if user changes
 
+  // Keyboard navigation for modal
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (!isModalOpen) return;
+      
+      switch (e.key) {
+        case 'Escape':
+          closeModal();
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [isModalOpen]);
+
+  // Global keyboard navigation for carousel
+  useEffect(() => {
+    const handleGlobalKeyPress = (e: KeyboardEvent) => {
+      // Only handle if no input/textarea is focused and modal is not open
+      if (isModalOpen || document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      
+      switch (e.key) {
+        case 'ArrowLeft':
+          prevImage();
+          break;
+        case 'ArrowRight':
+          nextImage();
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyPress);
+    return () => document.removeEventListener('keydown', handleGlobalKeyPress);
+  }, [isModalOpen]);
+
   const handleSignOut = async () => {
     console.log('HomePage: Sign out button clicked');
     try {
@@ -155,6 +225,23 @@ export function HomePage() {
       // Force a page reload as a fallback
       window.location.href = '/';
     }
+  };
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % chatDemos.length);
+  };
+
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => (prev - 1 + chatDemos.length) % chatDemos.length);
+  };
+
+  const openModal = (index: number) => {
+    setCurrentImageIndex(index);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
   };
   
   return (
@@ -242,56 +329,106 @@ export function HomePage() {
               Try it when your outline isn't outlining.
             </p>
           </div>
-          <div className="grid md:grid-cols-2 gap-8">
-            {questions.map((question, index) => (
-              <div 
-                key={index} 
-                className="group relative bg-white rounded-xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden"
-              >
-                {/* Gradient Background */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${question.bgColor} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
+          
+          {/* How It Works - moved from separate section */}
+          <div className="mb-16">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+                <MessageSquare className="w-12 h-12 text-[#00178E] mb-4" />
+                <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Ask a Question</h3>
+                <p className="text-gray-600">Type in your legal query. Bar prep, case law, general despair—it's all fair game.</p>
+              </div>
+              <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+                <Brain className="w-12 h-12 text-[#00178E] mb-4" />
+                <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Get an Answer</h3>
+                <p className="text-gray-600">Powered by legal outlines, case summaries, and the AI equivalent of an over-caffeinated law nerd.</p>
+              </div>
+              <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+                <Rocket className="w-12 h-12 text-[#00178E] mb-4" />
+                <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Master the Topic</h3>
+                <p className="text-gray-600">We can't guarantee an A, but we can make sure you at least sound like you know what you're talking about.</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* See It in Action Header */}
+          <div className="text-center mb-8">
+            <h3 className="text-2xl font-bold text-black mb-2">See It in Action</h3>
+          </div>
+
+          {/* Single Question Card with Image - Synced */}
+          <div className="max-w-4xl mx-auto mb-12">
+            <div className="group relative bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200">
+              
+              <div className="relative p-8">
+                {/* Gradient Background - only covers content area, not bottom banner */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${questions[currentImageIndex].bgColor} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
                 
-                <div className="relative flex items-start space-x-6">
-                  <div className={`${question.color} p-3 rounded-lg`}>
-                    <question.icon className="w-10 h-10" />
+                {/* Question Content */}
+                <div className="relative flex items-start space-x-6 mb-6">
+                  <div className={`${questions[currentImageIndex].color} p-3 rounded-lg`}>
+                    {React.createElement(questions[currentImageIndex].icon, { className: "w-12 h-12" })}
                   </div>
-                  <div>
-                    <h3 className={`text-2xl font-semibold ${question.color} mb-2`}>
-                      {question.category}
+                  <div className="flex-1">
+                    <h3 className={`text-2xl font-semibold ${questions[currentImageIndex].color} mb-2`}>
+                      {questions[currentImageIndex].category}
                     </h3>
                     <p className="text-lg text-gray-600 group-hover:text-gray-700 transition-colors italic">
-                      "{question.text}"
+                      "{questions[currentImageIndex].text}"
                     </p>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* How It Works */}
-      <section id="how-it-works" className="py-20 bg-white overflow-x-hidden" style={{
-        backgroundImage: "url('/images/grid-pattern.svg')",
-        backgroundSize: "cover",
-      }}>
-        <div className="max-w-6xl mx-auto px-4 box-border">
-          <h2 className="text-4xl font-bold text-center mb-16 text-black">How It Works</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white p-8 rounded-xl shadow-sm">
-              <MessageSquare className="w-12 h-12 text-[#00178E] mb-4" />
-              <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Ask a Question</h3>
-              <p className="text-gray-600">Type in your legal query. Bar prep, case law, general despair—it's all fair game.</p>
-            </div>
-            <div className="bg-white p-8 rounded-xl shadow-sm">
-              <Brain className="w-12 h-12 text-[#00178E] mb-4" />
-              <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Get an Answer</h3>
-              <p className="text-gray-600">Powered by legal outlines, case summaries, and the AI equivalent of an over-caffeinated law nerd.</p>
-            </div>
-            <div className="bg-white p-8 rounded-xl shadow-sm">
-              <Rocket className="w-12 h-12 text-[#00178E] mb-4" />
-              <h3 className="text-2xl font-semibold mb-2 text-[#F37022]">Master the Topic</h3>
-              <p className="text-gray-600">We can't guarantee an A, but we can make sure you at least sound like you know what you're talking about.</p>
+                {/* Integrated Image */}
+                <div className="relative bg-gray-50 rounded-lg overflow-hidden">
+                  <img 
+                    src={chatDemos[currentImageIndex].image} 
+                    alt={chatDemos[currentImageIndex].title}
+                    className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => openModal(currentImageIndex)}
+                  />
+                  <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-lg opacity-0 hover:opacity-100 transition-opacity">
+                    <ZoomIn className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Navigation Bar */}
+              <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex-shrink-0">
+                <div className="flex justify-between items-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={prevImage}
+                    className="flex items-center gap-1 text-gray-600 hover:text-gray-800"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Previous
+                  </Button>
+
+                  <div className="flex space-x-2">
+                    {chatDemos.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentImageIndex(index)}
+                        className={`w-2 h-2 rounded-full transition-colors ${
+                          index === currentImageIndex ? 'bg-[#F37022]' : 'bg-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={nextImage}
+                    className="flex items-center gap-1 text-gray-600 hover:text-gray-800"
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -304,15 +441,15 @@ export function HomePage() {
           <div className="text-center mb-4">
             <h2 id="flashcards" className="text-4xl font-bold text-black mb-4" style={{scrollMarginTop: '6rem'}}>Need Help Remembering?</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Law school isn't just reading. It's remembering. Drill key rules and topics with 400+ expert-created cards. No fluff. Just the stuff you forget on cold calls.
+              Law school isn't just reading. It's remembering. Drill key rules and topics with 400+ expert-created cards. No fluff.
             </p>
             <p className="text-lg text-gray-500 max-w-xl mx-auto mt-2 italic">
-              Spaced repetition. Zero judgment.
+              Cold-call killers. No shame, just reps.
             </p>
           </div>
           
           {/* Feature Items */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-16">
             <div className="grid md:grid-cols-3 gap-8 mb-6">
               <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm">
                 <div className="bg-orange-100 p-3 rounded-full mb-4">
@@ -336,6 +473,11 @@ export function HomePage() {
                 <p className="text-gray-600">Available across all your devices so you can review on the go, between classes, or while waiting for coffee.</p>
               </div>
             </div>
+          </div>
+          
+          {/* Pop Quiz Header */}
+          <div className="text-center mb-8">
+            <h3 className="text-2xl font-bold text-black mb-2">Pop Quiz!</h3>
           </div>
           
           {/* Interactive Flashcard Demo */}
@@ -408,7 +550,7 @@ export function HomePage() {
           <p className="text-2xl text-[#00178E] mb-10">
             {hasSubscription 
               ? "You're all set with your premium subscription. Head to the chat to start asking questions."
-              : "Skip the overpriced tutors and questionable Reddit advice—Meetyour $10/month legal survival guide."}
+              : "Skip the overpriced tutors and questionable Reddit advice— Ask JDS."}
           </p>
           <div className="flex flex-col items-center gap-8">
             <div className="flex flex-col md:flex-row gap-4 justify-center">
@@ -479,7 +621,7 @@ export function HomePage() {
               <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
               <ul className="space-y-2">
                 <li>
-                  <Link to="/" className="text-gray-300 hover:text-white transition-colors">Home</Link>
+                  <a href="#top" className="text-gray-300 hover:text-white transition-colors">Home</a>
                 </li>
                 <li>
                   <Link to="/auth" className="text-gray-300 hover:text-white transition-colors">Sign In</Link>
@@ -528,6 +670,29 @@ export function HomePage() {
         </div>
       </footer>
     </div>
+
+    {/* Image Enlargement Modal */}
+    {isModalOpen && (
+      <div 
+        className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+        onClick={closeModal}
+      >
+        <div className="relative w-full h-full max-w-[90vw] max-h-[99vh] flex items-center justify-center">
+          <button
+            onClick={closeModal}
+            className="absolute top-6 right-6 bg-black/70 text-white p-3 rounded-full hover:bg-black/90 transition-colors z-10"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={chatDemos[currentImageIndex].image}
+            alt={chatDemos[currentImageIndex].title}
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      </div>
+    )}
     </PageLayout>
   );
 }

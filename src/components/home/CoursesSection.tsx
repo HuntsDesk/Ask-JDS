@@ -34,7 +34,7 @@ export function CoursesSection() {
         <div className="text-center mb-4">
           <h2 id="courses" className="text-4xl font-bold text-black mb-4" style={{scrollMarginTop: '6rem'}}>Go Deeper When You're Ready</h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-          Quick refreshers. In-depth walk-throughs. It’s all inside.
+          Quick refreshers. In-depth walk-throughs. It's all inside.
           </p>
           <p className="text-lg text-gray-500 max-w-xl mx-auto mt-2 italic">
             Like your professor … but without the tears and judgement.
@@ -45,7 +45,7 @@ export function CoursesSection() {
         <div className="text-center mb-8">
           <div className="grid md:grid-cols-3 gap-8 mb-6">
             {courseFeatures.map((feature, index) => (
-              <div key={index} className="flex flex-col items-center p-6 bg-white rounded-xl shadow-sm">
+              <div key={index} className="flex flex-col items-start text-left p-6 bg-white rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition-shadow">
                 <div className={`${feature.bgColor} p-3 rounded-full mb-4`}>
                   <feature.icon className={`w-8 h-8 ${feature.color}`} />
                 </div>
@@ -66,7 +66,7 @@ export function CoursesSection() {
               Structured Learning, Your Way
             </h3>
             <p className="text-lg text-gray-600 mb-6">
-              Each course breaks down complex legal topics into manageable lessons with interactive elements, real examples, and practice questions to reinforce your understanding.
+              Each course breaks down complex legal topics into manageable lessons with frameworks, examples, and a laugh or two.
             </p>
             <div className="inline-flex items-center gap-4 text-sm text-gray-500">
               <span className="flex items-center gap-2">
