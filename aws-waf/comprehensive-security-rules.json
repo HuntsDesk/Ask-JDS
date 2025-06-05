@@ -1,0 +1,217 @@
+{
+  "WebACL": {
+    "Name": "AskJDS-ComprehensiveSecurity",
+    "Scope": "CLOUDFRONT",
+    "DefaultAction": {
+      "Allow": {}
+    },
+    "Rules": [
+      {
+        "Name": "AWSManagedRulesCommonRuleSet",
+        "Priority": 1,
+        "OverrideAction": {
+          "None": {}
+        },
+        "Statement": {
+          "ManagedRuleGroupStatement": {
+            "VendorName": "AWS",
+            "Name": "AWSManagedRulesCommonRuleSet"
+          }
+        },
+        "VisibilityConfig": {
+          "SampledRequestsEnabled": true,
+          "CloudWatchMetricsEnabled": true,
+          "MetricName": "CommonRuleSetMetric"
+        }
+      },
+      {
+        "Name": "AWSManagedRulesKnownBadInputsRuleSet",
+        "Priority": 2,
+        "OverrideAction": {
+          "None": {}
+        },
+        "Statement": {
+          "ManagedRuleGroupStatement": {
+            "VendorName": "AWS",
+            "Name": "AWSManagedRulesKnownBadInputsRuleSet"
+          }
+        },
+        "VisibilityConfig": {
+          "SampledRequestsEnabled": true,
+          "CloudWatchMetricsEnabled": true,
+          "MetricName": "KnownBadInputsMetric"
+        }
+      },
+      {
+        "Name": "AWSManagedRulesAmazonIpReputationList",
+        "Priority": 3,
+        "OverrideAction": {
+          "None": {}
+        },
+        "Statement": {
+          "ManagedRuleGroupStatement": {
+            "VendorName": "AWS",
+            "Name": "AWSManagedRulesAmazonIpReputationList"
+          }
+        },
+        "VisibilityConfig": {
+          "SampledRequestsEnabled": true,
+          "CloudWatchMetricsEnabled": true,
+          "MetricName": "IpReputationMetric"
+        }
+      },
+      {
+        "Name": "RateLimitPerIP",
+        "Priority": 4,
+        "Action": {
+          "Block": {}
+        },
+        "Statement": {
+          "RateBasedStatement": {
+            "Limit": 2000,
+            "AggregateKeyType": "IP"
+          }
+        },
+        "VisibilityConfig": {
+          "SampledRequestsEnabled": true,
+          "CloudWatchMetricsEnabled": true,
+          "MetricName": "RateLimitPerIPMetric"
+        }
+      },
+      {
+        "Name": "AdminPathProtection",
+        "Priority": 5,
+        "Action": {
+          "Block": {}
+        },
+        "Statement": {
+          "AndStatement": {
+            "Statements": [
+              {
+                "ByteMatchStatement": {
+                  "SearchString": "/admin",
+                  "FieldToMatch": {
+                    "UriPath": {}
+                  },
+                  "TextTransformations": [
+                    {
+                      "Priority": 0,
+                      "Type": "LOWERCASE"
+                    }
+                  ],
+                  "PositionalConstraint": "STARTS_WITH"
+                }
+              },
+              {
+                "NotStatement": {
+                  "Statement": {
+                    "ByteMatchStatement": {
+                      "SearchString": "admin.jdsimplified.com",
+                      "FieldToMatch": {
+                        "SingleHeader": {
+                          "Name": "host"
+                        }
+                      },
+                      "TextTransformations": [
+                        {
+                          "Priority": 0,
+                          "Type": "LOWERCASE"
+                        }
+                      ],
+                      "PositionalConstraint": "EXACTLY"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "VisibilityConfig": {
+          "SampledRequestsEnabled": true,
+          "CloudWatchMetricsEnabled": true,
+          "MetricName": "AdminPathProtectionMetric"
+        }
+      },
+      {
+        "Name": "SQLInjectionProtection",
+        "Priority": 6,
+        "Action": {
+          "Block": {}
+        },
+        "Statement": {
+          "SqliMatchStatement": {
+            "FieldToMatch": {
+              "AllQueryArguments": {}
+            },
+            "TextTransformations": [
+              {
+                "Priority": 0,
+                "Type": "URL_DECODE"
+              },
+              {
+                "Priority": 1,
+                "Type": "HTML_ENTITY_DECODE"
+              }
+            ]
+          }
+        },
+        "VisibilityConfig": {
+          "SampledRequestsEnabled": true,
+          "CloudWatchMetricsEnabled": true,
+          "MetricName": "SQLInjectionMetric"
+        }
+      },
+      {
+        "Name": "XSSProtection",
+        "Priority": 7,
+        "Action": {
+          "Block": {}
+        },
+        "Statement": {
+          "XssMatchStatement": {
+            "FieldToMatch": {
+              "Body": {}
+            },
+            "TextTransformations": [
+              {
+                "Priority": 0,
+                "Type": "URL_DECODE"
+              },
+              {
+                "Priority": 1,
+                "Type": "HTML_ENTITY_DECODE"
+              }
+            ]
+          }
+        },
+        "VisibilityConfig": {
+          "SampledRequestsEnabled": true,
+          "CloudWatchMetricsEnabled": true,
+          "MetricName": "XSSProtectionMetric"
+        }
+      },
+      {
+        "Name": "GeoBlocking",
+        "Priority": 8,
+        "Action": {
+          "Block": {}
+        },
+        "Statement": {
+          "GeoMatchStatement": {
+            "CountryCodes": ["CN", "RU", "KP", "IR"]
+          }
+        },
+        "VisibilityConfig": {
+          "SampledRequestsEnabled": true,
+          "CloudWatchMetricsEnabled": true,
+          "MetricName": "GeoBlockingMetric"
+        }
+      }
+    ],
+    "VisibilityConfig": {
+      "SampledRequestsEnabled": true,
+      "CloudWatchMetricsEnabled": true,
+      "MetricName": "AskJDSWebACL"
+    }
+  }
+} 

@@ -1,0 +1,51 @@
+{
+  "ResponseHeadersPolicyConfig": {
+    "Name": "AskJDS-SecurityPolicy-Enhanced",
+    "Comment": "Complete security headers with CSP violation reporting for 10/10 score",
+    "SecurityHeadersConfig": {
+      "ContentSecurityPolicy": {
+        "Override": true,
+        "ContentSecurityPolicy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://checkout.stripe.com https://cdn.usermaven.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' wss: https://*.supabase.co https://api.stripe.com https://generativelanguage.googleapis.com https://api.usermaven.com; frame-src https://js.stripe.com https://hooks.stripe.com; worker-src 'self' blob:; manifest-src 'self'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; frame-ancestors 'none'; report-uri https://prbbuxgirnecbkpdpgcb.supabase.co/functions/v1/csp-violation-report;"
+      },
+      "FrameOptions": { 
+        "Override": true, 
+        "FrameOption": "DENY" 
+      },
+      "ReferrerPolicy": { 
+        "Override": true, 
+        "ReferrerPolicy": "strict-origin-when-cross-origin" 
+      },
+      "StrictTransportSecurity": { 
+        "Override": true, 
+        "IncludeSubdomains": true, 
+        "Preload": true, 
+        "AccessControlMaxAgeSec": 31536000 
+      },
+      "XContentTypeOptions": { 
+        "Override": true 
+      },
+      "CrossOriginOpenerPolicy": {
+        "Override": true,
+        "Policy": "same-origin"
+      },
+      "CrossOriginEmbedderPolicy": {
+        "Override": true,
+        "Policy": "require-corp"
+      }
+    },
+    "CustomHeadersConfig": {
+      "Items": [
+        {
+          "Header": "Permissions-Policy",
+          "Value": "geolocation=(), microphone=(), camera=(), fullscreen=(self), payment=(self)",
+          "Override": true
+        },
+        {
+          "Header": "X-Permitted-Cross-Domain-Policies",
+          "Value": "none",
+          "Override": true
+        }
+      ]
+    }
+  }
+} 

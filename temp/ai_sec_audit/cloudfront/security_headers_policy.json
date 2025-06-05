@@ -1,0 +1,16 @@
+{
+  "ResponseHeadersPolicyConfig": {
+    "Name": "AskJDS-SecurityPolicy",
+    "Comment": "Security headers only - CORS handled by Edge Functions",
+    "SecurityHeadersConfig": {
+      "ContentSecurityPolicy": {
+        "Override": true,
+        "ContentSecurityPolicy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://checkout.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' wss: https://*.supabase.co https://api.stripe.com https://generativelanguage.googleapis.com; frame-src https://js.stripe.com https://hooks.stripe.com;"
+      },
+      "FrameOptions": { "Override": true, "FrameOption": "DENY" },
+      "ReferrerPolicy": { "Override": true, "ReferrerPolicy": "strict-origin-when-cross-origin" },
+      "StrictTransportSecurity": { "Override": true, "IncludeSubdomains": true, "Preload": true, "AccessControlMaxAgeSec": 31536000 },
+      "XContentTypeOptions": { "Override": true }
+    }
+  }
+}

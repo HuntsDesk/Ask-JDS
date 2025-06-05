@@ -91,6 +91,7 @@ const AdminFlashcards = lazy(() => import('@/components/admin/Flashcards').then(
 const AdminAskJDS = lazy(() => import('@/components/admin/AskJDS').then(module => ({ default: module.default })));
 const AdminSettings = lazy(() => import('@/components/admin/Settings').then(module => ({ default: module.default })));
 const SetAdminStatus = lazy(() => import('@/components/admin/SetAdmin').then(module => ({ default: module.default })));
+const AdminSecurity = lazy(() => import('@/components/admin/SecurityDashboard').then(module => ({ default: module.SecurityDashboard })));
 
 // Import SetAdminStatus directly for the setup route
 import SetAdminSetup from './components/admin/SetAdmin';
@@ -261,6 +262,16 @@ function AppRoutes() {
           } 
         />
         <Route 
+          path="/admin/security" 
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader message="Loading security dashboard..." />}>
+                <AdminSecurity />
+              </Suspense>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
           path="/admin/error-logs" 
           element={
             <ProtectedRoute>
@@ -325,6 +336,7 @@ function AppRoutes() {
         } />
         <Route path="admin" element={<AdminDashboard />} />
         <Route path="admin/users" element={<AdminUsers />} />
+        <Route path="admin/security" element={<AdminSecurity />} />
         <Route path="admin/error-logs" element={<AdminErrorLogs />} />
         <Route path="admin/courses" element={<AdminCourses />} />
         <Route path="admin/courses/:courseId" element={<CourseDetail />} />

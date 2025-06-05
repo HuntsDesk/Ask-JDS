@@ -1,0 +1,314 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run security audit daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  security-headers-test:
+    name: Security Headers Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Test Security Headers
+        run: |
+          # Test CloudFront security headers configuration
+          npm install -g @vvo/security-headers-checker
+          
+          # Define expected headers
+          EXPECTED_HEADERS=(
+            "Content-Security-Policy"
+            "X-Frame-Options"
+            "X-Content-Type-Options"
+            "Strict-Transport-Security"
+            "Referrer-Policy"
+            "Cross-Origin-Opener-Policy"
+            "Cross-Origin-Embedder-Policy"
+            "Permissions-Policy"
+          )
+          
+          # Test each domain (would need to be deployed first)
+          DOMAINS=("askjds.com" "jdsimplified.com" "admin.jdsimplified.com")
+          
+          for domain in "${DOMAINS[@]}"; do
+            echo "Testing headers for $domain"
+            for header in "${EXPECTED_HEADERS[@]}"; do
+              if curl -s -I "https://$domain" | grep -i "$header"; then
+                echo "✅ $header found on $domain"
+              else
+                echo "❌ $header missing on $domain"
+                exit 1
+              fi
+            done
+          done
+
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: |
+          # Fail on high and critical vulnerabilities
+          npm audit --audit-level high
+          
+          # Generate detailed report
+          npm audit --json > audit-report.json
+          
+          # Check for specific vulnerability types
+          CRITICAL_COUNT=$(cat audit-report.json | jq '.metadata.vulnerabilities.critical // 0')
+          HIGH_COUNT=$(cat audit-report.json | jq '.metadata.vulnerabilities.high // 0')
+          
+          echo "Critical vulnerabilities: $CRITICAL_COUNT"
+          echo "High vulnerabilities: $HIGH_COUNT"
+          
+          if [ "$CRITICAL_COUNT" -gt 0 ] || [ "$HIGH_COUNT" -gt 0 ]; then
+            echo "❌ Security vulnerabilities found!"
+            exit 1
+          fi
+          
+          echo "✅ No critical or high vulnerabilities found"
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: dependency-audit-report
+          path: audit-report.json
+
+  lighthouse-security:
+    name: Lighthouse Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install -g @lhci/cli@0.12.x
+
+      - name: Build application
+        run: npm run build
+
+      - name: Run Lighthouse CI
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+        run: |
+          # Configure Lighthouse CI for security auditing
+          cat > lighthouserc.js << EOF
+          module.exports = {
+            ci: {
+              collect: {
+                staticDistDir: './dist',
+                url: [
+                  'http://localhost/index.html',
+                  'http://localhost/chat',
+                  'http://localhost/courses'
+                ],
+                settings: {
+                  chromeFlags: '--no-sandbox --headless'
+                }
+              },
+              assert: {
+                assertions: {
+                  'categories:security': ['error', {minScore: 0.9}],
+                  'csp-xss': ['error', {minScore: 1}],
+                  'is-on-https': ['error', {minScore: 1}],
+                  'redirects-http': ['error', {minScore: 1}],
+                  'uses-http2': ['warn', {minScore: 0.8}]
+                }
+              },
+              upload: {
+                target: 'temporary-public-storage'
+              }
+            }
+          };
+          EOF
+          
+          lhci autorun
+
+  code-security-scan:
+    name: Code Security Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run Semgrep Security Scan
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/react
+            p/typescript
+            p/secrets
+          generateSarif: true
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: semgrep.sarif
+        if: always()
+
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Full history for secret scanning
+
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@v3.63.2-beta
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+  csp-validation:
+    name: CSP Policy Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Validate CSP Policy
+        run: |
+          # Install CSP validator
+          npm install -g csp-evaluator
+          
+          # Extract CSP from CloudFront policy
+          CSP_POLICY=$(cat temp/ai_sec_audit/cloudfront/enhanced_security_headers_policy.json | jq -r '.ResponseHeadersPolicyConfig.SecurityHeadersConfig.ContentSecurityPolicy.ContentSecurityPolicy')
+          
+          echo "Validating CSP Policy:"
+          echo "$CSP_POLICY"
+          
+          # Basic CSP validation
+          if [[ ! "$CSP_POLICY" =~ "default-src" ]]; then
+            echo "❌ CSP missing default-src directive"
+            exit 1
+          fi
+          
+          if [[ ! "$CSP_POLICY" =~ "script-src" ]]; then
+            echo "❌ CSP missing script-src directive"
+            exit 1
+          fi
+          
+          if [[ ! "$CSP_POLICY" =~ "frame-ancestors 'none'" ]]; then
+            echo "❌ CSP missing frame-ancestors protection"
+            exit 1
+          fi
+          
+          if [[ ! "$CSP_POLICY" =~ "report-uri" ]]; then
+            echo "❌ CSP missing violation reporting"
+            exit 1
+          fi
+          
+          echo "✅ CSP policy validation passed"
+
+  edge-function-security:
+    name: Edge Function Security Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Validate Edge Function Security
+        run: |
+          # Check for hardcoded secrets in Edge Functions
+          if grep -r "sk_live\|sk_test\|whsec_" supabase/functions/ --exclude-dir=_shared; then
+            echo "❌ Hardcoded secrets found in Edge Functions!"
+            exit 1
+          fi
+          
+          # Check for proper npm: specifiers
+          if grep -r "from ['\"]https://" supabase/functions/ | grep -v "npm:" | grep -v "jsr:"; then
+            echo "❌ Non-npm/jsr imports found in Edge Functions!"
+            exit 1
+          fi
+          
+          # Check for proper error handling
+          if ! grep -r "try.*catch" supabase/functions/*/index.ts; then
+            echo "❌ Missing error handling in Edge Functions!"
+            exit 1
+          fi
+          
+          # Check for CORS headers
+          if ! grep -r "Access-Control-Allow-Origin" supabase/functions/*/index.ts; then
+            echo "❌ Missing CORS headers in Edge Functions!"
+            exit 1
+          fi
+          
+          echo "✅ Edge Function security checks passed"
+
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [security-headers-test, dependency-scan, lighthouse-security, code-security-scan, secret-scan, csp-validation, edge-function-security]
+    if: always()
+    steps:
+      - name: Generate Security Summary
+        run: |
+          echo "# Security Audit Summary" > security-report.md
+          echo "Date: $(date)" >> security-report.md
+          echo "" >> security-report.md
+          
+          # Check job results
+          JOBS=("security-headers-test" "dependency-scan" "lighthouse-security" "code-security-scan" "secret-scan" "csp-validation" "edge-function-security")
+          
+          for job in "${JOBS[@]}"; do
+            if [ "${{ needs.$job.result }}" == "success" ]; then
+              echo "✅ $job: PASSED" >> security-report.md
+            else
+              echo "❌ $job: FAILED" >> security-report.md
+            fi
+          done
+          
+          echo "" >> security-report.md
+          echo "## Security Score" >> security-report.md
+          
+          # Calculate security score
+          PASSED_COUNT=0
+          for job in "${JOBS[@]}"; do
+            if [ "${{ needs.$job.result }}" == "success" ]; then
+              PASSED_COUNT=$((PASSED_COUNT + 1))
+            fi
+          done
+          
+          SCORE=$((PASSED_COUNT * 100 / ${#JOBS[@]}))
+          echo "Overall Security Score: $SCORE/100" >> security-report.md
+          
+          cat security-report.md
+
+      - name: Upload Security Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-audit-report
+          path: security-report.md 
