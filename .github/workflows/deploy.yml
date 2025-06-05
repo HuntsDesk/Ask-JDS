@@ -26,9 +26,12 @@ jobs:
           node-version: '18'
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
+        continue-on-error: true
       
-      - name: Install Dependencies
-        run: npm ci --legacy-peer-deps
+      - name: Install Dependencies (Optimized)
+        run: |
+          # Use npm ci with optimized flags for faster installs
+          npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund
 
       - name: Fix known security vulnerabilities
         run: npm audit fix --legacy-peer-deps || true
@@ -100,9 +103,12 @@ jobs:
           node-version: '18'
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
+        continue-on-error: true
       
-      - name: Install Dependencies
-        run: npm ci --legacy-peer-deps
+      - name: Install Dependencies (Optimized)
+        run: |
+          # Use npm ci with optimized flags for faster installs
+          npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund
 
       - name: Fix known security vulnerabilities
         run: npm audit fix --legacy-peer-deps || true
@@ -174,9 +180,12 @@ jobs:
           node-version: '18'
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
+        continue-on-error: true
       
-      - name: Install Dependencies
-        run: npm ci --legacy-peer-deps
+      - name: Install Dependencies (Optimized)
+        run: |
+          # Use npm ci with optimized flags for faster installs
+          npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund
 
       - name: Fix known security vulnerabilities
         run: npm audit fix --legacy-peer-deps || true
