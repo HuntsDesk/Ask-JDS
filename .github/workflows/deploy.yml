@@ -49,6 +49,8 @@ jobs:
           VITE_GUMLET_ACCOUNT_ID: ${{ secrets.VITE_GUMLET_ACCOUNT_ID }}
           # Image optimization
           VITE_TWICPICS_DOMAIN: ${{ secrets.VITE_TWICPICS_DOMAIN }}
+          # Video analytics
+          VITE_GUMLET_PROPERTY_ID: ${{ secrets.VITE_GUMLET_PROPERTY_ID }}
         run: npx vite build --mode askjds
 
       - name: Copy build artifacts to proper directory
@@ -130,6 +132,8 @@ jobs:
           VITE_GUMLET_ACCOUNT_ID: ${{ secrets.VITE_GUMLET_ACCOUNT_ID }}
           # Image optimization
           VITE_TWICPICS_DOMAIN: ${{ secrets.VITE_TWICPICS_DOMAIN }}
+          # Video analytics
+          VITE_GUMLET_PROPERTY_ID: ${{ secrets.VITE_GUMLET_PROPERTY_ID }}
         run: npx vite build --mode jds
 
       - name: Copy build artifacts to proper directory
@@ -211,6 +215,8 @@ jobs:
           VITE_GUMLET_ACCOUNT_ID: ${{ secrets.VITE_GUMLET_ACCOUNT_ID }}
           # Image optimization
           VITE_TWICPICS_DOMAIN: ${{ secrets.VITE_TWICPICS_DOMAIN }}
+          # Video analytics
+          VITE_GUMLET_PROPERTY_ID: ${{ secrets.VITE_GUMLET_PROPERTY_ID }}
         run: npx vite build --mode admin
 
       - name: Copy build artifacts to proper directory
