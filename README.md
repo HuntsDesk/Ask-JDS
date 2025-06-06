@@ -97,6 +97,31 @@ Each is served via a domain-specific entrypoint with conditional logic driven by
 
 ### Recent Security Updates (January 2025)
 
+#### **Enhanced Security Implementation (January 6, 2025)**
+- ✅ **COMPLETE SECURITY OVERHAUL**: Implemented comprehensive security framework
+  - **Uniform Edge Function Authentication**: All 20+ edge functions now use consistent `Authorization` header validation
+  - **Security Middleware**: Created `withSecureAuth.ts` shared authentication module used across all functions
+  - **Rate Limiting**: Implemented database-level rate limiting with configurable limits and windows
+  - **Enhanced Error Handling**: Consistent security error responses across all endpoints
+  - **CSP Violation Reporting**: Deployed `csp-violation-report` function for security monitoring
+  - **CloudFront Security Headers**: Complete policy templates for COEP, CSP, and Permissions Policy
+  - **AWS WAF Rules**: Comprehensive security rules for DDoS protection, bot filtering, and rate limiting
+
+#### **Video Infrastructure Fix (January 6, 2025)**
+- ✅ **Gumlet Video Integration Fixed**: Resolved missing `VITE_GUMLET_ACCOUNT_ID` in GitHub Actions deployment
+  - **Root Cause**: Environment variable missing from CI/CD pipeline build process
+  - **Solution**: Added `VITE_GUMLET_ACCOUNT_ID` to all three build jobs (Ask JDS, JD Simplified, Admin)
+  - **Enhanced Error Handling**: Added debugging and fallback handling in `gumlet.ts`
+  - **Video Playback Restored**: All course video content now loads correctly in production
+
+#### **Security Policy Compliance (January 6, 2025)**
+- ✅ **Permissions Policy Implementation**: Fixed payment API violations and enhanced privacy
+  - **Payment APIs**: Enabled `payment=*` to resolve Stripe.js functionality
+  - **Privacy Protection**: Blocked unnecessary permissions (`geolocation=()`, `microphone=()`, `camera=()`)
+  - **Media Support**: Enabled `encrypted-media=*` for DRM video content
+  - **UX Enhancement**: Allowed `fullscreen=(self)` for video player functionality
+
+#### **Previous Security Improvements**
 - ✅ **Removed hardcoded Stripe webhook secrets** from git history using `git filter-branch`
 - ✅ **CRITICAL: Completely removed exposed Supabase service keys** from entire git history
   - Removed script files containing hardcoded service keys (`rls_policy_comparison.sh`, `quick_schema_check.sh`, `detailed_schema_comparison.sh`)
