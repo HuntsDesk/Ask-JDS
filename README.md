@@ -114,6 +114,15 @@ Each is served via a domain-specific entrypoint with conditional logic driven by
   - **Enhanced Error Handling**: Added debugging and fallback handling in `gumlet.ts`
   - **Video Playback Restored**: All course video content now loads correctly in production
 
+#### **TwicPics Image Optimization Integration (January 6, 2025)**
+- ✅ **TwicPics CDN Configuration**: Implemented static image optimization alongside Gumlet video CDN
+  - **Domain**: `jdsimplified.twic.pics` configured for image optimization
+  - **Scope**: Static images only (logos, hero images, flashcard demos, profile pictures)
+  - **Gumlet Coexistence**: Videos remain on Gumlet CDN (`video.gumlet.io`) - no conflict
+  - **Features**: WebP/AVIF conversion, responsive sizing, quality optimization
+  - **Implementation**: Created `src/lib/twicpics.ts` utility with presets and React components
+  - **Environment**: Added `VITE_TWICPICS_DOMAIN` to all GitHub Actions build workflows
+
 #### **Security Policy Compliance (January 6, 2025)**
 - ✅ **Permissions Policy Implementation**: Fixed payment API violations and enhanced privacy
   - **Payment APIs**: Enabled `payment=*` to resolve Stripe.js functionality
@@ -295,6 +304,10 @@ VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
 # Application
 ENVIRONMENT=development
 PUBLIC_APP_URL=http://localhost:5173
+
+# CDN & Media Services
+VITE_GUMLET_ACCOUNT_ID=your_gumlet_account_id      # Video CDN (Gumlet)
+VITE_TWICPICS_DOMAIN=your_domain.twic.pics         # Image optimization CDN (TwicPics)
 
 # AI Models (Set via `npx supabase secrets set`)
 AI_MODEL_PRIMARY_DEV=jds-titan      # Primary chat model for development
