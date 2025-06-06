@@ -45,6 +45,8 @@ jobs:
           # Legacy variables for backward compatibility
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL_DEV }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY_DEV }}
+          # Video hosting
+          VITE_GUMLET_ACCOUNT_ID: ${{ secrets.VITE_GUMLET_ACCOUNT_ID }}
         run: npx vite build --mode askjds
 
       - name: Copy build artifacts to proper directory
@@ -122,6 +124,8 @@ jobs:
           # Legacy variables for backward compatibility
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL_DEV }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY_DEV }}
+          # Video hosting
+          VITE_GUMLET_ACCOUNT_ID: ${{ secrets.VITE_GUMLET_ACCOUNT_ID }}
         run: npx vite build --mode jds
 
       - name: Copy build artifacts to proper directory
@@ -199,6 +203,8 @@ jobs:
           # Legacy variables for backward compatibility
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL_DEV }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY_DEV }}
+          # Video hosting
+          VITE_GUMLET_ACCOUNT_ID: ${{ secrets.VITE_GUMLET_ACCOUNT_ID }}
         run: npx vite build --mode admin
 
       - name: Copy build artifacts to proper directory

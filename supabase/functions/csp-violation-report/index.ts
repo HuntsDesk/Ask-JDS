@@ -78,12 +78,23 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // CSP violation reports are sent without authentication by the browser
+    // This is expected behavior - we don't require auth for CSP reports
+    
     const report = await req.json() as CSPViolationReport;
     const clientIP = req.headers.get('CF-Connecting-IP') || 
                      req.headers.get('X-Forwarded-For') || 
                      req.headers.get('X-Real-IP') || 
                      'unknown';
     const userAgent = req.headers.get('User-Agent') || 'unknown';
+
+    console.log('CSP Violation Report received:', {
+      violatedDirective: report['csp-report']?.['violated-directive'],
+      blockedUri: report['csp-report']?.['blocked-uri'],
+      documentUri: report['csp-report']?.['document-uri'],
+      clientIP,
+      userAgent: userAgent.substring(0, 100) // Truncate long user agents
+    });
 
     await logCSPViolation(report, clientIP, userAgent);
 
@@ -93,8 +104,10 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error('CSP violation report error:', error);
-    return new Response(JSON.stringify({ error: 'Failed to process report' }), {
-      status: 500,
+    
+    // Still return 200 to avoid browser retry loops
+    return new Response(JSON.stringify({ received: true, error: 'Logged but failed to process' }), {
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }

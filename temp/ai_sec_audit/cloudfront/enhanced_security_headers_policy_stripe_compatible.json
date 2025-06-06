@@ -1,7 +1,7 @@
 {
   "ResponseHeadersPolicyConfig": {
-    "Name": "AskJDS-SecurityPolicy-Enhanced",
-    "Comment": "Complete security headers with CSP violation reporting for 10/10 score",
+    "Name": "AskJDS-SecurityPolicy-StripeCompatible",
+    "Comment": "Security headers optimized for Stripe.js compatibility while maintaining security",
     "SecurityHeadersConfig": {
       "ContentSecurityPolicy": {
         "Override": true,
@@ -27,6 +27,10 @@
       "CrossOriginOpenerPolicy": {
         "Override": true,
         "Policy": "same-origin"
+      },
+      "CrossOriginEmbedderPolicy": {
+        "Override": true,
+        "Policy": "credentialless"
       }
     },
     "CustomHeadersConfig": {
