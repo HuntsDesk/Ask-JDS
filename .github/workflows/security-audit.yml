@@ -193,46 +193,7 @@ jobs:
           path: ./
           extra_args: --debug --only-verified
 
-  csp-validation:
-    name: CSP Policy Validation
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Validate CSP Policy
-        run: |
-          # Install CSP validator
-          npm install -g csp-evaluator
-          
-          # Extract CSP from CloudFront policy
-          CSP_POLICY=$(cat temp/ai_sec_audit/cloudfront/enhanced_security_headers_policy.json | jq -r '.ResponseHeadersPolicyConfig.SecurityHeadersConfig.ContentSecurityPolicy.ContentSecurityPolicy')
-          
-          echo "Validating CSP Policy:"
-          echo "$CSP_POLICY"
-          
-          # Basic CSP validation
-          if [[ ! "$CSP_POLICY" =~ "default-src" ]]; then
-            echo "❌ CSP missing default-src directive"
-            exit 1
-          fi
-          
-          if [[ ! "$CSP_POLICY" =~ "script-src" ]]; then
-            echo "❌ CSP missing script-src directive"
-            exit 1
-          fi
-          
-          if [[ ! "$CSP_POLICY" =~ "frame-ancestors 'none'" ]]; then
-            echo "❌ CSP missing frame-ancestors protection"
-            exit 1
-          fi
-          
-          if [[ ! "$CSP_POLICY" =~ "report-uri" ]]; then
-            echo "❌ CSP missing violation reporting"
-            exit 1
-          fi
-          
-          echo "✅ CSP policy validation passed"
+# CSP validation removed - already covered by security-headers-test job
 
   edge-function-security:
     name: Edge Function Security Check
@@ -272,7 +233,7 @@ jobs:
   security-report:
     name: Generate Security Report
     runs-on: ubuntu-latest
-    needs: [security-headers-test, dependency-scan, lighthouse-security, code-security-scan, secret-scan, csp-validation, edge-function-security]
+    needs: [security-headers-test, dependency-scan, lighthouse-security, code-security-scan, secret-scan, edge-function-security]
     if: always()
     steps:
       - name: Generate Security Summary
@@ -282,7 +243,7 @@ jobs:
           echo "" >> security-report.md
           
           # Check job results
-          JOBS=("security-headers-test" "dependency-scan" "lighthouse-security" "code-security-scan" "secret-scan" "csp-validation" "edge-function-security")
+          JOBS=("security-headers-test" "dependency-scan" "lighthouse-security" "code-security-scan" "secret-scan" "edge-function-security")
           
           # Check individual job results
           if [ "${{ needs.security-headers-test.result }}" == "success" ]; then
@@ -315,12 +276,6 @@ jobs:
             echo "❌ secret-scan: FAILED" >> security-report.md
           fi
           
-          if [ "${{ needs.csp-validation.result }}" == "success" ]; then
-            echo "✅ csp-validation: PASSED" >> security-report.md
-          else
-            echo "❌ csp-validation: FAILED" >> security-report.md
-          fi
-          
           if [ "${{ needs.edge-function-security.result }}" == "success" ]; then
             echo "✅ edge-function-security: PASSED" >> security-report.md
           else
@@ -345,9 +300,6 @@ jobs:
             PASSED_COUNT=$((PASSED_COUNT + 1))
           fi
           if [ "${{ needs.secret-scan.result }}" == "success" ]; then
-            PASSED_COUNT=$((PASSED_COUNT + 1))
-          fi
-          if [ "${{ needs.csp-validation.result }}" == "success" ]; then
             PASSED_COUNT=$((PASSED_COUNT + 1))
           fi
           if [ "${{ needs.edge-function-security.result }}" == "success" ]; then
