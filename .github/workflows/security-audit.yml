@@ -122,8 +122,8 @@ jobs:
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
         run: |
-          # Configure Lighthouse CI for security auditing
-          cat > lighthouserc.js << EOF
+          # Configure Lighthouse CI for security auditing (use .cjs for CommonJS compatibility)
+          cat > lighthouserc.cjs << EOF
           module.exports = {
             ci: {
               collect: {
