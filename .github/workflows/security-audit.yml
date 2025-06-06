@@ -22,14 +22,13 @@ jobs:
           # Test CloudFront security headers configuration using curl
           echo "Testing security headers on production domains..."
           
-          # Define expected headers
+          # Define expected headers (excluding Cross-Origin-Opener-Policy for Stripe compatibility)
           EXPECTED_HEADERS=(
             "Content-Security-Policy"
             "X-Frame-Options"
             "X-Content-Type-Options"
             "Strict-Transport-Security"
             "Referrer-Policy"
-            "Cross-Origin-Opener-Policy"
             "Cross-Origin-Embedder-Policy"
             "Permissions-Policy"
           )
@@ -48,6 +47,11 @@ jobs:
               fi
             done
           done
+          
+          # Note about intentionally omitted Cross-Origin-Opener-Policy
+          echo ""
+          echo "ℹ️  Cross-Origin-Opener-Policy is intentionally omitted for Stripe.js compatibility"
+          echo "✅ All required security headers validated successfully"
 
   dependency-scan:
     name: Dependency Vulnerability Scan
