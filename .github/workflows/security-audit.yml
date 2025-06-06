@@ -19,8 +19,8 @@ jobs:
 
       - name: Test Security Headers
         run: |
-          # Test CloudFront security headers configuration
-          npm install -g @vvo/security-headers-checker
+          # Test CloudFront security headers configuration using curl
+          echo "Testing security headers on production domains..."
           
           # Define expected headers
           EXPECTED_HEADERS=(
