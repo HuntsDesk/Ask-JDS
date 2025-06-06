@@ -1,5 +1,4 @@
-import { serve } from "jsr:@std/http@^1.0.0/server";
-serve(async (req)=>{
+Deno.serve(async (req)=>{
   // Add CORS headers for preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
