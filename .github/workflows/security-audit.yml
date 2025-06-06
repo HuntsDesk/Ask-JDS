@@ -167,7 +167,6 @@ jobs:
             p/react
             p/typescript
             p/secrets
-          generateSarif: true
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v2
@@ -185,7 +184,7 @@ jobs:
           fetch-depth: 0  # Full history for secret scanning
 
       - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@v3.63.2-beta
+        uses: trufflesecurity/trufflehog@main
         with:
           path: ./
           base: main
@@ -283,24 +282,75 @@ jobs:
           # Check job results
           JOBS=("security-headers-test" "dependency-scan" "lighthouse-security" "code-security-scan" "secret-scan" "csp-validation" "edge-function-security")
           
-          for job in "${JOBS[@]}"; do
-            if [ "${{ needs.$job.result }}" == "success" ]; then
-              echo "✅ $job: PASSED" >> security-report.md
-            else
-              echo "❌ $job: FAILED" >> security-report.md
-            fi
-          done
+          # Check individual job results
+          if [ "${{ needs.security-headers-test.result }}" == "success" ]; then
+            echo "✅ security-headers-test: PASSED" >> security-report.md
+          else
+            echo "❌ security-headers-test: FAILED" >> security-report.md
+          fi
+          
+          if [ "${{ needs.dependency-scan.result }}" == "success" ]; then
+            echo "✅ dependency-scan: PASSED" >> security-report.md
+          else
+            echo "❌ dependency-scan: FAILED" >> security-report.md
+          fi
+          
+          if [ "${{ needs.lighthouse-security.result }}" == "success" ]; then
+            echo "✅ lighthouse-security: PASSED" >> security-report.md
+          else
+            echo "❌ lighthouse-security: FAILED" >> security-report.md
+          fi
+          
+          if [ "${{ needs.code-security-scan.result }}" == "success" ]; then
+            echo "✅ code-security-scan: PASSED" >> security-report.md
+          else
+            echo "❌ code-security-scan: FAILED" >> security-report.md
+          fi
+          
+          if [ "${{ needs.secret-scan.result }}" == "success" ]; then
+            echo "✅ secret-scan: PASSED" >> security-report.md
+          else
+            echo "❌ secret-scan: FAILED" >> security-report.md
+          fi
+          
+          if [ "${{ needs.csp-validation.result }}" == "success" ]; then
+            echo "✅ csp-validation: PASSED" >> security-report.md
+          else
+            echo "❌ csp-validation: FAILED" >> security-report.md
+          fi
+          
+          if [ "${{ needs.edge-function-security.result }}" == "success" ]; then
+            echo "✅ edge-function-security: PASSED" >> security-report.md
+          else
+            echo "❌ edge-function-security: FAILED" >> security-report.md
+          fi
           
           echo "" >> security-report.md
           echo "## Security Score" >> security-report.md
           
           # Calculate security score
           PASSED_COUNT=0
-          for job in "${JOBS[@]}"; do
-            if [ "${{ needs.$job.result }}" == "success" ]; then
-              PASSED_COUNT=$((PASSED_COUNT + 1))
-            fi
-          done
+          if [ "${{ needs.security-headers-test.result }}" == "success" ]; then
+            PASSED_COUNT=$((PASSED_COUNT + 1))
+          fi
+          if [ "${{ needs.dependency-scan.result }}" == "success" ]; then
+            PASSED_COUNT=$((PASSED_COUNT + 1))
+          fi
+          if [ "${{ needs.lighthouse-security.result }}" == "success" ]; then
+            PASSED_COUNT=$((PASSED_COUNT + 1))
+          fi
+          if [ "${{ needs.code-security-scan.result }}" == "success" ]; then
+            PASSED_COUNT=$((PASSED_COUNT + 1))
+          fi
+          if [ "${{ needs.secret-scan.result }}" == "success" ]; then
+            PASSED_COUNT=$((PASSED_COUNT + 1))
+          fi
+          if [ "${{ needs.csp-validation.result }}" == "success" ]; then
+            PASSED_COUNT=$((PASSED_COUNT + 1))
+          fi
+          if [ "${{ needs.edge-function-security.result }}" == "success" ]; then
+            PASSED_COUNT=$((PASSED_COUNT + 1))
+          fi
           
           SCORE=$((PASSED_COUNT * 100 / ${#JOBS[@]}))
           echo "Overall Security Score: $SCORE/100" >> security-report.md
