@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@^2.39.0';
-import Stripe from 'https://esm.sh/stripe@13.10.0?target=deno';
+import Stripe from 'npm:stripe@^13.10.0';
 import { z } from 'npm:zod@^3.22.4';
 import { getCoursePriceId, getConfig, validateConfig, STRIPE_API_VERSION } from '../_shared/config.ts';
 
