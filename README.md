@@ -106,10 +106,12 @@ Each is served via a domain-specific entrypoint with conditional logic driven by
   - **CSP Violation Reporting**: Deployed `csp-violation-report` function for security monitoring
   - **CloudFront Security Headers**: Complete policy templates for COEP, CSP, and Permissions Policy
   - **AWS WAF Rules**: Comprehensive security rules for DDoS protection, bot filtering, and rate limiting
-  - **Lighthouse CI SPA Configuration**: Fixed NO_FCP errors with proper Single Page Application testing
-    - **Issue**: SPA routes (`/chat`, `/courses`) returned 404 when accessed directly during security audits
-    - **Solution**: Implemented `serverCommand` with `npx serve -s` for proper SPA fallback behavior
-    - **Result**: All routes now serve content correctly, enabling comprehensive security testing across the application
+  - **Lighthouse CI SPA Configuration (v2)**: Resolved INVALID_URL errors with explicit port configuration
+    - **Evolution**: NO_FCP errors → PORT substitution failures → Final working solution
+    - **Root Cause**: LHCI's automatic `staticDistDir` detection bypassed SPA-aware `serverCommand` configuration
+    - **Solution**: Explicit `serverCommand` with fixed port (`-l 3000`) and direct URL specification
+    - **Configuration**: `npx serve -s dist -l 3000` + `url: ['http://localhost:3000/']`
+    - **Result**: Eliminates both NO_FCP and INVALID_URL errors, enables reliable security auditing across all SPA routes
 
 #### **Video Infrastructure Fix 
 - ✅ **Gumlet Video Integration Fixed**: Resolved missing `VITE_GUMLET_ACCOUNT_ID` in GitHub Actions deployment
