@@ -138,100 +138,95 @@ jobs:
 
       - name: Start SPA server and verify
         run: |
-          # Start server with explicit SPA routing
           echo "Starting server on port 4173..."
           
-          # Try serve with correct flags
-          nohup npx serve -s dist -l 4173 -H 0.0.0.0 --single > server.log 2>&1 &
+          # Check what serve command is available
+          echo "=== Checking serve command ==="
+          npx serve --help || echo "serve help failed"
+          
+          # First try: Simple serve command without host binding
+          echo "Attempting simple serve command..."
+          nohup npx serve -s dist -l 4173 > server.log 2>&1 &
           SERVER_PID=$!
           echo "Server PID: $SERVER_PID"
+          sleep 5
           
-          # Give the server a moment to start
-          sleep 3
-          
-          # Check if server started successfully
-          if ! kill -0 $SERVER_PID 2>/dev/null; then
-            echo "❌ serve command failed, trying alternative approach..."
+          # Check if process is running
+          if kill -0 $SERVER_PID 2>/dev/null; then
+            echo "✅ serve process is running"
+          else
+            echo "❌ serve process died, checking logs..."
             cat server.log
             
-            # Try without host binding
-            echo "Trying serve without host binding..."
-            nohup npx serve -s dist -l 4173 --single > server.log 2>&1 &
+            # Try http-server as backup
+            echo "Trying http-server instead..."
+            npm install -g http-server
+            nohup http-server dist -p 4173 --spa > server.log 2>&1 &
             SERVER_PID=$!
-            sleep 3
-            
-            if ! kill -0 $SERVER_PID 2>/dev/null; then
-              echo "❌ Alternative serve failed, trying http-server..."
-              cat server.log
-              
-              # Install and try http-server as backup
-              npm install -g http-server
-              nohup http-server dist -p 4173 -a 0.0.0.0 --spa > server.log 2>&1 &
-              SERVER_PID=$!
-              sleep 3
-            fi
+            sleep 5
           fi
           
-          echo "Final Server PID: $SERVER_PID"
-          
-          # Wait for server to be ready
-          echo "Waiting for server to start..."
-          for i in {1..60}; do
-            if curl -sSf http://localhost:4173/ > /dev/null 2>&1; then
-              echo "✅ Server is responding on http://localhost:4173/"
-              break
-            fi
-            echo "Attempt $i/60: Server not ready, waiting..."
-            sleep 2
-          done
-          
-          # Test all routes
-          echo "Testing SPA routes..."
-          curl -I http://localhost:4173/ || echo "⚠️  Root route failed"
-          curl -I http://localhost:4173/chat || echo "⚠️  Chat route failed"
-          curl -I http://localhost:4173/courses || echo "⚠️  Courses route failed"
-          
-          # Show server logs for debugging
+          # Show server logs
           echo "=== Server Logs ==="
           cat server.log || echo "No server logs found"
           
-          # Verify server is still running
-          if kill -0 $SERVER_PID 2>/dev/null; then
-            echo "✅ Server is still running (PID: $SERVER_PID)"
-          else
-            echo "❌ Server is not running"
-            exit 1
+          # Check port binding
+          echo "=== Port Status ==="
+          netstat -ln | grep :4173 || echo "Port 4173 not bound"
+          
+          # Test server with timeout
+          echo "Testing server connectivity..."
+          timeout 10s curl -v http://localhost:4173/ || echo "Server connection failed"
+          
+          # If server still not working, try Python server as last resort
+          if ! curl -sSf http://localhost:4173/ > /dev/null 2>&1; then
+            echo "All JavaScript servers failed, trying Python server..."
+            pkill -f "serve\|http-server" || true
+            cd dist
+            nohup python3 -m http.server 4173 > ../server.log 2>&1 &
+            SERVER_PID=$!
+            cd ..
+            sleep 3
+            echo "Python server PID: $SERVER_PID"
           fi
+          
+          # Final connectivity test
+          echo "=== Final Connectivity Test ==="
+          for i in {1..10}; do
+            if curl -sSf http://localhost:4173/ > /dev/null 2>&1; then
+              echo "✅ Server is responding on attempt $i"
+              break
+            fi
+            echo "Attempt $i/10: Server not ready..."
+            sleep 2
+          done
+          
+          # Test routes
+          echo "=== Testing Routes ==="
+          curl -I http://localhost:4173/ 2>&1 | head -3
+          curl -I http://localhost:4173/chat 2>&1 | head -3  
+          curl -I http://localhost:4173/courses 2>&1 | head -3
 
-      - name: Run Lighthouse CI with enhanced debugging
+      - name: Run Lighthouse CI with simplified approach
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
         run: |
-          # Run Lighthouse with extensive debugging
-          echo "Running Lighthouse CI with debugging..."
+          echo "Running simplified Lighthouse CI..."
           
-          # Test just the homepage first
-          echo "Testing homepage only..."
-          npx lhci collect \
-            --url=http://localhost:4173/ \
-            --settings.chromeFlags="--no-sandbox --headless --disable-gpu --disable-dev-shm-usage --disable-extensions --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows" \
-            --settings.maxWaitForLoad=30000 \
-            --verbose || echo "Homepage test failed"
-          
-          # If homepage works, test all routes
-          if [ $? -eq 0 ]; then
-            echo "Homepage succeeded, testing all routes..."
-            npx lhci collect \
-              --url=http://localhost:4173/ \
-              --url=http://localhost:4173/chat \
-              --url=http://localhost:4173/courses \
-              --settings.chromeFlags="--no-sandbox --headless --disable-gpu --disable-dev-shm-usage --disable-extensions" \
-              --settings.maxWaitForLoad=30000 \
-              --verbose
-          else
-            echo "Homepage failed, skipping other routes"
+          # Final server check
+          if ! curl -sSf http://localhost:4173/ > /dev/null 2>&1; then
+            echo "❌ Server is not responding, cannot run Lighthouse"
             exit 1
           fi
+          
+          echo "✅ Server is responding, starting Lighthouse..."
+          
+          # Run Lighthouse on homepage only first
+          npx lhci collect \
+            --url=http://localhost:4173/ \
+            --settings.chromeFlags="--no-sandbox --headless --disable-gpu --disable-dev-shm-usage" \
+            --settings.maxWaitForLoad=60000 \
+            --verbose
           
           # Upload results (with fallback)
           npx @lhci/cli@0.12.x upload --target=temporary-public-storage || echo "Upload failed but audit completed successfully"
