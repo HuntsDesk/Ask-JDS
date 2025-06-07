@@ -106,15 +106,16 @@ Each is served via a domain-specific entrypoint with conditional logic driven by
   - **CSP Violation Reporting**: Deployed `csp-violation-report` function for security monitoring
   - **CloudFront Security Headers**: Complete policy templates for COEP, CSP, and Permissions Policy
   - **AWS WAF Rules**: Comprehensive security rules for DDoS protection, bot filtering, and rate limiting
-  - **Lighthouse CI SPA Configuration (Final)**: Resolved Chrome interstitial errors with manual server management
-    - **Evolution**: NO_FCP → INVALID_URL → Chrome interstitial → Working solution
-    - **Root Cause**: Race conditions between server startup and Chrome connection in CI environment  
-    - **Solution**: Manual server management with health checks and proper network binding
-    - **Implementation**: 
-      - Server: `npx serve -s dist -l tcp://0.0.0.0:4173` (binds to all interfaces)
-      - Health Check: 30-second curl loop ensures server readiness
-      - Collection: `lhci collect` with explicit URLs for `/`, `/chat`, `/courses`
-    - **Result**: Eliminates both NO_FCP and INVALID_URL errors, enables reliable security auditing across all SPA routes
+  - **Lighthouse CI SPA Configuration (Complete)**: Resolved all rendering and connection issues in CI
+    - **Evolution**: NO_FCP → INVALID_URL → Chrome interstitial → NO_FCP (new) → Working solution
+    - **Root Cause**: CI environment constraints preventing Chrome content painting and server connectivity
+    - **Final Solution**: 
+      - **Virtual Display**: `Xvfb :99` provides framebuffer for headless Chrome painting
+      - **Server Binding**: `tcp://0.0.0.0:4173` ensures CI accessibility 
+      - **Health Checks**: 30-second curl validation before Chrome starts
+      - **Enhanced Chrome Flags**: `--disable-dev-shm-usage --disable-background-timer-throttling` etc.
+      - **SPA Route Testing**: Direct collection on `/`, `/chat`, `/courses`
+    - **Result**: Robust security auditing pipeline that works reliably in GitHub Actions CI
 
 #### **Video Infrastructure Fix 
 - ✅ **Gumlet Video Integration Fixed**: Resolved missing `VITE_GUMLET_ACCOUNT_ID` in GitHub Actions deployment
