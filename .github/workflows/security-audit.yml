@@ -118,19 +118,38 @@ jobs:
       - name: Build application
         run: npm run build
 
+      - name: Start SPA server with proper binding
+        run: |
+          # Start server with explicit binding to all interfaces for CI accessibility
+          nohup npx serve -s dist -l tcp://0.0.0.0:4173 > server.log 2>&1 &
+          
+          # Health check loop to ensure server is ready
+          echo "Waiting for server to be ready..."
+          for i in {1..30}; do
+            if curl -sSf http://localhost:4173/ > /dev/null 2>&1; then
+              echo "✅ Server is ready on port 4173"
+              break
+            fi
+            echo "Waiting for server... (attempt $i/30)"
+            sleep 1
+          done
+          
+          # Verify server is responding
+          if ! curl -sSf http://localhost:4173/ > /dev/null 2>&1; then
+            echo "❌ Server failed to start properly"
+            cat server.log
+            exit 1
+          fi
+
       - name: Run Lighthouse CI
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
         run: |
-          # Configure Lighthouse CI for security auditing with SPA-aware server
+          # Configure Lighthouse CI for security auditing
           cat > lighthouserc.cjs << EOF
           module.exports = {
             ci: {
               collect: {
-                serverCommand: 'npx serve -s dist -l 3000',
-                startServerReadyPattern: 'Local:',
-                startServerReadyTimeout: 30000,
-                url: ['http://localhost:3000/'],
                 numberOfRuns: 1,
                 settings: {
                   chromeFlags: '--no-sandbox --headless'
@@ -150,7 +169,11 @@ jobs:
           };
           EOF
           
-          lhci autorun
+          # Run Lighthouse CI with explicit URLs for SPA routes
+          lhci collect \
+            --url=http://localhost:4173/ \
+            --url=http://localhost:4173/chat \
+            --url=http://localhost:4173/courses
 
   code-security-scan:
     name: Code Security Analysis

@@ -106,11 +106,14 @@ Each is served via a domain-specific entrypoint with conditional logic driven by
   - **CSP Violation Reporting**: Deployed `csp-violation-report` function for security monitoring
   - **CloudFront Security Headers**: Complete policy templates for COEP, CSP, and Permissions Policy
   - **AWS WAF Rules**: Comprehensive security rules for DDoS protection, bot filtering, and rate limiting
-  - **Lighthouse CI SPA Configuration (v2)**: Resolved INVALID_URL errors with explicit port configuration
-    - **Evolution**: NO_FCP errors → PORT substitution failures → Final working solution
-    - **Root Cause**: LHCI's automatic `staticDistDir` detection bypassed SPA-aware `serverCommand` configuration
-    - **Solution**: Explicit `serverCommand` with fixed port (`-l 3000`) and direct URL specification
-    - **Configuration**: `npx serve -s dist -l 3000` + `url: ['http://localhost:3000/']`
+  - **Lighthouse CI SPA Configuration (Final)**: Resolved Chrome interstitial errors with manual server management
+    - **Evolution**: NO_FCP → INVALID_URL → Chrome interstitial → Working solution
+    - **Root Cause**: Race conditions between server startup and Chrome connection in CI environment  
+    - **Solution**: Manual server management with health checks and proper network binding
+    - **Implementation**: 
+      - Server: `npx serve -s dist -l tcp://0.0.0.0:4173` (binds to all interfaces)
+      - Health Check: 30-second curl loop ensures server readiness
+      - Collection: `lhci collect` with explicit URLs for `/`, `/chat`, `/courses`
     - **Result**: Eliminates both NO_FCP and INVALID_URL errors, enables reliable security auditing across all SPA routes
 
 #### **Video Infrastructure Fix 
