@@ -1,4 +1,4 @@
-name: Deploy Ask JDS & JD Simplified
+name: 🚀 Production Deployment
 
 on:
   push:

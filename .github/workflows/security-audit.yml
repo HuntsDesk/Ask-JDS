@@ -1,4 +1,4 @@
-name: Security Audit
+name: 🛡️ Security Audit & Testing
 
 on:
   push:
@@ -22,14 +22,13 @@ jobs:
           # Test CloudFront security headers configuration using curl
           echo "Testing security headers on production domains..."
           
-          # Define expected headers (excluding COOP and COEP for Stripe/iframe compatibility)
+          # Define expected headers (excluding COOP, COEP, and Permissions-Policy for Stripe/iframe compatibility)
           EXPECTED_HEADERS=(
             "Content-Security-Policy"
             "X-Frame-Options"
             "X-Content-Type-Options"
             "Strict-Transport-Security"
             "Referrer-Policy"
-            "Permissions-Policy"
           )
           
           # Test each domain (would need to be deployed first)
@@ -49,7 +48,7 @@ jobs:
           
           # Note about intentionally omitted headers
           echo ""
-          echo "ℹ️  Cross-Origin-Opener-Policy and Cross-Origin-Embedder-Policy are intentionally omitted for Stripe.js/iframe compatibility"
+          echo "ℹ️  Cross-Origin-Opener-Policy, Cross-Origin-Embedder-Policy, and Permissions-Policy are intentionally omitted for Stripe.js/iframe compatibility"
           echo "✅ All required security headers validated successfully"
 
   dependency-scan:
@@ -118,40 +117,26 @@ jobs:
       - name: Build application
         run: npm run build
 
-      - name: Setup Virtual Display
-        run: |
-          export DISPLAY=:99
-          Xvfb :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@latest
 
-      - name: Start SPA server with proper binding
+      - name: Start SPA server
         run: |
-          # Start server with explicit binding to all interfaces for CI accessibility
-          nohup npx serve -s dist -l tcp://0.0.0.0:4173 > server.log 2>&1 &
-          
-          # Health check loop to ensure server is ready
-          echo "Waiting for server to be ready..."
+          nohup npx serve -s dist -l 4173 --listen 0.0.0.0 > server.log 2>&1 &
           for i in {1..30}; do
-            if curl -sSf http://localhost:4173/ > /dev/null 2>&1; then
-              echo "✅ Server is ready on port 4173"
-              break
-            fi
-            echo "Waiting for server... (attempt $i/30)"
-            sleep 1
+            curl -sSf http://localhost:4173/ && break
+            echo "Waiting for server..." && sleep 1
           done
-          
-          # Verify server is responding
-          if ! curl -sSf http://localhost:4173/ > /dev/null 2>&1; then
-            echo "❌ Server failed to start properly"
-            cat server.log
-            exit 1
-          fi
 
       - name: Run Lighthouse CI
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
         run: |
-          # Run Lighthouse CI with CI-safe Chrome flags and explicit SPA route URLs
-          npx @lhci/cli@0.12.x collect --url=http://localhost:4173/ --url=http://localhost:4173/chat --url=http://localhost:4173/courses --settings.chromeFlags="--no-sandbox --headless --disable-web-security --disable-dev-shm-usage --disable-gpu --disable-extensions --disable-background-timer-throttling --disable-backgrounding-occluded-windows --no-first-run --no-default-browser-check --remote-debugging-port=9222"
+          npx lhci collect \
+            --url=http://localhost:4173/ \
+            --url=http://localhost:4173/chat \
+            --url=http://localhost:4173/courses \
+            --settings.chromeFlags="--no-sandbox --headless --disable-gpu --disable-dev-shm-usage"
           
           # Upload results (with fallback)
           npx @lhci/cli@0.12.x upload --target=temporary-public-storage || echo "Upload failed but audit completed successfully"

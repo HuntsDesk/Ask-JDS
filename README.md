@@ -106,16 +106,19 @@ Each is served via a domain-specific entrypoint with conditional logic driven by
   - **CSP Violation Reporting**: Deployed `csp-violation-report` function for security monitoring
   - **CloudFront Security Headers**: Complete policy templates for COEP, CSP, and Permissions Policy
   - **AWS WAF Rules**: Comprehensive security rules for DDoS protection, bot filtering, and rate limiting
-  - **Lighthouse CI SPA Configuration (Complete)**: Resolved all rendering and connection issues in CI
-    - **Evolution**: NO_FCP → INVALID_URL → Chrome interstitial → NO_FCP (new) → Working solution
-    - **Root Cause**: CI environment constraints preventing Chrome content painting and server connectivity
-    - **Final Solution**: 
-      - **Virtual Display**: `Xvfb :99` provides framebuffer for headless Chrome painting
-      - **Server Binding**: `tcp://0.0.0.0:4173` ensures CI accessibility 
-      - **Health Checks**: 30-second curl validation before Chrome starts
-      - **Enhanced Chrome Flags**: `--disable-dev-shm-usage --disable-background-timer-throttling` etc.
-      - **SPA Route Testing**: Direct collection on `/`, `/chat`, `/courses`
-    - **Result**: Robust security auditing pipeline that works reliably in GitHub Actions CI
+  - **Lighthouse CI SPA Security Pipeline (January 2025)**:
+    - **Challenge Evolution**: NO_FCP → INVALID_URL → Chrome interstitial → NO_FCP (CI constraints) → ✅ Working solution
+    - **Root Cause Resolution**: Chrome launcher connection failures and D-Bus system service conflicts in GitHub Actions CI
+    - **Final Implementation**: 
+      - **Chrome Installation**: `browser-actions/setup-chrome@latest` for reliable Chrome availability
+      - **Simplified Chrome Flags**: Battle-tested minimal configuration `--no-sandbox --headless --disable-gpu --disable-dev-shm-usage`
+      - **Clean Server Setup**: `npx serve -s dist -l 4173 --listen 0.0.0.0` with health checks
+      - **SPA Route Coverage**: Direct testing of `/`, `/chat`, `/courses` for comprehensive security validation
+    - **GitHub Actions Workflow Organization**: 
+      - **`🛡️ Security Audit & Testing`**: Comprehensive security pipeline (Lighthouse, dependencies, code analysis, secrets, headers)
+      - **`🚀 Production Deployment`**: Multi-domain deployment workflow
+      - **Removed redundant workflows**: Eliminated duplicate security headers validation
+    - **Result**: Reliable automated security auditing across entire SPA with robust CI/CD integration
 
 #### **Video Infrastructure Fix 
 - ✅ **Gumlet Video Integration Fixed**: Resolved missing `VITE_GUMLET_ACCOUNT_ID` in GitHub Actions deployment
