@@ -110,15 +110,23 @@ Each is served via a domain-specific entrypoint with conditional logic driven by
     - **Challenge Evolution**: NO_FCP → INVALID_URL → Chrome interstitial → NO_FCP (CI constraints) → ✅ Working solution
     - **Root Cause Resolution**: Chrome launcher connection failures and D-Bus system service conflicts in GitHub Actions CI
     - **Final Implementation**: 
+      - **Security-Focused Configuration**: Custom Lighthouse config targeting security audits only (`is-on-https`, `csp-xss`, `no-vulnerable-libraries`)
+      - **Performance Audit Bypass**: Skips content-dependent audits (`first-contentful-paint`, `screenshot-thumbnails`) that fail in headless CI
+      - **Manual Security Fallback**: Comprehensive manual checks when Lighthouse fails (header validation, file exposure, XSS patterns, secret detection)
       - **Chrome Installation**: `browser-actions/setup-chrome@latest` for reliable Chrome availability
       - **Simplified Chrome Flags**: Battle-tested minimal configuration `--no-sandbox --headless --disable-gpu --disable-dev-shm-usage`
-      - **Clean Server Setup**: `npx serve -s dist -l 4173 --listen 0.0.0.0` with health checks
+      - **Clean Server Setup**: `npx serve -s dist -l 4173` with SPA routing and health checks
       - **SPA Route Coverage**: Direct testing of `/`, `/chat`, `/courses` for comprehensive security validation
+    - **Security Coverage Without Content Rendering**:
+      - **Static Security Analysis**: Scans built assets for XSS vulnerabilities, hardcoded secrets, and unsafe patterns
+      - **HTTP Security Headers**: Validates security headers via curl without requiring browser rendering
+      - **File Exposure Testing**: Checks for exposed sensitive files (`.env`, `config.json`, `package.json`)
+      - **Dual Success Path**: Pipeline succeeds with either Lighthouse security results OR manual security validation
     - **GitHub Actions Workflow Organization**: 
       - **`🛡️ Security Audit & Testing`**: Comprehensive security pipeline (Lighthouse, dependencies, code analysis, secrets, headers)
       - **`🚀 Production Deployment`**: Multi-domain deployment workflow
       - **Removed redundant workflows**: Eliminated duplicate security headers validation
-    - **Result**: Reliable automated security auditing across entire SPA with robust CI/CD integration
+    - **Result**: Reliable automated security auditing across entire SPA with robust CI/CD integration, focusing on actual security concerns rather than content rendering limitations
 
 #### **Video Infrastructure Fix 
 - ✅ **Gumlet Video Integration Fixed**: Resolved missing `VITE_GUMLET_ACCOUNT_ID` in GitHub Actions deployment
