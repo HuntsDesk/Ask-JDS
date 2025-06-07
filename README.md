@@ -106,6 +106,10 @@ Each is served via a domain-specific entrypoint with conditional logic driven by
   - **CSP Violation Reporting**: Deployed `csp-violation-report` function for security monitoring
   - **CloudFront Security Headers**: Complete policy templates for COEP, CSP, and Permissions Policy
   - **AWS WAF Rules**: Comprehensive security rules for DDoS protection, bot filtering, and rate limiting
+  - **Lighthouse CI SPA Configuration**: Fixed NO_FCP errors with proper Single Page Application testing
+    - **Issue**: SPA routes (`/chat`, `/courses`) returned 404 when accessed directly during security audits
+    - **Solution**: Implemented `serverCommand` with `npx serve -s` for proper SPA fallback behavior
+    - **Result**: All routes now serve content correctly, enabling comprehensive security testing across the application
 
 #### **Video Infrastructure Fix (January 6, 2025)**
 - ✅ **Gumlet Video Integration Fixed**: Resolved missing `VITE_GUMLET_ACCOUNT_ID` in GitHub Actions deployment

@@ -127,11 +127,13 @@ jobs:
           module.exports = {
             ci: {
               collect: {
-                staticDistDir: './dist',
+                serverCommand: 'npx serve -s dist -l 0',
+                startServerReadyPattern: 'Local:',
+                startServerReadyTimeout: 30000,
                 url: [
-                  'http://localhost/index.html',
-                  'http://localhost/chat',
-                  'http://localhost/courses'
+                  'http://localhost:PORT/',
+                  'http://localhost:PORT/chat',
+                  'http://localhost:PORT/courses'
                 ],
                 settings: {
                   chromeFlags: '--no-sandbox --headless'
