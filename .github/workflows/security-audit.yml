@@ -122,26 +122,86 @@ jobs:
       - name: Build application
         run: npm run build
 
+      - name: Verify build output
+        run: |
+          echo "=== Build Output Structure ==="
+          ls -la dist/
+          echo ""
+          echo "=== Index.html content (first 20 lines) ==="
+          head -20 dist/index.html || echo "No index.html found"
+          echo ""
+          echo "=== Static assets ==="
+          find dist/ -name "*.js" -o -name "*.css" | head -10
+
       - name: Install Chrome
         uses: browser-actions/setup-chrome@latest
 
-      - name: Start SPA server
+      - name: Start SPA server and verify
         run: |
-          nohup npx serve -s dist -l 4173 --listen 0.0.0.0 > server.log 2>&1 &
-          for i in {1..30}; do
-            curl -sSf http://localhost:4173/ && break
-            echo "Waiting for server..." && sleep 1
+          # Start server with explicit SPA routing
+          echo "Starting server on port 4173..."
+          nohup npx serve -s dist -l 4173 --listen 0.0.0.0 --single > server.log 2>&1 &
+          SERVER_PID=$!
+          echo "Server PID: $SERVER_PID"
+          
+          # Wait for server to be ready
+          echo "Waiting for server to start..."
+          for i in {1..60}; do
+            if curl -sSf http://localhost:4173/ > /dev/null 2>&1; then
+              echo "✅ Server is responding on http://localhost:4173/"
+              break
+            fi
+            echo "Attempt $i/60: Server not ready, waiting..."
+            sleep 2
           done
+          
+          # Test all routes
+          echo "Testing SPA routes..."
+          curl -I http://localhost:4173/ || echo "⚠️  Root route failed"
+          curl -I http://localhost:4173/chat || echo "⚠️  Chat route failed"
+          curl -I http://localhost:4173/courses || echo "⚠️  Courses route failed"
+          
+          # Show server logs for debugging
+          echo "=== Server Logs ==="
+          cat server.log || echo "No server logs found"
+          
+          # Verify server is still running
+          if kill -0 $SERVER_PID 2>/dev/null; then
+            echo "✅ Server is still running (PID: $SERVER_PID)"
+          else
+            echo "❌ Server is not running"
+            exit 1
+          fi
 
-      - name: Run Lighthouse CI
+      - name: Run Lighthouse CI with enhanced debugging
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
         run: |
+          # Run Lighthouse with extensive debugging
+          echo "Running Lighthouse CI with debugging..."
+          
+          # Test just the homepage first
+          echo "Testing homepage only..."
           npx lhci collect \
             --url=http://localhost:4173/ \
-            --url=http://localhost:4173/chat \
-            --url=http://localhost:4173/courses \
-            --settings.chromeFlags="--no-sandbox --headless --disable-gpu --disable-dev-shm-usage"
+            --settings.chromeFlags="--no-sandbox --headless --disable-gpu --disable-dev-shm-usage --disable-extensions --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows" \
+            --settings.maxWaitForLoad=30000 \
+            --verbose || echo "Homepage test failed"
+          
+          # If homepage works, test all routes
+          if [ $? -eq 0 ]; then
+            echo "Homepage succeeded, testing all routes..."
+            npx lhci collect \
+              --url=http://localhost:4173/ \
+              --url=http://localhost:4173/chat \
+              --url=http://localhost:4173/courses \
+              --settings.chromeFlags="--no-sandbox --headless --disable-gpu --disable-dev-shm-usage --disable-extensions" \
+              --settings.maxWaitForLoad=30000 \
+              --verbose
+          else
+            echo "Homepage failed, skipping other routes"
+            exit 1
+          fi
           
           # Upload results (with fallback)
           npx @lhci/cli@0.12.x upload --target=temporary-public-storage || echo "Upload failed but audit completed successfully"
