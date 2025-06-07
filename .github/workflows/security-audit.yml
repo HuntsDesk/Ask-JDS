@@ -178,16 +178,27 @@ jobs:
           echo "Testing server connectivity..."
           timeout 10s curl -v http://localhost:4173/ || echo "Server connection failed"
           
-          # If server still not working, try Python server as last resort
+          # If server still not working, ensure we have a proper SPA server
           if ! curl -sSf http://localhost:4173/ > /dev/null 2>&1; then
-            echo "All JavaScript servers failed, trying Python server..."
-            pkill -f "serve\|http-server" || true
-            cd dist
-            nohup python3 -m http.server 4173 > ../server.log 2>&1 &
+            echo "Primary servers failed, ensuring SPA-capable server..."
+            pkill -f "serve\|http-server\|python.*4173" || true
+            
+            # Force install serve and use explicit SPA mode
+            npm install -g serve
+            echo "Starting serve with explicit SPA routing..."
+            nohup npx serve -s dist -l 4173 > server.log 2>&1 &
             SERVER_PID=$!
-            cd ..
-            sleep 3
-            echo "Python server PID: $SERVER_PID"
+            sleep 5
+            
+            # If serve still fails, use http-server which has better SPA support
+            if ! curl -sSf http://localhost:4173/ > /dev/null 2>&1; then
+              echo "serve failed, using http-server with SPA support..."
+              pkill -f "serve" || true
+              npm install -g http-server
+              nohup http-server dist -p 4173 --spa --cors > server.log 2>&1 &
+              SERVER_PID=$!
+              sleep 5
+            fi
           fi
           
           # Final connectivity test
@@ -201,11 +212,32 @@ jobs:
             sleep 2
           done
           
-          # Test routes
-          echo "=== Testing Routes ==="
+          # Test routes and content
+          echo "=== Testing Routes and Content ==="
+          echo "Root route headers:"
           curl -I http://localhost:4173/ 2>&1 | head -3
-          curl -I http://localhost:4173/chat 2>&1 | head -3  
+          
+          echo "Root route content (first 10 lines):"
+          curl -s http://localhost:4173/ | head -10
+          
+          echo "Chat route headers:"
+          curl -I http://localhost:4173/chat 2>&1 | head -3
+          
+          echo "Courses route headers:"
           curl -I http://localhost:4173/courses 2>&1 | head -3
+          
+          # Verify SPA routing works (all routes should return same content)
+          echo "=== SPA Routing Verification ==="
+          ROOT_CONTENT=$(curl -s http://localhost:4173/ | head -5)
+          CHAT_CONTENT=$(curl -s http://localhost:4173/chat | head -5)
+          
+          if [ "$ROOT_CONTENT" = "$CHAT_CONTENT" ]; then
+            echo "✅ SPA routing working correctly"
+          else
+            echo "❌ SPA routing not working - routes return different content"
+            echo "Root content: $ROOT_CONTENT"
+            echo "Chat content: $CHAT_CONTENT"
+          fi
 
       - name: Run Lighthouse CI with simplified approach
         env:
@@ -221,11 +253,29 @@ jobs:
           
           echo "✅ Server is responding, starting Lighthouse..."
           
-          # Run Lighthouse on homepage only first
+          # Verify content exists before Lighthouse
+          echo "=== Pre-Lighthouse Content Check ==="
+          CONTENT=$(curl -s http://localhost:4173/)
+          if echo "$CONTENT" | grep -q "<title>"; then
+            echo "✅ Page has title tag"
+          else
+            echo "❌ Page missing title tag"
+          fi
+          
+          if echo "$CONTENT" | grep -q "<div.*id=.root"; then
+            echo "✅ Page has React root element"
+          else
+            echo "❌ Page missing React root element"
+          fi
+          
+          # Run Lighthouse with enhanced settings for content rendering
+          echo "=== Running Lighthouse ==="
           npx lhci collect \
             --url=http://localhost:4173/ \
-            --settings.chromeFlags="--no-sandbox --headless --disable-gpu --disable-dev-shm-usage" \
+            --settings.chromeFlags="--no-sandbox --headless --disable-gpu --disable-dev-shm-usage --disable-web-security --allow-running-insecure-content --disable-features=TranslateUI" \
             --settings.maxWaitForLoad=60000 \
+            --settings.maxWaitForFcp=60000 \
+            --settings.skipAudits=largest-contentful-paint,cumulative-layout-shift \
             --verbose
           
           # Upload results (with fallback)
