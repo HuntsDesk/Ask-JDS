@@ -140,9 +140,39 @@ jobs:
         run: |
           # Start server with explicit SPA routing
           echo "Starting server on port 4173..."
-          nohup npx serve -s dist -l 4173 --listen 0.0.0.0 --single > server.log 2>&1 &
+          
+          # Try serve with correct flags
+          nohup npx serve -s dist -l 4173 -H 0.0.0.0 --single > server.log 2>&1 &
           SERVER_PID=$!
           echo "Server PID: $SERVER_PID"
+          
+          # Give the server a moment to start
+          sleep 3
+          
+          # Check if server started successfully
+          if ! kill -0 $SERVER_PID 2>/dev/null; then
+            echo "❌ serve command failed, trying alternative approach..."
+            cat server.log
+            
+            # Try without host binding
+            echo "Trying serve without host binding..."
+            nohup npx serve -s dist -l 4173 --single > server.log 2>&1 &
+            SERVER_PID=$!
+            sleep 3
+            
+            if ! kill -0 $SERVER_PID 2>/dev/null; then
+              echo "❌ Alternative serve failed, trying http-server..."
+              cat server.log
+              
+              # Install and try http-server as backup
+              npm install -g http-server
+              nohup http-server dist -p 4173 -a 0.0.0.0 --spa > server.log 2>&1 &
+              SERVER_PID=$!
+              sleep 3
+            fi
+          fi
+          
+          echo "Final Server PID: $SERVER_PID"
           
           # Wait for server to be ready
           echo "Waiting for server to start..."
