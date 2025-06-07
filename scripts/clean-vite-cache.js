@@ -46,19 +46,15 @@ const distDirectories = [
 
 console.log('🧹 Cleaning Vite cache...');
 
-// Delete specified directories
+// Delete specified directories safely using fs.rmSync
 function removeDirectories(dirs) {
   dirs.forEach(dir => {
     const fullPath = path.join(rootDir, dir);
     if (fs.existsSync(fullPath)) {
       try {
         console.log(`Removing ${dir}...`);
-        if (process.platform === 'win32') {
-          // Windows needs special handling for directory removal
-          execSync(`rmdir /s /q "${fullPath}"`, { stdio: 'ignore' });
-        } else {
-          execSync(`rm -rf "${fullPath}"`, { stdio: 'ignore' });
-        }
+        // Use fs.rmSync which is safer than execSync for directory removal
+        fs.rmSync(fullPath, { recursive: true, force: true });
         console.log(`✅ Successfully removed ${dir}`);
       } catch (error) {
         console.error(`❌ Failed to remove ${dir}: ${error.message}`);
@@ -69,26 +65,37 @@ function removeDirectories(dirs) {
   });
 }
 
-// Kill Vite processes
+// Kill Vite processes safely using process.kill
 function killViteProcesses() {
   try {
     console.log('🚫 Killing running Vite processes...');
     if (process.platform === 'win32') {
-      execSync('taskkill /f /im node.exe /fi "WINDOWTITLE eq vite"', { stdio: 'ignore' });
+      console.log('⚠️ Process killing on Windows requires manual intervention');
+      console.log('Please close any running Vite processes manually');
     } else if (process.platform === 'darwin' || process.platform === 'linux') {
-      // Find PID of Vite processes and kill them
-      const pids = execSync(`ps aux | grep vite | grep -v grep | awk '{print $2}'`).toString().trim().split('\n');
-      if (pids.length > 0 && pids[0] !== '') {
-        pids.forEach(pid => {
-          try {
-            execSync(`kill ${pid}`, { stdio: 'ignore' });
-            console.log(`✅ Killed process ${pid}`);
-          } catch (e) {
-            console.error(`❌ Failed to kill process ${pid}`);
-          }
-        });
-      } else {
-        console.log('ℹ️ No Vite processes found');
+      // Use safer method to find and kill processes
+      try {
+        const pidsOutput = execSync(`ps aux | grep '[v]ite' | awk '{print $2}'`, { encoding: 'utf8' });
+        const pids = pidsOutput.trim().split('\n').filter(pid => pid && /^\d+$/.test(pid));
+        
+        if (pids.length > 0) {
+          pids.forEach(pid => {
+            try {
+              // Validate PID is numeric before using process.kill
+              const numericPid = parseInt(pid, 10);
+              if (!isNaN(numericPid)) {
+                process.kill(numericPid, 'SIGTERM');
+                console.log(`✅ Killed process ${numericPid}`);
+              }
+            } catch (e) {
+              console.error(`❌ Failed to kill process ${pid}: ${e.message}`);
+            }
+          });
+        } else {
+          console.log('ℹ️ No Vite processes found');
+        }
+      } catch (psError) {
+        console.log('ℹ️ No Vite processes found or unable to search');
       }
     }
   } catch (error) {

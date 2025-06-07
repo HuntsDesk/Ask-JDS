@@ -1,16 +1,20 @@
 
 import { Lesson } from '@/types/course';
+import DOMPurify from 'dompurify';
 
 interface LessonContentProps {
   lesson: Lesson;
 }
 
 export const LessonContent = ({ lesson }: LessonContentProps) => {
+  // Sanitize HTML content to prevent XSS attacks
+  const sanitizedContent = lesson.content ? DOMPurify.sanitize(lesson.content) : '';
+
   return (
     <div className="prose max-w-none mb-10">
       <h3 className="text-xl font-bold mb-4">{lesson.title}</h3>
       {lesson.content ? (
-        <div dangerouslySetInnerHTML={{ __html: lesson.content }} />
+        <div dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
       ) : (
         <>
           <h4 className="text-lg font-medium mb-3">Lesson Overview</h4>
