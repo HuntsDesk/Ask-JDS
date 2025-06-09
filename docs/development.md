@@ -96,7 +96,7 @@ PUBLIC_APP_URL=http://localhost:5173
 
 # CDN & Media Services
 VITE_GUMLET_ACCOUNT_ID=your_gumlet_account_id      # Video CDN (Gumlet)
-VITE_TWICPICS_DOMAIN=your_domain.twic.pics         # Image optimization CDN (TwicPics)
+
 
 # AI Models (Set via `npx supabase secrets set`)
 AI_MODEL_PRIMARY_DEV=jds-titan      # Primary chat model for development
@@ -139,7 +139,7 @@ The project uses Vite with domain-aware configuration:
 - **Separate builds** for each domain
 - **Code splitting** for optimal performance
 - **Environment detection** based on build mode
-- **Asset optimization** with TwicPics (images) and Gumlet (videos)
+- **Asset optimization** with Gumlet (videos)
 
 ### Database Development
 

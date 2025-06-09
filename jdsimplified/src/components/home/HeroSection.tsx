@@ -30,7 +30,7 @@ const HeroSection = () => {
             <h5 className="inline-block bg-white/20 backdrop-blur-sm text-white px-4 py-1 rounded-full text-sm font-medium mb-6 opacity-100">
               Thorough yet to the point
             </h5>
-            <h1 className="heading-xl mb-6 text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)] opacity-100">
+            <h1 className="text-3xl md:text-5xl font-bold text-white mb-6 opacity-100">
               The strategic approach to the study of law
             </h1>
             <p className="text-lg leading-relaxed text-white mb-8 max-w-xl drop-shadow-md opacity-100">

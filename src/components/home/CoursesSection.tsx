@@ -5,22 +5,22 @@ import { SectionDivider } from './SectionDivider';
 const courseFeatures = [
   {
     icon: Target,
-    title: 'Topic-Based Courses',
-    description: 'Contracts, Torts, Constitutional Law, and more—taught through Q&A.',
+    title: 'Strategic Frameworks',
+    description: 'Clear, structured frameworks that simplify complex legal topics into manageable, logical steps.',
     color: 'text-orange-500',
     bgColor: 'bg-orange-100'
   },
   {
     icon: BookOpen,
-    title: 'Mixed Format Lessons',
-    description: 'Flashcards, summaries, and examples that actually feel digestible.',
+    title: 'Practical Application',
+    description: 'Learn by doing with numerous examples and practice scenarios that help solidify your understanding.',
     color: 'text-blue-500',
     bgColor: 'bg-blue-100'
   },
   {
     icon: Clock,
-    title: 'Guided but Flexible',
-    description: 'Go at your pace. Jump in for a refresher or take it from the top.',
+    title: 'Expert Instruction',
+    description: 'Courses created by experienced legal professionals who understand what it takes to succeed..',
     color: 'text-green-500',
     bgColor: 'bg-green-100'
   }
@@ -32,9 +32,9 @@ export function CoursesSection() {
       <SectionDivider label="Courses" className="mb-20" />
       <div className="max-w-6xl mx-auto px-4 relative box-border">
         <div className="text-center mb-4">
-          <h2 id="courses" className="text-4xl font-bold text-black mb-4" style={{scrollMarginTop: '6rem'}}>Go Deeper When You're Ready</h2>
+          <h2 id="courses" className="text-4xl font-bold text-black mb-4" style={{scrollMarginTop: '6rem'}}>A Better Way to Master Law</h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-          Quick refreshers. In-depth walk-throughs. It's all inside.
+          Courses designed to break down complex legal concepts into easy-to-understand frameworks that help you learn faster and retain more.
           </p>
           <p className="text-lg text-gray-500 max-w-xl mx-auto mt-2 italic">
             Like your professor … but without the tears or judgement.
