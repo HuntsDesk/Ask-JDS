@@ -418,7 +418,7 @@ export default function FlashcardCollections() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4">
+    <div className="max-w-6xl mx-auto px-4 pb-20 md:pb-8">
       {/* Page title - only visible on desktop */}
       <div className="hidden md:block mb-6">
         <div className="flex items-center justify-between">
@@ -617,17 +617,16 @@ export default function FlashcardCollections() {
         </div>
       )}
 
-      {/* NEW: Observer element for infinite scroll with loading indicator */}
-      {hasNextPage && (
+      {/* Loading indicator for infinite scroll */}
+      {(hasNextPage || isFetchingNextPage) && (
         <div 
-          ref={observerTarget} 
-          className="flex justify-center my-8"
+          ref={hasNextPage && !isFetchingNextPage ? observerTarget : undefined}
+          className="flex justify-center items-center py-8"
         >
-          {isFetchingNextPage ? (
+          <div className="flex flex-col items-center gap-2">
             <LoadingSpinner className="w-8 h-8 text-jdblue" />
-          ) : (
-            <div className="h-10"></div> /* Spacer for observer */
-          )}
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading more collections...</p>
+          </div>
         </div>
       )}
     </div>

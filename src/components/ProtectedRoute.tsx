@@ -60,7 +60,7 @@ export function ProtectedRoute({
           console.log('ProtectedRoute: Loading safety timeout triggered');
           setLoadingTimeout(true);
         }
-      }, 5000); // 5 seconds timeout for better chance of success
+      }, 2000); // Reduced to 2 seconds for faster perceived loading
     }
     
     return () => {
@@ -179,21 +179,33 @@ export function ProtectedRoute({
 
   // CRITICAL: Show loading state when authentication is still being checked
   // We must not redirect until isAuthResolved = true, regardless of user status
+  // Only show loading for necessary auth checks, not always
   if (!isAuthResolved || isCheckingSession) {
+    // Don't show loading immediately - give auth a chance to resolve quickly
+    if (!loadingTimeout) {
+      return (
+        <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900">
+          <div className="flex flex-col items-center">
+            <LoadingSpinner size="lg" />
+            <p className="mt-4 text-gray-500 dark:text-gray-400">
+              Checking authorization...
+            </p>
+          </div>
+        </div>
+      );
+    }
+    
+    // Show extended loading state only if needed
     return (
       <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900">
         <div className="flex flex-col items-center">
           <LoadingSpinner size="lg" />
           <p className="mt-4 text-gray-500 dark:text-gray-400">
-            {loadingTimeout 
-              ? "Taking longer than expected..." 
-              : "Checking authorization..."}
+            Taking longer than expected...
           </p>
-          {loadingTimeout && (
-            <p className="mt-2 text-sm text-gray-400 dark:text-gray-500 max-w-md text-center">
-              This is taking longer than usual. If this persists, try refreshing the page.
-            </p>
-          )}
+          <p className="mt-2 text-sm text-gray-400 dark:text-gray-500 max-w-md text-center">
+            This is taking longer than usual. If this persists, try refreshing the page.
+          </p>
         </div>
       </div>
     );
@@ -201,19 +213,9 @@ export function ProtectedRoute({
 
   // If authenticated via context OR manual session check, render the content
   if (user || hasManualSession) {
-    // Wrap children in Suspense boundary to handle lazy-loaded components
-    return (
-      <Suspense fallback={
-        <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900">
-          <div className="flex flex-col items-center">
-            <LoadingSpinner size="lg" />
-            <p className="mt-4 text-gray-500 dark:text-gray-400">Loading content...</p>
-          </div>
-        </div>
-      }>
-        {children}
-      </Suspense>
-    );
+    // Remove Suspense fallback to eliminate "Loading content..." indicator
+    // Individual components handle their own loading states
+    return <>{children}</>;
   }
 
   // Redirect if manually prevented

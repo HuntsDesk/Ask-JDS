@@ -53,8 +53,8 @@ const PublicCourseDetail = lazy(() => import('@/components/courses/CourseDetail'
 const CourseContent = lazy(() => import('@/components/courses/CourseContent'));
 const SubscriptionSuccess = lazy(() => import('@/components/SubscriptionSuccess').then(module => ({ default: module.SubscriptionSuccess })));
 
-// Import ChatContainer instead of using ChatLayout
-const ChatContainer = lazy(() => import('@/components/chat/ChatContainer').then(module => ({ default: module.default })));
+// Import ChatContainer directly to avoid lazy loading flash
+import ChatContainer from '@/components/chat/ChatContainer';
 
 // Import Dashboard directly to avoid lazy loading issues
 import JDSDashboard from '@/pages/Dashboard';

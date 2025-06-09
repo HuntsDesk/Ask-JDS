@@ -270,7 +270,11 @@ export default function CreateFlashcard() {
   };
 
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="flex justify-center items-center min-h-[60vh]">
+        <LoadingSpinner className="w-8 h-8 text-jdblue" />
+      </div>
+    );
   }
 
   if (error) {
