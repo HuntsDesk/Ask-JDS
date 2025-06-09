@@ -262,55 +262,46 @@ export function ChatContainer() {
     }
   }, [messagesLoading]);
   
-  // Initialize FSM state based on auth status
+  // Initialize FSM state based on auth status - optimized to reduce flashing
+  // Skip auth loading since ProtectedRoute already handles authentication
   useEffect(() => {
-    console.log('ChatContainer: Auth state update', { isAuthResolved, user: !!user });
+    // Only log in development to reduce console noise
+    if (process.env.NODE_ENV === 'development') {
+      console.log('ChatContainer: Auth state update', { isAuthResolved, user: !!user });
+    }
     
-    if (!isAuthResolved && chatFSM.state.status !== 'loading') {
-      console.log('ChatContainer: Auth not resolved, FSM in auth loading state');
-      chatFSM.startLoading('auth');
-    } else if (isAuthResolved && !user && chatFSM.state.status !== 'idle') {
+    // Since we're inside ProtectedRoute, auth is already resolved
+    // Jump directly to threads loading
+    if (isAuthResolved && user && chatFSM.state.status === 'idle') {
+      chatFSM.startLoading('threads');
+    } else if (isAuthResolved && !user) {
       // No user after auth resolution means we should redirect
       // (handled by ProtectedRoute)
-      console.log('ChatContainer: Auth resolved, no user, FSM resetting');
       chatFSM.reset();
-    } else if (isAuthResolved && user) {
-      // Auth is resolved and we have a user, FSM can proceed to next phase
-      console.log('ChatContainer: Auth resolved with user, proceeding to next FSM phase');
-      if (chatFSM.state.status === 'loading' && chatFSM.state.phase === 'auth') {
-        console.log('ChatContainer: Starting threads loading phase');
-        chatFSM.startLoading('threads');
-      }
     }
-  }, [isAuthResolved, user, chatFSM]);
+  }, [isAuthResolved, user]); // Remove chatFSM from deps to prevent loops
   
-  // Track thread loading and update FSM state
+  // Track thread loading and update FSM state - optimized to reduce transitions
   useEffect(() => {
     if (!isAuthResolved || !user) {
-      console.log('ChatContainer: Skipping thread loading, auth not ready');
-      return;
+      return; // Silently skip when auth not ready
     }
     
     if (originalThreadsLoading && chatFSM.state.status !== 'loading') {
-      console.log('ChatContainer: Threads loading in progress');
       chatFSM.startLoading('threads');
     } else if (!originalThreadsLoading && chatFSM.state.status === 'loading' && chatFSM.state.phase === 'threads') {
       // If we have threads or this is a different page (no thread ID expected)
-      console.log('ChatContainer: Threads loaded, threads count:', originalThreads.length);
-      
       if (originalThreads.length > 0 || !urlThreadId) {
         // Check if we need message loading or can go straight to ready state
         if (urlThreadId) {
-          console.log('ChatContainer: Thread ID present, starting messages loading', urlThreadId);
           chatFSM.startLoading('messages');
         } else {
           // No thread ID means we're on the welcome page
-          console.log('ChatContainer: No thread ID, setting FSM to ready state');
           chatFSM.setReady(originalThreads.length === 0, null);
         }
       }
     }
-  }, [isAuthResolved, user, originalThreadsLoading, originalThreads, urlThreadId, chatFSM]);
+  }, [isAuthResolved, user, originalThreadsLoading, originalThreads.length, urlThreadId]); // Simplified deps
   
   // Redirect to most recent thread if at /chat root
   useEffect(() => {
@@ -334,26 +325,31 @@ export function ChatContainer() {
     }
   }, [isAuthResolved, user, originalThreadsLoading, originalThreads, urlThreadId, navigate, location.pathname, setSelectedThreadId]);
   
-  // Track message loading and update FSM state
+  // Track message loading and update FSM state - optimized to reduce flashing
   useEffect(() => {
     if (!isAuthResolved || !user || !urlThreadId) {
-      console.log('ChatContainer: Skipping message loading, prerequisites not met');
-      return;
+      return; // Silently skip when prerequisites not met
     }
     
+    // Skip showing loading state for fast message loads
+    // Only show loading if messages are taking time AND we have no existing messages
     if ((messagesLoading || isGenerating) && (chatFSM.state.status !== 'loading' || chatFSM.state.phase !== 'messages')) {
-      console.log('ChatContainer: Messages loading or generating in progress');
-      
-      // Only trigger full loading state for initial load, not during message generation
+      // Only trigger loading state for slow initial loads with no cached messages
       if (messagesLoading && threadMessages.length === 0) {
-        chatFSM.startLoading('messages');
+        // Add a small delay before showing loading to allow fast loads to complete
+        const timer = setTimeout(() => {
+          if (messagesLoading && threadMessages.length === 0) {
+            chatFSM.startLoading('messages');
+          }
+        }, 200); // 200ms delay before showing loading
+        
+        return () => clearTimeout(timer);
       }
     } else if (!messagesLoading && !isGenerating && chatFSM.state.status === 'loading' && chatFSM.state.phase === 'messages') {
       // Messages loaded, can transition to ready
-      console.log('ChatContainer: Messages loaded, setting FSM to ready state');
       chatFSM.setReady(threadMessages.length === 0, urlThreadId);
     }
-  }, [isAuthResolved, user, urlThreadId, messagesLoading, isGenerating, threadMessages, chatFSM]);
+  }, [isAuthResolved, user, urlThreadId, messagesLoading, isGenerating, threadMessages.length]); // Simplified deps
 
   // Ensure dark mode is applied correctly
   useEffect(() => {
@@ -443,29 +439,19 @@ export function ChatContainer() {
   // FSM visualizer in development
   const devTools = null; // No longer showing debug UI
   
-  // Auth loading state
-  if (chatFSM.state.status === 'loading' && chatFSM.state.phase === 'auth') {
+  // Consolidated loading state - only show if actually needed
+  // Skip auth loading since ProtectedRoute already handled it
+  // Only show loading for slow operations that actually need user feedback
+  if (chatFSM.state.status === 'loading' && chatFSM.state.phase !== 'auth') {
+    // Use generic loading message to avoid too many specific states
+    const loadingMessage = "Loading...";
+    
     return (
       <PageContainer bare>
         <div className="flex-1 flex flex-col justify-center items-center h-full py-8">
           <LoadingSpinner className="w-10 h-10 text-jdblue mb-4" />
           <p className="text-gray-600 dark:text-gray-300 text-center">
-            Initializing...
-          </p>
-        </div>
-        {devTools}
-      </PageContainer>
-    );
-  }
-  
-  // Thread loading state
-  if (chatFSM.state.status === 'loading' && chatFSM.state.phase === 'threads') {
-    return (
-      <PageContainer bare>
-        <div className="flex-1 flex flex-col justify-center items-center h-full py-8">
-          <LoadingSpinner className="w-10 h-10 text-jdblue mb-4" />
-          <p className="text-gray-600 dark:text-gray-300 text-center">
-            Loading conversations...
+            {loadingMessage}
           </p>
         </div>
         {devTools}
@@ -504,21 +490,6 @@ export function ChatContainer() {
           <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">Welcome to AskJDS</h1>
           <p className="text-lg mb-8 text-gray-600 dark:text-gray-300">
             Ask any law school or bar exam related questions. Start a new chat to begin the conversation.
-          </p>
-        </div>
-        {devTools}
-      </PageContainer>
-    );
-  }
-  
-  // Messages loading state
-  if (chatFSM.state.status === 'loading' && chatFSM.state.phase === 'messages') {
-    return (
-      <PageContainer bare>
-        <div className="flex-1 flex flex-col justify-center items-center h-full py-8">
-          <LoadingSpinner className="w-10 h-10 text-jdblue mb-4" />
-          <p className="text-gray-600 dark:text-gray-300 text-center">
-            Loading messages...
           </p>
         </div>
         {devTools}
@@ -587,6 +558,7 @@ export function ChatContainer() {
           showRetryButton={showRetryButton}
           isGenerating={isGenerating}
           onRefresh={handleRefreshMessages}
+          scrollContainerRef={messagesScrollRef}
         />
       </ChatLayoutContainer>
       

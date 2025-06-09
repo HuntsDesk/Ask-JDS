@@ -1030,7 +1030,7 @@ export default function AllFlashcards() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4">
+    <div className="max-w-6xl mx-auto px-4 pb-20 md:pb-8">
       <DeleteConfirmation
         isOpen={!!cardToDelete}
         onClose={() => setCardToDelete(null)}
@@ -1265,16 +1265,16 @@ export default function AllFlashcards() {
         </div>
       )}
 
-      {/* Observation target for infinite scroll */}
-      {hasNextPage && !isFetchingNextPage && filteredCards.length > 0 && (
-        <div ref={observerTarget} className="h-10 flex justify-center items-center my-8">
-          <LoadingSpinner className="w-5 h-5 text-jdblue" />
-        </div>
-      )}
-
-      {isFetchingNextPage && (
-        <div className="flex justify-center my-8">
-          <LoadingSpinner className="w-8 h-8 text-jdblue" />
+      {/* Loading indicator for infinite scroll */}
+      {(hasNextPage || isFetchingNextPage) && filteredCards.length > 0 && (
+        <div 
+          ref={hasNextPage && !isFetchingNextPage ? observerTarget : undefined}
+          className="flex justify-center items-center py-8"
+        >
+          <div className="flex flex-col items-center gap-2">
+            <LoadingSpinner className="w-8 h-8 text-jdblue" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading more flashcards...</p>
+          </div>
         </div>
       )}
     </div>

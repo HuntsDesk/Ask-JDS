@@ -98,7 +98,7 @@ export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
   
   return (
     <div 
-      className={`mb-1 ${isUserMessage ? 'flex justify-end' : 'flex justify-start'} w-full theme-aware-message ${isLastMessage ? 'mb-1' : ''}`}
+      className={`mb-0.5 ${isUserMessage ? 'flex justify-end' : 'flex justify-start'} w-full theme-aware-message ${isLastMessage ? 'mb-2' : ''}`}
       style={{ 
         contain: 'content',
         opacity: messageReady ? 1 : 0, 
@@ -127,7 +127,7 @@ export function ChatMessage({ message, isLastMessage }: ChatMessageProps) {
         
         {/* Message timestamp with copy button */}
         <div 
-          className={`flex items-center text-xs mt-1 ${
+          className={`flex items-center text-xs mt-0.5 ${
             isUserMessage ? 'justify-end mr-1' : 'ml-1'
           } text-gray-500 dark:text-gray-400 message-timestamp ${isLastMessage ? 'mb-1' : ''}`}
         >

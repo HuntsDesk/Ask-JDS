@@ -147,7 +147,7 @@ export default function Navbar() {
   return (
     <>
       <nav className={cn(
-        "bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 sticky top-0 z-20 w-full transition-all duration-300 ease-in-out",
+        "bg-white dark:bg-gray-800 shadow-lg dark:shadow-gray-900 fixed md:sticky top-0 z-30 w-full transition-all duration-300 ease-in-out",
         // Apply the proper left padding when the sidebar is collapsed and pinned
         isDesktop && isPinned && !isExpanded && contentMargin
       )}>

@@ -15,6 +15,7 @@ import PageContainer from '@/components/layout/PageContainer';
 import { Button } from '@/components/ui/button';
 import { Plus, BookOpen, GraduationCap, Filter, Search } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
+import ScrollToTop from './ScrollToTop';
 
 // Import pages
 import Home from './pages/Home';
@@ -215,15 +216,17 @@ export default function FlashcardsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-screen md:h-full">
       {/* Use the NavbarProvider to control the navbar state */}
       <StudyProvider>
         {/* Navbar at the top */}
         <Navbar />
         
-        {/* Main content with top margin to clear navbar */}
-        <div className="flex-1 overflow-auto w-full">
-          <PageContainer disablePadding={false} className="pt-4 pb-12 mx-auto px-4" maxWidth="6xl">
+        {/* Main content with proper constraints for mobile */}
+        <div className="flex-1 overflow-hidden w-full pt-16 md:pt-0">
+          <div className="h-full overflow-auto pb-16 md:pb-0">
+            <ScrollToTop />
+            <PageContainer disablePadding={false} className="pt-6 pb-6 md:pb-12 mx-auto px-4" maxWidth="6xl">
             <Routes>
               {routeElements}
               
@@ -242,6 +245,7 @@ export default function FlashcardsPage() {
               <Route path="*" element={<Navigate to="/flashcards/collections" />} />
             </Routes>
           </PageContainer>
+          </div>
         </div>
       </StudyProvider>
     </div>
