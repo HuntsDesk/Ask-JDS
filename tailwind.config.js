@@ -65,6 +65,18 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Chat-specific colors
+        'chat-bg': 'var(--chat-bg)',
+        'chat-input-bg': 'var(--chat-input-bg)',
+        'chat-input-border': 'var(--chat-input-border)',
+        'chat-message-user': 'var(--chat-message-user-bg)',
+        'chat-message-ai': 'var(--chat-message-ai-bg)',
+      },
+      spacing: {
+        'chat-input-mobile': 'var(--chat-input-height-mobile)',
+        'chat-input-desktop': 'var(--chat-input-height-desktop)',
+        'chat-header': 'var(--chat-header-height)',
+        'chat-safe-area': 'var(--chat-safe-area-bottom)',
       },
       borderRadius: {
         lg: "var(--radius)",
