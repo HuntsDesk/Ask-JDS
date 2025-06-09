@@ -113,7 +113,7 @@ export function PersistentLayout() {
           isExpanded || isDesktop ? 'translate-x-0' : '-translate-x-full'
         } ${
           isDesktop ? 'relative' : 'fixed'
-        } ${isDesktop ? (isExpanded ? 'w-64' : 'w-16') : 'w-64'} h-full transition-all duration-300 ease-in-out z-50`}
+        } ${isDesktop ? (isExpanded ? 'w-64' : 'w-16') : 'w-64'} h-full transition-all duration-300 ease-in-out z-50 flex-shrink-0`}
       >
         <Sidebar
           setActiveTab={handleSetActiveThread}
@@ -134,7 +134,7 @@ export function PersistentLayout() {
         />
       </div>
 
-      <div className="flex-1 w-full h-full" style={{ zIndex: 1 }}>
+      <div className="flex-1 min-w-0 h-full overflow-hidden bg-gray-50 dark:bg-gray-900" style={{ zIndex: 1 }}>
         <Outlet />
       </div>
     </div>

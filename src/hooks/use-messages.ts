@@ -9,7 +9,8 @@ import {
   getUserMessageCount,
   incrementUserMessageCount,
   getLifetimeMessageCount,
-  hasActiveSubscription
+  hasActiveSubscription,
+  FREE_MESSAGE_LIMIT
 } from '@/lib/subscription';
 import { useSettings } from './use-settings';
 import { usePaywall } from '@/contexts/paywall-context';
@@ -29,9 +30,6 @@ interface ResponseGenerationResult {
   response?: string;
   error?: any;
 }
-
-// Free tier message limit
-export const FREE_MESSAGE_LIMIT = 20;
 
 // Default return object to ensure consistent hook return shape
 const defaultUseMessagesReturn = {

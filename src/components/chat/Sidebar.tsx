@@ -413,7 +413,7 @@ export function Sidebar({
       {/* Main sidebar container */}
       <div 
         className={cn(
-          "fixed inset-y-0 left-0 flex flex-col bg-background border-r transition-all duration-300 sidebar-transition sidebar-container",
+          "flex flex-col bg-background border-r transition-all duration-300 sidebar-transition sidebar-container h-full",
           // Desktop state
           !isMobile && "z-50",
           !isMobile && (isDesktopExpanded ? "w-[var(--sidebar-width)] expanded" : "w-[var(--sidebar-collapsed-width)] collapsed"),
@@ -595,13 +595,13 @@ export function Sidebar({
                                 style={{
                                   position: 'absolute',
                                   left: '32px', /* icon width + padding */
-                                  right: selectedThreadId === session.id ? '24px' : '8px', /* leave space for chevron if selected */
+                                  right: selectedThreadId === session.id ? '32px' : '8px', /* leave more space for chevron if selected */
                                   top: '50%',
                                   transform: 'translateY(-50%)',
                                   whiteSpace: 'nowrap',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
-                                  width: 'calc(100% - 40px)' /* Ensure width is calculated correctly */
+                                  /* Remove fixed width calc to let right position handle it */
                                 }}
                                 className={cn(
                                   "text-sm truncate",

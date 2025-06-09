@@ -383,7 +383,7 @@ export function HomePage() {
               </h1>
 
               <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-              Here for your 2 AM panic sessions, your bar exam meltdown, and yes, when you forget the rule against perpetuities (again).
+              Here for your panic sessions, your bar meltdown, and yes, when you forget the rule against perpetuities (again).
               </p>
 
               <div className="flex flex-col md:flex-row gap-4 mt-8 justify-center">

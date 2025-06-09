@@ -195,8 +195,8 @@ body {
     --input: 220 13% 91%;
     --ring: 23 91% 54%;
     --radius: 0.75rem;
-    --sidebar-width: 280px;
-    --sidebar-collapsed-width: 70px;
+      --sidebar-width: 256px; /* w-64 in Tailwind */
+  --sidebar-collapsed-width: 64px; /* w-16 in Tailwind */
     --jdorange: #F37022;
     --jdorange-dark: #E36012;
     --jdblue: #00178E;
@@ -204,6 +204,19 @@ body {
     /* Chat message variables for light theme */
     --message-bg: rgb(243, 244, 246); /* light gray (bg-gray-100) */
     --message-text: rgb(31, 41, 55); /* dark gray (text-gray-800) */
+    
+    /* Chat-specific layout tokens */
+    --chat-input-height-mobile: 56px;
+    --chat-input-height-desktop: 64px;
+    --chat-header-height: 64px;
+    --chat-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    
+    /* Chat color tokens */
+    --chat-bg: hsl(var(--background));
+    --chat-input-bg: hsl(var(--background));
+    --chat-input-border: hsl(var(--border));
+    --chat-message-user-bg: #F37022;
+    --chat-message-ai-bg: hsl(var(--muted));
   }
 
   .dark {
@@ -229,6 +242,12 @@ body {
     /* Chat message variables for dark theme */
     --message-bg: rgb(55, 65, 81); /* dark gray (bg-gray-800) */
     --message-text: rgb(229, 231, 235); /* light gray (text-gray-200) */
+    
+    /* Chat color tokens (dark mode) */
+    --chat-bg: hsl(var(--background));
+    --chat-input-bg: hsl(var(--background));
+    --chat-input-border: hsl(var(--border));
+    --chat-message-ai-bg: hsl(var(--muted));
   }
 }
 
@@ -481,8 +500,9 @@ body {
   margin-right: 0 !important;
 }
 
+/* COMMENTED OUT - Legacy chat container styles replaced by ChatLayoutContainer
 /* Ensure chat container takes full height */
-.chat-container {
+/* .chat-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -490,10 +510,10 @@ body {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-}
+} */
 
 /* Message container should take available space */
-.message-container {
+/* .message-container {
   display: flex;
   flex: 1;
   min-height: 0;
@@ -502,10 +522,10 @@ body {
   will-change: transform;
   contain: layout;
   margin-bottom: 0;
-}
+} */
 
 /* Make sure the scrollable container inside takes full height */
-.message-container > div {
+/* .message-container > div {
   height: 100%;
   width: 100%;
   position: absolute;
@@ -517,27 +537,27 @@ body {
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   padding-bottom: 0;
-}
+} */
 
 /* Fix for chat layout with bare PageContainer */
-.PageContainer-bare {
+/* .PageContainer-bare {
   height: 100vh;
   width: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
+} */
 
-.PageContainer-bare > div {
+/* .PageContainer-bare > div {
   display: flex;
   flex-direction: column;
   flex: 1;
   height: 100%;
   min-height: 0;
-}
+} */
 
 /* Ensure the input container stays at the bottom */
-.input-container {
+/* .input-container {
   position: sticky;
   bottom: 0;
   left: 0;
@@ -546,12 +566,12 @@ body {
   z-index: 10;
   background-color: white;
   border-top: 1px solid #e5e7eb;
-}
+} */
 
-.dark .input-container {
+/* .dark .input-container {
   background-color: #111827;
   border-color: #374151;
-}
+} */
 
 /* Mobile safe area insets for iOS devices */
 .mb-safe-area-inset {
@@ -570,8 +590,9 @@ body {
     border: none !important;
   }
   
+  /* COMMENTED OUT - Replaced by ChatLayoutContainer system
   /* Fixed chat input at bottom of screen on mobile */
-  .input-container {
+  /* .input-container {
     position: fixed;
     bottom: 0;
     left: 0;
@@ -585,76 +606,76 @@ body {
     padding-top: 0.75rem;
     background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(10px);
-  }
+  } */
   
   /* Adjust message container to account for fixed input and fixed header */
-  .message-container {
-    padding-bottom: 220px !important; /* Increased padding to ensure content is never hidden behind the input box */
+  /* .message-container {
+    padding-bottom: 220px !important;
     margin-bottom: 20px;
-    padding-top: 100px !important; /* Increased top padding to ensure content is never hidden behind the header */
+    padding-top: 100px !important;
     margin-top: 0 !important;
-  }
+  } */
   
   /* Fix for first message in chat being hidden under header */
-  .message-container > div:first-child {
+  /* .message-container > div:first-child {
     padding-top: 10px;
     min-height: 20px;
     display: block;
-  }
+  } */
   
   /* Fix for the first actual message to ensure it's not hidden */
-  .message-container .flex.flex-col.space-y-4 > div:first-child {
+  /* .message-container .flex.flex-col.space-y-4 > div:first-child {
     margin-top: 25px !important;
     padding-top: 15px !important;
-  }
+  } */
   
   /* Fix for the last message to ensure it's not hidden behind the input box */
-  .message-container .flex.flex-col.space-y-4 > div:last-child {
+  /* .message-container .flex.flex-col.space-y-4 > div:last-child {
     margin-bottom: 25px !important;
     padding-bottom: 25px !important;
-  }
+  } */
   
   /* Add extra padding to message end reference */
-  .h-4[ref="messageEndRef"] {
+  /* .h-4[ref="messageEndRef"] {
     height: 30px !important;
     display: block;
-  }
+  } */
   
   /* Ensure chat messages are not hidden behind the input container */
-  .chat-messages-scroll {
+  /* .chat-messages-scroll {
     padding-bottom: 30px !important;
-  }
+  } */
   
   /* Add specific styling to ensure timestamps are visible */
-  .message-wrapper:last-child {
+  /* .message-wrapper:last-child {
     margin-bottom: 16px !important;
-  }
+  } */
   
   /* Add extra spacing for the message end reference */
-  div[ref="messageEndRef"] {
+  /* div[ref="messageEndRef"] {
     height: 0 !important;
     padding-bottom: 0 !important;
     margin-bottom: 0 !important;
     display: block !important;
-  }
+  } */
   
   /* Ensure last message timestamp has extra space */
-  .message-wrapper:last-child .message-timestamp {
+  /* .message-wrapper:last-child .message-timestamp {
     margin-bottom: 12px !important;
-  }
+  } */
   
   /* Add space at the end of the message list */
-  .flex.flex-col.space-y-1.pb-0.mt-2 {
+  /* .flex.flex-col.space-y-1.pb-0.mt-2 {
     padding-bottom: 15px !important;
-  }
+  } */
   
   /* Ensure the chat container handles the fixed input properly */
-  .chat-container {
+  /* .chat-container {
     padding-bottom: 0;
-    height: calc(100vh - 60px); /* Account for top navbar */
+    height: calc(100vh - 60px);
     overflow: auto;
     -webkit-overflow-scrolling: touch;
-  }
+  } */
   
   /* Fix mobile overflow issues */
   body, html, #root {
@@ -920,11 +941,7 @@ div[role="tooltip"],
   height: 100vh;
   width: 100%;
   overflow: hidden;
-  background-color: white;
-}
-
-.dark .chat-interface-root {
-  background-color: #111827;
+  /* Removed hardcoded background color - let Tailwind classes handle it */
 }
 
 .chat-messages-area {

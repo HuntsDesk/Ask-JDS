@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useContext, useMemo, useCallback } from 'r
 import { useAuth } from '@/lib/auth';
 import { useThreads, useThreadsRealtime } from '@/hooks/use-query-threads';
 import { useMessages } from '@/hooks/use-messages';
-import { ChatInterface } from './ChatInterface';
+// ChatInterface import removed - using extracted components instead
 import { useToast } from '@/hooks/use-toast';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { SelectedThreadContext, SidebarContext } from '@/App';
@@ -13,9 +13,15 @@ import useMediaQuery from '@/hooks/useMediaQuery';
 import { useCreateThread, useUpdateThread, useDeleteThread } from '@/hooks/use-query-threads';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import PageContainer from '@/components/layout/PageContainer';
+import ChatLayoutContainer from '@/components/layout/ChatLayoutContainer';
+import { ChatMessagesArea } from './ChatMessagesArea';
+import { ChatInputArea } from './ChatInputArea';
+import { ChatMobileHeader } from './ChatMobileHeader';
 import type { Thread } from '@/types';
 import { useChatFSM } from '@/hooks/use-chat-fsm';
 import { cn } from '@/lib/utils';
+import type { LayoutMetrics } from '@/components/layout/ChatLayoutContainer';
+import { useSubscription } from '@/hooks/useSubscription';
 
 export function ChatContainer() {
   // =========== HOOKS - All called unconditionally at the top ===========
@@ -39,6 +45,12 @@ export function ChatContainer() {
   // Chat FSM for state management
   const chatFSM = useChatFSM();
   
+  // Use the subscription hook to get tier information
+  const { tierName } = useSubscription();
+  
+  // Determine if user has premium access (Premium or Unlimited tier)
+  const hasPaidSubscription = tierName === 'Premium' || tierName === 'Unlimited';
+  
   // Refs for state tracking
   const chatRef = useRef(null);
   const hasInitializedRef = useRef(false);
@@ -46,6 +58,12 @@ export function ChatContainer() {
   const isNavigatingFromSidebar = useRef(false);
   // Reference to focus function that will be set by ChatInterface
   const focusInputRef = useRef<() => void>(() => {});
+  // New refs for chat layout
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  
+  // Layout metrics state
+  const [layoutMetrics, setLayoutMetrics] = useState<LayoutMetrics | null>(null);
+  const [showRetryButton, setShowRetryButton] = useState(false);
   
   // State variables
   const [activeThread, setActiveThread] = useState<string | null>(null);
@@ -140,7 +158,8 @@ export function ChatContainer() {
     sendMessage: handleSendMessage,
     refreshMessages: handleRefreshMessages,
     handleClosePaywall: handlePaywallClose,
-    preservedMessage: messagePreserved
+    preservedMessage: messagePreserved,
+    isSubscribed
   } = messagesResult || {
     messages: [],
     loading: false,
@@ -151,7 +170,8 @@ export function ChatContainer() {
     sendMessage: async (_content: string) => null,
     refreshMessages: async () => {},
     handleClosePaywall: () => {},
-    preservedMessage: null
+    preservedMessage: null,
+    isSubscribed: false
   };
 
   // =========== Event handlers ===========
@@ -170,6 +190,11 @@ export function ChatContainer() {
   // Create a function to set the focus reference from ChatInterface
   const setFocusInputRef = useCallback((focusFn: () => void) => {
     focusInputRef.current = focusFn;
+  }, []);
+  
+  // Handle layout metrics changes
+  const handleLayoutMetricsChange = useCallback((metrics: LayoutMetrics) => {
+    setLayoutMetrics(metrics);
   }, []);
 
   // Create new thread - properly manage dependencies
@@ -223,6 +248,19 @@ export function ChatContainer() {
   }, [createThreadMutation, navigate, setSelectedThreadId, toast, chatFSM]);
 
   // =========== Effects ===========
+  
+  // Show retry button after delay
+  useEffect(() => {
+    if (messagesLoading) {
+      const timeoutId = setTimeout(() => {
+        setShowRetryButton(true);
+      }, 10000);
+      
+      return () => clearTimeout(timeoutId);
+    } else {
+      setShowRetryButton(false);
+    }
+  }, [messagesLoading]);
   
   // Initialize FSM state based on auth status
   useEffect(() => {
@@ -513,37 +551,71 @@ export function ChatContainer() {
   
   // Main chat interface - ready state
   return (
-    <PageContainer bare className="chat-layout-container">
-      {/* 
-        Chat interface needs complete layout control due to its unique scrolling behavior
-        and fixed-position elements. The bare prop removes all layout constraints.
-      */}
-      <div className="flex flex-col h-screen w-full overflow-hidden" ref={chatRef}>
-        <ChatInterface 
-          threadId={urlThreadId}
-          messages={threadMessages}
-          // Only pass loading=true for initial message loading, not during message generation
-          loading={chatFSM.state.status === 'loading' && threadMessages.length === 0}
-          loadingTimeout={chatFSM.state.status === 'loading' && chatFSM.state.previousStatus === 'ready'}
-          onSend={handleSendMessage}
-          onRefresh={handleRefreshMessages}
-          messageCount={messageCount}
-          messageLimit={messageLimit}
-          preservedMessage={preservedMessage}
-          showPaywall={showPaywall}
+    <>
+      {/* Mobile header */}
+      {!isDesktop && (
+        <ChatMobileHeader 
           onToggleSidebar={() => {
             console.log('ChatContainer: Toggle sidebar from hamburger');
             setIsExpanded(!isExpanded);
           }}
-          isSidebarOpen={isExpanded}
-          isDesktop={isDesktop}
-          isGenerating={isGenerating}
-          onClosePaywall={handlePaywallClose}
-          setFocusInputRef={setFocusInputRef}
         />
-      </div>
+      )}
+      
+      <ChatLayoutContainer
+        footer={
+          <ChatInputArea
+            threadId={urlThreadId}
+            onSend={handleSendMessage}
+            messageCount={messageCount}
+            messageLimit={messageLimit}
+            preservedMessage={preservedMessage}
+            isGenerating={isGenerating}
+            isLoading={messagesLoading}
+            setFocusInputRef={setFocusInputRef}
+            isSubscribed={hasPaidSubscription}
+          />
+        }
+        scrollContainerRef={messagesScrollRef}
+        onLayoutChange={handleLayoutMetricsChange}
+        className="chat-interface-root"
+      >
+        <ChatMessagesArea
+          messages={threadMessages}
+          loading={messagesLoading}
+          loadingTimeout={chatFSM.state.status === 'loading' && chatFSM.state.previousStatus === 'ready'}
+          showRetryButton={showRetryButton}
+          isGenerating={isGenerating}
+          onRefresh={handleRefreshMessages}
+        />
+      </ChatLayoutContainer>
+      
       {devTools}
-    </PageContainer>
+      
+      {/* Paywall Modal */}
+      {showPaywall && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-4">Message Limit Reached</h3>
+            <p className="mb-4">You've reached your free message limit. Upgrade to continue chatting with unlimited messages.</p>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => navigate('/pricing')}
+                className="px-4 py-2 bg-[#F37022] text-white rounded hover:bg-[#E36012]"
+              >
+                Upgrade Now
+              </button>
+              <button 
+                onClick={handlePaywallClose}
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
