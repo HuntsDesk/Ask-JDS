@@ -191,15 +191,19 @@ Each is served via a domain-specific entrypoint with conditional logic driven by
   - **Logo section fix**: Increased logo container size from `w-32 h-32` to `w-40 h-40` and removed overflow-hidden to prevent clipping of floating icons
   - **Padding optimization**: Adjusted hero section padding from `pt-20 md:pt-28` to `pt-16 md:pt-20` for better visual balance
 - ✅ **Updated homepage marketing copy** with casual, student-friendly tone
-  - **TL;DR Section**: "TL;DR: It's More Than Just Chat" with "You're not just here to ask questions. You're here to actually learn stuff (maybe at 2am)."
+  - **TL;DR Section**: "TL;DR: More Than Just Chatting" with "You're not just here to ask questions. You're here to actually learn stuff."
   - **Chat Section**: "Chat Your Way Through Law School" with emphasis on "no group chat chaos" and "when your outline isn't outlining"
   - **Flashcards Section**: "Need Help Remembering?" focused on "expert-created cards" and "spaced repetition, zero judgment"
   - **Courses Section**: "Go Deeper When You're Ready (Courses)" with "Quick refreshers > long lectures" and "Like your professor… but in bullet points"
-  - **Hero section**: Streamlined copy to "Ask JDS is your AI Law Nerd — here for your 2 AM panic, your bar exam meltdown, and yes, when you forget the rule against perpetuities (again)"
+  - **Hero section**: Streamlined copy to "Here for your panic sessions, your bar meltdown, and yes, when you forget the rule against perpetuities (again)" - refined for better readability
 - ✅ **Enhanced visual elements**
   - Made example question text italic for better visual emphasis
   - Added supportive taglines under each section for personality and relatability
   - Maintained technical functionality while improving user experience
+- ✅ **Copy refinements for readability** (Latest Updates)
+  - **Simplified hero messaging**: Removed specific time references ("2 AM") for broader appeal
+  - **Streamlined TL;DR header**: "More Than Just Chatting" - cleaner, more professional tone
+  - **Improved message flow**: Enhanced readability while preserving student-friendly personality
 
 ### Homepage Layout & UX Improvements (January 2025)
 

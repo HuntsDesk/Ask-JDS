@@ -50,9 +50,9 @@ export function TLDRSection() {
     <section className="py-20 bg-white relative overflow-hidden">
       <div className="max-w-6xl mx-auto px-4 box-border">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-black mb-4">TL;DR: You're Not Just Here to Chat</h2>
+          <h2 className="text-4xl font-bold text-black mb-4">TL;DR: More Than Just Chatting</h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            You're not just here to ask questions. You're here to actually learn stuff (maybe at 2am).
+            You're not just here to ask questions. You're here to actually learn stuff.
           </p>
         </div>
         
