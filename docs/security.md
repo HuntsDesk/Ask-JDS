@@ -53,15 +53,7 @@
 - **Enhanced Error Handling**: Added debugging and fallback handling in `gumlet.ts`
 - **Video Playback Restored**: All course video content now loads correctly in production
 
-### TwicPics Image Optimization Integration
 
-✅ **TwicPics CDN Configuration**: Implemented static image optimization alongside Gumlet video CDN
-- **Domain**: `jdsimplified.twic.pics` configured for image optimization
-- **Scope**: Static images only (logos, hero images, flashcard demos, profile pictures)
-- **Gumlet Coexistence**: Videos remain on Gumlet CDN (`video.gumlet.io`) - no conflict
-- **Features**: WebP/AVIF conversion, responsive sizing, quality optimization
-- **Implementation**: Created `src/lib/twicpics.ts` utility with presets and React components
-- **Environment**: Added `VITE_TWICPICS_DOMAIN` to all GitHub Actions build workflows
 
 ### Security Policy Compliance
 

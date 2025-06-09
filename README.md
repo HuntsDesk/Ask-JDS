@@ -127,7 +127,7 @@ VITE_ADMIN_DOMAIN=admin.jdsimplified.com
 
 # Media CDNs
 VITE_GUMLET_ACCOUNT_ID=your_gumlet_id      # Video CDN
-VITE_TWICPICS_DOMAIN=your_domain.twic.pics # Image optimization
+
 ```
 
 ## Documentation
@@ -147,6 +147,12 @@ VITE_TWICPICS_DOMAIN=your_domain.twic.pics # Image optimization
 - Resolved z-index stacking to prevent messages appearing behind input area
 - Added safe area inset support for modern iOS devices
 
+### Typography and Font System
+- Added Google Fonts integration (Inter and Playfair Display)
+- Standardized hero text sizing across AskJDS and JDS domains
+- Removed unused TwicPics image optimization system
+- Enhanced font consistency and loading performance
+
 ### Security Enhancements
 - Complete security framework overhaul with unified authentication
 - Automated security pipeline with Lighthouse CI and manual fallbacks
@@ -159,13 +165,14 @@ VITE_TWICPICS_DOMAIN=your_domain.twic.pics # Image optimization
 
 ### Infrastructure Improvements
 - Fixed video infrastructure with proper Gumlet integration
-- Added TwicPics image optimization alongside video CDN
+- Cleaned up unused image optimization dependencies
 - Enhanced legal framework with comprehensive T&S, privacy policy, and disclaimers
 
 ### UX Improvements
 - Homepage layout optimization with better content alignment
 - Interactive flashcard demo enhancements
 - Refined marketing copy with student-friendly tone
+- Consistent hero styling across all domains
 
 ## Contributing
 
