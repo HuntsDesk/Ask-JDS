@@ -2796,12 +2796,9 @@ This comprehensive documentation serves as the complete guide for the Ask JDS pl
 
 ---
 
-**Repository**: [Ask JDS Platform](https://github.com/HuntsDesk/Ask-JDS)  
-**License**: Proprietary Software - All Rights Reserved
-
 ## Recent Updates
 
-### Chat Layout System Improvements (January 2025)
+### Chat Layout System Improvements
 
 Complete rebuild of the chat layout system to address critical usability issues:
 
