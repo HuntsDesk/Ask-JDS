@@ -32,8 +32,7 @@ export function ChatLayoutContainer({
   const isMobile = useMediaQuery(`(max-width: ${BREAKPOINTS.mobile}px)`);
   const isTablet = useMediaQuery(`(min-width: ${BREAKPOINTS.mobile}px) and (max-width: ${BREAKPOINTS.tablet}px)`);
   
-  // Track keyboard height for mobile
-  const [keyboardHeight, setKeyboardHeight] = React.useState(0);
+
   
   // Calculate base input height based on device
   const baseInputHeight = useMemo(() => {
@@ -43,42 +42,27 @@ export function ChatLayoutContainer({
   
   // Simplified layout metrics - only device detection and heights
   const layoutMetrics = useMemo(() => {
-    const totalInputHeight = baseInputHeight + keyboardHeight;
+    // On mobile with fixed input, messages take full height
+    // On desktop, subtract input height from viewport
+    const messagesHeight = isMobile 
+      ? '100vh' 
+      : `calc(100vh - ${baseInputHeight}px)`;
     
     return {
       isMobile,
       isTablet,
       isDesktop,
-      inputAreaHeight: `${totalInputHeight}px`,
-      messagesAreaHeight: `calc(100vh - ${totalInputHeight}px)`
+      inputAreaHeight: `${baseInputHeight}px`,
+      messagesAreaHeight: messagesHeight
     };
-  }, [isDesktop, isTablet, isMobile, baseInputHeight, keyboardHeight]);
+  }, [isDesktop, isTablet, isMobile, baseInputHeight]);
   
   // Notify parent of layout changes
   useEffect(() => {
     onLayoutChange?.(layoutMetrics);
   }, [layoutMetrics, onLayoutChange]);
   
-  // Handle visual viewport changes (virtual keyboard on mobile)
-  useEffect(() => {
-    if (!window.visualViewport) return;
-    
-    const handleViewportChange = () => {
-      const viewport = window.visualViewport;
-      if (viewport) {
-        const keyboardHeight = window.innerHeight - viewport.height;
-        setKeyboardHeight(Math.max(0, keyboardHeight));
-      }
-    };
-    
-    window.visualViewport.addEventListener('resize', handleViewportChange);
-    window.visualViewport.addEventListener('scroll', handleViewportChange);
-    
-    return () => {
-      window.visualViewport?.removeEventListener('resize', handleViewportChange);
-      window.visualViewport?.removeEventListener('scroll', handleViewportChange);
-    };
-  }, []);
+
   
   return (
     <div 
@@ -103,16 +87,35 @@ export function ChatLayoutContainer({
           "flex-1 overflow-y-auto",
           "p-3 md:p-4",
           "pt-16 md:pt-4", // Account for mobile header
+          // Better mobile scrolling
+          "touch-pan-y overscroll-contain",
           TRANSITIONS.default
         )}
         style={{
-          // Only keep height for smooth scrolling
-          height: layoutMetrics.messagesAreaHeight,
-          // Mobile: account for fixed input area padding
-          paddingBottom: isMobile ? `${baseInputHeight + 16}px` : 0,
+          // Clean height calculation - on mobile, stop scroll area above fixed input
+          // Account for: input area only (~56px) since header space is handled by pt-16
+          height: isMobile ? 'calc(100vh - 0px)' : layoutMetrics.messagesAreaHeight,
+          // iOS momentum scrolling
+          WebkitOverflowScrolling: 'touch',
+          // Ensure immediate visibility and scrollbar doesn't extend behind input
+          minHeight: isMobile ? 'calc(100vh - 54px)' : undefined,
+          // Ensure scrollbar area ends above fixed input
+          maxHeight: isMobile ? 'calc(100vh - 25px)' : undefined,
+          // Constrain scrollbar positioning on mobile
+          ...(isMobile && {
+            position: 'relative',
+            contain: 'layout style paint',
+          }),
         }}
       >
-        {children}
+        <div 
+          className={cn(
+            // Minimal bottom padding to ensure last message timestamp is visible
+            isMobile && "pb-1" // Minimal padding to prevent excessive white space
+          )}
+        >
+          {children}
+        </div>
       </div>
       
       {/* Input Area */}
@@ -124,6 +127,10 @@ export function ChatLayoutContainer({
         className={cn(
           "border-t border-gray-200 dark:border-gray-800",
           "bg-white dark:bg-gray-950",
+          // Mobile: fixed positioning
+          isMobile && "fixed bottom-0 left-0 right-0 z-50",
+          // Desktop: relative positioning
+          !isMobile && "relative",
           TRANSITIONS.default
         )}
         style={{
@@ -131,7 +138,7 @@ export function ChatLayoutContainer({
           paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 0px)' : undefined,
         }}
       >
-        <div className="p-3 md:p-4">
+        <div className="p-2 md:p-3">
           <div className="max-w-4xl mx-auto">
             {footer}
           </div>

@@ -11,6 +11,7 @@ interface ChatMessagesAreaProps {
   showRetryButton?: boolean;
   isGenerating?: boolean;
   onRefresh: () => void;
+  scrollContainerRef?: React.RefObject<HTMLDivElement>;
 }
 
 export function ChatMessagesArea({
@@ -19,28 +20,58 @@ export function ChatMessagesArea({
   loadingTimeout = false,
   showRetryButton = false,
   isGenerating = false,
-  onRefresh
+  onRefresh,
+  scrollContainerRef
 }: ChatMessagesAreaProps) {
   const messageEndRef = useRef<HTMLDivElement>(null);
   const messageTopRef = useRef<HTMLDivElement>(null);
   
-  // Scroll to bottom when new messages arrive
-  React.useEffect(() => {
-    if (messages.length > 0 || isGenerating) {
-      messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // More robust scroll to bottom function
+  const scrollToBottom = React.useCallback((behavior: 'auto' | 'smooth' = 'auto') => {
+    if (scrollContainerRef?.current) {
+      // Use scrollTop for immediate positioning
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    } else if (messageEndRef.current) {
+      // Fallback to scrollIntoView
+      messageEndRef.current.scrollIntoView({ behavior });
     }
-  }, [messages, isGenerating]);
+  }, [scrollContainerRef]);
+  
+  // Scroll to bottom when messages first load or when new messages arrive
+  React.useEffect(() => {
+    if (messages.length > 0) {
+      // Use immediate scroll for better UX
+      scrollToBottom('auto');
+    }
+  }, [messages.length, scrollToBottom]);
+  
+  // Ensure immediate scroll to bottom when component mounts with messages
+  React.useEffect(() => {
+    if (messages.length > 0) {
+      // Multiple scroll attempts to ensure it works on mobile
+      scrollToBottom('auto');
+      
+      // Additional scrolls with slight delays for mobile reliability
+      const timer1 = setTimeout(() => scrollToBottom('auto'), 50);
+      const timer2 = setTimeout(() => scrollToBottom('auto'), 150);
+      
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
+    }
+  }, []); // Only run on mount
   
   // Auto-scroll during generation
   React.useEffect(() => {
     if (isGenerating) {
       const scrollInterval = setInterval(() => {
-        messageEndRef.current?.scrollIntoView({ behavior: 'auto' });
+        scrollToBottom('auto');
       }, 500);
       
       return () => clearInterval(scrollInterval);
     }
-  }, [isGenerating]);
+  }, [isGenerating, scrollToBottom]);
   
   const renderLoadingState = () => {
     return (
@@ -74,9 +105,11 @@ export function ChatMessagesArea({
     );
   };
   
-  if (loading && messages.length === 0) {
-    return renderLoadingState();
-  }
+  // Remove loading state - ChatContainer already handles loading
+  // This eliminates the redundant "Loading messages..." indicator
+  // if (loading && messages.length === 0 && (loadingTimeout || showRetryButton)) {
+  //   return renderLoadingState();
+  // }
   
   if (messages.length === 0) {
     return renderEmptyState();
@@ -88,11 +121,16 @@ export function ChatMessagesArea({
       aria-label="Chat conversation"
       aria-live="polite"
       aria-relevant="additions"
-      className="flex flex-col h-full"
+      className="flex flex-col h-full overflow-y-auto"
+      style={{
+        // Ensure the container is immediately visible and scrollable
+        minHeight: '100%',
+        display: 'flex'
+      }}
     >
       <div ref={messageTopRef} />
       
-      <div className="flex flex-col space-y-1 pb-0 mt-2 md:mb-0 mb-2">
+      <div className="flex flex-col space-y-0.5 pb-0 mt-2 md:mb-0 mb-2">
         {messages.map((msg) => (
           <div 
             key={msg.id} 
