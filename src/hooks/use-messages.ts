@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase, logError } from '@/lib/supabase';
+import { supabaseMonitor } from '@/lib/supabase-monitor';
 import { Message } from '@/types';
 import { createAIProvider } from '@/lib/ai/provider-factory';
 import { useCloseContext } from '@/contexts/close-context';
@@ -76,7 +77,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
   
   // Create refs for the AI provider and toast timeout
   const aiProvider = useRef<AIProvider>(createAIProvider());
-  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   
   // For managing paywall visibility
   const [showPaywall, setShowPaywall] = useState(false);
@@ -296,12 +297,12 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     }
   }, [threadId, refreshMessages]);
 
-  // Prevent infinite message refresh by ensuring we only reload if threadId changes.
-  // This guards against infinite loops and unnecessary network requests.
+  // Initial load when threadId changes (removed refreshMessages from deps to prevent infinite loops)
   useEffect(() => {
-    // Always refresh messages when threadId changes
-    refreshMessages();
-  }, [threadId, refreshMessages]);
+    if (threadId) {
+      refreshMessages();
+    }
+  }, [threadId]); // Fixed: Removed refreshMessages from deps to prevent infinite refresh loops
 
   // Set up and clean up real-time Supabase subscription for messages on threadId change
   useEffect(() => {
@@ -310,72 +311,198 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     // Subscribe to real-time message inserts for this thread
     // Use a generic 'any' type to avoid TypeScript errors with RealtimeChannel
     let channel: any = null;
+    let reconnectTimer: NodeJS.Timeout | null = null;
+    let isSubscribed = false;
+    let pollingTimer: NodeJS.Timeout | null = null;
     
-    try {
-      channel = supabase
-        .channel(`messages:thread_id=eq.${threadId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: `thread_id=eq.${threadId}`
-          },
-          async (payload) => {
-            const newMessage = payload.new as Message;
-            if (process.env.NODE_ENV === 'development') {
-              console.debug('[useMessages] Real-time message received:', newMessage.id);
-            }
+         // Fallback polling function when WebSocket fails
+     const startPollingFallback = () => {
+       if (pollingTimer) return; // Already polling
+       
+       console.warn('[useMessages] Starting polling fallback for thread:', threadId);
+       supabaseMonitor.setPollingFallback(true);
+       
+       // Poll every 3 seconds for new messages
+      pollingTimer = setInterval(async () => {
+        try {
+          const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('thread_id', threadId)
+            .order('created_at', { ascending: false })
+            .limit(1);
             
-            // Only process if we haven't seen this message ID before
-            if (!addedMessageIds.current.has(newMessage.id)) {
-              // Add to our tracking set immediately to prevent duplicate processing
-              addedMessageIds.current.add(newMessage.id);
+          if (error) throw error;
+          
+          if (data && data.length > 0) {
+            const latestMessage = data[0];
+            
+            // Check if this is a new message we haven't seen
+            if (!addedMessageIds.current.has(latestMessage.id)) {
+              console.debug('[useMessages] Polling detected new message:', latestMessage.id);
               
-              // Update the user message counter for title generation
-              if (newMessage.role === 'user') {
+              // Add to our tracking set
+              addedMessageIds.current.add(latestMessage.id);
+              
+              // Update the user message counter
+              if (latestMessage.role === 'user') {
                 userMessageCountRef.current++;
                 console.log(`[Thread ${threadId}] User message count incremented to ${userMessageCountRef.current}`);
               }
               
-              // Use a more robust update logic that preserves optimistic messages until replaced
+              // Add to messages
               setMessages(currentMessages => {
-                // 1. Find any optimistic message that this server message might be replacing
-                // Use a time window to ensure we're matching the correct message
-                const matchingOptimistic = currentMessages.find(msg => 
-                  msg.id.startsWith('optimistic-') && 
-                  msg.role === newMessage.role &&
-                  msg.content === newMessage.content &&
-                  // Add a 10-second window to match created_at times
-                  Math.abs(new Date(msg.created_at).getTime() - new Date(newMessage.created_at).getTime()) < 10000
-                );
-                
-                // 2. Remove any messages with the same server ID (deduplication)
-                const withoutDuplicates = currentMessages.filter(msg => msg.id !== newMessage.id);
-                
-                // 3. If we found a matching optimistic message, remove it
-                let withoutOptimistic = withoutDuplicates;
-                if (matchingOptimistic) {
-                  withoutOptimistic = withoutDuplicates.filter(msg => msg.id !== matchingOptimistic.id);
+                // Check if we already have this message
+                if (currentMessages.some(msg => msg.id === latestMessage.id)) {
+                  return currentMessages;
                 }
                 
-                // 4. Add the server message and ensure proper time-based ordering
-                const updatedMessages = [...withoutOptimistic, newMessage];
+                // Remove any optimistic messages that match
+                const withoutOptimistic = currentMessages.filter(msg => 
+                  !(msg.id.startsWith('optimistic-') && 
+                    msg.role === latestMessage.role &&
+                    msg.content === latestMessage.content &&
+                    Math.abs(new Date(msg.created_at).getTime() - new Date(latestMessage.created_at).getTime()) < 10000)
+                );
+                
+                // Add new message and sort
+                const updatedMessages = [...withoutOptimistic, latestMessage];
                 return updatedMessages.sort((a, b) => 
                   new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
                 );
               });
             }
           }
-        )
-        .subscribe();
-    } catch (error) {
-      console.error('[useMessages] Error setting up real-time subscription:', error);
-    }
+        } catch (error) {
+          console.error('[useMessages] Polling fallback error:', error);
+        }
+      }, 3000);
+    };
+    
+         // Stop polling fallback
+     const stopPollingFallback = () => {
+       if (pollingTimer) {
+         clearInterval(pollingTimer);
+         pollingTimer = null;
+         supabaseMonitor.setPollingFallback(false);
+         console.debug('[useMessages] Stopped polling fallback');
+       }
+     };
+    
+         // WebSocket connection attempt with retry logic
+     const setupRealtimeSubscription = (attempt = 1, maxAttempts = 3) => {
+       console.debug(`[useMessages] Setting up real-time subscription (attempt ${attempt}/${maxAttempts})`);
+       supabaseMonitor.recordConnectionAttempt();
+       
+       try {
+        channel = supabase
+          .channel(`messages:thread_id=eq.${threadId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'messages',
+              filter: `thread_id=eq.${threadId}`
+            },
+            async (payload) => {
+              const newMessage = payload.new as Message;
+              if (process.env.NODE_ENV === 'development') {
+                console.debug('[useMessages] Real-time message received:', newMessage.id);
+              }
+              
+              // Only process if we haven't seen this message ID before
+              if (!addedMessageIds.current.has(newMessage.id)) {
+                // Add to our tracking set immediately to prevent duplicate processing
+                addedMessageIds.current.add(newMessage.id);
+                
+                // Update the user message counter for title generation
+                if (newMessage.role === 'user') {
+                  userMessageCountRef.current++;
+                  console.log(`[Thread ${threadId}] User message count incremented to ${userMessageCountRef.current}`);
+                }
+                
+                // Use a more robust update logic that preserves optimistic messages until replaced
+                setMessages(currentMessages => {
+                  // 1. Find any optimistic message that this server message might be replacing
+                  // Use a time window to ensure we're matching the correct message
+                  const matchingOptimistic = currentMessages.find(msg => 
+                    msg.id.startsWith('optimistic-') && 
+                    msg.role === newMessage.role &&
+                    msg.content === newMessage.content &&
+                    // Add a 10-second window to match created_at times
+                    Math.abs(new Date(msg.created_at).getTime() - new Date(newMessage.created_at).getTime()) < 10000
+                  );
+                  
+                  // 2. Remove any messages with the same server ID (deduplication)
+                  const withoutDuplicates = currentMessages.filter(msg => msg.id !== newMessage.id);
+                  
+                  // 3. If we found a matching optimistic message, remove it
+                  let withoutOptimistic = withoutDuplicates;
+                  if (matchingOptimistic) {
+                    withoutOptimistic = withoutDuplicates.filter(msg => msg.id !== matchingOptimistic.id);
+                  }
+                  
+                  // 4. Add the server message and ensure proper time-based ordering
+                  const updatedMessages = [...withoutOptimistic, newMessage];
+                  return updatedMessages.sort((a, b) => 
+                    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                  );
+                });
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.debug(`[useMessages] Subscription status:`, status);
+            
+            if (status === 'SUBSCRIBED') {
+              isSubscribed = true;
+              stopPollingFallback(); // Stop polling since WebSocket is working
+              console.debug('[useMessages] Real-time subscription established successfully');
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+              console.warn(`[useMessages] Subscription failed with status: ${status}`);
+              isSubscribed = false;
+              
+              // Try to reconnect if we have attempts left
+              if (attempt < maxAttempts) {
+                console.debug(`[useMessages] Scheduling retry in ${attempt * 2} seconds`);
+                reconnectTimer = setTimeout(() => {
+                  setupRealtimeSubscription(attempt + 1, maxAttempts);
+                }, attempt * 2000); // Exponential backoff
+              } else {
+                console.warn('[useMessages] Max reconnection attempts reached, falling back to polling');
+                startPollingFallback();
+              }
+            }
+          });
+      } catch (error) {
+        console.error('[useMessages] Error setting up real-time subscription:', error);
+        
+        // If we can't set up WebSocket, immediately fall back to polling
+        if (attempt >= maxAttempts) {
+          console.warn('[useMessages] WebSocket setup failed, falling back to polling');
+          startPollingFallback();
+        } else {
+          // Retry setup
+          reconnectTimer = setTimeout(() => {
+            setupRealtimeSubscription(attempt + 1, maxAttempts);
+          }, attempt * 2000);
+        }
+      }
+    };
+    
+    // Start the subscription process
+    setupRealtimeSubscription();
     
     // Cleanup on threadId change or unmount
     return () => {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      
+      stopPollingFallback();
+      
       if (channel) {
         try {
           if (process.env.NODE_ENV === 'development') {
@@ -390,34 +517,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     };
   }, [threadId]);
 
-  // Show toast after delay if loading takes too long
-  useEffect(() => {
-    if (loading && threadId) {
-      // Clear any existing timeout
-      if (toastTimeoutRef.current) {
-        clearTimeout(toastTimeoutRef.current);
-      }
-      
-      // Set a timeout to show a toast if loading takes too long
-      toastTimeoutRef.current = setTimeout(() => {
-        toast({
-          title: 'Taking longer than expected',
-          description: 'Messages are still loading. Please wait a moment...',
-        });
-      }, 3000);
-    } else if (!loading && toastTimeoutRef.current) {
-      // Clear the timeout if we're no longer loading
-      clearTimeout(toastTimeoutRef.current);
-      toastTimeoutRef.current = null;
-    }
-    
-    // Clean up on unmount
-    return () => {
-      if (toastTimeoutRef.current) {
-        clearTimeout(toastTimeoutRef.current);
-      }
-    };
-  }, [loading, threadId, toast]);
+
 
   // Handle closing the paywall
   const handleClosePaywall = useCallback(() => {
@@ -819,7 +919,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     messages,
     // Only show loading for initial load, not during sending
     loading: loading && messages.length === 0,
-    loadingTimeout: toastTimeoutRef.current,
+
     isGenerating,
     isTitleGenerating,
     sendMessage,

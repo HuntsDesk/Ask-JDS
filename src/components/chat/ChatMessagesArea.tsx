@@ -7,21 +7,21 @@ import { Button } from '@/components/ui/button';
 interface ChatMessagesAreaProps {
   messages: Message[];
   loading: boolean;
-  loadingTimeout?: boolean;
   showRetryButton?: boolean;
   isGenerating?: boolean;
   onRefresh: () => void;
   scrollContainerRef?: React.RefObject<HTMLDivElement>;
+  threadId?: string | null;
 }
 
 export function ChatMessagesArea({
   messages = [],
   loading = false,
-  loadingTimeout = false,
   showRetryButton = false,
   isGenerating = false,
   onRefresh,
-  scrollContainerRef
+  scrollContainerRef,
+  threadId
 }: ChatMessagesAreaProps) {
   const messageEndRef = useRef<HTMLDivElement>(null);
   const messageTopRef = useRef<HTMLDivElement>(null);
@@ -79,7 +79,7 @@ export function ChatMessagesArea({
         <div className="flex flex-col items-center max-w-md text-center p-4">
           <LoadingSpinner size="lg" />
           <p className="mt-4 text-gray-700 dark:text-gray-300">Loading messages...</p>
-          {(loadingTimeout || showRetryButton) && (
+          {showRetryButton && (
             <div className="mt-4">
               <p className="mb-2 text-gray-600 dark:text-gray-400">
                 This is taking longer than expected. You can try refreshing.
@@ -105,14 +105,20 @@ export function ChatMessagesArea({
     );
   };
   
-  // Remove loading state - ChatContainer already handles loading
-  // This eliminates the redundant "Loading messages..." indicator
-  // if (loading && messages.length === 0 && (loadingTimeout || showRetryButton)) {
-  //   return renderLoadingState();
-  // }
+  // Show loading state for existing threads while messages are loading
+  if (loading && messages.length === 0 && threadId) {
+    return renderLoadingState();
+  }
   
-  if (messages.length === 0) {
+  // Show empty state only for new conversations (no threadId) or when not loading
+  if (messages.length === 0 && !loading) {
     return renderEmptyState();
+  }
+  
+  // Don't render anything if we have a threadId but no messages and not loading
+  // This prevents the flash of empty state when switching between existing threads
+  if (messages.length === 0 && threadId && !loading) {
+    return <div className="flex flex-col h-full" />;
   }
   
   return (

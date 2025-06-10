@@ -36,11 +36,16 @@ const initialState: ChatFSMState = {
 
 // Add more verbose debug logging at the start of useChatFSM
 export function useChatFSM() {
-  console.log('[DEBUG FSM] Initializing useChatFSM');
+  // Only log initialization in development and throttle it
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[DEBUG FSM] Initializing useChatFSM');
+  }
   
   // Add verbose logging to the reducer function
   const reducer = (state: ChatFSMState, action: ChatFSMAction): ChatFSMState => {
-    console.log('[DEBUG FSM] Current state:', state, 'Action:', action);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[DEBUG FSM] Current state:', state, 'Action:', action);
+    }
     
     // Store the new state for debugging
     let newState: ChatFSMState;
@@ -99,7 +104,9 @@ export function useChatFSM() {
         return state;
     }
     
-    console.log('[DEBUG FSM] New state:', newState);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[DEBUG FSM] New state:', newState);
+    }
     return newState;
   };
 

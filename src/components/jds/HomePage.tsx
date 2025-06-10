@@ -5,10 +5,10 @@ import PageLayout from './PageLayout';
 // Import the original components from the JDSimplified app
 import HeroSection from '../../../jdsimplified/src/components/home/HeroSection';
 import FeaturesSection from '../../../jdsimplified/src/components/home/FeaturesSection';
-import NonServicesSection from '../../../jdsimplified/src/components/home/NonServicesSection';
+import { NonServicesSection } from '../home/NonServicesSection';
 import FeaturedCoursesSection from '../../../jdsimplified/src/components/home/FeaturedCoursesSection';
 import TestimonialsSection from '../../../jdsimplified/src/components/home/TestimonialsSection';
-import AboutSection from '../../../jdsimplified/src/components/home/AboutSection';
+import { AboutSection } from '../home/AboutSection';
 import FaqSection from '../../../jdsimplified/src/components/home/FaqSection';
 import ContactSection from '../../../jdsimplified/src/components/home/ContactSection';
 import CtaSection from '../../../jdsimplified/src/components/home/CtaSection';

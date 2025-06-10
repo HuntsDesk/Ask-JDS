@@ -349,7 +349,9 @@ export function ChatContainer() {
       // Messages loaded, can transition to ready
       chatFSM.setReady(threadMessages.length === 0, urlThreadId);
     }
-  }, [isAuthResolved, user, urlThreadId, messagesLoading, isGenerating, threadMessages.length]); // Simplified deps
+  }, [isAuthResolved, user, urlThreadId, messagesLoading, isGenerating, threadMessages.length, chatFSM]); // Fixed: Added missing chatFSM dependency
+  
+
 
   // Ensure dark mode is applied correctly
   useEffect(() => {
@@ -554,11 +556,11 @@ export function ChatContainer() {
         <ChatMessagesArea
           messages={threadMessages}
           loading={messagesLoading}
-          loadingTimeout={chatFSM.state.status === 'loading' && chatFSM.state.previousStatus === 'ready'}
           showRetryButton={showRetryButton}
           isGenerating={isGenerating}
           onRefresh={handleRefreshMessages}
           scrollContainerRef={messagesScrollRef}
+          threadId={urlThreadId}
         />
       </ChatLayoutContainer>
       

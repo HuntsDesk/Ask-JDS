@@ -49,6 +49,9 @@ import { HomepagePricingSection } from '@/components/home/HomepagePricingSection
 import { TLDRSection } from '@/components/home/TLDRSection';
 import { CoursesSection } from '@/components/home/CoursesSection';
 import { SectionDivider } from '@/components/home/SectionDivider';
+import { NonServicesSection } from '@/components/home/NonServicesSection';
+import { AboutSection } from '@/components/home/AboutSection';
+
 
 // Define the benefits array
 const benefits = [
@@ -683,8 +686,10 @@ export function HomePage() {
         </div>
       </section>
 
+      <NonServicesSection />
+
       {/* Benefits */}
-      <section className="py-20 bg-white relative overflow-hidden box-border">
+      <section className="py-20 bg-gray-50 relative overflow-hidden box-border">
         <div className="max-w-6xl mx-auto px-4 relative box-border">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-black mb-4">Why Use Ask JDS?</h2>
@@ -718,8 +723,31 @@ export function HomePage() {
               </div>
             ))}
           </div>
+          
+          {/* CTA Button */}
+          <div className="text-center mt-12">
+            {user ? (
+              <button 
+                onClick={() => navigate('/chat')}
+                className="bg-[#F37022] hover:bg-[#E35D10] text-white font-medium py-3 px-8 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 mx-auto"
+              >
+                <MessageSquare className="w-5 h-5" />
+                I've Seen Enough
+              </button>
+            ) : (
+              <Link 
+                to="/auth?tab=signup"
+                className="bg-[#F37022] hover:bg-[#E35D10] text-white font-medium py-3 px-8 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 mx-auto"
+              >
+                <Rocket className="w-5 h-5" />
+                I've Seen Enough
+              </Link>
+            )}
+          </div>
         </div>
       </section>
+
+      <AboutSection />
 
       {/* CTA */}
       <section className="py-20 bg-gray-50 relative overflow-hidden">

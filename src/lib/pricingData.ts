@@ -32,7 +32,7 @@ export interface PricingTier {
 // Master list of all features
 export const masterFeatures: Feature[] = [
   { id: 'chat_messages', displayName: 'Ask JDS chat messages', category: 'Core Features' },
-  { id: 'personal_flashcards', displayName: 'Create & manage unlimited personal flashcards', category: 'Core Features' },
+  { id: 'personal_flashcards', displayName: 'Create & manage unlimited flashcards', category: 'Core Features' },
   { id: 'premium_flashcards', displayName: '400+ Expert Curated Flashcards', category: 'Flashcards' },
   { id: 'sample_flashcards_note', displayName: 'Sample premium cards included in Free tier', category: 'Flashcards', note: true, noteOnly: true },
   { id: 'video_courses', displayName: 'Unlimited access to ALL video courses', category: 'Courses' },

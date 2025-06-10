@@ -140,6 +140,14 @@ VITE_GUMLET_ACCOUNT_ID=your_gumlet_id      # Video CDN
 
 ## Recent Updates (January 2025)
 
+### Chat System Architecture Fixes
+- **Root Cause Resolution**: Fixed infinite loading spinners by addressing stale closure and infinite refresh loop issues
+- **Dependency Management**: Corrected missing `chatFSM` dependency in ChatContainer useEffect preventing proper state transitions
+- **Message Loading Optimization**: Eliminated infinite `refreshMessages` loops by stabilizing function references
+- **UI Flash Prevention**: Fixed welcome message flash when clicking existing threads with smart loading state logic
+- **Removed Timeout Workarounds**: Eliminated artificial 15-20 second timeouts in favor of proper dependency management
+- **WebSocket Reliability**: Maintained retry logic and polling fallback for legitimate infrastructure issues only
+
 ### Mobile Chat Layout Optimization
 - Fixed mobile scroll behavior issues - eliminated "false top" scroll detection
 - Implemented proper fixed positioning for chat input on mobile devices
