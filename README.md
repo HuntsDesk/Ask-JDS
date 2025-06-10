@@ -147,6 +147,7 @@ VITE_GUMLET_ACCOUNT_ID=your_gumlet_id      # Video CDN
 - **UI Flash Prevention**: Fixed welcome message flash when clicking existing threads with smart loading state logic
 - **Removed Timeout Workarounds**: Eliminated artificial 15-20 second timeouts in favor of proper dependency management
 - **WebSocket Reliability**: Maintained retry logic and polling fallback for legitimate infrastructure issues only
+- **Smart Loading Logic**: New threads show instant welcome screen (0ms load time), existing threads only show loading when needed
 
 ### Mobile Chat Layout Optimization
 - Fixed mobile scroll behavior issues - eliminated "false top" scroll detection

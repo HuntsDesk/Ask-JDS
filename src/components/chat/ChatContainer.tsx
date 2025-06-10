@@ -292,16 +292,29 @@ export function ChatContainer() {
     } else if (!originalThreadsLoading && chatFSM.state.status === 'loading' && chatFSM.state.phase === 'threads') {
       // If we have threads or this is a different page (no thread ID expected)
       if (originalThreads.length > 0 || !urlThreadId) {
-        // Check if we need message loading or can go straight to ready state
+        // Smart loading decision: only load messages if the thread likely has content
         if (urlThreadId) {
-          chatFSM.startLoading('messages');
+          const foundThread = originalThreads.find(t => t.id === urlThreadId);
+          if (foundThread) {
+            // Existing thread in cache - only start message loading if we don't already have messages
+            if (threadMessages.length === 0 && messagesLoading) {
+              chatFSM.startLoading('messages');
+            } else {
+              // Thread exists and we either have messages or they're not loading - go straight to ready
+              chatFSM.setReady(threadMessages.length === 0, urlThreadId);
+            }
+          } else {
+            // New thread not in cache yet - skip message loading, go straight to ready  
+            // New threads have no messages by definition
+            chatFSM.setReady(true, urlThreadId);
+          }
         } else {
           // No thread ID means we're on the welcome page
           chatFSM.setReady(originalThreads.length === 0, null);
         }
       }
     }
-  }, [isAuthResolved, user, originalThreadsLoading, originalThreads.length, urlThreadId]); // Simplified deps
+  }, [isAuthResolved, user, originalThreadsLoading, originalThreads, urlThreadId, threadMessages.length, messagesLoading]); // Added threadMessages and messagesLoading deps
   
   // Redirect to most recent thread if at /chat root
   useEffect(() => {
@@ -331,17 +344,17 @@ export function ChatContainer() {
       return; // Silently skip when prerequisites not met
     }
     
-    // Skip showing loading state for fast message loads
-    // Only show loading if messages are taking time AND we have no existing messages
-    if ((messagesLoading || isGenerating) && (chatFSM.state.status !== 'loading' || chatFSM.state.phase !== 'messages')) {
-      // Only trigger loading state for slow initial loads with no cached messages
-      if (messagesLoading && threadMessages.length === 0) {
+    // Only show loading state for existing threads that actually need to load messages
+    if (messagesLoading && threadMessages.length === 0) {
+      // Check if this thread exists in cache (meaning it's an existing thread with potential content)
+      const foundThread = originalThreads.find(t => t.id === urlThreadId);
+      if (foundThread && chatFSM.state.status !== 'loading') {
         // Add a small delay before showing loading to allow fast loads to complete
         const timer = setTimeout(() => {
           if (messagesLoading && threadMessages.length === 0) {
             chatFSM.startLoading('messages');
           }
-        }, 200); // 200ms delay before showing loading
+        }, 300); // 300ms delay before showing loading (increased from 200ms)
         
         return () => clearTimeout(timer);
       }
@@ -349,7 +362,7 @@ export function ChatContainer() {
       // Messages loaded, can transition to ready
       chatFSM.setReady(threadMessages.length === 0, urlThreadId);
     }
-  }, [isAuthResolved, user, urlThreadId, messagesLoading, isGenerating, threadMessages.length, chatFSM]); // Fixed: Added missing chatFSM dependency
+  }, [isAuthResolved, user, urlThreadId, messagesLoading, isGenerating, threadMessages.length, chatFSM, originalThreads]); // Added originalThreads dep
   
 
 
