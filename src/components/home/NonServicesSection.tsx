@@ -77,7 +77,7 @@ export function NonServicesSection() {
           {user ? (
             <button 
               onClick={() => navigate('/chat')}
-              className="bg-[#F37022] hover:bg-[#E35D10] text-white font-medium py-3 px-8 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 mx-auto"
+              className="bg-[#F37022] hover:bg-[#E35D10] text-white font-medium py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all inline-flex items-center gap-2"
             >
               <MessageSquare className="w-5 h-5" />
               Get the Good Stuff
@@ -85,7 +85,7 @@ export function NonServicesSection() {
           ) : (
             <Link 
               to="/auth?tab=signup"
-              className="bg-[#F37022] hover:bg-[#E35D10] text-white font-medium py-3 px-8 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 mx-auto"
+              className="bg-[#F37022] hover:bg-[#E35D10] text-white font-medium py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all inline-flex items-center gap-2"
             >
               <Rocket className="w-5 h-5" />
               Get the Good Stuff
