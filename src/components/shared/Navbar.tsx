@@ -159,7 +159,7 @@ export function Navbar({
                 <Link to="/login">
                   <Button variant="ghost">Log In</Button>
                 </Link>
-                <Link to="/register">
+                <Link to="/auth?tab=signup">
                   <Button variant="default" className={cn(
                     siteName === 'askjds' 
                       ? "bg-jdorange hover:bg-jdorange-dark" 
@@ -253,7 +253,7 @@ export function Navbar({
                   Log In
                 </Link>
                 <Link
-                  to="/register"
+                  to="/auth?tab=signup"
                   className={cn(
                     "flex items-center px-3 py-2 rounded-md text-base font-medium text-white",
                     siteName === 'askjds' 

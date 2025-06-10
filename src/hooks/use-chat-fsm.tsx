@@ -1,4 +1,5 @@
 import { useReducer, useCallback } from 'react';
+import { useRef } from 'react';
 
 // Define the phases for the Chat FSM
 export type ChatFSMPhase = 'auth' | 'threads' | 'messages';
@@ -34,16 +35,20 @@ const initialState: ChatFSMState = {
   previousStatus: null
 };
 
-// Add more verbose debug logging at the start of useChatFSM
+// Add more controlled debug logging with initialization tracking
 export function useChatFSM() {
-  // Only log initialization in development and throttle it
-  if (process.env.NODE_ENV === 'development') {
+  const hasLoggedInit = useRef(false);
+  
+  // Only log initialization once per component instance in development
+  if (import.meta.env.DEV && !hasLoggedInit.current) {
     console.log('[DEBUG FSM] Initializing useChatFSM');
+    hasLoggedInit.current = true;
   }
   
-  // Add verbose logging to the reducer function
+  // Add controlled logging to the reducer function
   const reducer = (state: ChatFSMState, action: ChatFSMAction): ChatFSMState => {
-    if (process.env.NODE_ENV === 'development') {
+    // Only log state transitions in development and throttle output
+    if (import.meta.env.DEV && Math.random() < 0.3) { // Log ~30% of state changes
       console.log('[DEBUG FSM] Current state:', state, 'Action:', action);
     }
     
@@ -104,7 +109,8 @@ export function useChatFSM() {
         return state;
     }
     
-    if (process.env.NODE_ENV === 'development') {
+    // Only log significant state changes in development
+    if (import.meta.env.DEV && state.status !== newState.status) {
       console.log('[DEBUG FSM] New state:', newState);
     }
     return newState;

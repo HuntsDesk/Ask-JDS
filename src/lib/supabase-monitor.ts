@@ -40,14 +40,26 @@ class SupabaseConnectionMonitor {
 
   private async checkConnectionHealth() {
     try {
-      // Simple ping to test connection
+      // Simple ping to test connection using proper Vite environment variables
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseAnonKey) {
+        console.error('[SupabaseMonitor] Missing required environment variables');
+        this.updateStatus({
+          isConnected: false,
+          lastDisconnected: new Date()
+        });
+        return;
+      }
+
       const response = await fetch(
-        `${process.env.VITE_SUPABASE_URL}/rest/v1/`,
+        `${supabaseUrl}/rest/v1/`,
         {
           method: 'HEAD',
           headers: {
-            'apikey': process.env.VITE_SUPABASE_ANON_KEY || '',
-            'Authorization': `Bearer ${process.env.VITE_SUPABASE_ANON_KEY || ''}`
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseAnonKey}`
           }
         }
       );

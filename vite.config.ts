@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -43,8 +44,12 @@ export default defineConfig(({ mode }) => {
     },
     envPrefix: ['VITE_'],
     define: {
+      // Make sure environment is available to client code
+      'import.meta.env.VITE_ASKJDS_ENABLED': JSON.stringify(mode === 'askjds'),
+      'import.meta.env.VITE_JDS_ENABLED': JSON.stringify(mode === 'jds'),
       // Make sure domain is available to client code
       'import.meta.env.VITE_BUILD_DOMAIN': JSON.stringify(domain),
+      global: 'globalThis',
     },
     build: {
       // Use separate root folders for each domain build
@@ -53,7 +58,12 @@ export default defineConfig(({ mode }) => {
         : domain === 'jdsimplified' 
           ? 'dist_jdsimplified' 
           : 'dist_admin',
+      // Increase the warning limit to avoid warnings about chunk sizes
+      chunkSizeWarningLimit: 1000,
+      target: 'es2022',
+      minify: false,
       rollupOptions: {
+        external: [/\.test\./],
         output: {
           manualChunks: {
             // Split React and related packages into their own chunk
@@ -79,8 +89,6 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
-      // Increase the warning limit to avoid warnings about chunk sizes
-      chunkSizeWarningLimit: 1000,
     },
     server: {
       port: domain === 'askjds' 
@@ -88,6 +96,12 @@ export default defineConfig(({ mode }) => {
         : domain === 'jdsimplified' 
           ? 5174 
           : 5175,
+      strictPort: false, // Allow fallback to other ports if 5173 is in use
+      hmr: {
+        protocol: 'ws',
+        host: 'localhost',
+      }
     },
+    base: './',
   };
 });

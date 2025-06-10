@@ -1,6 +1,7 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { authLog } from '@/lib/debug-logger';
 
 // Define the shape of our auth context
 export interface AuthContextType {
@@ -33,27 +34,69 @@ const AuthContext = createContext<AuthContextType>({
 
 // Create the provider component
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  console.log('[DEBUG] AuthProvider initializing');
+  const hasLoggedInit = useRef(false);
+  const authListenerSetup = useRef(false);
+  
+  // Only log initialization once per provider instance
+  if (!hasLoggedInit.current) {
+    authLog.info('AuthProvider initializing');
+    hasLoggedInit.current = true;
+  }
   
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthResolved, setIsAuthResolved] = useState(false);
 
-  // Initialize and set up auth state listener
+  // Auth state persistence to prevent unnecessary re-authentication
+  const persistAuthState = useRef<{
+    lastUserId: string | null;
+    lastSessionId: string | null;
+  }>({
+    lastUserId: null,
+    lastSessionId: null
+  });
+
+  // Initialize and set up auth state listener with optimization
   useEffect(() => {
+    // Prevent multiple listener setups
+    if (authListenerSetup.current) {
+      return;
+    }
+    authListenerSetup.current = true;
+
     const handleAuthUpdate = (currentSession: Session | null) => {
-      console.log('[DEBUG] Auth state changed:', currentSession ? 'Active session' : 'No session');
-      setSession(currentSession);
-      setLoading(false);
-      
-      // If there's a session, update the user state
-      if (currentSession?.user) {
-        console.log('[DEBUG] User authenticated:', currentSession.user.id);
-        setUser(currentSession.user);
-      } else {
-        console.log('[DEBUG] No authenticated user');
-        setUser(null);
+      const currentUserId = currentSession?.user?.id || null;
+      const currentSessionId = currentSession?.access_token || null;
+
+      // Only update state if there's an actual change to prevent unnecessary re-renders
+      if (
+        persistAuthState.current.lastUserId !== currentUserId ||
+        persistAuthState.current.lastSessionId !== currentSessionId
+      ) {
+        authLog.info('Auth state changed', {
+          status: currentSession ? 'Active session' : 'No session',
+          userId: currentUserId,
+          hasSession: !!currentSession
+        });
+        
+        setSession(currentSession);
+        setLoading(false);
+        
+                 // Update user state only if changed
+         if (currentSession?.user && currentSession.user.id !== persistAuthState.current.lastUserId) {
+           authLog.info('User authenticated', { userId: currentSession.user.id });
+           setUser(currentSession.user);
+         } else if (!currentSession?.user && persistAuthState.current.lastUserId) {
+           authLog.info('No authenticated user');
+           setUser(null);
+         }
+
+        // Update persistence tracking
+        persistAuthState.current = {
+          lastUserId: currentUserId,
+          lastSessionId: currentSessionId
+        };
       }
     };
 
@@ -72,12 +115,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Clean up the subscription when the component unmounts
     return () => {
       subscription.unsubscribe();
+      authListenerSetup.current = false;
     };
   }, []);
 
-  // Sign in with email and password
+  // Sign in with email and password - optimized with error handling
   const signIn = async (email: string, password: string): Promise<AuthResult> => {
-    console.log('[DEBUG] Sign in attempt for:', email);
+    authLog.info('Sign in attempt', { email });
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -118,11 +162,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Sign out
+  // Sign out with cleanup
   const signOut = async (): Promise<void> => {
     setLoading(true);
     try {
       await supabase.auth.signOut();
+      // Clear persistence tracking
+      persistAuthState.current = {
+        lastUserId: null,
+        lastSessionId: null
+      };
     } catch (err) {
       console.error('Error signing out:', err);
     } finally {
@@ -151,6 +200,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 // Custom hook to use the auth context
 export function useAuth() {
   return useContext(AuthContext);
+}
+
+// Utility function to clear all auth-related storage
+export function clearAuthStorage() {
+  try {
+    // Clear all auth-related items from localStorage
+    const keysToRemove = [
+      'ask-jds-auth-storage',
+      'sb-prbbuxgirnecbkpdpgcb-auth-token',
+      'sb-prbbuxgirnecbkpdpgcb-auth-token-code-verifier',
+      'supabase.auth.token',
+      'last_token_validation',
+      'last_validation_result'
+    ];
+    
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+    });
+    
+    // Clear any IndexedDB data
+    if ('indexedDB' in window) {
+      indexedDB.databases().then(databases => {
+        databases.forEach(db => {
+          if (db.name?.includes('supabase')) {
+            indexedDB.deleteDatabase(db.name);
+          }
+        });
+      });
+    }
+    
+    console.log('Auth storage cleared successfully');
+    return true;
+  } catch (error) {
+    console.error('Error clearing auth storage:', error);
+    return false;
+  }
 }
 
 // Function to validate session token

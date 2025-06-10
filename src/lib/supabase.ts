@@ -1,5 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
+import { getEnvironmentConfig, envLog } from './env-utils';
+
+// Get environment configuration using our new utilities
+const envConfig = getEnvironmentConfig();
 
 // Environment detection
 function getEnvironment(): 'development' | 'production' {
@@ -8,20 +12,14 @@ function getEnvironment(): 'development' | 'production' {
     return 'development';
   }
   
-  // Check for explicit environment variable
-  const envMode = import.meta.env.VITE_ENVIRONMENT;
-  if (envMode === 'production') {
-    return 'production';
-  }
-  
-  // Default to development for safety
-  return 'development';
+  // Use the environment config
+  return envConfig.isProduction ? 'production' : 'development';
 }
 
 // Environment-aware Supabase configuration
 function getSupabaseConfig() {
   // Detect environment based on hostname and Vite mode
-  const isProduction = import.meta.env.PROD && (
+  const isProduction = envConfig.isProduction && (
     window.location.hostname === 'askjds.com' ||
     window.location.hostname === 'jdsimplified.com' ||
     window.location.hostname === 'admin.jdsimplified.com'
@@ -30,15 +28,15 @@ function getSupabaseConfig() {
   if (isProduction) {
     // Production configuration
     return {
-      url: import.meta.env.VITE_SUPABASE_URL_PROD || 'https://prbbuxgirnecbkpdpgcb.supabase.co',
-      anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY_PROD,
+      url: envConfig.supabaseUrl,
+      anonKey: envConfig.supabaseAnonKey,
       environment: 'production'
     };
   } else {
-    // Development configuration (fallback to legacy env vars for backward compatibility)
+    // Development configuration
     return {
-      url: import.meta.env.VITE_SUPABASE_URL_DEV || import.meta.env.VITE_SUPABASE_URL || 'https://prbbuxgirnecbkpdpgcb.supabase.co',
-      anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY_DEV || import.meta.env.VITE_SUPABASE_ANON_KEY,
+      url: envConfig.supabaseUrl,
+      anonKey: envConfig.supabaseAnonKey,
       environment: 'development'
     };
   }
@@ -64,17 +62,17 @@ let clientInitialized = false;
 
 // Check if we already have a client in the global scope
 if (typeof window !== 'undefined') {
-  console.log('Checking for existing Supabase client in global scope');
+  envLog.debug('Checking for existing Supabase client in global scope');
   if (!(GLOBAL_SUPABASE_KEY in window)) {
-    console.log('No existing Supabase client found in global scope');
+    envLog.debug('No existing Supabase client found in global scope');
   } else {
-    console.log('Found existing Supabase client in global scope');
+    envLog.debug('Found existing Supabase client in global scope');
     clientInitialized = true;
   }
 }
 
 // Debug log
-console.log(`Initializing Supabase client for ${supabaseConfig.environment} environment:`, {
+envLog.info(`Initializing Supabase client for ${supabaseConfig.environment} environment`, {
   url: supabaseConfig.url,
   hasAnonKey: !!supabaseConfig.anonKey,
   storage: typeof window !== 'undefined' ? 'localStorage available' : 'no localStorage'
@@ -88,13 +86,13 @@ if (!supabaseConfig.url || !supabaseConfig.anonKey) {
 function getSupabaseClient() {
   // Check if we already have a client in the global scope
   if (typeof window !== 'undefined' && GLOBAL_SUPABASE_KEY in window && window[GLOBAL_SUPABASE_KEY]) {
-    console.log('Using existing Supabase client from global scope');
+    envLog.debug('Using existing Supabase client from global scope');
     return window[GLOBAL_SUPABASE_KEY];
   }
 
   // Prevent concurrent initialization
   if (isInitializing) {
-    console.warn('Supabase client initialization already in progress, creating temporary client');
+    envLog.warn('Supabase client initialization already in progress, creating temporary client');
     // Return a temporary instance that will be replaced once initialization completes
     return createClient<Database>(
       supabaseConfig.url,
@@ -114,7 +112,7 @@ function getSupabaseClient() {
   isInitializing = true;
 
   // Create a new client
-  console.log(`Creating new Supabase client instance for ${supabaseConfig.environment}`);
+  envLog.info(`Creating new Supabase client instance for ${supabaseConfig.environment}`);
   const instance = createClient<Database>(
     supabaseConfig.url,
     supabaseConfig.anonKey,
@@ -161,14 +159,14 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
       ? input.pathname
       : 'Request';
   
-  console.log(`[${requestId}] Starting Supabase request: ${url}`);
+  envLog.info(`[${requestId}] Starting Supabase request: ${url}`);
   
   // Check network status
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    console.warn(`[${requestId}] Network appears to be offline. This will likely cause the request to fail.`);
+    envLog.warn(`[${requestId}] Network appears to be offline. This will likely cause the request to fail.`);
     // Return a rejected promise immediately if we know we're offline
     if (url.includes('/subjects') || url.includes('/collections') || url.includes('/flashcards')) {
-      console.error(`[${requestId}] Critical flashcard request attempted while offline - rejecting early to prevent hanging UI`);
+      envLog.error(`[${requestId}] Critical flashcard request attempted while offline - rejecting early to prevent hanging UI`);
       return Promise.reject(new Error('Network connection unavailable. Please check your internet connection.'));
     }
   }
@@ -181,17 +179,17 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
     controller.abort();
     const duration = Date.now() - startTime;
     
-    console.warn(`[${requestId}] Supabase fetch request timed out after ${timeoutDuration/1000} seconds: ${url} (${duration}ms)`);
+    envLog.warn(`[${requestId}] Supabase fetch request timed out after ${timeoutDuration/1000} seconds: ${url} (${duration}ms)`);
     
     // Log additional information about the request
     if (typeof input === 'string') {
       const urlObj = new URL(input, window.location.origin);
-      console.warn(`[${requestId}] Timed out request details: Path: ${urlObj.pathname}, Search: ${urlObj.search}`);
+      envLog.warn(`[${requestId}] Timed out request details: Path: ${urlObj.pathname}, Search: ${urlObj.search}`);
     }
     
     // Check network status
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      console.warn(`[${requestId}] Network appears to be offline. This may be causing the timeout.`);
+      envLog.warn(`[${requestId}] Network appears to be offline. This may be causing the timeout.`);
     }
   }, timeoutDuration); // Variable timeout based on request type
   
@@ -209,7 +207,7 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
           };
         }
       } catch (e) {
-        console.error('Error parsing auth storage:', e);
+        envLog.error('Error parsing auth storage:', e);
       }
     }
   }
@@ -222,12 +220,12 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
   return fetchPromise
     .then(response => {
       const duration = Date.now() - startTime;
-      console.log(`[${requestId}] Completed Supabase request: ${url} (${duration}ms) - Status: ${response.status}`);
+      envLog.info(`[${requestId}] Completed Supabase request: ${url} (${duration}ms) - Status: ${response.status}`);
       return response;
     })
     .catch(error => {
       const duration = Date.now() - startTime;
-      console.error(`[${requestId}] Supabase request failed: ${url} (${duration}ms)`, error);
+      envLog.error(`[${requestId}] Supabase request failed: ${url} (${duration}ms)`, error);
       
       // If this is an abort error from our timeout, provide a clearer message
       if (error.name === 'AbortError') {
@@ -253,9 +251,9 @@ export const supabase = getSupabaseClient();
 // Check if session is available and pre-fetch to warm up auth
 if (typeof window !== 'undefined') {
   setTimeout(() => {
-    console.log('Pre-fetching auth session to warm up connection...');
+    envLog.info('Pre-fetching auth session to warm up connection...');
     supabase.auth.getSession().catch(err => {
-      console.warn('Pre-fetch session failed:', err);
+      envLog.warn('Pre-fetch session failed:', err);
     });
   }, 100);
 }
@@ -272,7 +270,7 @@ export async function logError(
     // First check if user is authenticated
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      console.error('User not authenticated, skipping error logging');
+      envLog.error('User not authenticated, skipping error logging');
       return;
     }
 
@@ -286,9 +284,9 @@ export async function logError(
       }]);
 
     if (insertError) {
-      console.error('Failed to log error:', insertError);
+      envLog.error('Failed to log error:', insertError);
     }
   } catch (logError) {
-    console.error('Failed to log error:', logError);
+    envLog.error('Failed to log error:', logError);
   }
 }

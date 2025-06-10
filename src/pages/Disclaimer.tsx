@@ -8,8 +8,8 @@ export function Disclaimer() {
       <div className="min-h-screen bg-white">
         <div className="max-w-4xl mx-auto px-4 py-16">
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Disclaimer</h1>
-            <p className="text-lg text-gray-600">Important Legal Notices and Limitations</p>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">Educational Disclaimer</h1>
+            <p className="text-lg text-gray-600">Effective Date: January 15, 2025</p>
           </div>
 
           <div className="prose prose-lg max-w-none text-gray-800">
@@ -143,8 +143,8 @@ export function Disclaimer() {
               Email: support@jdsimplified.com</p>
             </div>
 
-            <p className="mt-8 text-sm text-gray-600">
-              This disclaimer was last updated on May 11, 2025. We may update this disclaimer from time to time, and your continued use of our service constitutes acceptance of any changes.
+            <p className="mt-8 text-gray-600">
+              We appreciate you taking the time to read this disclaimer. By using our educational platform, you acknowledge that you understand these limitations and will use our service responsibly as a study aid only.
             </p>
           </div>
         </div>

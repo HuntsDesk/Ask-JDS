@@ -794,7 +794,7 @@ export async function hasActiveSubscription(userId?: string): Promise<boolean> {
   console.log(`hasActiveSubscription called for userId: ${userId || 'undefined'}`);
   
   // DEV ONLY: Enable force subscription flag via localStorage
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
     const forceSubscription = localStorage.getItem('forceSubscription');
     if (forceSubscription === 'true') {
       console.log('DEV: Forcing subscription to true via localStorage flag');
@@ -804,6 +804,12 @@ export async function hasActiveSubscription(userId?: string): Promise<boolean> {
       console.log('DEV: Forcing subscription to false via localStorage flag');
       return false;
     }
+  }
+
+  // Early return if no user ID provided - prevents unnecessary auth checks
+  if (!userId) {
+    console.log('hasActiveSubscription: No user ID provided, returning false');
+    return false;
   }
 
   // Prevent redirect loops - only redirect once every 30 seconds at most
@@ -833,12 +839,6 @@ export async function hasActiveSubscription(userId?: string): Promise<boolean> {
         console.log('Skipping redirect - redirected recently');
       }
       
-      return false;
-    }
-
-    // No need to check subscription if no user ID provided
-    if (!userId) {
-      console.log('hasActiveSubscription: No user ID provided, returning false');
       return false;
     }
 

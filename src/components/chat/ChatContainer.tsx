@@ -287,7 +287,17 @@ export function ChatContainer() {
       return; // Silently skip when auth not ready
     }
     
+    console.log('[ChatContainer] Thread loading effect:', {
+      originalThreadsLoading,
+      fsmStatus: chatFSM.state.status,
+      fsmPhase: chatFSM.state.phase,
+      threadsCount: originalThreads.length,
+      hasError: threadQuery.isError,
+      error: threadQuery.error
+    });
+    
     if (originalThreadsLoading && chatFSM.state.status !== 'loading') {
+      console.log('[ChatContainer] Starting FSM loading for threads');
       chatFSM.startLoading('threads');
     } else if (!originalThreadsLoading && chatFSM.state.status === 'loading' && chatFSM.state.phase === 'threads') {
       // If we have threads or this is a different page (no thread ID expected)
@@ -314,7 +324,7 @@ export function ChatContainer() {
         }
       }
     }
-  }, [isAuthResolved, user, originalThreadsLoading, originalThreads, urlThreadId, threadMessages.length, messagesLoading]); // Added threadMessages and messagesLoading deps
+  }, [isAuthResolved, user, originalThreadsLoading, originalThreads, urlThreadId, threadMessages.length, messagesLoading, chatFSM, threadQuery.isError, threadQuery.error]); // Added threadMessages and messagesLoading deps
   
   // Redirect to most recent thread if at /chat root
   useEffect(() => {

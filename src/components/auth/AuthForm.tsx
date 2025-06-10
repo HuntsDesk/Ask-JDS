@@ -32,13 +32,19 @@ import {
   User,
   Eye,
   EyeOff,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CSSTransition } from 'react-transition-group';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { PasswordValidator } from './PasswordValidator';
+import { authLog } from '@/lib/debug-logger';
+import { recordSignupAgreements } from '@/lib/legal-agreements';
+import { EmailConfirmationPage } from './EmailConfirmationPage';
+import { supabase } from '@/lib/supabase';
 
 interface AuthFormProps {
   initialTab?: 'signin' | 'signup';
@@ -53,6 +59,10 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(initialTab);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [lastSubmitTime, setLastSubmitTime] = useState<number>(0);
+  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
+  const [confirmationEmail, setConfirmationEmail] = useState('');
   
   // Create refs for CSSTransition to avoid findDOMNode deprecation warnings
   const signInNodeRef = useRef(null);
@@ -220,44 +230,68 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Rate limiting: prevent rapid successive submissions
+    const now = Date.now();
+    if (now - lastSubmitTime < 5000) { // 5 second cooldown to prevent server overload
+      toast({
+        title: 'Please wait',
+        description: 'Please wait a moment before trying again.',
+        variant: 'default',
+      });
+      return;
+    }
+    setLastSubmitTime(now);
+    
     console.log('Sign up form submitted with email:', email);
+    
     setIsLoading(true);
-
+    setPasswordError(null); // Clear previous errors
+    
+    // Set a safety timeout for loading state
+    const timeout = setTimeout(() => {
+      setIsLoading(false);
+      console.log('Auth safety timeout triggered');
+    }, 30000);
+    
+    console.log('Auth loading state started, setting safety timeout');
+    
     try {
       console.log('Calling signUp with email:', email);
+      const result = await signUp(email, password);
+      console.log('SignUp result:', result);
+      clearTimeout(timeout);
       
-      // Improved error handling to deal with unexpected return values
-      let signUpResult;
-      try {
-        signUpResult = await signUp(email, password);
-        console.log('SignUp result:', signUpResult);
-      } catch (signUpError) {
-        console.error('Exception during signUp call:', signUpError);
-        throw new Error('Registration service error. Please try again.');
+      if (result.success) {
+        console.log('Sign up successful, email confirmation required');
+        
+        // Record legal agreement acceptance using the user ID
+        const agreementsRecorded = await recordSignupAgreements(result.data.user?.id);
+        if (!agreementsRecorded) {
+          console.warn('Failed to record legal agreements, but signup succeeded');
+        }
+        
+        // Show email confirmation page instead of auto-redirect
+        setConfirmationEmail(email);
+        setShowEmailConfirmation(true);
+        
+        toast({
+          title: 'Account Created Successfully!',
+          description: 'Please check your email to verify your account.',
+          variant: 'default',
+        });
+      } else {
+        console.log('SignUp response error:', result.error);
+        const error = new Error(result.error || 'Unknown error occurred');
+        throw error;
       }
-      
-      // Handle case where signUpResult is undefined or doesn't have the expected structure
-      if (!signUpResult) {
-        console.error('SignUp returned undefined result');
-        throw new Error('Registration failed. Please try again.');
-      }
-      
-      const { error } = signUpResult;
-      console.log('SignUp response error:', error);
-      
-      if (error) throw error;
-      
-      toast({
-        title: 'Success',
-        description: 'Please check your email to verify your account.',
-      });
-      
-      setActiveTab('signin');
     } catch (error) {
-      console.error('Sign up error:', error);
+      clearTimeout(timeout);
+      console.log('Sign up error:', error);
       
       // More descriptive user-facing error messages based on the error type
       let errorMessage = 'Failed to create account. Please try again.';
+      let isPasswordError = false;
       
       if (error instanceof TypeError) {
         // Special handling for the TypeError which was our original issue
@@ -270,10 +304,20 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
         // Check for specific Supabase error patterns
         if (error.message.includes('already registered')) {
           errorMessage = 'This email is already registered. Please sign in instead.';
-        } else if (error.message.includes('password')) {
-          errorMessage = 'Password does not meet requirements. Please use a stronger password.';
+        } else if (error.message.includes('Password should contain') || error.message.includes('weak and easy to guess')) {
+          // Format the password error message to be more readable
+          isPasswordError = true;
+          if (error.message.includes('weak and easy to guess')) {
+            errorMessage = 'Your password is too easy to guess. Please use a stronger password that meets all the requirements below.';
+            setPasswordError('Password is too easy to guess - please choose a stronger password');
+          } else {
+            errorMessage = 'Password does not meet security requirements. Please ensure your password meets all the criteria shown below.';
+            setPasswordError('Password does not meet security requirements');
+          }
         } else if (error.message.includes('rate limit')) {
           errorMessage = 'Too many sign-up attempts. Please try again later.';
+        } else if (error.message.includes('Database error') || error.message.includes('Internal Server Error')) {
+          errorMessage = 'Server is temporarily unavailable. Please try again in a few moments.';
         } else if (error.message.includes('network')) {
           errorMessage = 'Network error. Please check your connection and try again.';
         }
@@ -283,11 +327,50 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
         title: 'Sign-up Error',
         description: errorMessage,
         variant: 'destructive',
+        duration: 6000, // Show for 6 seconds for password errors
       });
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleResendEmail = async () => {
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: confirmationEmail
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Email Sent',
+        description: 'Confirmation email has been resent.',
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error('Resend email error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to resend email. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Show email confirmation page if signup succeeded with email verification required
+  if (showEmailConfirmation) {
+    return (
+      <EmailConfirmationPage 
+        email={confirmationEmail}
+        onResendEmail={handleResendEmail}
+        isResending={isLoading}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center animated-gradient p-4 sm:p-6 md:p-8 force-light-mode">
@@ -518,15 +601,16 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
                                 autoCorrect="off"
                                 disabled={isLoading}
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="pl-10"
+                                onChange={(e) => {
+                                  setPassword(e.target.value);
+                                  if (passwordError) setPasswordError(null); // Clear error when user types
+                                }}
+                                className={`pl-10 ${passwordError ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                                 required
                                 minLength={8}
                               />
                             </div>
-                            <p className="text-xs text-gray-500">
-                              Password must be at least 8 characters long
-                            </p>
+                            <PasswordValidator password={password} error={passwordError} />
                           </div>
                           
                           <div className="flex items-center space-x-2">
@@ -538,11 +622,15 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
                               I agree to the{" "}
                               <Link to="/terms" className="text-[#F37022] hover:underline">
                                 Terms of Service
-                              </Link>{" "}
-                              and{" "}
+                              </Link>
+                              ,{" "}
                               <Link to="/privacy" className="text-[#F37022] hover:underline">
                                 Privacy Policy
                               </Link>
+                              , and{" "}
+                              <Link to="/disclaimer" className="text-[#F37022] hover:underline">
+                                Disclaimer
+                              </Link>.
                             </label>
                           </div>
                           

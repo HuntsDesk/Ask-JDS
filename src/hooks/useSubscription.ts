@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase'; // Assuming supabase client is exported from here
 import { useAuth } from '@/lib/auth'; // Assuming useAuth hook provides user context
+import { hasActiveSubscription, getUserSubscription, type Subscription } from '@/lib/subscription';
 
 export interface SubscriptionDetails {
   isActive: boolean;
@@ -59,7 +60,61 @@ const fetchSubscriptionStatus = async (): Promise<SubscriptionDetails | null> =>
   }
 };
 
-export const useSubscription = () => {
+export function useSubscription() {
+  const { user, isAuthResolved } = useAuth();
+  
+  return useQuery<boolean>({
+    queryKey: ['subscription', user?.id],
+    queryFn: async () => {
+      if (!user?.id) {
+        return false;
+      }
+      return hasActiveSubscription(user.id);
+    },
+    // Critical: Only enable when auth is resolved and we have a user
+    enabled: isAuthResolved && !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    // Use placeholderData to prevent flashing
+    placeholderData: false,
+  });
+}
+
+export function useSubscriptionDetails() {
+  const { user, isAuthResolved } = useAuth();
+  
+  return useQuery<Subscription | null>({
+    queryKey: ['subscription-details', user?.id],
+    queryFn: async () => {
+      if (!user?.id) {
+        return null;
+      }
+      return getUserSubscription(user.id);
+    },
+    // Critical: Only enable when auth is resolved and we have a user
+    enabled: isAuthResolved && !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    // Use placeholderData to prevent flashing
+    placeholderData: null,
+  });
+}
+
+export function useInvalidateSubscription() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  
+  return () => {
+    if (user?.id) {
+      queryClient.invalidateQueries({ queryKey: ['subscription', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['subscription-details', user.id] });
+    }
+  };
+}
+
+export const useSubscriptionDetailsOld = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
 

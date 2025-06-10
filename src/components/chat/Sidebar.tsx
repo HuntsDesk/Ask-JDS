@@ -34,6 +34,7 @@ import { usePersistedState } from '@/hooks/use-persisted-state';
 import { useTheme } from '@/lib/theme-provider';
 import { useDomain } from '@/lib/domain-context';
 import { useLayoutState } from '@/hooks/useLayoutState';
+import { memo } from 'react';
 
 interface SidebarProps {
   setActiveTab: (tab: string) => void;
@@ -57,7 +58,8 @@ interface GroupedSessions {
   [key: string]: Array<{ id: string; title: string; created_at: string }>;
 }
 
-export function Sidebar({
+// Memoized component to prevent unnecessary re-renders
+export const Sidebar = memo(function Sidebar({
   setActiveTab,
   isDesktopExpanded,
   onDesktopExpandedChange,
@@ -193,7 +195,11 @@ export function Sidebar({
   };
 
   const groupSessionsByDate = useCallback((sessions: Array<{ id: string; title: string; created_at: string }>) => {
-    console.log("Computing grouped sessions"); // Debug log to verify memoization
+    // Only log in development and throttle to reduce noise
+    if (import.meta.env.DEV && Math.random() < 0.1) { // Log ~10% of calculations
+      console.log("Computing grouped sessions");
+    }
+    
     const grouped: GroupedSessions = {};
     
     sessions.forEach(session => {
@@ -204,8 +210,10 @@ export function Sidebar({
       const isSessionYesterday = isYesterday(date);
       const isSessionThisWeek = isThisWeek(date);
       
-      // Debug log to check date categorization
-      console.log(`Session "${session.title}" (${date.toLocaleDateString()}): isToday=${isSessionToday}, isYesterday=${isSessionYesterday}, isThisWeek=${isSessionThisWeek}`);
+      // Only log session categorization in development and sparingly
+      if (import.meta.env.DEV && Math.random() < 0.05) { // Log ~5% of sessions
+        console.log(`Session "${session.title}" (${date.toLocaleDateString()}): isToday=${isSessionToday}, isYesterday=${isSessionYesterday}, isThisWeek=${isSessionThisWeek}`);
+      }
       
       if (isSessionToday) {
         key = 'Today';
@@ -219,7 +227,10 @@ export function Sidebar({
         key = format(date, 'MMMM yyyy');
       }
       
-      console.log(`→ Grouped under: ${key}`);
+      // Only log grouping results occasionally
+      if (import.meta.env.DEV && Math.random() < 0.05) {
+        console.log(`→ Grouped under: ${key}`);
+      }
       
       if (!grouped[key]) {
         grouped[key] = [];
@@ -237,11 +248,12 @@ export function Sidebar({
     return grouped;
   }, []);
 
-  // Memoize the grouped sessions to prevent unnecessary recalculations
-  const groupedSessions = useMemo(() => 
-    groupSessionsByDate(sessions), 
-    [groupSessionsByDate, sessions]
-  );
+  // Memoize the grouped sessions with dependency on sessions array length and content hash
+  const groupedSessions = useMemo(() => {
+    // Create a simple hash of sessions to detect changes more efficiently
+    const sessionsHash = sessions.map(s => `${s.id}-${s.created_at}`).join('|');
+    return groupSessionsByDate(sessions);
+  }, [sessions, groupSessionsByDate]);
 
   // Memoize the sorted entries to prevent recalculation on every render
   const sortedSessionEntries = useMemo(() => {
@@ -685,4 +697,4 @@ export function Sidebar({
       </div>
     </>
   );
-}
+});

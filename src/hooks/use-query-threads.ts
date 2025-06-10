@@ -1,8 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { realtimeManager } from '@/lib/realtime-manager';
 import type { Thread, Message } from '@/types';
 import { useAuth } from '@/lib/auth';
 import { useEffect } from 'react';
+import { debugLogger } from '@/lib/debug-logger';
+import { useAuthTiming } from './use-auth-timing';
 
 // Query keys for better cache management
 export const threadKeys = {
@@ -13,33 +16,59 @@ export const threadKeys = {
 
 // Hook to fetch all threads
 export function useThreads() {
-  const { user } = useAuth();
-  const userId = user?.id;
+  const { session } = useAuth();
+  const authTiming = useAuthTiming({ 
+    timeout: 1500, 
+    debugContext: 'useThreads' 
+  });
+  
+  // Add debugging for session and timing state
+  debugLogger.info('api', `useThreads hook state: ${authTiming.timingDebugInfo}, hasSession=${!!session}`);
   
   return useQuery<Thread[]>({
     queryKey: threadKeys.all,
     queryFn: async () => {
-      if (!userId) return [];
+      if (!authTiming.userId) return [];
+      
+      debugLogger.info('api', `Starting threads query for user: ${authTiming.userId} (auth timing: ${authTiming.timingDebugInfo})`);
+      
+      // Skip redundant session validation - auth timing already ensures we're ready
+      // The hanging getSession() call was causing the issue
+      
+      // Execute the actual query
+      debugLogger.info('api', 'Executing threads query');
       
       const { data, error } = await supabase
         .from('threads')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', authTiming.userId)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        debugLogger.error('api', `Error fetching threads: ${error.message}`, {
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+        throw error;
+      }
+      
+      debugLogger.info('api', `Successfully fetched ${data?.length || 0} threads`);
       return data as Thread[];
     },
-      // Only fetch if we have a user
-      enabled: !!userId,
+    // Critical: Use hybrid auth timing approach to prevent race conditions
+    enabled: authTiming.isAuthReady,
     // Use placeholderData instead of keepPreviousData in v5
     placeholderData: keepData => keepData as Thread[] | undefined,
-      // Cache for 2 minutes
-      staleTime: 2 * 60 * 1000,
+    // Cache for 2 minutes
+    staleTime: 2 * 60 * 1000,
     // Important: Don't refetch on window focus to prevent flashing
     refetchOnWindowFocus: false,
     // Reduce unnecessary network requests
-    refetchOnMount: false
+    refetchOnMount: false,
+    // Add retry configuration
+    retry: 3,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 }
 
@@ -70,10 +99,18 @@ export function useThread(id: string | null) {
 
 // Hook to fetch messages for a thread
 export function useMessages(threadId: string | null) {
+  const { session } = useAuth();
+  const authTiming = useAuthTiming({ 
+    timeout: 1500, 
+    debugContext: 'useMessages' 
+  });
+  
   return useQuery<Message[]>({
     queryKey: threadKeys.messages(threadId || 'null'),
     queryFn: async () => {
       if (!threadId) return [];
+      
+      debugLogger.info('api', `Fetching messages for thread: ${threadId} (auth timing: ${authTiming.timingDebugInfo})`);
       
       const { data, error } = await supabase
         .from('messages')
@@ -81,11 +118,16 @@ export function useMessages(threadId: string | null) {
         .eq('thread_id', threadId)
         .order('created_at', { ascending: true });
       
-      if (error) throw error;
+      if (error) {
+        debugLogger.error('api', `Error fetching messages: ${error.message}`, error);
+        throw error;
+      }
+      
+      debugLogger.info('api', `Successfully fetched ${data?.length || 0} messages`);
       return data as Message[];
     },
-      // Don't fetch if no thread ID is provided
-      enabled: !!threadId,
+      // Don't fetch if no thread ID is provided or auth not ready
+      enabled: !!threadId && authTiming.isAuthReady,
       // Refetch messages periodically 
       refetchInterval: 10000, // Every 10 seconds
     // Use placeholderData instead of keepPreviousData in v5
@@ -211,25 +253,27 @@ export function useThreadsRealtime() {
     
     console.log('[useThreadsRealtime] Setting up realtime subscription for threads');
     
-    const channel = supabase
-      .channel('threads-realtime')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
+    const unsubscribe = realtimeManager.subscribe(
+      'threads-realtime',
+      {
         table: 'threads',
-        filter: `user_id=eq.${user.id}`
-      }, (payload) => {
-        console.log('[useThreadsRealtime] Received realtime update:', payload.eventType, payload);
-        
-        if (payload.eventType === 'INSERT') {
+        onInsert: (payload) => {
           console.log('[useThreadsRealtime] Invalidating threads query due to INSERT');
           queryClient.invalidateQueries({ queryKey: threadKeys.all });
-        } else if (payload.eventType === 'DELETE') {
+        },
+                          onDelete: (payload) => {
           console.log('[useThreadsRealtime] Invalidating threads query due to DELETE');
           queryClient.invalidateQueries({ queryKey: threadKeys.all });
-          queryClient.invalidateQueries({ queryKey: threadKeys.thread(payload.old.id) });
-        } else if (payload.eventType === 'UPDATE') {
+          const oldRecord = payload.old as any;
+          if (oldRecord && oldRecord.id) {
+            queryClient.invalidateQueries({ queryKey: threadKeys.thread(oldRecord.id) });
+          }
+         },
+         onUpdate: (payload) => {
           console.log('[useThreadsRealtime] Thread UPDATE received:', payload.new);
+          
+          const newRecord = payload.new as Thread;
+          if (!newRecord || !newRecord.id) return;
           
           // Update the thread in the cache directly
           const previousThreads = queryClient.getQueryData<Thread[]>(threadKeys.all) || [];
@@ -239,29 +283,28 @@ export function useThreadsRealtime() {
             queryClient.setQueryData(
               threadKeys.all,
               previousThreads.map(thread => 
-                thread.id === payload.new.id ? payload.new as Thread : thread
+                thread.id === newRecord.id ? newRecord : thread
               )
             );
             
             // Update individual thread if it exists in the cache
-            if (queryClient.getQueryData(threadKeys.thread(payload.new.id))) {
-              queryClient.setQueryData(threadKeys.thread(payload.new.id), payload.new);
+            if (queryClient.getQueryData(threadKeys.thread(newRecord.id))) {
+              queryClient.setQueryData(threadKeys.thread(newRecord.id), newRecord);
             }
             
-            console.log('[useThreadsRealtime] Thread cache updated for:', payload.new.id);
+            console.log('[useThreadsRealtime] Thread cache updated for:', newRecord.id);
           } else {
             console.log('[useThreadsRealtime] No threads in cache, invalidating queries');
             queryClient.invalidateQueries({ queryKey: threadKeys.all });
           }
         }
-      })
-      .subscribe((status) => {
-        console.log('[useThreadsRealtime] Subscription status:', status);
-      });
+      },
+      user.id
+    );
       
     return () => {
       console.log('[useThreadsRealtime] Cleaning up realtime subscription');
-      supabase.removeChannel(channel);
+      unsubscribe();
     };
   }, [user, queryClient]);
 } 

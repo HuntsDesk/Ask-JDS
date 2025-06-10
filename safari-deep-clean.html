@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safari Deep Clean - Ask JDS</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .safari-warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 30px;
+            color: #856404;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #495057;
+            font-size: 1.2em;
+        }
+        button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover:not(:disabled) {
+            background-color: #c82333;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.65;
+        }
+        .primary-button {
+            background-color: #007bff;
+            font-size: 18px;
+            padding: 15px 30px;
+        }
+        .primary-button:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .manual-steps {
+            background-color: #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+        .manual-steps h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .manual-steps ol {
+            margin-bottom: 0;
+        }
+        .manual-steps li {
+            margin-bottom: 10px;
+        }
+        code {
+            background-color: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            color: #e83e8c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Safari Deep Clean Tool</h1>
+        
+        <div class="safari-warning">
+            <strong>⚠️ Safari-Specific Issue Detected:</strong> Since the app works in Safari Private Browsing and Chrome but not regular Safari, this indicates corrupted Safari-specific storage or cache.
+        </div>
+
+        <div class="section">
+            <h2>Step 1: Automatic Storage Clearing</h2>
+            <p>This will clear all web storage for the current origin:</p>
+            <button onclick="clearAllStorage()" id="clearBtn">Clear All Storage</button>
+            <div id="clearStatus"></div>
+        </div>
+
+        <div class="section">
+            <h2>Step 2: Force Service Worker Cleanup</h2>
+            <p>Clear any registered service workers and their caches:</p>
+            <button onclick="clearServiceWorkers()" id="swBtn">Clear Service Workers</button>
+            <div id="swStatus"></div>
+        </div>
+
+        <div class="section">
+            <h2>Step 3: Try Cache Busting Reload</h2>
+            <p>Force Safari to bypass all caches:</p>
+            <button onclick="cacheBustingReload()" id="reloadBtn">Cache Busting Reload</button>
+        </div>
+
+        <div class="manual-steps">
+            <h3>🔧 Manual Safari Deep Clean (Recommended)</h3>
+            <p>Since automatic clearing didn't work, try these manual steps:</p>
+            <ol>
+                <li><strong>Safari Developer Menu:</strong>
+                    <ul>
+                        <li>Enable Developer menu: Safari → Preferences → Advanced → Show Develop menu</li>
+                        <li>Click Develop → Empty Caches</li>
+                        <li>Click Develop → Disable Caches (temporarily)</li>
+                    </ul>
+                </li>
+                <li><strong>Clear Safari Website Data:</strong>
+                    <ul>
+                        <li>Safari → Preferences → Privacy → Manage Website Data</li>
+                        <li>Search for "localhost" or your domain</li>
+                        <li>Remove all entries</li>
+                    </ul>
+                </li>
+                <li><strong>Reset Safari Completely:</strong>
+                    <ul>
+                        <li>Safari → Clear History → All History</li>
+                        <li>This is more aggressive than just clearing website data</li>
+                    </ul>
+                </li>
+                <li><strong>Check Safari Experimental Features:</strong>
+                    <ul>
+                        <li>Safari → Preferences → Advanced → Experimental Features</li>
+                        <li>Look for any ITP or storage-related features that might be enabled</li>
+                    </ul>
+                </li>
+                <li><strong>Nuclear Option - Reset Safari State:</strong>
+                    <ul>
+                        <li>Quit Safari completely</li>
+                        <li>In Finder, press <code>Cmd+Shift+G</code> and go to <code>~/Library/Safari/</code></li>
+                        <li>Move these folders to trash (Safari will recreate them):
+                            <ul>
+                                <li><code>LocalStorage/</code></li>
+                                <li><code>Databases/</code></li>
+                                <li><code>WebSQL/</code></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>Alternative Solution: Use a Different Port</h2>
+            <p>Sometimes Safari associates corrupted state with specific origins. Try accessing the app on a different port:</p>
+            <button onclick="tryDifferentPort()">Open on Port 5174</button>
+        </div>
+
+        <div id="log"></div>
+
+        <div class="status info" style="margin-top: 30px;">
+            <strong>Why is this happening?</strong> Safari has known issues with storage corruption, especially with its Intelligent Tracking Prevention (ITP) feature. Safari may have cached authentication state that's not being properly cleared through normal methods.
+        </div>
+    </div>
+
+    <script>
+        const log = (message, type = 'info') => {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            logDiv.textContent += `${timestamp} ${prefix} ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        };
+
+        async function clearAllStorage() {
+            const statusDiv = document.getElementById('clearStatus');
+            const btn = document.getElementById('clearBtn');
+            btn.disabled = true;
+            statusDiv.className = 'status info';
+            statusDiv.textContent = 'Clearing all storage...';
+            
+            try {
+                // Clear cookies
+                document.cookie.split(";").forEach(c => {
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/;domain=" + window.location.hostname);
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/;domain=." + window.location.hostname);
+                });
+                log('Cleared cookies', 'success');
+
+                // Clear localStorage
+                if (window.localStorage) {
+                    try {
+                        window.localStorage.clear();
+                        log('Cleared localStorage', 'success');
+                    } catch (e) {
+                        log('Failed to clear localStorage: ' + e.message, 'error');
+                    }
+                }
+
+                // Clear sessionStorage
+                if (window.sessionStorage) {
+                    try {
+                        window.sessionStorage.clear();
+                        log('Cleared sessionStorage', 'success');
+                    } catch (e) {
+                        log('Failed to clear sessionStorage: ' + e.message, 'error');
+                    }
+                }
+
+                // Clear IndexedDB
+                if (window.indexedDB) {
+                    try {
+                        const databases = await indexedDB.databases();
+                        for (const db of databases) {
+                            await indexedDB.deleteDatabase(db.name);
+                            log(`Deleted IndexedDB: ${db.name}`, 'success');
+                        }
+                    } catch (e) {
+                        log('Failed to clear IndexedDB: ' + e.message, 'error');
+                    }
+                }
+
+                // Clear WebSQL (deprecated but might still exist)
+                if (window.openDatabase) {
+                    try {
+                        const db = window.openDatabase('test', '1.0', 'test', 1024);
+                        db.transaction(tx => {
+                            tx.executeSql('DROP TABLE IF EXISTS test');
+                        });
+                        log('Cleared WebSQL', 'success');
+                    } catch (e) {
+                        log('WebSQL not available or failed: ' + e.message, 'error');
+                    }
+                }
+
+                // Clear Cache Storage
+                if ('caches' in window) {
+                    try {
+                        const cacheNames = await caches.keys();
+                        for (const cacheName of cacheNames) {
+                            await caches.delete(cacheName);
+                            log(`Deleted cache: ${cacheName}`, 'success');
+                        }
+                    } catch (e) {
+                        log('Failed to clear Cache Storage: ' + e.message, 'error');
+                    }
+                }
+
+                statusDiv.className = 'status success';
+                statusDiv.textContent = '✅ Storage cleared successfully! Try reloading the main app now.';
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '❌ Error clearing storage: ' + error.message;
+                log('Error clearing storage: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function clearServiceWorkers() {
+            const statusDiv = document.getElementById('swStatus');
+            const btn = document.getElementById('swBtn');
+            btn.disabled = true;
+            statusDiv.className = 'status info';
+            statusDiv.textContent = 'Clearing service workers...';
+
+            try {
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (const registration of registrations) {
+                        await registration.unregister();
+                        log(`Unregistered service worker: ${registration.scope}`, 'success');
+                    }
+                    
+                    // Also clear all caches
+                    if ('caches' in window) {
+                        const cacheNames = await caches.keys();
+                        for (const cacheName of cacheNames) {
+                            await caches.delete(cacheName);
+                            log(`Deleted SW cache: ${cacheName}`, 'success');
+                        }
+                    }
+                    
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✅ Service workers cleared!';
+                } else {
+                    statusDiv.className = 'status info';
+                    statusDiv.textContent = 'Service workers not supported in this browser.';
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '❌ Error clearing service workers: ' + error.message;
+                log('Error clearing service workers: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function cacheBustingReload() {
+            const timestamp = Date.now();
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('_cb', timestamp);
+            window.location.href = currentUrl.toString();
+        }
+
+        function tryDifferentPort() {
+            window.open('http://localhost:5174', '_blank');
+        }
+
+        // Automatically log current storage state on load
+        window.addEventListener('load', () => {
+            log('Page loaded. Checking current storage state...');
+            
+            // Check for Supabase tokens
+            const hasSupabaseAuth = localStorage.getItem('supabase.auth.token') !== null;
+            log(`Supabase auth token: ${hasSupabaseAuth ? 'Present' : 'Not found'}`);
+            
+            // Check cookies
+            const cookieCount = document.cookie.split(';').filter(c => c.trim()).length;
+            log(`Cookies found: ${cookieCount}`);
+            
+            // Check Safari version
+            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+            if (isSafari) {
+                log('Safari browser detected', 'info');
+            }
+        });
+    </script>
+</body>
+</html> 

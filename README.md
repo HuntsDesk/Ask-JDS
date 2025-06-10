@@ -42,6 +42,58 @@ This monorepo powers three deployments from a single codebase:
 
 All domains share the same Supabase backend, database, authentication, and UI foundations.
 
+## Legal Document Management
+
+The platform includes a comprehensive legal agreements system that automatically tracks user acceptance of Terms of Service, Privacy Policy, and Educational Disclaimer with full audit trails for compliance.
+
+### Version Management
+
+**Location**: `src/lib/legal-agreements.ts`
+
+Legal document versions are centrally managed in the `LEGAL_DOCUMENTS` constant:
+
+```typescript
+export const LEGAL_DOCUMENTS = {
+  terms: {
+    version: "2025-01-15",           // Update this when terms change
+    effectiveDate: "2025-01-15",    // Date new terms take effect
+    displayTitle: "Terms of Service (v2025.1)"
+  },
+  privacy: {
+    version: "2025-01-15",
+    effectiveDate: "2025-01-15", 
+    displayTitle: "Privacy Policy (v2025.1)"
+  },
+  disclaimer: {
+    version: "2025-01-15",
+    effectiveDate: "2025-01-15",
+    displayTitle: "Educational Disclaimer (v2025.1)"
+  }
+} as const;
+```
+
+### Updating Legal Documents
+
+**When terms/privacy/disclaimer change:**
+
+1. **Update the content** in respective page components (`src/pages/TermsOfService.tsx`, etc.)
+2. **Update version numbers** in `src/lib/legal-agreements.ts`
+3. **Deploy changes** - existing users will see acceptance prompts for new versions
+4. **Audit trail** - all acceptances are automatically logged with timestamps and IP addresses
+
+### Database Schema
+
+The `user_agreements` table tracks all legal document acceptances:
+
+- `user_id` - Links to authenticated user
+- `document_type` - 'terms', 'privacy', or 'disclaimer'  
+- `version` - Which version was accepted
+- `accepted_at` - Timestamp of acceptance
+- `ip_address` - User's IP for legal audit trail
+- `user_agent` - Browser information
+
+**Security**: Full RLS policies ensure users can only view their own agreements, while admins can access all records for compliance auditing.
+
 ## Development Commands
 
 ### Core Development
@@ -140,14 +192,25 @@ VITE_GUMLET_ACCOUNT_ID=your_gumlet_id      # Video CDN
 
 ## Recent Updates (January 2025)
 
+### Signup System Security Fixes (January 2025)
+- **RLS Policy Resolution**: Fixed 401 Unauthorized errors during signup caused by legal agreement recording before email confirmation
+- **SECURITY DEFINER Implementation**: Created `record_user_agreements()` function that bypasses RLS to record legal consent at the exact moment of form submission
+- **Audit Trail Preservation**: Maintains precise legal compliance by capturing agreement timestamps, IP addresses, and user agents when users click signup
+- **Batch Agreement Recording**: Optimized single RPC call to record all three legal documents (Terms, Privacy, Disclaimer) atomically
+- **Email Confirmation Flow**: Fixed expired OTP issues and improved email confirmation UX with proper orange styling
+- **UI Improvements**: Enhanced password validation feedback and fixed navigation routing inconsistencies
+
+### Technical Implementation Details
+**Database**: Added `public.record_user_agreements()` SECURITY DEFINER function in migration `20250116000001_create_record_agreements_function.sql`
+**Frontend**: Updated `legal-agreements.ts` to use RPC calls instead of direct table inserts for unconfirmed users
+**Security**: Function grants execute permissions to `anon` and `authenticated` roles while maintaining strict RLS on the underlying table
+
 ### Chat System Architecture Fixes
 - **Root Cause Resolution**: Fixed infinite loading spinners by addressing stale closure and infinite refresh loop issues
 - **Dependency Management**: Corrected missing `chatFSM` dependency in ChatContainer useEffect preventing proper state transitions
 - **Message Loading Optimization**: Eliminated infinite `refreshMessages` loops by stabilizing function references
 - **UI Flash Prevention**: Fixed welcome message flash when clicking existing threads with smart loading state logic
 - **Removed Timeout Workarounds**: Eliminated artificial 15-20 second timeouts in favor of proper dependency management
-- **WebSocket Reliability**: Maintained retry logic and polling fallback for legitimate infrastructure issues only
-- **Smart Loading Logic**: New threads show instant welcome screen (0ms load time), existing threads only show loading when needed
 
 ### Mobile Chat Layout Optimization
 - Fixed mobile scroll behavior issues - eliminated "false top" scroll detection
@@ -182,6 +245,13 @@ VITE_GUMLET_ACCOUNT_ID=your_gumlet_id      # Video CDN
 - Interactive flashcard demo enhancements
 - Refined marketing copy with student-friendly tone
 - Consistent hero styling across all domains
+
+### Legal Agreements & Compliance System
+- **Terms Tracking**: Automatic recording of Terms of Service, Privacy Policy, and Educational Disclaimer acceptance
+- **Version Management**: Centralized version control system with audit trail for legal compliance
+- **Email Verification**: Required email confirmation for new user accounts with resend functionality
+- **Database Integration**: `user_agreements` table with full RLS policies for secure compliance tracking
+- **IP Address Logging**: Automatic capture of user IP and browser details for legal audit requirements
 
 ## Contributing
 

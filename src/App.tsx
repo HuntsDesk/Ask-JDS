@@ -64,6 +64,7 @@ import JDSDashboard from '@/pages/Dashboard';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
+import { DebugTrigger } from '@/components/debug/DebugTrigger';
 import { 
   Routes, 
   Route, 
@@ -104,6 +105,9 @@ const CheckoutConfirmationPage = lazy(() => import('@/pages/CheckoutConfirmation
 
 // Import the pricing page
 const PricingPage = lazy(() => import('@/pages/PricingPage').then(module => ({ default: module.PricingPage })));
+
+// Import AuthCallback
+import AuthCallback from './pages/auth/AuthCallback';
 
 // Check if admin setup is allowed from environment variables
 const allowSetupAdmin = import.meta.env.VITE_ALLOW_ADMIN_SETUP === 'true';
@@ -365,6 +369,9 @@ function AppRoutes() {
         <AsyncAuthPage />
       } />
       
+      {/* Auth callback route for email confirmation */}
+      <Route path="/auth/callback" element={<AuthCallback />} />
+      
       {/* Legal Pages - Public Access */}
       <Route path="/terms" element={<TermsOfService />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -536,6 +543,7 @@ function AppWrapper() {
                         <HotToaster position="top-right" />
                         <OfflineIndicator />
                         <LayoutDebugger />
+                        <DebugTrigger />
                       </BrowserRouter>
                     </ErrorBoundary>
                   </SelectedThreadContext.Provider>

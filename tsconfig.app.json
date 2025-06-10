@@ -6,5 +6,5 @@
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src"]
+  "include": ["src", "jdsimplified/src"]
 }

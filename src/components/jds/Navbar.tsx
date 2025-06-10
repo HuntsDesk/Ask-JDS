@@ -70,7 +70,7 @@ export default function Navbar({ showPromo = false }: NavbarProps) {
                   <Link to="/login">
                     <Button variant="ghost">Log In</Button>
                   </Link>
-                  <Link to="/register">
+                  <Link to="/auth?tab=signup">
                     <Button variant="default">Sign Up</Button>
                   </Link>
                 </>
@@ -125,7 +125,7 @@ export default function Navbar({ showPromo = false }: NavbarProps) {
                   Log In
                 </Link>
                 <Link
-                  to="/register"
+                  to="/auth?tab=signup"
                   className="block px-3 py-2 rounded-md text-base font-medium text-white bg-jdblue hover:bg-jdblue/90"
                 >
                   Sign Up
