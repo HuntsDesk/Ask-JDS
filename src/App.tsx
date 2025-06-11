@@ -26,7 +26,6 @@ if (import.meta.env.DEV) {
 
 // Direct imports for homepage components
 import { HomePage } from '@/components/HomePage';
-import { HomePage as JDSHomePage } from '@/components/jds/HomePage';
 
 // Import legal pages
 import { TermsOfService } from '@/pages/TermsOfService';
@@ -34,7 +33,6 @@ import { PrivacyPolicy } from '@/pages/PrivacyPolicy';
 import { Disclaimer } from '@/pages/Disclaimer';
 
 // Import our new Navbar components
-import { JDSNavbar } from '@/components/jds/JDSNavbar';
 import { AskJDSNavbar } from '@/components/askjds/AskJDSNavbar';
 
 // Import the new PersistentLayout
@@ -96,9 +94,6 @@ const AdminSecurity = lazy(() => import('@/components/admin/SecurityDashboard').
 
 // Import SetAdminStatus directly for the setup route
 import SetAdminSetup from './components/admin/SetAdmin';
-
-// Import our wrapper instead of direct import
-import { JDSDashboardWrapper } from '@/components/jds/JDSDashboardWrapper';
 
 // Import the checkout confirmation page
 const CheckoutConfirmationPage = lazy(() => import('@/pages/CheckoutConfirmationPage').then(module => ({ default: module.CheckoutConfirmationPage })));
@@ -360,7 +355,7 @@ function AppRoutes() {
   // Regular routes for Ask JDS and JD Simplified domains
   return (
     <Routes>
-      <Route path="/" element={isJDSimplified ? <JDSHomePage /> : <HomePage />} />
+      <Route path="/" element={<HomePage />} />
       
       {/* Add back the login redirect without triggering auth initialization */}
       <Route path="/login" element={<SimpleRedirect to="/auth" />} />
