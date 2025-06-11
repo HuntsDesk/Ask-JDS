@@ -44,7 +44,7 @@ import { PasswordValidator } from './PasswordValidator';
 import { authLog } from '@/lib/debug-logger';
 import { recordSignupAgreements } from '@/lib/legal-agreements';
 import { EmailConfirmationPage } from './EmailConfirmationPage';
-import { getSupabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 interface AuthFormProps {
   initialTab?: 'signin' | 'signup';
@@ -337,7 +337,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
   const handleResendEmail = async () => {
     try {
       setIsLoading(true);
-      const { error } = await getSupabase().auth.resend({
+      const { error } = await supabase.auth.resend({
         type: 'signup',
         email: confirmationEmail
       });
