@@ -193,24 +193,8 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
     }
   }, timeoutDuration); // Variable timeout based on request type
   
-  // Add auth headers if available and not already included
-  let finalInit = { ...init };
-  if (isAuthRequest && typeof window !== 'undefined') {
-    const authStorage = localStorage.getItem('ask-jds-auth-storage');
-    if (authStorage) {
-      try {
-        const authData = JSON.parse(authStorage);
-        if (authData?.access_token && (!finalInit.headers || !('Authorization' in finalInit.headers))) {
-          finalInit.headers = {
-            ...finalInit.headers,
-            Authorization: `Bearer ${authData.access_token}`
-          };
-        }
-      } catch (e) {
-        envLog.error('Error parsing auth storage:', e);
-      }
-    }
-  }
+  // Let Supabase handle auth headers automatically - don't interfere
+  const finalInit = { ...init };
   
   const fetchPromise = fetch(input, {
     ...finalInit,
