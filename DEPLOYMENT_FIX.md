@@ -37,6 +37,22 @@ Check that the new build is live:
 
 ### 5. Common Deployment Platforms
 
+#### GitHub Actions (YOUR SETUP)
+Your deployment uses GitHub Actions with S3/CloudFront. The workflow uses these secrets:
+- `VITE_SUPABASE_URL_DEV`
+- `VITE_SUPABASE_ANON_KEY_DEV`
+
+**To fix:**
+1. Go to GitHub → Settings → Secrets and variables → Actions
+2. Update these secrets:
+   - `VITE_SUPABASE_URL_DEV`: `https://prbbuxgirnecbkpdpgcb.supabase.co`
+   - `VITE_SUPABASE_ANON_KEY_DEV`: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByYmJ1eGdpcm5lY2JrcGRwZ2NiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg0NTkzNjIsImV4cCI6MjA2NDAzNTM2Mn0.WFvJN-61K6z7RHwjiybC7kq1zVIK6DgvhKlXWCzbnh8`
+3. Trigger new deployment:
+   ```bash
+   git commit --allow-empty -m "chore: Trigger deployment with updated secrets"
+   git push
+   ```
+
 #### Vercel
 1. Go to Project Settings → Environment Variables
 2. Update `VITE_SUPABASE_ANON_KEY` with the new value
@@ -47,13 +63,16 @@ Check that the new build is live:
 2. Update `VITE_SUPABASE_ANON_KEY` with the new value
 3. Clear cache and deploy: Deploy Settings → Trigger Deploy → Clear cache and deploy site
 
-#### GitHub Pages / Actions
-1. Update repository secrets in Settings → Secrets
-2. Ensure workflow has access to secrets during build
-3. Force push or create empty commit to trigger rebuild
-
 ## Testing
 After deployment, check browser console for:
-- No WebSocket errors with old key
-- Successful authentication
-- `Initializing Supabase client` should show correct URL and key 
+- No WebSocket errors with old key (iat: 1739466550)
+- WebSocket URLs should use new key (iat: 1748459362)
+- Successful authentication without "Invalid API key" errors
+- `Initializing Supabase client` should show correct URL and key
+
+## Quick Check
+In browser console on production:
+```javascript
+// This will show which key is being used
+console.log(window.location.href);
+// Look at WebSocket URLs - they should NOT contain the old key 
