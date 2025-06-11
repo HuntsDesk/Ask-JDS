@@ -12,6 +12,7 @@
     "build:jds": "vite build --mode jds",
     "build:admin": "vite build --mode admin",
     "build": "npm run build:askjds && npm run build:jds && npm run build:admin",
+    "verify-env": "node scripts/verify-build-env.js",
     "type-check": "tsc -b --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"

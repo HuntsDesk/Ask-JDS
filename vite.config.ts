@@ -49,6 +49,24 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_JDS_ENABLED': JSON.stringify(mode === 'jds'),
       // Make sure domain is available to client code
       'import.meta.env.VITE_BUILD_DOMAIN': JSON.stringify(domain),
+      
+      // Explicitly inject critical environment variables for production builds
+      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || env.SUPABASE_URL_PROD || env.SUPABASE_URL),
+      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY_PROD || env.SUPABASE_ANON_KEY),
+      'import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY': JSON.stringify(env.VITE_STRIPE_PUBLISHABLE_KEY),
+      'import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_DEV': JSON.stringify(env.VITE_STRIPE_PUBLISHABLE_KEY_DEV),
+      'import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_PROD': JSON.stringify(env.VITE_STRIPE_PUBLISHABLE_KEY_PROD),
+      
+      // Stripe Price IDs for fallback
+      'import.meta.env.VITE_STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID': JSON.stringify(env.VITE_STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID),
+      'import.meta.env.VITE_STRIPE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID': JSON.stringify(env.VITE_STRIPE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID),
+      'import.meta.env.VITE_STRIPE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID': JSON.stringify(env.VITE_STRIPE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID),
+      'import.meta.env.VITE_STRIPE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID': JSON.stringify(env.VITE_STRIPE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID),
+      'import.meta.env.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID': JSON.stringify(env.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID),
+      'import.meta.env.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID': JSON.stringify(env.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID),
+      'import.meta.env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID': JSON.stringify(env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID),
+      'import.meta.env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID': JSON.stringify(env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID),
+      
       global: 'globalThis',
     },
     build: {

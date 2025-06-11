@@ -231,7 +231,28 @@ VITE_USERMAVEN_TRACKING_HOST=https://a.jdsimplified.com
 5. **Troubleshooting**: If you encounter "Missing required environment variable" errors despite variables being in `.env`, try:
    - Ensuring the dev server was restarted after changes
    - Verifying the variable name matches exactly what's expected in validation
+   - Running `npm run verify-env` to check if environment variables are properly embedded in builds
    - Checking that the validation code in `src/lib/env-utils.ts` correctly handles the variable
+   - Ensuring your deployment pipeline includes environment variables during the build process
+
+### Runtime Configuration System
+
+The application includes a hybrid environment variable system that provides both build-time and runtime configuration:
+
+1. **Build-time Variables**: Standard Vite environment variables processed during build
+2. **Runtime Configuration**: `public/runtime-config.js` provides fallback values available at runtime
+3. **Smart Fallbacks**: The system automatically falls back from build-time to runtime configuration
+
+**Key Components:**
+- `src/lib/env-utils.ts`: Unified environment variable access with fallbacks
+- `public/runtime-config.js`: Runtime configuration for production deployments
+- `scripts/verify-build-env.js`: Verification script to check environment variable availability
+
+**Verification Commands:**
+```bash
+npm run verify-env    # Check if environment variables are properly embedded
+npm run build         # Build all domains with environment variable injection
+```
 
 **Example validation code:**
 ```typescript

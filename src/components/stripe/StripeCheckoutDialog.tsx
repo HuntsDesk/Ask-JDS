@@ -6,7 +6,7 @@ import { StripePaymentForm } from './StripePaymentForm';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { toast } from 'react-hot-toast';
 import { useTheme } from '@/lib/theme-provider';
-import { getStripePublishableKey } from '@/lib/environment';
+import { getStripePublishableKey } from '@/lib/env-utils';
 
 interface StripeCheckoutDialogProps {
   /**
