@@ -131,7 +131,8 @@ The `user_agreements` table tracks all legal document acceptances:
 
 ### Multi-Domain Architecture
 - **Domain Detection**: `DomainProvider` context determines active domain
-- **Conditional Rendering**: Different components, navbars, and layouts per domain
+- **Unified Layout**: Single modern UI system shared across all domains
+- **Domain-Specific Features**: Preserves ability to serve domain-specific content when needed
 - **Shared Backend**: Single Supabase instance serves all domains
 - **Build System**: Vite creates separate distributions per domain
 
@@ -191,6 +192,13 @@ VITE_GUMLET_ACCOUNT_ID=your_gumlet_id      # Video CDN
 - **[CLAUDE.md](CLAUDE.md)** - AI assistant guidance
 
 ## Recent Updates (January 2025)
+
+### Layout & User Interface Unification (January 2025)
+- **Unified Homepage**: Both AskJDS and JD Simplified domains now share the same modern homepage
+- **Consolidated Layout Components**: Removed duplicate JDS-specific components (Navbar, Footer, PageLayout)
+- **Single Design System**: All UI components now follow the AskJDS design language for consistent branding
+- **Reduced Bundle Size**: Eliminated redundant components to improve load times and maintenance
+- **Simplified Codebase**: Removed conditional routing logic while maintaining domain-specific detection when needed
 
 ### Signup System Security Fixes (January 2025)
 - **RLS Policy Resolution**: Fixed 401 Unauthorized errors during signup caused by legal agreement recording before email confirmation
