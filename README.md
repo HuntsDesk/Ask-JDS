@@ -94,6 +94,38 @@ The `user_agreements` table tracks all legal document acceptances:
 
 **Security**: Full RLS policies ensure users can only view their own agreements, while admins can access all records for compliance auditing.
 
+## Analytics Integration
+
+The platform uses Usermaven for privacy-focused analytics across all domains.
+
+### Configuration
+
+**Location**: `.env` and `src/lib/analytics/usermaven.ts`
+
+```bash
+# Usermaven Analytics
+VITE_USERMAVEN_KEY=your-usermaven-key
+VITE_USERMAVEN_TRACKING_HOST=https://a.jdsimplified.com
+```
+
+### Key Features
+
+- **Privacy-Focused**: Uses a white-labeled domain (`a.jdsimplified.com`) for first-party data collection
+- **Cross-Domain Tracking**: Seamlessly tracks user journey across all domains
+- **User Identification**: Associates analytics with user profiles when authenticated
+- **Event Tracking**: Captures key user interactions throughout the application:
+  - Authentication events (sign-ups, logins)
+  - Chat interactions (thread creation, message sending)
+  - Subscription events (checkout initiation, purchases)
+  - Feature usage (courses, flashcards, content engagement)
+
+### Implementation Details
+
+- **Provider**: `UsermavenAnalyticsProvider` in `src/contexts/UsermavenContext.tsx`
+- **Hook**: `useAnalytics` in `src/hooks/use-analytics.ts`
+- **Debug**: Debugging interface available at `/debug/usermaven`
+- **Security**: CSP headers configured to allow connections to the tracking domain
+
 ## Development Commands
 
 ### Core Development
@@ -143,12 +175,14 @@ The `user_agreements` table tracks all legal document acceptances:
 - **Auth**: Supabase Auth with domain-aware redirects
 - **Payments**: Stripe with subscription management
 - **AI**: Google Gemini with tiered model approach
+- **Analytics**: Usermaven with white-labeled domain for privacy-focused tracking
 
 ### Key Features
 - **Chat System**: AI-powered legal Q&A with thread management
 - **Flashcards**: Hierarchical study system (Subjects → Collections → Cards)
 - **Course System**: Video-based learning with progress tracking
 - **Admin Panel**: Content management and user administration
+- **Analytics**: Comprehensive event tracking and user behavior analysis
 
 ## Performance & Security
 
@@ -181,6 +215,9 @@ VITE_ADMIN_DOMAIN=admin.jdsimplified.com
 # Media CDNs
 VITE_GUMLET_ACCOUNT_ID=your_gumlet_id      # Video CDN
 
+# Analytics
+VITE_USERMAVEN_KEY=your_usermaven_key
+VITE_USERMAVEN_TRACKING_HOST=https://a.jdsimplified.com
 ```
 
 ## Documentation
@@ -189,9 +226,17 @@ VITE_GUMLET_ACCOUNT_ID=your_gumlet_id      # Video CDN
 - **[Development Guide](docs/development.md)** - Setup and workflow
 - **[Database Guide](docs/database.md)** - Schema, RLS, and performance
 - **[Security Guide](docs/security.md)** - Security implementation details
+- **[Analytics Guide](docs/guides/usermaven-analytics.md)** - Analytics implementation details
 - **[CLAUDE.md](CLAUDE.md)** - AI assistant guidance
 
-## Recent Updates (January 2025)
+## Recent Updates (June 2025)
+
+### Analytics Integration (June 2025)
+- **Usermaven Implementation**: Added privacy-focused analytics with white-labeled tracking domain
+- **Cross-Domain Tracking**: Unified analytics across all domains with shared user identification
+- **Event Tracking**: Comprehensive tracking of key user interactions (auth, chat, subscriptions)
+- **Security**: Updated Content Security Policy to allow connections to tracking domain
+- **Debug Tools**: Added analytics debugging interface for development and testing
 
 ### Layout & User Interface Unification (January 2025)
 - **Unified Homepage**: Both AskJDS and JD Simplified domains now share the same modern homepage
