@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthForm } from './AuthForm';
 import { useAuth } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 
 // Constants for the default redirect
 const DEFAULT_REDIRECT = '/chat';
@@ -80,7 +80,7 @@ export function AuthPage() {
           didCheckSessionRef.current = true; // Mark that we've done a session check
           console.log('AuthPage: No user in context, checking session manually');
           
-          const { data, error } = await supabase.auth.getSession();
+          const { data, error } = await getSupabase().auth.getSession();
           
           if (error) {
             console.error('AuthPage: Error checking session manually', error);

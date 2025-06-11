@@ -229,18 +229,50 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
     });
 }
 
-// Export the singleton client
-export const supabase = getSupabaseClient();
+// Lazy-loaded client instance
+let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
 
-// Check if session is available and pre-fetch to warm up auth
-if (typeof window !== 'undefined') {
-  setTimeout(() => {
-    envLog.info('Pre-fetching auth session to warm up connection...');
-    supabase.auth.getSession().catch(err => {
-      envLog.warn('Pre-fetch session failed:', err);
-    });
-  }, 100);
+/**
+ * Get the Supabase client instance (lazy initialization)
+ * This ensures runtime config is loaded before creating the client
+ */
+export function getSupabase() {
+  if (!supabaseInstance) {
+    envLog.info('Lazy-initializing Supabase client...');
+    supabaseInstance = getSupabaseClient();
+    
+    // Check for key mismatch between build-time and runtime
+    if (typeof window !== 'undefined' && window.RUNTIME_CONFIG) {
+      const buildTimeKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const runtimeKey = window.RUNTIME_CONFIG.SUPABASE_ANON_KEY;
+      
+      if (buildTimeKey && runtimeKey && buildTimeKey !== runtimeKey) {
+        envLog.warn('[Supabase] Mismatched anon keys between build-time and runtime config', {
+          buildTime: buildTimeKey.substring(0, 50) + '...',
+          runtime: runtimeKey.substring(0, 50) + '...'
+        });
+      }
+    }
+    
+    // Pre-fetch session after initialization
+    setTimeout(() => {
+      envLog.info('Pre-fetching auth session to warm up connection...');
+      supabaseInstance?.auth.getSession().catch(err => {
+        envLog.warn('Pre-fetch session failed:', err);
+      });
+    }, 100);
+  }
+  
+  return supabaseInstance;
 }
+
+// Export for backward compatibility (will show deprecation warning)
+export const supabase = new Proxy({} as ReturnType<typeof createClient<Database>>, {
+  get(target, prop, receiver) {
+    console.warn('Direct access to supabase export is deprecated. Use getSupabase() instead.');
+    return Reflect.get(getSupabase(), prop, receiver);
+  }
+});
 
 // Enhanced error logging with context
 export async function logError(

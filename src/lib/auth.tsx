@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { getSupabase } from './supabase';
 import { authLog } from '@/lib/debug-logger';
 
 // Define the shape of our auth context
@@ -101,13 +101,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Get the initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    getSupabase().auth.getSession().then(({ data: { session } }) => {
       handleAuthUpdate(session);
       setIsAuthResolved(true);
     });
 
     // Set up a listener for future auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = getSupabase().auth.onAuthStateChange((_event, session) => {
       handleAuthUpdate(session);
       setIsAuthResolved(true);
     });
@@ -124,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     authLog.info('Sign in attempt', { email });
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await getSupabase().auth.signInWithPassword({
         email,
         password
       });
@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string): Promise<AuthResult> => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await getSupabase().auth.signUp({
         email,
         password
       });
