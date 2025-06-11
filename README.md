@@ -220,6 +220,35 @@ VITE_USERMAVEN_KEY=your_usermaven_key
 VITE_USERMAVEN_TRACKING_HOST=https://a.jdsimplified.com
 ```
 
+### Environment Variable Handling
+
+**Important**: Vite processes environment variables during build time, not runtime. This has important implications:
+
+1. **Runtime Validation**: The application includes environment validation in `src/lib/env-utils.ts` that strictly checks for required variables.
+2. **Stripe Integration**: Pay special attention to `VITE_STRIPE_PUBLISHABLE_KEY` as it's critical for payment processing.
+3. **Local Development**: Always restart the dev server after changing `.env` files to ensure variables are properly loaded.
+4. **Production Builds**: Environment variables must be available during the build process, not just at runtime.
+5. **Troubleshooting**: If you encounter "Missing required environment variable" errors despite variables being in `.env`, try:
+   - Ensuring the dev server was restarted after changes
+   - Verifying the variable name matches exactly what's expected in validation
+   - Checking that the validation code in `src/lib/env-utils.ts` correctly handles the variable
+
+**Example validation code:**
+```typescript
+// src/lib/env-utils.ts
+export function validateEnv<T extends Record<string, string>>(
+  requiredEnvVars: Array<keyof T>,
+  env: T
+): T {
+  for (const key of requiredEnvVars) {
+    if (!env[key]) {
+      throw new Error(`Missing required environment variable: ${String(key)}`);
+    }
+  }
+  return env;
+}
+```
+
 ## Documentation
 
 - **[Architecture Guide](docs/architecture.md)** - System design and patterns
