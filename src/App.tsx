@@ -103,6 +103,7 @@ const PricingPage = lazy(() => import('@/pages/PricingPage').then(module => ({ d
 
 // Import AuthCallback
 import AuthCallback from './pages/auth/AuthCallback';
+import ResendConfirmationPage from './pages/auth/ResendConfirmationPage';
 
 // Check if admin setup is allowed from environment variables
 const allowSetupAdmin = import.meta.env.VITE_ALLOW_ADMIN_SETUP === 'true';
@@ -366,6 +367,9 @@ function AppRoutes() {
       
       {/* Auth callback route for email confirmation */}
       <Route path="/auth/callback" element={<AuthCallback />} />
+      
+      {/* Resend confirmation email route */}
+      <Route path="/auth/resend-confirmation" element={<ResendConfirmationPage />} />
       
       {/* Legal Pages - Public Access */}
       <Route path="/terms" element={<TermsOfService />} />

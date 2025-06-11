@@ -63,10 +63,48 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
   const [lastSubmitTime, setLastSubmitTime] = useState<number>(0);
   const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
   const [confirmationEmail, setConfirmationEmail] = useState('');
+  const [otpError, setOtpError] = useState<{ code: string; description: string; email?: string } | null>(null);
   
   // Create refs for CSSTransition to avoid findDOMNode deprecation warnings
   const signInNodeRef = useRef(null);
   const signUpNodeRef = useRef(null);
+  
+  // Check for OTP errors from URL parameters
+  useEffect(() => {
+    const storedError = localStorage.getItem('auth_error');
+    const urlParams = new URLSearchParams(window.location.search);
+    const errorParam = urlParams.get('error');
+    
+    if (storedError && errorParam) {
+      try {
+        const error = JSON.parse(storedError);
+        setOtpError(error);
+        
+        // Pre-fill email if available
+        if (error.email) {
+          setEmail(decodeURIComponent(error.email));
+        }
+        
+        // Show error toast
+        toast({
+          title: 'Authentication Error',
+          description: error.description,
+          variant: 'destructive',
+          duration: 8000,
+        });
+        
+        // Clear stored error
+        localStorage.removeItem('auth_error');
+        
+        // Clean up URL
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('error');
+        window.history.replaceState(null, '', newUrl.toString());
+      } catch (e) {
+        console.error('Failed to parse auth error:', e);
+      }
+    }
+  }, [toast]);
   
   // Update active tab when initialTab prop changes
   useEffect(() => {
@@ -464,6 +502,30 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
                     <AlertCircle className="h-4 w-4 text-amber-800" />
                     <AlertDescription>
                       Your session has expired. Please sign in again to continue.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {/* Show OTP error alert if needed */}
+                {otpError && (otpError.code === 'otp_expired' || otpError.code === 'invalid_token') && (
+                  <Alert className="mb-6 bg-red-50 text-red-800 border-red-200">
+                    <AlertCircle className="h-4 w-4 text-red-800" />
+                    <AlertDescription className="space-y-3">
+                      <p>{otpError.description}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowEmailConfirmation(true);
+                          setConfirmationEmail(email || otpError.email || '');
+                          setOtpError(null);
+                        }}
+                        className="w-full border-red-300 text-red-700 hover:bg-red-100"
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        Resend Confirmation Email
+                      </Button>
                     </AlertDescription>
                   </Alert>
                 )}

@@ -104,12 +104,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       handleAuthUpdate(session);
       setIsAuthResolved(true);
+      
+      // Check for auth errors in URL hash before cleaning up
+      if (typeof window !== 'undefined' && window.location.hash) {
+        const hash = window.location.hash;
+        const params = new URLSearchParams(hash.replace(/^#/, ''));
+        
+        const error = params.get('error');
+        const errorCode = params.get('error_code');
+        const errorDescription = params.get('error_description');
+        
+        if (error || errorCode) {
+          console.log('Auth error detected:', { error, errorCode, errorDescription });
+          
+          // Map to user-friendly message
+          let friendlyMessage = errorDescription || 'An authentication error occurred';
+          if (errorCode === 'otp_expired') {
+            friendlyMessage = 'Your confirmation link has expired. Please request a new one.';
+          } else if (errorCode === 'invalid_token') {
+            friendlyMessage = 'The confirmation link is invalid. Please request a new one.';
+          }
+          
+          // Store error for AuthForm
+          localStorage.setItem('auth_error', JSON.stringify({
+            code: errorCode || error || 'unknown',
+            description: friendlyMessage,
+            email: errorDescription?.match(/email=([^&\s]+)/)?.[1]
+          }));
+          
+          // Clean up URL and redirect to auth page
+          window.history.replaceState(null, '', window.location.pathname);
+          window.location.href = '/auth?error=' + (errorCode || error);
+          return;
+        }
+      }
+      
+      // Clean up URL hash after processing tokens
+      if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
     });
 
     // Set up a listener for future auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       handleAuthUpdate(session);
       setIsAuthResolved(true);
+      
+      // Clean up URL hash after processing tokens
+      if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
     });
 
     // Clean up the subscription when the component unmounts

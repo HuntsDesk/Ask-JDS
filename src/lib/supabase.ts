@@ -36,7 +36,7 @@ export const supabase = createClient<Database>(
       storageKey: 'ask-jds-auth-storage',
       storage: typeof window !== 'undefined' && window.localStorage ? window.localStorage : undefined,
       autoRefreshToken: true,
-      detectSessionInUrl: false
+      detectSessionInUrl: true
     },
     global: {
       fetch: customFetch
