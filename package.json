@@ -60,6 +60,7 @@
     "@types/react-beautiful-dnd": "^13.1.8",
     "@types/react-transition-group": "^4.4.12",
     "@types/react-window": "^1.8.8",
+    "@usermaven/react": "^1.5.5",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "cmdk": "^1.0.0",

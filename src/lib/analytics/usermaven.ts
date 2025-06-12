@@ -24,7 +24,7 @@ export const getUsermavenConfig = () => {
     
     // Cross-domain Tracking (Optional)
     crossDomainLinking: true,  // Enable cross-domain tracking
-    domains: 'askjds.com,jdsimplified.com,admin.jdsimplified.com',  // Specify allowed domains
+    domains: 'jdsimplified.com,askjds.com,admin.jdsimplified.com',  // Specify allowed domains (match Usermaven dashboard)
   };
 };
 
