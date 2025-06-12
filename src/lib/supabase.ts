@@ -38,9 +38,10 @@ export const supabase = createClient<Database>(
       autoRefreshToken: true,
       detectSessionInUrl: true
     },
-    global: {
-      fetch: customFetch
-    },
+    // Temporarily disable custom fetch to troubleshoot WebSocket issues
+    // global: {
+    //   fetch: customFetch
+    // },
     db: {
       schema: 'public'
     }
