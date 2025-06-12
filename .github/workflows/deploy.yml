@@ -31,7 +31,33 @@ jobs:
       - name: Install Dependencies (Optimized)
         run: |
           # Use npm ci with optimized flags for faster installs
-          npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund
+          # Add retry logic to handle npm registry availability issues
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          RETRY_WAIT=30
+          
+          until [ $RETRY_COUNT -ge $MAX_RETRIES ]
+          do
+            echo "Attempt $(($RETRY_COUNT+1))/$MAX_RETRIES: Running npm ci..."
+            npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund && break
+            
+            RETRY_COUNT=$(($RETRY_COUNT+1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "npm ci failed. Retrying in $RETRY_WAIT seconds..."
+              sleep $RETRY_WAIT
+              # Increase wait time for each retry (exponential backoff)
+              RETRY_WAIT=$(($RETRY_WAIT*2))
+            else
+              echo "npm ci failed after $MAX_RETRIES attempts. Continuing with best effort..."
+            fi
+          done
+
+          # Set up alternative npm registry as fallback if needed
+          if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+            echo "Trying with alternative registry..."
+            npm config set registry https://registry.npmmirror.com/
+            npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund || true
+          fi
 
       - name: Fix known security vulnerabilities
         run: npm audit fix --legacy-peer-deps || true
@@ -112,7 +138,33 @@ jobs:
       - name: Install Dependencies (Optimized)
         run: |
           # Use npm ci with optimized flags for faster installs
-          npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund
+          # Add retry logic to handle npm registry availability issues
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          RETRY_WAIT=30
+          
+          until [ $RETRY_COUNT -ge $MAX_RETRIES ]
+          do
+            echo "Attempt $(($RETRY_COUNT+1))/$MAX_RETRIES: Running npm ci..."
+            npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund && break
+            
+            RETRY_COUNT=$(($RETRY_COUNT+1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "npm ci failed. Retrying in $RETRY_WAIT seconds..."
+              sleep $RETRY_WAIT
+              # Increase wait time for each retry (exponential backoff)
+              RETRY_WAIT=$(($RETRY_WAIT*2))
+            else
+              echo "npm ci failed after $MAX_RETRIES attempts. Continuing with best effort..."
+            fi
+          done
+
+          # Set up alternative npm registry as fallback if needed
+          if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+            echo "Trying with alternative registry..."
+            npm config set registry https://registry.npmmirror.com/
+            npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund || true
+          fi
 
       - name: Fix known security vulnerabilities
         run: npm audit fix --legacy-peer-deps || true
@@ -193,7 +245,33 @@ jobs:
       - name: Install Dependencies (Optimized)
         run: |
           # Use npm ci with optimized flags for faster installs
-          npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund
+          # Add retry logic to handle npm registry availability issues
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          RETRY_WAIT=30
+          
+          until [ $RETRY_COUNT -ge $MAX_RETRIES ]
+          do
+            echo "Attempt $(($RETRY_COUNT+1))/$MAX_RETRIES: Running npm ci..."
+            npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund && break
+            
+            RETRY_COUNT=$(($RETRY_COUNT+1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "npm ci failed. Retrying in $RETRY_WAIT seconds..."
+              sleep $RETRY_WAIT
+              # Increase wait time for each retry (exponential backoff)
+              RETRY_WAIT=$(($RETRY_WAIT*2))
+            else
+              echo "npm ci failed after $MAX_RETRIES attempts. Continuing with best effort..."
+            fi
+          done
+
+          # Set up alternative npm registry as fallback if needed
+          if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+            echo "Trying with alternative registry..."
+            npm config set registry https://registry.npmmirror.com/
+            npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund || true
+          fi
 
       - name: Fix known security vulnerabilities
         run: npm audit fix --legacy-peer-deps || true
