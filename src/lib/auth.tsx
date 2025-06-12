@@ -65,6 +65,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     authListenerSetup.current = true;
 
+    // Check for auth errors IMMEDIATELY before Supabase processes the URL
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash;
+      const params = new URLSearchParams(hash.replace(/^#/, ''));
+      
+      const error = params.get('error');
+      const errorCode = params.get('error_code');
+      const errorDescription = params.get('error_description');
+      
+      if (error || errorCode) {
+        console.log('Auth error detected IMMEDIATELY:', { error, errorCode, errorDescription });
+        
+        // Map to user-friendly message
+        let friendlyMessage = errorDescription || 'An authentication error occurred';
+        if (errorCode === 'otp_expired') {
+          friendlyMessage = 'Your confirmation link has expired. Please request a new one.';
+        } else if (errorCode === 'invalid_token') {
+          friendlyMessage = 'The confirmation link is invalid. Please request a new one.';
+        }
+        
+        // Extract email if present
+        let extractedEmail = '';
+        if (errorDescription) {
+          // Try to extract email from description
+          const emailMatch = errorDescription.match(/email=([^&\s]+)/);
+          if (!emailMatch) {
+            // Try another pattern if Supabase includes email differently
+            const decodedDesc = decodeURIComponent(errorDescription);
+            const emailInDesc = decodedDesc.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+            if (emailInDesc) {
+              extractedEmail = emailInDesc[1];
+            }
+          } else {
+            extractedEmail = decodeURIComponent(emailMatch[1]);
+          }
+        }
+        
+        // Store error for AuthForm
+        const authError = {
+          code: errorCode || error || 'unknown',
+          description: friendlyMessage,
+          email: extractedEmail
+        };
+        
+        console.log('Storing auth error with email:', authError);
+        localStorage.setItem('auth_error', JSON.stringify(authError));
+        
+        // Clean up URL and redirect to auth page
+        window.history.replaceState(null, '', window.location.pathname);
+        window.location.href = '/auth?error=' + (errorCode || error);
+        return;
+      }
+    }
+
     const handleAuthUpdate = (currentSession: Session | null) => {
       const currentUserId = currentSession?.user?.id || null;
       const currentSessionId = currentSession?.access_token || null;
@@ -104,40 +158,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       handleAuthUpdate(session);
       setIsAuthResolved(true);
-      
-      // Check for auth errors in URL hash before cleaning up
-      if (typeof window !== 'undefined' && window.location.hash) {
-        const hash = window.location.hash;
-        const params = new URLSearchParams(hash.replace(/^#/, ''));
-        
-        const error = params.get('error');
-        const errorCode = params.get('error_code');
-        const errorDescription = params.get('error_description');
-        
-        if (error || errorCode) {
-          console.log('Auth error detected:', { error, errorCode, errorDescription });
-          
-          // Map to user-friendly message
-          let friendlyMessage = errorDescription || 'An authentication error occurred';
-          if (errorCode === 'otp_expired') {
-            friendlyMessage = 'Your confirmation link has expired. Please request a new one.';
-          } else if (errorCode === 'invalid_token') {
-            friendlyMessage = 'The confirmation link is invalid. Please request a new one.';
-          }
-          
-          // Store error for AuthForm
-          localStorage.setItem('auth_error', JSON.stringify({
-            code: errorCode || error || 'unknown',
-            description: friendlyMessage,
-            email: errorDescription?.match(/email=([^&\s]+)/)?.[1]
-          }));
-          
-          // Clean up URL and redirect to auth page
-          window.history.replaceState(null, '', window.location.pathname);
-          window.location.href = '/auth?error=' + (errorCode || error);
-          return;
-        }
-      }
       
       // Clean up URL hash after processing tokens
       if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {

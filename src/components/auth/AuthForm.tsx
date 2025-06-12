@@ -375,6 +375,8 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
   const handleResendEmail = async () => {
     try {
       setIsLoading(true);
+      console.log('Resending confirmation email to:', confirmationEmail);
+      
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: confirmationEmail
@@ -382,9 +384,11 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       
       if (error) throw error;
       
+      console.log('Confirmation email resent successfully to:', confirmationEmail);
+      
       toast({
         title: 'Email Sent',
-        description: 'Confirmation email has been resent.',
+        description: `Confirmation email has been resent to ${confirmationEmail}.`,
         variant: 'default',
       });
     } catch (error) {
@@ -512,20 +516,34 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
                     <AlertCircle className="h-4 w-4 text-red-800" />
                     <AlertDescription className="space-y-3">
                       <p>{otpError.description}</p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setShowEmailConfirmation(true);
-                          setConfirmationEmail(email || otpError.email || '');
-                          setOtpError(null);
-                        }}
-                        className="w-full border-red-300 text-red-700 hover:bg-red-100"
-                      >
-                        <Mail className="w-4 h-4 mr-2" />
-                        Resend Confirmation Email
-                      </Button>
+                      <div className="space-y-2">
+                        <p className="text-sm text-gray-600">Enter your email address to resend the confirmation:</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (!email || !email.trim()) {
+                              toast({
+                                title: 'Email Required',
+                                description: 'Please enter your email address above to resend the confirmation.',
+                                variant: 'destructive',
+                              });
+                              // Focus the email input
+                              const emailInput = document.getElementById('signin-email');
+                              if (emailInput) emailInput.focus();
+                              return;
+                            }
+                            setShowEmailConfirmation(true);
+                            setConfirmationEmail(email.trim());
+                            setOtpError(null);
+                          }}
+                          className="w-full border-red-300 text-red-700 hover:bg-red-100"
+                        >
+                          <Mail className="w-4 h-4 mr-2" />
+                          Resend Confirmation Email
+                        </Button>
+                      </div>
                     </AlertDescription>
                   </Alert>
                 )}
