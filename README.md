@@ -172,10 +172,17 @@ VITE_USERMAVEN_TRACKING_HOST=https://a.jdsimplified.com
 - **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS
 - **Backend**: Supabase Edge Functions (Deno only, no Node.js)
 - **Database**: Supabase with Row Level Security (RLS)
-- **Auth**: Supabase Auth with domain-aware redirects
+- **Auth**: Supabase Auth with comprehensive email confirmation flow
 - **Payments**: Stripe with subscription management
 - **AI**: Google Gemini with tiered model approach
 - **Analytics**: Usermaven with white-labeled domain for privacy-focused tracking
+
+### Authentication Flow
+- **Email Confirmation**: Robust signup flow with email verification
+- **Error Handling**: Comprehensive OTP error detection and user-friendly recovery
+- **Resend Functionality**: Inline email resend with auto-focus and validation
+- **Tab Navigation**: Seamless switching between signin/signup modes
+- **Session Management**: Automatic redirect handling with preserved message state
 
 ### Key Features
 - **Chat System**: AI-powered legal Q&A with thread management

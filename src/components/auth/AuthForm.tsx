@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth';
@@ -57,6 +57,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
   const { signIn, signUp, loading: authLoading, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState(initialTab);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -130,6 +131,18 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
+
+  // Check URL parameters for tab switching and reset email confirmation state
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const tabParam = urlParams.get('tab');
+    
+    if (tabParam === 'signin' || tabParam === 'signup') {
+      // If user navigated to a specific tab via URL, reset email confirmation state
+      setShowEmailConfirmation(false);
+      setActiveTab(tabParam as 'signin' | 'signup');
+    }
+  }, [location.search]); // Listen for URL search parameter changes
 
   // Check if redirected due to session expiration
   useEffect(() => {
