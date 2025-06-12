@@ -19,6 +19,7 @@ export function ResendConfirmation({ initialEmail = '', onSuccess, onCancel }: R
   const [email, setEmail] = useState(initialEmail);
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [successEmail, setSuccessEmail] = useState(''); // Store email for success message
   const [error, setError] = useState<string | null>(null);
   const [lastResendTime, setLastResendTime] = useState<number>(0);
   const { toast } = useToast();
@@ -44,21 +45,28 @@ export function ResendConfirmation({ initialEmail = '', onSuccess, onCancel }: R
     setSuccess(false);
 
     try {
+      const trimmedEmail = email.trim();
+      console.log('Resending confirmation email to:', trimmedEmail);
+      
       const { error: resendError } = await supabase.auth.resend({
         type: 'signup',
-        email: email.trim()
+        email: trimmedEmail
       });
 
       if (resendError) {
+        console.error('Supabase resend error:', resendError);
         throw resendError;
       }
 
+      console.log('Email resend successful for:', trimmedEmail);
+
       setSuccess(true);
+      setSuccessEmail(trimmedEmail); // Store the email for success message
       setLastResendTime(now);
       
       toast({
         title: 'Email Sent!',
-        description: 'A new confirmation email has been sent to your inbox.',
+        description: `A new confirmation email has been sent to ${trimmedEmail}.`,
         variant: 'default',
       });
 
@@ -96,7 +104,7 @@ export function ResendConfirmation({ initialEmail = '', onSuccess, onCancel }: R
             <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
             <h3 className="text-lg font-semibold">Email Sent Successfully!</h3>
             <p className="text-gray-600">
-              We've sent a new confirmation link to <strong>{email}</strong>.
+              We've sent a new confirmation link to <strong>{successEmail || 'your email address'}</strong>.
             </p>
             <p className="text-sm text-gray-500">
               Please check your inbox and spam folder.
