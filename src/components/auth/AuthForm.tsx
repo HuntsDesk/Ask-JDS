@@ -64,10 +64,13 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
   const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
   const [confirmationEmail, setConfirmationEmail] = useState('');
   const [otpError, setOtpError] = useState<{ code: string; description: string; email?: string } | null>(null);
+  const [resendEmail, setResendEmail] = useState(''); // Separate state for resend form
+  const [isResending, setIsResending] = useState(false);
   
   // Create refs for CSSTransition to avoid findDOMNode deprecation warnings
   const signInNodeRef = useRef(null);
   const signUpNodeRef = useRef(null);
+  const resendEmailInputRef = useRef<HTMLInputElement>(null);
   
   // Check for OTP errors from URL parameters
   useEffect(() => {
@@ -83,6 +86,13 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
         // Pre-fill email if available
         if (error.email) {
           setEmail(decodeURIComponent(error.email));
+          setResendEmail(decodeURIComponent(error.email));
+        } else {
+          // Try to get email from localStorage
+          const lastEmail = localStorage.getItem('last_auth_email');
+          if (lastEmail) {
+            setResendEmail(lastEmail);
+          }
         }
         
         // Show error toast
@@ -105,6 +115,16 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       }
     }
   }, [toast]);
+  
+  // Auto-focus resend email input when OTP error is shown
+  useEffect(() => {
+    if (otpError && (otpError.code === 'otp_expired' || otpError.code === 'invalid_token')) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        resendEmailInputRef.current?.focus();
+      }, 100);
+    }
+  }, [otpError]);
   
   // Update active tab when initialTab prop changes
   useEffect(() => {
@@ -402,6 +422,62 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       setIsLoading(false);
     }
   };
+  
+  // Handle resend from inline OTP error form
+  const handleResendFromError = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!resendEmail || !resendEmail.trim()) {
+      return;
+    }
+    
+    try {
+      setIsResending(true);
+      const trimmedEmail = resendEmail.trim();
+      
+      // Save email for future use
+      localStorage.setItem('last_auth_email', trimmedEmail);
+      
+      console.log('Resending confirmation email from error form to:', trimmedEmail);
+      
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: trimmedEmail
+      });
+      
+      if (error) throw error;
+      
+      console.log('Confirmation email resent successfully to:', trimmedEmail);
+      
+      // Show success and transition to email confirmation page
+      setConfirmationEmail(trimmedEmail);
+      setShowEmailConfirmation(true);
+      setOtpError(null);
+      
+      toast({
+        title: 'Email Sent!',
+        description: `A new confirmation email has been sent to ${trimmedEmail}.`,
+        variant: 'default',
+      });
+    } catch (error: any) {
+      console.error('Resend email error:', error);
+      
+      let errorMessage = 'Failed to resend email. Please try again.';
+      if (error.message?.includes('rate limit')) {
+        errorMessage = 'Too many requests. Please wait a moment before trying again.';
+      } else if (error.message?.includes('not found') || error.message?.includes('not registered')) {
+        errorMessage = 'This email address is not registered. Please sign up first.';
+      }
+      
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   // Show email confirmation page if signup succeeded with email verification required
   if (showEmailConfirmation) {
@@ -510,39 +586,48 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
                   </Alert>
                 )}
                 
-                {/* Show OTP error alert if needed */}
+                {/* Show OTP error alert with inline email form */}
                 {otpError && (otpError.code === 'otp_expired' || otpError.code === 'invalid_token') && (
-                  <Alert className="mb-6 bg-red-50 text-red-800 border-red-200">
+                  <Alert className="mb-6 bg-red-50 border-red-200">
                     <AlertCircle className="h-4 w-4 text-red-800" />
-                    <AlertDescription className="space-y-3">
-                      <p>{otpError.description}</p>
-                      <div className="space-y-2">
-                        <p className="text-sm text-gray-600">Enter your email address to resend the confirmation:</p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            if (!email || !email.trim()) {
-                              toast({
-                                title: 'Email Required',
-                                description: 'Please enter your email address above to resend the confirmation.',
-                                variant: 'destructive',
-                              });
-                              // Focus the email input
-                              const emailInput = document.getElementById('signin-email');
-                              if (emailInput) emailInput.focus();
-                              return;
-                            }
-                            setShowEmailConfirmation(true);
-                            setConfirmationEmail(email.trim());
-                            setOtpError(null);
-                          }}
-                          className="w-full border-red-300 text-red-700 hover:bg-red-100"
-                        >
-                          <Mail className="w-4 h-4 mr-2" />
-                          Resend Confirmation Email
-                        </Button>
+                    <AlertDescription>
+                      <div className="space-y-3">
+                        <p className="text-red-800 font-medium">{otpError.description}</p>
+                        <p className="text-red-700 text-sm">Enter your email below to receive a new confirmation link.</p>
+                        
+                        <form onSubmit={handleResendFromError} className="space-y-3">
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            <Input
+                              ref={resendEmailInputRef}
+                              type="email"
+                              value={resendEmail}
+                              onChange={(e) => setResendEmail(e.target.value)}
+                              placeholder="you@example.com"
+                              required
+                              disabled={isResending}
+                              className="pl-10 border-red-300 focus:border-red-400 focus:ring-red-400"
+                            />
+                          </div>
+                          
+                          <Button
+                            type="submit"
+                            disabled={isResending || !resendEmail}
+                            className="w-full bg-red-600 hover:bg-red-700 text-white"
+                          >
+                            {isResending ? (
+                              <>
+                                <LoadingSpinner size="sm" className="mr-2" />
+                                Sending...
+                              </>
+                            ) : (
+                              <>
+                                <Mail className="w-4 h-4 mr-2" />
+                                Resend Confirmation Email
+                              </>
+                            )}
+                          </Button>
+                        </form>
                       </div>
                     </AlertDescription>
                   </Alert>
