@@ -26,9 +26,9 @@ export function AboutSection() {
             </h2>
             <p className="text-gray-600 mb-6">
               Proud mommy of the coolest and kindest kid. Lover of law, math, and tacos. Cheerleader of the underdog, and traveler, hopeless dreamer, and determined sleeper.
-            </p>
-            <p className="text-gray-600 mb-8">
-              After graduating from law school and passing the bar, I realized how unnecessarily complicated many legal concepts are taught. I've dedicated my career to breaking down these concepts into strategic frameworks that make learning law more accessible and effective.
+              <br />
+              <br />
+              Law school and bar exam course are unnecessarily complicated, boring, and lacking in quality. Let's do this right. 
             </p>
           </div>
         </div>

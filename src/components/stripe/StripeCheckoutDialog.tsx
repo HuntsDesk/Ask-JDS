@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, Appearance } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { StripePaymentForm } from './StripePaymentForm';
@@ -141,7 +141,7 @@ export function StripeCheckoutDialog({
           borderColor: '#F37022',
         }
       }
-    }
+    } as Appearance
   } : undefined;
   
   const handleError = (error: any) => {

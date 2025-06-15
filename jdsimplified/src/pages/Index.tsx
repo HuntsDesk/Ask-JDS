@@ -1,16 +1,13 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import PageLayout from '@/components/PageLayout';
-import HeroSection from '@/components/home/HeroSection';
-import FeaturesSection from '@/components/home/FeaturesSection';
-import NonServicesSection from '@/components/home/NonServicesSection';
-import FeaturedCoursesSection from '@/components/home/FeaturedCoursesSection';
-import TestimonialsSection from '@/components/home/TestimonialsSection';
-import AboutSection from '@/components/home/AboutSection';
-import FaqSection from '@/components/home/FaqSection';
-import ContactSection from '@/components/home/ContactSection';
-import CtaSection from '@/components/home/CtaSection';
-import AppFeaturesSection from '@/components/home/AppFeaturesSection';
+import PageLayout from '@/components/askjds/PageLayout';
+import { HomepageFlashcardDemo } from '@/components/home/HomepageFlashcardDemo';
+import { HomepagePricingSection } from '@/components/home/HomepagePricingSection';
+import { TLDRSection } from '@/components/home/TLDRSection';
+import { CoursesSection } from '@/components/home/CoursesSection';
+import { SectionDivider } from '@/components/home/SectionDivider';
+import { NonServicesSection } from '@/components/home/NonServicesSection';
+import { AboutSection } from '@/components/home/AboutSection';
 
 const Index = () => {
   const location = useLocation();
@@ -23,16 +20,15 @@ const Index = () => {
   return (
     <div className="light bg-white text-black">
       <PageLayout>
-        <HeroSection />
-        <FeaturesSection />
+        <TLDRSection />
+        <CoursesSection />
+        <SectionDivider />
+        <HomepageFlashcardDemo />
+        <SectionDivider />
+        <HomepagePricingSection />
+        <SectionDivider />
         <NonServicesSection />
-        <AppFeaturesSection />
-        <FeaturedCoursesSection />
-        <TestimonialsSection />
         <AboutSection />
-        <FaqSection />
-        <ContactSection />
-        <CtaSection />
       </PageLayout>
     </div>
   );
