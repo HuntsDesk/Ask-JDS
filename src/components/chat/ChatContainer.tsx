@@ -21,7 +21,64 @@ import type { Thread } from '@/types';
 import { useChatFSM } from '@/hooks/use-chat-fsm';
 import { cn } from '@/lib/utils';
 import type { LayoutMetrics } from '@/components/layout/ChatLayoutContainer';
-import { useSubscription } from '@/hooks/useSubscription';
+import { useSubscriptionDetails } from '@/hooks/useSubscription';
+
+// Helper function to determine tier name from subscription data
+// Uses environment variables for proper price ID mapping instead of fragile string matching
+const getTierNameFromSubscription = (subscription: any): string => {
+  if (!subscription || subscription.status !== 'active') {
+    return 'Free';
+  }
+  
+  const priceId = subscription.priceId;
+  if (!priceId) {
+    return 'Free';
+  }
+  
+  // Get environment-based price IDs for comparison
+  const unlimitedMonthlyPriceId = import.meta.env.VITE_STRIPE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID || 
+                                  import.meta.env.VITE_STRIPE_UNLIMITED_MONTHLY_PRICE_ID;
+  const unlimitedAnnualPriceId = import.meta.env.VITE_STRIPE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID || 
+                                 import.meta.env.VITE_STRIPE_UNLIMITED_ANNUAL_PRICE_ID;
+  const premiumMonthlyPriceId = import.meta.env.VITE_STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID || 
+                                import.meta.env.VITE_STRIPE_PREMIUM_MONTHLY_PRICE_ID;
+  const premiumAnnualPriceId = import.meta.env.VITE_STRIPE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID || 
+                               import.meta.env.VITE_STRIPE_PREMIUM_ANNUAL_PRICE_ID;
+  
+  // Also check live environment price IDs
+  const liveUnlimitedMonthlyPriceId = import.meta.env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID;
+  const liveUnlimitedAnnualPriceId = import.meta.env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID;
+  const livePremiumMonthlyPriceId = import.meta.env.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID;
+  const livePremiumAnnualPriceId = import.meta.env.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID;
+  
+  // Check for unlimited tier price IDs
+  const unlimitedPriceIds = [
+    unlimitedMonthlyPriceId,
+    unlimitedAnnualPriceId,
+    liveUnlimitedMonthlyPriceId,
+    liveUnlimitedAnnualPriceId
+  ].filter(Boolean); // Remove null/undefined values
+  
+  if (unlimitedPriceIds.includes(priceId)) {
+    return 'Unlimited';
+  }
+  
+  // Check for premium tier price IDs
+  const premiumPriceIds = [
+    premiumMonthlyPriceId,
+    premiumAnnualPriceId,
+    livePremiumMonthlyPriceId,
+    livePremiumAnnualPriceId
+  ].filter(Boolean); // Remove null/undefined values
+  
+  if (premiumPriceIds.includes(priceId)) {
+    return 'Premium';
+  }
+  
+  // If we have an active subscription but can't determine the tier, assume Premium
+  // This provides a safe fallback for any new price IDs that haven't been mapped yet
+  return subscription.status === 'active' ? 'Premium' : 'Free';
+};
 
 export function ChatContainer() {
   // =========== HOOKS - All called unconditionally at the top ===========
@@ -45,8 +102,9 @@ export function ChatContainer() {
   // Chat FSM for state management
   const chatFSM = useChatFSM();
   
-  // Use the subscription hook to get tier information
-  const { tierName } = useSubscription();
+  // Use the subscription hook to get subscription details
+  const subscriptionQuery = useSubscriptionDetails();
+  const tierName = getTierNameFromSubscription(subscriptionQuery.data);
   
   // Determine if user has premium access (Premium or Unlimited tier)
   const hasPaidSubscription = tierName === 'Premium' || tierName === 'Unlimited';

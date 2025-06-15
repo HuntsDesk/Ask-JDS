@@ -240,8 +240,6 @@ jobs:
           fi
 
       - name: Run Lighthouse CI with simplified approach
-        env:
-          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
         run: |
           echo "Running simplified Lighthouse CI..."
           

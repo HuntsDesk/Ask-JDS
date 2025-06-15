@@ -20,7 +20,7 @@ const courseFeatures = [
   {
     icon: Clock,
     title: 'Expert Instruction',
-    description: 'Courses created by experienced legal professionals who understand what it takes to succeed..',
+    description: 'Courses created by experienced legal professionals who understand what it takes to succeed.',
     color: 'text-green-500',
     bgColor: 'bg-green-100'
   }

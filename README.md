@@ -126,6 +126,190 @@ VITE_USERMAVEN_TRACKING_HOST=https://a.jdsimplified.com
 - **Debug**: Debugging interface available at `/debug/usermaven`
 - **Security**: CSP headers configured to allow connections to the tracking domain
 
+## Subscription System & Pricing
+
+The platform implements a robust subscription system with three tiers: Free, Premium, and Unlimited. The system is designed for flexibility, allowing easy price changes without breaking functionality.
+
+### Subscription Tiers
+
+#### Free Tier
+- **Price**: $0/month
+- **Features**:
+  - 10 AI chat messages per month
+  - Create and manage personal flashcards
+  - Access to sample flashcards only
+  - No course access
+
+#### Premium Tier
+- **Price**: $10/month
+- **Features**:
+  - Unlimited AI chat messages
+  - Create and manage personal flashcards
+  - Full access to premium flashcards
+  - No course access
+
+#### Unlimited Tier
+- **Price**: $30/month
+- **Features**:
+  - Unlimited AI chat messages
+  - Create and manage personal flashcards
+  - Full access to premium flashcards
+  - Access to ALL courses
+  - Priority support
+
+### Price ID Management Architecture
+
+The subscription system uses a sophisticated price ID mapping approach that allows for easy price changes without code modifications.
+
+#### Environment-Based Configuration
+
+**Location**: Environment variables and `src/lib/stripe/client.ts`
+
+```bash
+# Test Environment Price IDs
+VITE_STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID=price_test_premium_monthly
+VITE_STRIPE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID=price_test_premium_annual
+VITE_STRIPE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID=price_test_unlimited_monthly
+VITE_STRIPE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID=price_test_unlimited_annual
+
+# Live Environment Price IDs
+VITE_STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID=price_live_premium_monthly
+VITE_STRIPE_LIVE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID=price_live_premium_annual
+VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID=price_live_unlimited_monthly
+VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID=price_live_unlimited_annual
+```
+
+#### Tier Determination Logic
+
+**Location**: `src/components/chat/ChatContainer.tsx` and other components
+
+The system determines user subscription tiers through environment variable-based price ID mapping:
+
+```typescript
+// Helper function to determine tier name from subscription data
+// Uses environment variables for proper price ID mapping instead of fragile string matching
+const getTierNameFromSubscription = (subscription: any): string => {
+  if (!subscription || subscription.status !== 'active') {
+    return 'Free';
+  }
+  
+  const priceId = subscription.priceId;
+  if (!priceId) {
+    return 'Free';
+  }
+  
+  // Get environment-based price IDs for comparison
+  const unlimitedPriceIds = [
+    import.meta.env.VITE_STRIPE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID,
+    import.meta.env.VITE_STRIPE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID,
+    import.meta.env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID,
+    import.meta.env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID
+  ].filter(Boolean);
+  
+  const premiumPriceIds = [
+    import.meta.env.VITE_STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID,
+    import.meta.env.VITE_STRIPE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID,
+    import.meta.env.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID,
+    import.meta.env.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID
+  ].filter(Boolean);
+  
+  if (unlimitedPriceIds.includes(priceId)) {
+    return 'Unlimited';
+  }
+  
+  if (premiumPriceIds.includes(priceId)) {
+    return 'Premium';
+  }
+  
+  // Safe fallback for active subscriptions with unmapped price IDs
+  return subscription.status === 'active' ? 'Premium' : 'Free';
+};
+```
+
+### Key Architecture Benefits
+
+#### 1. **Flexible Price Management**
+- **Easy Updates**: Change price IDs by updating environment variables only
+- **No Code Changes**: Tier determination automatically adapts to new price IDs
+- **Environment Separation**: Different price IDs for test and production environments
+
+#### 2. **Robust Fallback System**
+- **Multiple Patterns**: Supports various environment variable naming conventions
+- **Safe Defaults**: Unknown active subscriptions default to Premium tier
+- **Null Safety**: Handles missing or undefined environment variables gracefully
+
+#### 3. **Consistent Mapping**
+The same environment variables are used across:
+- **Frontend Components**: Chat container, pricing pages, settings
+- **Edge Functions**: `get-user-subscription`, `create-payment-handler`
+- **Stripe Client**: `src/lib/stripe/client.ts`
+
+### Backend Integration
+
+#### Edge Functions
+
+**Location**: `supabase/functions/`
+
+Key functions for subscription management:
+
+- **`get-user-subscription`**: Returns subscription details with proper tier mapping
+- **`create-payment-handler`**: Creates Stripe checkout sessions with environment-based price IDs
+- **`get-price-id`**: Backend service for secure price ID resolution
+- **`stripe-webhook`**: Handles Stripe webhook events for subscription updates
+
+#### Database Schema
+
+**Location**: `supabase/migrations/`
+
+Key tables:
+- **`user_subscriptions`**: Stores subscription status, price IDs, and billing periods
+- **`message_counts`**: Tracks usage for free tier limits
+- **`course_enrollments`**: Manages course access for Unlimited tier users
+
+### Usage Examples
+
+#### Checking Subscription Status
+```typescript
+import { useSubscriptionDetails } from '@/hooks/useSubscription';
+
+function MyComponent() {
+  const subscriptionQuery = useSubscriptionDetails();
+  const tierName = getTierNameFromSubscription(subscriptionQuery.data);
+  const hasPaidSubscription = tierName === 'Premium' || tierName === 'Unlimited';
+  
+  return (
+    <div>
+      <p>Current Tier: {tierName}</p>
+      <p>Has Paid Access: {hasPaidSubscription ? 'Yes' : 'No'}</p>
+    </div>
+  );
+}
+```
+
+#### Creating Checkout Sessions
+```typescript
+import { createCheckoutSession } from '@/lib/subscription';
+
+// Backend automatically resolves price ID based on tier name
+const checkoutUrl = await createCheckoutSession(userId, 'unlimited');
+```
+
+### Updating Price IDs
+
+When you need to change Stripe price IDs:
+
+1. **Update Environment Variables**: Change the price ID in your `.env` file or deployment environment
+2. **Deploy Changes**: The system automatically picks up new price IDs
+3. **No Code Changes**: All tier determination logic adapts automatically
+4. **Test Thoroughly**: Verify tier detection works with new price IDs
+
+### Security Considerations
+
+- **Backend Price Resolution**: Sensitive price ID logic handled in Edge Functions
+- **Environment Variable Protection**: Price IDs stored securely in environment variables
+- **RLS Policies**: All subscription data protected with Row Level Security
+- **Webhook Validation**: Stripe webhooks validated with signing secrets
+
 ## Development Commands
 
 ### Core Development
