@@ -17,7 +17,7 @@ import { Flashcard, Subject, ExamType, FlashcardCollection } from '@/types';
 import { useNavbar } from '../../../contexts/NavbarContext';
 import { useLayoutState } from '@/hooks/useLayoutState';
 import { SkeletonStudyCard } from '../SkeletonFlashcard';
-import { useSubscription } from '@/hooks/useSubscription';
+import { useSubscriptionWithTier } from '@/hooks/useSubscription';
 
 interface FilterState {
   subjects: string[];
@@ -41,12 +41,12 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   const { user } = useAuth();
   const { mode: routeMode, id: routeId } = useParams();
   const { toast, showToast, hideToast } = useToast();
-  const { updateCount, updateCurrentCardIndex } = useNavbar();
+  const { updateCount, updateCurrentCardIndex, setIsLoadingCards } = useNavbar();
   const { isDesktop } = useLayoutState();
   const [searchParams] = useSearchParams();
   
   // Use the new subscription hook with tier-based access
-  const { tierName, isLoading: subscriptionLoading } = useSubscription();
+  const { tierName, isLoading: subscriptionLoading } = useSubscriptionWithTier();
   
   // Determine if user has premium access (Premium or Unlimited tier)
   const hasPremiumAccess = tierName === 'Premium' || tierName === 'Unlimited';
@@ -310,6 +310,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       try {
         console.log("UnifiedStudyMode: Starting to load data...");
         setLoading(true);
+        setIsLoadingCards(true);
         
         // Check subscription status - now using tier-based system
         if (user) {
@@ -558,6 +559,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         setLoading(false);
         setSampleCardsLoaded(false);
         setLoadingRemainingCards(false);
+        setIsLoadingCards(false);
       }
     };
     
@@ -894,11 +896,18 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   // Update the navbar count when filteredCards or currentIndex changes
   useEffect(() => {
     if (filteredCards.length > 0) {
-      // Update both the total count and current index
-      updateCount(filteredCards.length);
+      // Only update the navbar count when we're not loading remaining cards
+      // This prevents the mobile navbar from showing incremental changes (e.g., 1 of 7 -> 1 of 405)
+      if (!loadingRemainingCards) {
+        updateCount(filteredCards.length);
+        setIsLoadingCards(false);
+      } else {
+        setIsLoadingCards(true);
+      }
+      // Always update the current index regardless of loading state
       updateCurrentCardIndex(currentIndex);
     }
-  }, [filteredCards.length, currentIndex, updateCount, updateCurrentCardIndex]);
+  }, [filteredCards.length, currentIndex, loadingRemainingCards, updateCount, updateCurrentCardIndex, setIsLoadingCards]);
 
   // Function to check if content is premium and requires paywall
   const checkIfPremiumContent = useCallback((collection) => {

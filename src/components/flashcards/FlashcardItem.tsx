@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import Tooltip from './Tooltip';
 import { formatDate } from '@/lib/utils';
 import { isFlashcardReadOnly } from '@/utils/flashcard-utils';
-import { useSubscription } from '@/hooks/useSubscription';
+import { useSubscriptionWithTier } from '@/hooks/useSubscription';
 import useAuth from '@/hooks/useFlashcardAuth';
 
 interface FlashcardItemProps {
@@ -43,7 +43,7 @@ const FlashcardItem = React.memo(({
   const { user } = useAuth();
   
   // Use the new subscription hook with tier-based access
-  const { tierName } = useSubscription();
+  const { tierName } = useSubscriptionWithTier();
   
   // Determine if user has premium access (Premium or Unlimited tier)
   const hasPremiumAccess = tierName === 'Premium' || tierName === 'Unlimited';

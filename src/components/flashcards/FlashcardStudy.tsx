@@ -8,7 +8,7 @@ import ErrorMessage from './ErrorMessage';
 import useToast from '@/hooks/useFlashcardToast';
 import Toast from './Toast';
 import { useAuth } from '@/lib/auth';
-import { useSubscription } from '@/hooks/useSubscription';
+import { useSubscriptionWithTier } from '@/hooks/useSubscription';
 
 interface Flashcard {
   id: string;
@@ -44,7 +44,7 @@ export default function FlashcardStudy() {
   const [searchParams] = useSearchParams();
   
   // Use the new subscription hook with tier-based access
-  const { tierName, isLoading: subscriptionLoading } = useSubscription();
+  const { tierName, isLoading: subscriptionLoading } = useSubscriptionWithTier();
   
   // Determine if user has premium access (Premium or Unlimited tier)
   const hasPremiumAccess = tierName === 'Premium' || tierName === 'Unlimited';

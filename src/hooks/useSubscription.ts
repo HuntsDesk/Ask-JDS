@@ -114,7 +114,7 @@ export function useInvalidateSubscription() {
   };
 }
 
-export const useSubscriptionDetailsOld = () => {
+export const useSubscriptionWithTier = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
 

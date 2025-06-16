@@ -12,7 +12,7 @@ import {
   Eye, EyeOff, Edit, Star, StarOff,
   Play, Volume2, VolumeX
 } from 'lucide-react';
-import { useSubscription } from '@/hooks/useSubscription';
+import { useSubscriptionWithTier } from '@/hooks/useSubscription';
 import useAuth from '@/hooks/useFlashcardAuth';
 
 // Create a custom Premium "P" icon component
@@ -52,7 +52,7 @@ const EnhancedFlashcardItem: React.FC<EnhancedFlashcardItemProps> = React.memo((
   const { user } = useAuth();
   
   // Use the new subscription hook with tier-based access
-  const { tierName } = useSubscription();
+  const { tierName } = useSubscriptionWithTier();
   
   // Determine if user has premium access (Premium or Unlimited tier)
   const hasPremiumAccess = tierName === 'Premium' || tierName === 'Unlimited';

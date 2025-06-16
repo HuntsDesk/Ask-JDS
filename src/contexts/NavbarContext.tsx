@@ -9,6 +9,8 @@ interface NavbarContextType {
   updateTotalCardCount: (count: number) => void;
   currentCardIndex: number;
   updateCurrentCardIndex: (index: number) => void;
+  isLoadingCards: boolean;
+  setIsLoadingCards: (loading: boolean) => void;
 }
 
 const NavbarContext = createContext<NavbarContextType | undefined>(undefined);
@@ -18,6 +20,7 @@ export function NavbarProvider({ children }: { children: React.ReactNode }) {
   const [totalCollectionCount, setTotalCollectionCount] = useState(0);
   const [totalCardCount, setTotalCardCount] = useState(0);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [isLoadingCards, setIsLoadingCards] = useState(false);
 
   const updateCount = (count: number) => {
     setItemCount(count);
@@ -44,7 +47,9 @@ export function NavbarProvider({ children }: { children: React.ReactNode }) {
       updateTotalCollectionCount,
       updateTotalCardCount,
       currentCardIndex,
-      updateCurrentCardIndex
+      updateCurrentCardIndex,
+      isLoadingCards,
+      setIsLoadingCards
     }}>
       {children}
     </NavbarContext.Provider>

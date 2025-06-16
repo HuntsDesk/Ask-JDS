@@ -14,7 +14,7 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const { itemCount, totalCollectionCount, totalCardCount, currentCardIndex } = useNavbar();
+  const { itemCount, totalCollectionCount, totalCardCount, currentCardIndex, isLoadingCards } = useNavbar();
   const { isExpanded, setIsExpanded } = useContext(SidebarContext);
   const { isDesktop, isPinned, contentMargin } = useLayoutState();
 
@@ -170,8 +170,10 @@ export default function Navbar() {
                 </h1>
                 {pageInfo.countKey && (
                   <p className="text-sm text-gray-500 dark:text-gray-300 text-center">
-                    {location.pathname.includes('/flashcards/study') && itemCount > 0 ? (
+                    {location.pathname.includes('/flashcards/study') && itemCount > 0 && !isLoadingCards ? (
                       <>{currentCardIndex + 1} of {itemCount} flashcards</>
+                    ) : location.pathname.includes('/flashcards/study') && isLoadingCards ? (
+                      <>Loading flashcards...</>
                     ) : (
                       <>{count} {pageInfo.title.toLowerCase()}</>
                     )}

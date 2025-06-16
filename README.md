@@ -266,16 +266,84 @@ Key tables:
 - **`message_counts`**: Tracks usage for free tier limits
 - **`course_enrollments`**: Manages course access for Unlimited tier users
 
+### Subscription Hooks
+
+**Location**: `src/hooks/useSubscription.ts`
+
+The platform provides several subscription hooks for different use cases:
+
+#### `useSubscriptionWithTier()` - **Primary Hook for Components**
+Returns detailed subscription information including tier name, loading states, and subscription status:
+
+```typescript
+import { useSubscriptionWithTier } from '@/hooks/useSubscription';
+
+function MyComponent() {
+  const { tierName, isLoading, isActive, current_period_end } = useSubscriptionWithTier();
+  const hasPaidSubscription = tierName === 'Premium' || tierName === 'Unlimited';
+  
+  if (isLoading) return <div>Loading subscription...</div>;
+  
+  return (
+    <div>
+      <p>Current Tier: {tierName}</p>
+      <p>Has Paid Access: {hasPaidSubscription ? 'Yes' : 'No'}</p>
+      {isActive && <p>Expires: {current_period_end}</p>}
+    </div>
+  );
+}
+```
+
+#### `useSubscription()` - Simple Boolean Check
+Returns only a boolean subscription status (used internally):
+
+```typescript
+import { useSubscription } from '@/hooks/useSubscription';
+
+function SimpleComponent() {
+  const hasSubscription = useSubscription();
+  return <div>Subscribed: {hasSubscription ? 'Yes' : 'No'}</div>;
+}
+```
+
+#### `useSubscriptionDetails()` - Raw Subscription Data
+Returns raw subscription object from database (used for data processing):
+
+```typescript
+import { useSubscriptionDetails } from '@/hooks/useSubscription';
+
+function DataComponent() {
+  const subscriptionQuery = useSubscriptionDetails();
+  // Process raw subscription data...
+}
+```
+
+#### Hook Migration Notes
+
+> **Important**: Previously, components used `useSubscriptionDetailsOld()` which has been renamed to `useSubscriptionWithTier()` for clarity. The "Old" naming was causing confusion and maintenance issues.
+
+**Migration Pattern**:
+```typescript
+// Before (deprecated)
+import { useSubscriptionDetailsOld } from '@/hooks/useSubscription';
+const { tierName, isLoading } = useSubscriptionDetailsOld();
+
+// After (current)
+import { useSubscriptionWithTier } from '@/hooks/useSubscription';
+const { tierName, isLoading } = useSubscriptionWithTier();
+```
+
 ### Usage Examples
 
 #### Checking Subscription Status
 ```typescript
-import { useSubscriptionDetails } from '@/hooks/useSubscription';
+import { useSubscriptionWithTier } from '@/hooks/useSubscription';
 
 function MyComponent() {
-  const subscriptionQuery = useSubscriptionDetails();
-  const tierName = getTierNameFromSubscription(subscriptionQuery.data);
+  const { tierName, isLoading } = useSubscriptionWithTier();
   const hasPaidSubscription = tierName === 'Premium' || tierName === 'Unlimited';
+  
+  if (isLoading) return <div>Loading...</div>;
   
   return (
     <div>

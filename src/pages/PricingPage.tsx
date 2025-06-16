@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
-import { useSubscription } from '@/hooks/useSubscription';
+import { useSubscriptionWithTier } from '@/hooks/useSubscription';
 import { PricingTopBar } from '@/components/pricing/PricingTopBar';
 import { createCheckoutSession } from '@/lib/subscription';
 import { StripeCheckoutDialog } from '@/components/stripe/StripeCheckoutDialog';
@@ -14,7 +14,7 @@ import { masterFeatures, pricingTiers } from '@/lib/pricingData';
 export function PricingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { tierName, isActive: hasActiveSubscription } = useSubscription();
+  const { tierName, isActive: hasActiveSubscription } = useSubscriptionWithTier();
   const [isLoading, setIsLoading] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);

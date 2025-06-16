@@ -20,7 +20,7 @@ import { Tooltip, TooltipProvider } from '@/components/ui/tooltip';
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { SkeletonFlashcardGrid } from '../SkeletonFlashcard';
 import { enrichFlashcardWithRelationships, processRelationshipData, isFlashcardReadOnly } from '@/utils/flashcard-utils';
-import { useSubscription } from '@/hooks/useSubscription';
+import { useSubscriptionWithTier } from '@/hooks/useSubscription';
 import { CACHE_DURATIONS } from '@/lib/cache-config';
 
 // Debug flag - set to false to disable most console logs
@@ -91,7 +91,7 @@ export default function AllFlashcards() {
   const [pageSize] = useState(30); // Number of cards to fetch per page
 
   // Use the new subscription hook with tier-based access
-  const { tierName, isLoading: subscriptionLoading } = useSubscription();
+  const { tierName, isLoading: subscriptionLoading } = useSubscriptionWithTier();
   
   // Determine if user has premium access (Premium or Unlimited tier)
   const hasPremiumAccess = tierName === 'Premium' || tierName === 'Unlimited';
