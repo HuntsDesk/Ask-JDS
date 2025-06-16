@@ -85,22 +85,20 @@ export function ChatLayoutContainer({
         ref={scrollContainerRef}
         className={cn(
           "flex-1 overflow-y-auto",
-          "p-3 md:p-4",
+          // Padding: mobile gets all sides, tablet/desktop gets no bottom padding
+          isMobile ? "p-3" : "pt-4 px-4 pb-0",
           "pt-16 md:pt-4", // Account for mobile header
           // Better mobile scrolling
           "touch-pan-y overscroll-contain",
           TRANSITIONS.default
         )}
         style={{
-          // Clean height calculation - on mobile, stop scroll area above fixed input
-          // Account for: input area only (~56px) since header space is handled by pt-16
-          height: isMobile ? 'calc(100vh - 0px)' : layoutMetrics.messagesAreaHeight,
+          // Height calculation: mobile uses input offset, tablet/desktop uses minimal constraint
+          height: isMobile
+            ? 'calc(100vh - var(--chat-input-offset, 80px))'
+            : 'calc(100vh - 120px)', // Fixed reasonable constraint for tablet/desktop
           // iOS momentum scrolling
           WebkitOverflowScrolling: 'touch',
-          // Ensure immediate visibility and scrollbar doesn't extend behind input
-          minHeight: isMobile ? 'calc(100vh - 54px)' : undefined,
-          // Ensure scrollbar area ends above fixed input
-          maxHeight: isMobile ? 'calc(100vh - 25px)' : undefined,
           // Constrain scrollbar positioning on mobile
           ...(isMobile && {
             position: 'relative',

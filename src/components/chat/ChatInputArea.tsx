@@ -66,6 +66,16 @@ export function ChatInputArea({
     }
   }, [preservedMessage]);
   
+  // Debug subscription status
+  useEffect(() => {
+    console.log('[ChatInputArea] Props received:', {
+      isSubscribed,
+      messageCount,
+      messageLimit,
+      showCounter: !isSubscribed && messageCount > 0 && messageLimit > 0
+    });
+  }, [isSubscribed, messageCount, messageLimit]);
+  
   // Clear message on thread change
   useEffect(() => {
     setMessage('');

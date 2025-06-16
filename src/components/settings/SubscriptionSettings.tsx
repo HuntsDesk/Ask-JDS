@@ -32,7 +32,7 @@ import { supabase } from '@/lib/supabase';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { StripeCheckoutDialog } from '@/components/stripe/StripeCheckoutDialog';
 import ForceSubscriptionRefresh from '@/components/subscription/ForceSubscriptionRefresh';
-import { useSubscription } from '@/hooks/useSubscription';
+import { useSubscriptionDetailsOld } from '@/hooks/useSubscription';
 
 // Constants
 const FREE_TIER_LIMIT = FREE_MESSAGE_LIMIT;
@@ -61,7 +61,7 @@ export function SubscriptionSettings() {
     tierName, 
     current_period_end,
     refreshSubscription 
-  } = useSubscription();
+  } = useSubscriptionDetailsOld();
 
   // Handle closing payment modal
   const handleClosePaymentModal = () => {

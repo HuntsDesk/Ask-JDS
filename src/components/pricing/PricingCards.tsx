@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CheckCircle, MessageSquare, Zap, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
-import { useSubscription } from '@/hooks/useSubscription';
+import { useSubscriptionDetailsOld } from '@/hooks/useSubscription';
 
 // Simplified pricing tiers for homepage (only Free and Premium)
 const homepageTiers = [
@@ -53,7 +53,7 @@ interface PricingCardsProps {
 export function PricingCards({ variant = 'homepage', className = '' }: PricingCardsProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { tierName, isActive: hasActiveSubscription } = useSubscription();
+  const { tierName, isActive: hasActiveSubscription } = useSubscriptionDetailsOld();
 
   const handleSubscribe = (tierName: string) => {
     if (!user) {

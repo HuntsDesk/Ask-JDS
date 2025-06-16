@@ -22,11 +22,19 @@ import { useChatFSM } from '@/hooks/use-chat-fsm';
 import { cn } from '@/lib/utils';
 import type { LayoutMetrics } from '@/components/layout/ChatLayoutContainer';
 import { useSubscriptionDetails } from '@/hooks/useSubscription';
+import { updateInputOffset } from '@/lib/layout-utils';
 
 // Helper function to determine tier name from subscription data
 // Uses environment variables for proper price ID mapping instead of fragile string matching
 const getTierNameFromSubscription = (subscription: any): string => {
+  console.log('[getTierNameFromSubscription] Input:', subscription);
+  
   if (!subscription || subscription.status !== 'active') {
+    console.log('[getTierNameFromSubscription] Returning Free due to:', {
+      hasSubscription: !!subscription,
+      status: subscription?.status,
+      isActive: subscription?.status === 'active'
+    });
     return 'Free';
   }
   
@@ -104,10 +112,34 @@ export function ChatContainer() {
   
   // Use the subscription hook to get subscription details
   const subscriptionQuery = useSubscriptionDetails();
+  
+  // Debug log the subscription data
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[ChatContainer] Raw subscription data:', {
+      data: subscriptionQuery.data,
+      isLoading: subscriptionQuery.isLoading,
+      isError: subscriptionQuery.isError
+    });
+  }
+  
   const tierName = getTierNameFromSubscription(subscriptionQuery.data);
   
   // Determine if user has premium access (Premium or Unlimited tier)
   const hasPaidSubscription = tierName === 'Premium' || tierName === 'Unlimited';
+  
+  // Override with a simpler check if subscription data is available
+  const subscriptionIsActive = subscriptionQuery.data && 
+    (subscriptionQuery.data.status === 'active' || subscriptionQuery.data.status === 'trialing') &&
+    new Date(subscriptionQuery.data.periodEnd) > new Date();
+  
+  console.log('[ChatContainer] Subscription status check:', {
+    tierName,
+    hasPaidSubscription,
+    subscriptionIsActive,
+    status: subscriptionQuery.data?.status,
+    periodEnd: subscriptionQuery.data?.periodEnd,
+    isExpired: subscriptionQuery.data ? new Date(subscriptionQuery.data.periodEnd) <= new Date() : 'no data'
+  });
   
   // Refs for state tracking
   const chatRef = useRef(null);
@@ -231,6 +263,19 @@ export function ChatContainer() {
     preservedMessage: null,
     isSubscribed: false
   };
+
+  // Debug subscription detection mismatch
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[ChatContainer] Subscription Debug:', {
+      tierName,
+      hasPaidSubscription,
+      useMessagesIsSubscribed: isSubscribed,
+      subscriptionData: subscriptionQuery.data,
+      subscriptionLoading: subscriptionQuery.isLoading,
+      messageCount,
+      messageLimit
+    });
+  }
 
   // =========== Event handlers ===========
   
@@ -466,6 +511,18 @@ export function ChatContainer() {
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, [theme]);
 
+  // Initialize and manage input offset for mobile layout
+  useEffect(() => {
+    updateInputOffset();
+    const onResize = () => requestAnimationFrame(updateInputOffset);
+    window.addEventListener('resize', onResize);
+    window.visualViewport?.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.visualViewport?.removeEventListener('resize', onResize);
+    };
+  }, []);
+
   // Check for navigation from sidebar
   useEffect(() => {
     const fromSidebar = location.state && (location.state as any).fromSidebar === true;
@@ -627,7 +684,7 @@ export function ChatContainer() {
             isGenerating={isGenerating}
             isLoading={messagesLoading}
             setFocusInputRef={setFocusInputRef}
-            isSubscribed={hasPaidSubscription}
+            isSubscribed={subscriptionIsActive || hasPaidSubscription} // Use direct subscription check or tier-based check
           />
         }
         scrollContainerRef={messagesScrollRef}

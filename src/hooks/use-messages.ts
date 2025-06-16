@@ -116,13 +116,19 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        const count = await getUserMessageCount();
+        // Only proceed if we have a valid user ID
+        if (!user?.id) {
+          console.debug('useMessages: No user ID available yet, skipping user data load');
+          return;
+        }
+        
+        const count = await getUserMessageCount(user.id);
         setMessageCount(count);
         
-        const lifetimeCount = await getLifetimeMessageCount();
+        const lifetimeCount = await getLifetimeMessageCount(user.id);
         setLifetimeMessageCount(lifetimeCount);
         
-        const subscription = await hasActiveSubscription();
+        const subscription = await hasActiveSubscription(user.id);
         setIsSubscribed(subscription);
       } catch (error) {
         console.error('Error loading user data:', error);
@@ -130,7 +136,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     };
     
     loadUserData();
-  }, []);
+  }, [user?.id]);
 
   // Function to generate a thread title based on user messages
   const generateThreadTitle = async (userMessages: Message[]): Promise<string> => {
@@ -842,8 +848,6 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     }
     
     setPaywallActive(true); // Prevent other toasts
-    setMessageCount(await getUserMessageCount());
-    setIsSubscribed(await hasActiveSubscription());
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
@@ -853,6 +857,9 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       // handleSessionExpiration(content); 
       return null;
     }
+
+    setMessageCount(await getUserMessageCount(user.id));
+    setIsSubscribed(await hasActiveSubscription(user.id));
 
     const optimisticUserMessage: Message = {
       id: `optimistic-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,

@@ -198,6 +198,7 @@ body {
       --sidebar-width: 256px; /* w-64 in Tailwind */
   --sidebar-collapsed-width: 64px; /* w-16 in Tailwind */
     --jdorange: #F37022;
+    --chat-input-offset: calc(56px + 8px + env(safe-area-inset-bottom, 0px));
     --jdorange-dark: #E36012;
     --jdblue: #00178E;
     --jdblue-dark: #00126F;
@@ -248,6 +249,12 @@ body {
     --chat-input-bg: hsl(var(--background));
     --chat-input-border: hsl(var(--border));
     --chat-message-ai-bg: hsl(var(--muted));
+  }
+}
+
+@media (min-width: 640px) {
+  :root {
+    --chat-input-offset: 0px;
   }
 }
 

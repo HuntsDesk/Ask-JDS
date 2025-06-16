@@ -14,7 +14,7 @@ import { useNavbar } from '@/contexts/NavbarContext';
 import PageContainer from '@/components/layout/PageContainer';
 import { Button } from '@/components/ui/button';
 import { Plus, BookOpen, GraduationCap, Filter, Search } from 'lucide-react';
-import { useSubscription } from '@/hooks/useSubscription';
+import { useSubscriptionDetailsOld } from '@/hooks/useSubscription';
 import ScrollToTop from './ScrollToTop';
 
 // Import pages
@@ -69,7 +69,7 @@ export default function FlashcardsPage() {
   const { setNavbarTitle, updateCount, setShowBackButton, hideBackButton } = useNavbar();
     
   // Use the new subscription hook with tier-based access
-  const { tierName, isLoading: subscriptionLoading } = useSubscription();
+  const { tierName, isLoading: subscriptionLoading } = useSubscriptionDetailsOld();
   
   // Determine if user has premium access (Premium or Unlimited tier)
   const hasPremiumAccess = tierName === 'Premium' || tierName === 'Unlimited';

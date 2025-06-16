@@ -3,6 +3,7 @@ import { Message } from '@/types';
 import { ChatMessage } from './ChatMessage';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Button } from '@/components/ui/button';
+import useMediaQuery from '@/hooks/useMediaQuery';
 
 interface ChatMessagesAreaProps {
   messages: Message[];
@@ -25,6 +26,11 @@ export function ChatMessagesArea({
 }: ChatMessagesAreaProps) {
   const messageEndRef = useRef<HTMLDivElement>(null);
   const messageTopRef = useRef<HTMLDivElement>(null);
+  const isMobile = useMediaQuery('(max-width: 640px)');
+  
+  // Add minimal padding on mobile to ensure copy button and timestamp are visible
+  // ChatLayoutContainer already handles most input spacing, we just need a small buffer
+  const paddingBottom = isMobile ? '24px' : '0px';
   
   // More robust scroll to bottom function
   const scrollToBottom = React.useCallback((behavior: 'auto' | 'smooth' = 'auto') => {
@@ -131,12 +137,13 @@ export function ChatMessagesArea({
       style={{
         // Ensure the container is immediately visible and scrollable
         minHeight: '100%',
-        display: 'flex'
+        display: 'flex',
+        paddingBottom
       }}
     >
       <div ref={messageTopRef} />
       
-      <div className="flex flex-col space-y-0.5 pb-0 mt-2 md:mb-0 mb-2">
+      <div className="flex flex-col space-y-0.5 pb-0 mt-2 sm:mb-0 mb-2">
         {messages.map((msg) => (
           <div 
             key={msg.id} 

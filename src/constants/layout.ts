@@ -55,6 +55,12 @@ export const MAX_WIDTH = {
 };
 
 /**
+ * Mobile input area dimensions
+ */
+export const MOBILE_INPUT_HEIGHT = 56;
+export const MOBILE_INPUT_PADDING = 8;
+
+/**
  * Transition settings for layout animations
  */
 export const TRANSITIONS = {
