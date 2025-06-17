@@ -126,6 +126,151 @@ VITE_USERMAVEN_TRACKING_HOST=https://a.jdsimplified.com
 - **Debug**: Debugging interface available at `/debug/usermaven`
 - **Security**: CSP headers configured to allow connections to the tracking domain
 
+## Admin Utilities & Diagnostic Tools 🔧
+
+The platform includes a comprehensive suite of diagnostic and utility tools accessible through the admin panel at `/admin/utilities`. These tools help with debugging, testing, and managing the application across different environments.
+
+### Centralized Utilities Dashboard
+
+**Location**: Admin panel at `/admin/utilities`
+
+The utilities dashboard provides a modern interface for accessing all diagnostic tools with:
+
+- **Environment Detection**: Automatically detects development vs production mode
+- **Access Control**: Restricts sensitive utilities to development environment only
+- **Categorized Tools**: Organized by debugging, testing, and management functions
+- **Security Warnings**: Clear indicators for production-restricted tools
+
+### Available Utilities
+
+#### 1. Diagnostic Tests
+**Category**: Debugging | **Environment**: All
+
+Comprehensive system diagnostics including:
+- **Admin Function Tests**: Tests all Supabase RPC functions (`admin_connection_test`, `get_course_statistics`, etc.)
+- **Database Connectivity**: Validates database connections and permissions
+- **Authentication Status**: Verifies admin privileges and user metadata
+- **Browser Compatibility**: Detects Safari-specific issues and localStorage functionality
+- **Flashcard Performance**: Tests flashcard queries with performance timing
+- **RLS Policy Information**: Provides SQL queries for checking Row Level Security policies
+
+#### 2. Browser Debug
+**Category**: Debugging | **Environment**: All
+
+Multi-tab browser environment debugging:
+- **Browser Tab**: User agent detection, platform information, feature support
+- **Storage Tab**: localStorage, sessionStorage, and cookie analysis
+- **Network Tab**: Connection status, API endpoint testing
+- **Auth Tab**: Authentication state, token validation, session management
+- **Environment Tab**: Environment variables, build configuration, domain detection
+
+#### 3. Usermaven Analytics Debug
+**Category**: Debugging | **Environment**: All
+
+Analytics integration testing and debugging:
+- **Status Monitoring**: Initialization status and configuration validation
+- **Event Testing**: Test analytics events with real-time feedback
+- **Network Verification**: Validate tracking host connectivity
+- **Configuration Display**: Show current analytics configuration
+- **Debug Logging**: Comprehensive event logging for troubleshooting
+
+#### 4. Storage Manager
+**Category**: Management | **Environment**: Development Only
+
+Complete browser storage management:
+- **Storage Analysis**: Detailed breakdown of localStorage, sessionStorage, and cookies
+- **Safari Deep Clean**: Safari-specific storage clearing with enhanced compatibility
+- **Selective Clearing**: Choose specific storage types to clear
+- **Activity Logging**: Track all storage operations with timestamps
+- **Storage Usage**: Monitor storage quotas and usage patterns
+
+#### 5. Subscription Tester
+**Category**: Testing | **Environment**: Development Only
+
+Payment and subscription flow testing:
+- **Payment Flow Testing**: Test subscription activation without real transactions
+- **Stripe Integration**: Validate Stripe configuration and webhooks
+- **Environment Switching**: Test with different Stripe environments
+- **Endpoint Health Checks**: Monitor payment endpoint availability
+- **Mock Transactions**: Simulate subscription scenarios safely
+
+#### 6. Auth Token Extractor
+**Category**: Testing | **Environment**: Development Only
+
+Authentication token management for API testing:
+- **Token Extraction**: Extract current user authentication tokens
+- **API Command Generation**: Generate curl, Postman, and JavaScript examples
+- **Multi-Language Support**: Provide examples in multiple programming languages
+- **Token Validation**: Verify token validity and expiration
+- **Secure Handling**: Safe token display with copy-to-clipboard functionality
+
+### Security & Access Control
+
+The utilities system implements comprehensive security measures:
+
+#### Environment-Based Restrictions
+- **Production Safety**: Sensitive utilities automatically hidden in production
+- **Development Access**: Full utility access in development environment
+- **Environment Detection**: Uses `import.meta.env.DEV` for reliable environment detection
+- **Visual Indicators**: Clear badges showing environment restrictions
+
+#### Production Safeguards
+- **Restricted Utilities**: Storage Manager, Subscription Tester, and Auth Token Extractor are dev-only
+- **Warning Messages**: Clear warnings when running in production mode
+- **Automatic Filtering**: Production users only see safe diagnostic tools
+- **Security Notices**: Prominent alerts for potentially sensitive operations
+
+### Legacy Diagnostic Tools Migration
+
+The utilities system replaces and consolidates several legacy HTML diagnostic pages:
+
+#### Migrated Tools
+- **safari-deep-clean.html** → Storage Manager utility
+- **clear-storage.html** → Storage Manager utility  
+- **activate-subscription.html** → Subscription Tester utility
+- **get_token.html** → Auth Token Extractor utility
+- **quick-subscription-activator.html** → Subscription Tester utility
+
+#### Migration Benefits
+- **Modern UI**: React-based interface with consistent styling
+- **Better Security**: Environment-based access controls
+- **Enhanced Functionality**: Expanded features and better error handling
+- **Centralized Access**: All tools accessible from single admin location
+- **Improved Debugging**: Better logging and status reporting
+
+### Technical Implementation
+
+#### Component Architecture
+```typescript
+// Main utilities dashboard
+src/components/admin/Utilities.tsx
+
+// Individual utility components
+src/components/admin/utilities/
+├── DiagnosticTests.tsx      // System diagnostics
+├── BrowserDebug.tsx         // Browser environment debugging
+├── UsermavenDebug.tsx       // Analytics debugging
+├── StorageManager.tsx       // Storage management
+├── SubscriptionTester.tsx   // Payment testing
+└── AuthTokenExtractor.tsx   // Token management
+```
+
+#### Environment Detection
+```typescript
+const isDevelopment = import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development';
+
+// Filter utilities based on environment
+const availableUtilities = utilities.filter(utility => 
+  utility.environment === 'all' || (utility.environment === 'dev-only' && isDevelopment)
+);
+```
+
+#### Access Integration
+- **Admin Navigation**: Integrated into admin sidebar with wrench icon
+- **Lazy Loading**: Components loaded on-demand for performance
+- **Error Boundaries**: Comprehensive error handling for all utilities
+- **Responsive Design**: Mobile-friendly interface for all diagnostic tools
+
 ## Subscription System & Database-Driven Pricing ✨
 
 The platform implements a robust subscription system with three tiers: Free, Premium, and Unlimited. **NEW**: The system features **database-driven pricing** that allows marketing teams to change prices without code deployments.

@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '../ui/button';
-import { Shield, Loader2, LayoutDashboard, BookOpen, Library, Users, Settings, LogOut, MessageSquare, Eye, DollarSign } from 'lucide-react';
+import { Shield, Loader2, LayoutDashboard, BookOpen, Library, Users, Settings, LogOut, MessageSquare, Eye, DollarSign, Wrench } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Separator } from "@/components/ui/separator";
 import { NavLink } from "react-router-dom";
@@ -61,8 +61,8 @@ export const AdminLayout = ({ children, title }: AdminLayoutProps) => {
           return;
         }
 
-        // Method 3: Check isAdmin property directly
-        if (user.isAdmin) {
+        // Method 3: Check isAdmin property directly (if it exists)
+        if ((user as any).isAdmin) {
           console.log("Admin found via user.isAdmin property");
           setIsAdmin(true);
           setIsLoading(false);
@@ -183,7 +183,7 @@ export const AdminLayout = ({ children, title }: AdminLayoutProps) => {
               {JSON.stringify({ 
                 email: user.email, 
                 userId: user.id, 
-                isAdmin: user.isAdmin,
+                isAdmin: (user as any).isAdmin,
                 metadata: user.user_metadata 
               }, null, 2)}
             </pre>
@@ -255,6 +255,12 @@ export const AdminLayout = ({ children, title }: AdminLayoutProps) => {
       label: "Price Mapping", 
       icon: <DollarSign className="h-5 w-5 mr-3" />,
       description: "Manage Stripe price ID mappings for flexible pricing"
+    },
+    { 
+      path: "/admin/utilities", 
+      label: "Utilities", 
+      icon: <Wrench className="h-5 w-5 mr-3" />,
+      description: "Development and diagnostic utilities"
     }
   ];
 
