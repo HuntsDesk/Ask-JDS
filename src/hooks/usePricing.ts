@@ -38,7 +38,9 @@ const FALLBACK_PRICING: PricingData[] = [
 // Fetch pricing data from Edge Function
 const fetchPricing = async (): Promise<PricingData[]> => {
   try {
-    const { data, error } = await supabase.functions.invoke('get-pricing');
+    const { data, error } = await supabase.functions.invoke('get-pricing', {
+      method: 'GET'
+    });
     
     if (error) {
       console.warn('Edge function error, using fallback pricing:', error);
@@ -52,7 +54,7 @@ const fetchPricing = async (): Promise<PricingData[]> => {
       return FALLBACK_PRICING;
     }
 
-    console.log(`Loaded pricing from ${response.source}:`, response.data);
+    console.log(`Loaded pricing from ${response.source}:`, response.data.length, 'entries');
     return response.data;
     
   } catch (error) {

@@ -95,9 +95,11 @@ export function useDynamicPricing() {
       const dynamicPricing = pricingMap.get(`${tierName}-month`);
 
       if (staticConfig) {
+        const finalPrice = dynamicPricing?.formatted_price || (staticConfig.name === 'Premium' ? '$10' : '$30');
+        
         tiers.push({
           ...staticConfig,
-          price: dynamicPricing?.formatted_price || staticConfig.name === 'Premium' ? '$10' : '$30'
+          price: finalPrice
         });
       }
     });

@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, RefreshCw, DollarSign } from 'lucide-react';
+import { Trash2, Plus, RefreshCw, DollarSign, Edit2, Check, X, Zap } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface PriceMapping {
   id: string;
@@ -25,10 +26,23 @@ interface PriceMapping {
 
 export default function AdminPriceMapping() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [mappings, setMappings] = useState<PriceMapping[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Filter states
+  const [environmentFilter, setEnvironmentFilter] = useState<string>('all');
+  const [tierFilter, setTierFilter] = useState<string>('all');
+  const [intervalFilter, setIntervalFilter] = useState<string>('all');
+
+  // Edit mode states
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    display_price_cents: '',
+    display_currency: 'USD'
+  });
 
   // Form state for adding new mapping
   const [newMapping, setNewMapping] = useState({
@@ -45,6 +59,15 @@ export default function AdminPriceMapping() {
     if (!cents || !currency) return 'Not set';
     return `${currency === 'USD' ? '$' : currency}${(cents / 100).toFixed(2)}`;
   };
+
+  // Filter mappings based on selected filters
+  const filteredMappings = mappings.filter(mapping => {
+    const environmentMatch = environmentFilter === 'all' || mapping.environment === environmentFilter;
+    const tierMatch = tierFilter === 'all' || mapping.tier_name === tierFilter;
+    const intervalMatch = intervalFilter === 'all' || mapping.interval_type === intervalFilter;
+    
+    return environmentMatch && tierMatch && intervalMatch;
+  });
 
   // Load price mappings
   const loadMappings = async () => {
@@ -127,6 +150,59 @@ export default function AdminPriceMapping() {
     }
   };
 
+  // Start editing a mapping
+  const startEdit = (mapping: PriceMapping) => {
+    setEditingId(mapping.id);
+    setEditForm({
+      display_price_cents: mapping.display_price_cents ? (mapping.display_price_cents / 100).toString() : '',
+      display_currency: mapping.display_currency || 'USD'
+    });
+  };
+
+  // Save edit changes
+  const saveEdit = async () => {
+    if (!editingId) return;
+    
+    if (editForm.display_price_cents && isNaN(Number(editForm.display_price_cents))) {
+      setError('Display price must be a valid number');
+      return;
+    }
+
+    try {
+      setError(null);
+      const { error } = await supabase
+        .from('stripe_price_mappings')
+        .update({
+          display_price_cents: editForm.display_price_cents ? Math.round(Number(editForm.display_price_cents) * 100) : null,
+          display_currency: editForm.display_currency
+        })
+        .eq('id', editingId);
+
+      if (error) throw error;
+      
+      setSuccess('Price mapping updated successfully!');
+      setEditingId(null);
+      loadMappings();
+    } catch (err: any) {
+      setError(`Failed to update mapping: ${err.message}`);
+    }
+  };
+
+  // Cancel edit mode
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditForm({
+      display_price_cents: '',
+      display_currency: 'USD'
+    });
+  };
+
+  // Clear frontend pricing cache
+  const clearPricingCache = () => {
+    queryClient.invalidateQueries({ queryKey: ['pricing'] });
+    setSuccess('Frontend pricing cache cleared! Refresh the main site to see changes.');
+  };
+
   // Delete mapping
   const deleteMapping = async (id: string) => {
     if (!confirm('Are you sure you want to delete this price mapping?')) return;
@@ -177,6 +253,41 @@ export default function AdminPriceMapping() {
           <AlertDescription className="text-green-600">{success}</AlertDescription>
         </Alert>
       )}
+
+      {/* System Info */}
+      <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+        <CardHeader>
+          <CardTitle className="text-blue-900 dark:text-blue-100">How Multiple Price IDs Work</CardTitle>
+          <CardDescription className="text-blue-700 dark:text-blue-300">
+            The system supports multiple price IDs for different combinations:
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-sm text-blue-800 dark:text-blue-200">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <h4 className="font-semibold mb-2">Expected Combinations:</h4>
+              <ul className="space-y-1 text-xs">
+                <li>• <strong>Premium + Monthly + Test</strong> (development)</li>
+                <li>• <strong>Premium + Monthly + Live</strong> (production)</li>
+                <li>• <strong>Premium + Annual + Test</strong> (development)</li>
+                <li>• <strong>Premium + Annual + Live</strong> (production)</li>
+                <li>• <strong>Unlimited + Monthly + Test/Live</strong></li>
+                <li>• <strong>Unlimited + Annual + Test/Live</strong></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-2">System Resolution:</h4>
+              <ul className="space-y-1 text-xs">
+                <li>• <strong>Environment:</strong> Auto-detected (test/live)</li>
+                <li>• <strong>Tier:</strong> Based on user's subscription</li>
+                <li>• <strong>Interval:</strong> Monthly for pricing display</li>
+                <li>• <strong>Fallback:</strong> Static prices if not found</li>
+                <li>• <strong>Display:</strong> Only "live" prices shown on homepage</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Add New Mapping */}
       <Card>
@@ -289,22 +400,89 @@ export default function AdminPriceMapping() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            Current Price Mappings
-            <Button variant="outline" size="sm" onClick={loadMappings}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
+            Current Price Mappings ({filteredMappings.length} of {mappings.length})
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={clearPricingCache}>
+                <Zap className="h-4 w-4 mr-2" />
+                Clear Cache
+              </Button>
+              <Button variant="outline" size="sm" onClick={loadMappings}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
           </CardTitle>
           <CardDescription>
             Active mappings are used for subscription tier determination and pricing display.
           </CardDescription>
+          
+          {/* Filter Controls */}
+          <div className="flex flex-wrap gap-4 pt-4">
+            <div className="flex-1 min-w-[150px]">
+              <Label htmlFor="environment-filter">Environment</Label>
+              <Select value={environmentFilter} onValueChange={setEnvironmentFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Environments</SelectItem>
+                  <SelectItem value="test">Test Only</SelectItem>
+                  <SelectItem value="live">Live/Production Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex-1 min-w-[150px]">
+              <Label htmlFor="tier-filter">Tier</Label>
+              <Select value={tierFilter} onValueChange={setTierFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Tiers</SelectItem>
+                  <SelectItem value="Premium">Premium Only</SelectItem>
+                  <SelectItem value="Unlimited">Unlimited Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex-1 min-w-[150px]">
+              <Label htmlFor="interval-filter">Billing</Label>
+              <Select value={intervalFilter} onValueChange={setIntervalFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Intervals</SelectItem>
+                  <SelectItem value="month">Monthly Only</SelectItem>
+                  <SelectItem value="year">Annual Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-end">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  setEnvironmentFilter('all');
+                  setTierFilter('all');
+                  setIntervalFilter('all');
+                }}
+              >
+                Clear Filters
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {mappings.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No price mappings found.</p>
+          {filteredMappings.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              {mappings.length === 0 ? 'No price mappings found.' : 'No mappings match the current filters.'}
+            </p>
           ) : (
             <div className="space-y-4">
-              {mappings.map((mapping) => (
+              {filteredMappings.map((mapping) => (
                 <div key={mapping.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
@@ -314,11 +492,45 @@ export default function AdminPriceMapping() {
                       <Badge variant={mapping.is_active ? "default" : "secondary"}>
                         {mapping.is_active ? "Active" : "Inactive"}
                       </Badge>
-                      {mapping.display_price_cents && (
-                        <Badge variant="outline" className="flex items-center gap-1">
-                          <DollarSign className="h-3 w-3" />
-                          {formatPrice(mapping.display_price_cents, mapping.display_currency)}
+                      {mapping.environment === 'live' && mapping.interval_type === 'month' && mapping.is_active && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          Currently Displayed
                         </Badge>
+                      )}
+                      
+                      {/* Edit mode for price display */}
+                      {editingId === mapping.id ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editForm.display_price_cents}
+                            onChange={(e) => setEditForm({ ...editForm, display_price_cents: e.target.value })}
+                            placeholder="10.00"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="w-24"
+                          />
+                          <Select 
+                            value={editForm.display_currency} 
+                            onValueChange={(value) => setEditForm({ ...editForm, display_currency: value })}
+                          >
+                            <SelectTrigger className="w-20">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="USD">USD</SelectItem>
+                              <SelectItem value="EUR">EUR</SelectItem>
+                              <SelectItem value="GBP">GBP</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : (
+                        mapping.display_price_cents && (
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <DollarSign className="h-3 w-3" />
+                            {formatPrice(mapping.display_price_cents, mapping.display_currency)}
+                          </Badge>
+                        )
                       )}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -330,22 +542,51 @@ export default function AdminPriceMapping() {
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant={mapping.is_active ? "outline" : "default"}
-                      size="sm"
-                      onClick={() => toggleMapping(mapping.id, mapping.is_active)}
-                    >
-                      {mapping.is_active ? "Deactivate" : "Activate"}
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteMapping(mapping.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {editingId === mapping.id ? (
+                      <>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={saveEdit}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={cancelEdit}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => startEdit(mapping)}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        
+                        <Button
+                          variant={mapping.is_active ? "outline" : "default"}
+                          size="sm"
+                          onClick={() => toggleMapping(mapping.id, mapping.is_active)}
+                        >
+                          {mapping.is_active ? "Deactivate" : "Activate"}
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => deleteMapping(mapping.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}

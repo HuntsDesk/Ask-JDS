@@ -126,14 +126,54 @@ VITE_USERMAVEN_TRACKING_HOST=https://a.jdsimplified.com
 - **Debug**: Debugging interface available at `/debug/usermaven`
 - **Security**: CSP headers configured to allow connections to the tracking domain
 
-## Subscription System & Pricing
+## Subscription System & Database-Driven Pricing ✨
 
-The platform implements a robust subscription system with three tiers: Free, Premium, and Unlimited. The system is designed for flexibility, allowing easy price changes without breaking functionality.
+The platform implements a robust subscription system with three tiers: Free, Premium, and Unlimited. **NEW**: The system features **database-driven pricing** that allows marketing teams to change prices without code deployments.
 
-### Subscription Tiers
+### Database-Driven Pricing System
+
+**🎯 Key Innovation**: Pricing is now managed through the database rather than hardcoded values, enabling zero-deployment price changes.
+
+#### Architecture Overview
+
+1. **Database Storage**: `stripe_price_mappings` table stores display prices and Stripe price IDs
+2. **Edge Function**: `get-pricing` function serves pricing data with 5-minute caching
+3. **React Hooks**: `usePricing()` and `useDynamicPricing()` fetch and format pricing data
+4. **Admin Interface**: Web UI for managing prices without technical knowledge
+5. **Fallback System**: Static fallback prices ensure site never breaks
+
+#### Database Schema
+
+```sql
+-- stripe_price_mappings table
+CREATE TABLE stripe_price_mappings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  price_id TEXT NOT NULL UNIQUE,           -- Stripe price ID
+  tier_name TEXT NOT NULL,                 -- 'Premium' or 'Unlimited'
+  interval_type TEXT NOT NULL,             -- 'month' or 'year'
+  environment TEXT NOT NULL,               -- 'test' or 'live'
+  is_active BOOLEAN DEFAULT true,
+  display_price_cents INTEGER,             -- Price in cents for display
+  display_currency TEXT DEFAULT 'USD',     -- Currency code
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+#### Supported Price Combinations
+
+The system supports 8 total price ID combinations:
+
+- **Premium + Monthly + Test/Live** (development/production)
+- **Premium + Annual + Test/Live** (development/production)  
+- **Unlimited + Monthly + Test/Live** (development/production)
+- **Unlimited + Annual + Test/Live** (development/production)
+
+**Homepage Display**: Only shows "Live" + "Monthly" prices to customers.
+
+### Current Subscription Tiers
 
 #### Free Tier
-- **Price**: $0/month
+- **Price**: $0/month (always static)
 - **Features**:
   - 10 AI chat messages per month
   - Create and manage personal flashcards
@@ -141,7 +181,8 @@ The platform implements a robust subscription system with three tiers: Free, Pre
   - No course access
 
 #### Premium Tier
-- **Price**: $10/month
+- **Monthly**: Database-driven pricing (currently $7/month)
+- **Annual**: Database-driven pricing (currently $100/year)
 - **Features**:
   - Unlimited AI chat messages
   - Create and manage personal flashcards
@@ -149,7 +190,8 @@ The platform implements a robust subscription system with three tiers: Free, Pre
   - No course access
 
 #### Unlimited Tier
-- **Price**: $30/month
+- **Monthly**: Database-driven pricing (currently $11/month)
+- **Annual**: Database-driven pricing (currently $250/year)
 - **Features**:
   - Unlimited AI chat messages
   - Create and manage personal flashcards
@@ -157,9 +199,126 @@ The platform implements a robust subscription system with three tiers: Free, Pre
   - Access to ALL courses
   - Priority support
 
-### Price ID Management Architecture
+### Admin Price Management
 
-The subscription system uses a sophisticated price ID mapping approach that allows for easy price changes without code modifications.
+**Location**: Admin panel at `/admin/price-mapping`
+
+The admin interface provides:
+
+- **View All Mappings**: See all price IDs with filtering by environment, tier, and interval
+- **Add New Mappings**: Create new price ID mappings with display pricing
+- **Edit Existing Prices**: Inline editing of display prices and currencies
+- **Environment Filtering**: Separate test and production price management
+- **Cache Management**: Clear frontend pricing cache for immediate updates
+- **Visual Indicators**: "Currently Displayed" badges for live monthly prices
+
+#### Key Features
+
+- **Multi-Currency Support**: USD, EUR, GBP with proper formatting
+- **Live Preview**: See formatted prices before saving
+- **Input Validation**: Prevents invalid price entries
+- **Audit Trail**: Full history of price changes with timestamps
+- **Environment Separation**: Clear distinction between test and live prices
+
+### Technical Implementation
+
+#### Edge Function (`supabase/functions/get-pricing/index.ts`)
+
+```typescript
+// Serves pricing data with caching and fallbacks
+Deno.serve(async (req) => {
+  // Query active price mappings for live environment
+  const { data: priceMappings, error } = await supabase
+    .from('stripe_price_mappings')
+    .select('tier_name, interval_type, display_price_cents, display_currency')
+    .eq('environment', 'live')
+    .eq('is_active', true)
+    .not('display_price_cents', 'is', null);
+
+  // Format and return with caching headers
+  return new Response(JSON.stringify({
+    success: true,
+    data: formattedPricing,
+    source: 'database'
+  }), {
+    headers: {
+      'Cache-Control': 'public, max-age=300, stale-while-revalidate=600'
+    }
+  });
+});
+```
+
+#### React Hooks
+
+**`usePricing()`**: Fetches raw pricing data from Edge Function
+**`useDynamicPricing()`**: Combines static tier configs with dynamic pricing
+
+```typescript
+// Combines static features with dynamic pricing
+export function useDynamicPricing() {
+  const { data: pricingData } = usePricing();
+  
+  const pricingTiers = useMemo(() => {
+    // Build complete tier objects with live pricing
+    const dynamicPricing = pricingMap.get(`${tierName}-month`);
+    const finalPrice = dynamicPricing?.formatted_price || fallbackPrice;
+    
+    return { ...staticConfig, price: finalPrice };
+  }, [pricingData]);
+}
+```
+
+#### Performance & Reliability
+
+- **5-Minute Caching**: Edge Function caches responses to reduce database load
+- **React Query Caching**: Frontend caches pricing data with smart invalidation
+- **Stale-While-Revalidate**: Serves cached content while fetching fresh data
+- **Graceful Fallbacks**: Static pricing if database/Edge Function fails
+- **Error Handling**: Comprehensive error logging and fallback mechanisms
+
+### Price Change Workflow
+
+**For Marketing Team** (No Technical Knowledge Required):
+
+1. **Access Admin Panel**: Visit `/admin/price-mapping`
+2. **Find Price Mapping**: Use filters to locate the price to change
+3. **Edit Price**: Click edit button, enter new price, save
+4. **Clear Cache**: Click "Clear Cache" button for immediate effect
+5. **Verify**: Check homepage to confirm price update
+
+**Technical Details**:
+- Changes are immediate (no deployment required)
+- Frontend cache clears automatically or manually via admin panel
+- All changes are logged with timestamps for audit purposes
+- System maintains backward compatibility with existing subscriptions
+
+### Subscription Hook Architecture
+
+The platform uses a unified subscription system with improved hook naming for clarity.
+
+#### Hook Overview
+
+**`useSubscriptionWithTier()`**: Primary hook that provides detailed subscription data including tier name
+**`useSubscription()`**: Simple boolean hook for basic subscription checks
+
+```typescript
+// Detailed subscription data with tier information
+const { isSubscribed, tierName, isLoading, subscription } = useSubscriptionWithTier();
+
+// Simple boolean check
+const isSubscribed = useSubscription();
+```
+
+#### Key Improvements
+
+- **Renamed Hook**: `useSubscriptionDetailsOld()` → `useSubscriptionWithTier()` for clarity
+- **Consistent Usage**: All components now use the appropriate hook for their needs
+- **Tier Detection**: Reliable tier name detection using price ID mapping
+- **Performance**: Optimized caching and minimal re-renders
+
+### Legacy Price ID Management Architecture
+
+The subscription system maintains backward compatibility with environment variable-based price ID mapping.
 
 #### Environment-Based Configuration
 
