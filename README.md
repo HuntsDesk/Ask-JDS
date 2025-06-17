@@ -244,6 +244,82 @@ The same environment variables are used across:
 - **Edge Functions**: `get-user-subscription`, `create-payment-handler`
 - **Stripe Client**: `src/lib/stripe/client.ts`
 
+## Dynamic Pricing Management System ✨
+
+**NEW FEATURE**: The platform now uses a **database-driven pricing system** that allows zero-deployment price changes through an admin interface.
+
+### Architecture Overview
+
+#### Database Schema
+The `stripe_price_mappings` table stores all pricing information:
+
+```sql
+CREATE TABLE stripe_price_mappings (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  price_id text NOT NULL UNIQUE,
+  tier_name text NOT NULL CHECK (tier_name IN ('Premium', 'Unlimited')),
+  interval_type text NOT NULL CHECK (interval_type IN ('month', 'year')),
+  environment text NOT NULL CHECK (environment IN ('test', 'live')),
+  is_active boolean NOT NULL DEFAULT true,
+  display_price_cents integer,              -- NEW: Price in cents for display
+  display_currency text DEFAULT 'USD',      -- NEW: Currency code
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+```
+
+#### Edge Function: `get-pricing`
+- **Endpoint**: `/functions/v1/get-pricing`
+- **Cache**: 5-minute cache with stale-while-revalidate
+- **Fallback**: Static pricing if database unavailable
+- **Response**: Formatted pricing data with currency symbols
+
+#### React Hooks
+
+##### `usePricing()` - Raw Pricing Data
+```typescript
+const { data: pricingData, isLoading, error } = usePricing();
+```
+
+##### `useDynamicPricing()` - Complete Tier Objects
+```typescript  
+const { pricingTiers, masterFeatures, isLoading } = useDynamicPricing();
+```
+
+### Admin Interface
+
+#### Price Management Dashboard
+- **Access**: `npm run dev:admin` → `http://localhost:5175/admin/price-mapping`
+- **Features**:
+  - ✅ Add/edit Stripe price IDs and display prices
+  - ✅ Environment separation (test/live)
+  - ✅ Active/inactive status management
+  - ✅ Multi-currency support (USD, EUR, GBP)
+  - ✅ Live price preview with formatting
+  - ✅ Safe database operations with validation
+
+#### Usage Workflow
+1. **Add Price ID**: Enter Stripe price ID (e.g., `price_1ABC123...`)
+2. **Set Display Price**: Enter amount in dollars (e.g., `15.00`)
+3. **Configure Settings**: Select tier, interval, environment
+4. **Activate**: Enable the mapping for immediate use
+5. **Verify**: Homepage automatically reflects new pricing
+
+### Implementation Benefits
+- ✅ **Zero-deployment pricing changes** - Update prices instantly via admin UI
+- ✅ **Promotional pricing support** - Run sales without code deployments  
+- ✅ **Multi-currency ready** - Support for USD, EUR, GBP with proper symbols
+- ✅ **Performance optimized** - 5-minute caching with fallback mechanisms
+- ✅ **Admin-friendly** - Non-technical users can manage pricing
+- ✅ **Audit trail** - All pricing changes tracked with timestamps
+- ✅ **Failsafe design** - Static fallbacks ensure site never breaks
+
+### Migration from Static Pricing
+The system maintains backward compatibility:
+- Static pricing in `src/lib/pricingData.ts` serves as fallback
+- Components automatically use database pricing when available
+- Gradual rollout possible by environment
+
 ### Backend Integration
 
 #### Edge Functions
@@ -364,7 +440,15 @@ const checkoutUrl = await createCheckoutSession(userId, 'unlimited');
 
 ### Updating Price IDs
 
-When you need to change Stripe price IDs:
+**Database-Driven Management (Recommended):**
+
+1. **Access Admin Interface**: Visit admin domain at port 5175 (`npm run dev:admin`)
+2. **Navigate**: Go to `/admin/price-mapping` in the admin interface
+3. **Manage Price IDs**: Add, deactivate, or modify price ID mappings
+4. **Instant Updates**: Changes take effect within 5 minutes (cache TTL)
+5. **No Deployment Required**: Zero downtime price changes
+
+**Legacy Environment Variable Method:**
 
 1. **Update Environment Variables**: Change the price ID in your `.env` file or deployment environment
 2. **Deploy Changes**: The system automatically picks up new price IDs

@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Button } from '../ui/button';
-import { Shield, Loader2, LayoutDashboard, BookOpen, Library, Users, Settings, LogOut, MessageSquare, Eye } from 'lucide-react';
+import { Shield, Loader2, LayoutDashboard, BookOpen, Library, Users, Settings, LogOut, MessageSquare, Eye, DollarSign } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Separator } from "@/components/ui/separator";
 import { NavLink } from "react-router-dom";
@@ -249,6 +249,12 @@ export const AdminLayout = ({ children, title }: AdminLayoutProps) => {
       path: "/admin/settings", 
       label: "Settings", 
       icon: <Settings className="h-5 w-5 mr-3" /> 
+    },
+    { 
+      path: "/admin/price-mapping", 
+      label: "Price Mapping", 
+      icon: <DollarSign className="h-5 w-5 mr-3" />,
+      description: "Manage Stripe price ID mappings for flexible pricing"
     }
   ];
 

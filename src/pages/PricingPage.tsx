@@ -9,7 +9,7 @@ import { createCheckoutSession } from '@/lib/subscription';
 import { StripeCheckoutDialog } from '@/components/stripe/StripeCheckoutDialog';
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { masterFeatures, pricingTiers } from '@/lib/pricingData';
+import { useDynamicPricing } from '@/hooks/useDynamicPricing';
 
 export function PricingPage() {
   const navigate = useNavigate();
@@ -20,6 +20,9 @@ export function PricingPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [currentTierName, setCurrentTierName] = useState<string | null>(null);
   const { toast } = useToast();
+  
+  // Use dynamic pricing hook
+  const { pricingTiers, masterFeatures, isLoading: isPricingLoading, error: pricingError } = useDynamicPricing();
 
   const handleClosePaymentModal = () => {
     setShowPaymentModal(false);

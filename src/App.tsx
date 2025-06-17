@@ -89,6 +89,7 @@ const AdminCourses = lazy(() => import('@/components/admin/Courses').then(module
 const AdminFlashcards = lazy(() => import('@/components/admin/Flashcards').then(module => ({ default: module.default })));
 const AdminAskJDS = lazy(() => import('@/components/admin/AskJDS').then(module => ({ default: module.default })));
 const AdminSettings = lazy(() => import('@/components/admin/Settings').then(module => ({ default: module.default })));
+const AdminPriceMapping = lazy(() => import('@/components/admin/AdminPriceMapping').then(module => ({ default: module.default })));
 const SetAdminStatus = lazy(() => import('@/components/admin/SetAdmin').then(module => ({ default: module.default })));
 const AdminSecurity = lazy(() => import('@/components/admin/SecurityDashboard').then(module => ({ default: module.SecurityDashboard })));
 
@@ -331,6 +332,17 @@ function AppRoutes() {
             </ProtectedRoute>
           } 
         />
+        <Route 
+          path="/admin/price-mapping" 
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader message="Loading price mapping..." />}>
+                <AdminPriceMapping />
+              </Suspense>
+            </ProtectedRoute>
+          } 
+        />
+
         <Route path="/auth" element={
           <AsyncAuthPage />
         } />
@@ -343,6 +355,7 @@ function AppRoutes() {
         <Route path="admin/flashcards" element={<AdminFlashcards />} />
         <Route path="admin/askjds" element={<AdminAskJDS />} />
         <Route path="admin/settings" element={<AdminSettings />} />
+        <Route path="admin/price-mapping" element={<AdminPriceMapping />} />
         <Route path="admin/set-admin" element={<SetAdminStatus />} />
         {/* Special setup route that doesn't require admin auth */}
         {allowSetupAdmin && (

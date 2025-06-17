@@ -20,18 +20,57 @@ interface SubscriptionDetails {
   // Add other relevant fields as needed by the frontend
 }
 
-// Helper to determine tier name from Stripe Price ID
-// This is a simplified example. In a real app, this mapping might be more dynamic
-// or fetched from environment variables/database.
-function getTierName(stripePriceId: string | null, unlimitedTierPriceIds: string[]): string | null {
-  if (!stripePriceId) return 'Free'; // Default to Free if no price ID
+// Cache for price ID mappings (TTL-based)
+let priceIdCache: Map<string, string> = new Map();
+let cacheLastUpdated = 0;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-  // Check against known Unlimited Tier Price IDs
-  if (unlimitedTierPriceIds.includes(stripePriceId)) {
-    return 'Unlimited';
+// Database-driven tier name resolution
+async function getTierName(supabase: SupabaseClient, stripePriceId: string | null): Promise<string> {
+  if (!stripePriceId) return 'Free';
+
+  // Check cache first
+  const now = Date.now();
+  if (now - cacheLastUpdated < CACHE_TTL_MS && priceIdCache.has(stripePriceId)) {
+    return priceIdCache.get(stripePriceId) || 'Free';
   }
-  
-  // Check against all premium price IDs (both live and test)
+
+  try {
+    // Query database for price ID mapping
+    const { data: mapping, error } = await supabase
+      .from('stripe_price_mappings')
+      .select('tier_name')
+      .eq('price_id', stripePriceId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Database error fetching price mapping:', error);
+      return getFallbackTierName(stripePriceId);
+    }
+
+    if (mapping) {
+      // Update cache
+      priceIdCache.set(stripePriceId, mapping.tier_name);
+      if (now - cacheLastUpdated >= CACHE_TTL_MS) {
+        cacheLastUpdated = now;
+      }
+      return mapping.tier_name;
+    }
+
+    // No mapping found - use fallback
+    console.warn(`No database mapping found for price ID: ${stripePriceId}`);
+    return getFallbackTierName(stripePriceId);
+
+  } catch (error) {
+    console.error('Error querying price mappings:', error);
+    return getFallbackTierName(stripePriceId);
+  }
+}
+
+// Fallback tier determination (for safety during transition)
+function getFallbackTierName(stripePriceId: string): string {
+  // Legacy hardcoded mappings as fallback
   const premiumPriceIds = [
     'price_1R8lN7BdYlmFidIZPfXpSHxN', // Live premium monthly
     'price_1RGNMkBdYlmFidIZxZCkTCV9', // Live premium annual
@@ -39,11 +78,23 @@ function getTierName(stripePriceId: string | null, unlimitedTierPriceIds: string
     'price_1RGNx1BAYVpTe3LyKCxzi9qB', // Test premium annual
   ];
 
+  const unlimitedPriceIds = [
+    'price_1RGYLYBdYlmFidIZ4cCnr4ES', // Live unlimited monthly
+    'price_1RGYMHBdYlmFidIZHeR6iejB', // Live unlimited annual
+    'price_1RGYI5BAYVpTe3LyMK63jgl2', // Test unlimited monthly
+    'price_1RGYI5BAYVpTe3LyxrZuofBR', // Test unlimited annual
+  ];
+
+  if (unlimitedPriceIds.includes(stripePriceId)) {
+    return 'Unlimited';
+  }
+  
   if (premiumPriceIds.includes(stripePriceId)) {
     return 'Premium';
   }
 
-  return 'Unknown'; // Fallback for unmapped price IDs
+  console.warn(`Unknown price ID, defaulting to Premium: ${stripePriceId}`);
+  return 'Premium'; // Safe fallback for active subscriptions
 }
 
 async function logError(supabase: SupabaseClient, message: string, errorDetails: unknown, userId?: string) {
@@ -97,49 +148,13 @@ Deno.serve(async (req) => {
       .from('user_subscriptions')
       .select('status, stripe_price_id, current_period_end, cancel_at_period_end')
       .eq('user_id', authUserId)
-      // .in('status', ['active', 'trialing']) // Optionally filter for only active/trialing
       .order('created_at', { ascending: false })
-      .maybeSingle(); // Use maybeSingle if a user can have at most one relevant subscription record
+      .maybeSingle();
 
     if (dbError) {
       await logError(supabaseClient, 'Database error fetching subscription', dbError, authUserId);
       throw dbError;
     }
-
-    const unlimitedMonthly = Deno.env.get('STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID') || Deno.env.get('STRIPE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID');
-    const unlimitedAnnual = Deno.env.get('STRIPE_LIVE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID') || Deno.env.get('STRIPE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID');
-    
-    // Temporary hardcoded fallback for testing
-    const unlimitedMonthlyFallback = unlimitedMonthly || 'price_1RGYI5BAYVpTe3LyMK63jgl2'; // TEST
-    const unlimitedAnnualFallback = unlimitedAnnual || 'price_1RGYI5BAYVpTe3LyxrZuofBR'; // TEST
-    
-    // Include both live and test price IDs for unlimited tier
-    const unlimitedTierPriceIds = [
-      'price_1RGYLYBdYlmFidIZ4cCnr4ES', // Live unlimited monthly
-      'price_1RGYMHBdYlmFidIZHeR6iejB', // Live unlimited annual
-      'price_1RGYI5BAYVpTe3LyMK63jgl2', // Test unlimited monthly
-      'price_1RGYI5BAYVpTe3LyxrZuofBR', // Test unlimited annual
-    ] as string[];
-
-    // Debug logging
-    console.log('Debug: Environment variables loaded:');
-    console.log('- unlimitedMonthly (env):', unlimitedMonthly);
-    console.log('- unlimitedAnnual (env):', unlimitedAnnual);
-    console.log('- unlimitedMonthlyFallback:', unlimitedMonthlyFallback);
-    console.log('- unlimitedAnnualFallback:', unlimitedAnnualFallback);
-    console.log('- unlimitedTierPriceIds:', unlimitedTierPriceIds);
-    
-    const premiumMonthly = Deno.env.get('STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID') || Deno.env.get('STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID');
-    const premiumAnnual = Deno.env.get('STRIPE_LIVE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID') || Deno.env.get('STRIPE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID');
-    
-    // Temporary hardcoded fallback for testing
-    const premiumMonthlyFallback = premiumMonthly || 'price_1QzlzrBAYVpTe3LycwwkNhWV'; // TEST
-    const premiumAnnualFallback = premiumAnnual || 'price_1RGNx1BAYVpTe3LyKCxzi9qB'; // TEST
-    
-    console.log('- premiumMonthly (env):', premiumMonthly);
-    console.log('- premiumAnnual (env):', premiumAnnual);
-    console.log('- premiumMonthlyFallback:', premiumMonthlyFallback);
-    console.log('- premiumAnnualFallback:', premiumAnnualFallback);
 
     if (!subscription) {
       const responseDetails: SubscriptionDetails = {
@@ -158,7 +173,8 @@ Deno.serve(async (req) => {
     const isActive = (subscription.status === 'active' || subscription.status === 'trialing') &&
                      new Date(subscription.current_period_end || 0) > new Date();
     
-    const tierName = isActive ? getTierName(subscription.stripe_price_id, unlimitedTierPriceIds) : 'Free';
+    // Use database-driven tier determination
+    const tierName = isActive ? await getTierName(supabaseClient, subscription.stripe_price_id) : 'Free';
 
     const responseDetails: SubscriptionDetails = {
       isActive,

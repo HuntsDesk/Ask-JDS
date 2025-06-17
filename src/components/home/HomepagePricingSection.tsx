@@ -8,7 +8,7 @@ import { createCheckoutSession } from '@/lib/subscription';
 import { StripeCheckoutDialog } from '@/components/stripe/StripeCheckoutDialog';
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from '@/components/LoadingSpinner';
-import { masterFeatures, pricingTiers } from '@/lib/pricingData';
+import { useDynamicPricing } from '@/hooks/useDynamicPricing';
 
 interface HomepagePricingSectionProps {
   className?: string;
@@ -23,6 +23,9 @@ export function HomepagePricingSection({ className = '' }: HomepagePricingSectio
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [currentTierName, setCurrentTierName] = useState<string | null>(null);
   const { toast } = useToast();
+  
+  // Use dynamic pricing hook
+  const { pricingTiers, masterFeatures } = useDynamicPricing();
 
   const handleClosePaymentModal = () => {
     setShowPaymentModal(false);
