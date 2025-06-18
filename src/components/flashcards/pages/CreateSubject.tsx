@@ -16,7 +16,6 @@ export default function CreateSubject() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Define subject query keys
   const subjectKeys = {
@@ -40,13 +39,21 @@ export default function CreateSubject() {
     try {
       setSaving(true);
       
-      // Create the subject
+      // Get the current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        throw new Error('You must be logged in to create a subject');
+      }
+      
+      // Create the subject with user_id
       const { data: subject, error: subjectError } = await supabase
         .from('subjects')
         .insert([{ 
           name, 
           description,
-          is_official: false
+          is_official: false,
+          user_id: user.id
         }])
         .select()
         .single();
@@ -60,7 +67,6 @@ export default function CreateSubject() {
       navigate('/flashcards/subjects');
       
     } catch (err) {
-      setError(err.message);
       showToast(`Error: ${err.message}`, 'error');
     } finally {
       setSaving(false);
@@ -81,8 +87,6 @@ export default function CreateSubject() {
           onClose={hideToast} 
         />
       )}
-      
-      {error && <ErrorMessage message={error} />}
       
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Create Subject</h1>

@@ -139,7 +139,8 @@ export default function CreateSet() {
           .insert([{ 
             name: newSubjectName, 
             description: newSubjectDescription,
-            is_official: false
+            is_official: false,
+            user_id: user.id
           }])
           .select()
           .single();

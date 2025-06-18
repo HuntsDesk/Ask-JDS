@@ -18,6 +18,7 @@ import { useNavbar } from '../../../contexts/NavbarContext';
 import { useLayoutState } from '@/hooks/useLayoutState';
 import { SkeletonStudyCard } from '../SkeletonFlashcard';
 import { useSubscriptionWithTier } from '@/hooks/useSubscription';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface FilterState {
   subjects: string[];
@@ -44,6 +45,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   const { updateCount, updateCurrentCardIndex, setIsLoadingCards } = useNavbar();
   const { isDesktop } = useLayoutState();
   const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   
   // Use the new subscription hook with tier-based access
   const { tierName, isLoading: subscriptionLoading } = useSubscriptionWithTier();
@@ -281,7 +283,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       collections: [],
       difficultyLevels: [],
       showCommonPitfalls: false,
-      showMastered: cardParam ? true : false // Show mastered cards only if a specific card was requested
+      showMastered: cardParam ? true : (studyMode === 'collection' ? true : false) // Show mastered cards for collection study or specific card requests
     };
     
     if (studyMode === 'subject' && studyId) {
@@ -388,6 +390,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         // Get flashcard progress for the current user if logged in
         let progressMap = new Map();
         if (user) {
+          console.log("UnifiedStudyMode: Loading flashcard progress for user:", user.id);
           const { data: progressData, error: progressError } = await supabase
             .from('flashcard_progress')
             .select('flashcard_id, is_mastered')
@@ -396,30 +399,89 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           if (progressError) {
             console.error("UnifiedStudyMode: Error loading flashcard progress:", progressError);
           } else if (progressData) {
+            console.log(`UnifiedStudyMode: Loaded ${progressData.length} progress records:`, progressData);
             // Create a map for O(1) lookups
             progressMap = new Map(progressData.map(p => [p.flashcard_id, p.is_mastered]));
+            console.log("UnifiedStudyMode: Progress map created:", progressMap);
           }
         }
         
         // PHASE 1: Load sample flashcards first (quick loading)
         console.log("UnifiedStudyMode: PHASE 1 - Loading public sample flashcards first");
         
-        // Create the filter condition for samples only
-        let sampleFilterCondition = 'is_public_sample.eq.true';
-        if (user?.id) {
-          // For logged in users, also get samples they created
-          sampleFilterCondition = `${sampleFilterCondition},created_by.eq.${user.id}`;
-        }
+        // Check if we're in collection mode to filter samples appropriately
+        const searchParams = new URLSearchParams(window.location.search);
+        const collectionParam = searchParams.get('collection');
+        const isInCollectionMode = !!collectionParam;
         
-        // Fetch only sample flashcards
-        const { data: sampleFlashcardsData, error: sampleFlashcardsError } = await supabase
-          .from('flashcards')
-          .select(`*`)
-          .or(sampleFilterCondition);
+        let sampleFlashcardsData = [];
+        
+        if (isInCollectionMode) {
+          // In collection mode, only load sample cards that belong to this collection
+          console.log(`UnifiedStudyMode: Collection mode - loading only sample cards from collection: ${collectionParam}`);
           
-        if (sampleFlashcardsError) {
-          console.error("UnifiedStudyMode: Error loading sample flashcards:", sampleFlashcardsError);
-          throw sampleFlashcardsError;
+          // Get flashcard IDs that belong to this specific collection
+          const { data: collectionCardJunctions, error: junctionError } = await supabase
+            .from('flashcard_collections_junction')
+            .select('flashcard_id')
+            .eq('collection_id', collectionParam);
+            
+          if (junctionError) {
+            console.error("UnifiedStudyMode: Error loading collection flashcard junctions for samples:", junctionError);
+            throw junctionError;
+          }
+          
+          if (collectionCardJunctions && collectionCardJunctions.length > 0) {
+            const flashcardIds = collectionCardJunctions.map(j => j.flashcard_id);
+            
+            // Create the filter condition for samples only
+            let sampleFilterCondition = 'is_public_sample.eq.true';
+            if (user?.id) {
+              // For logged in users, also get samples they created (but ONLY samples, not all their cards)
+              sampleFilterCondition = `${sampleFilterCondition},and(created_by.eq.${user.id},is_public_sample.eq.true)`;
+            }
+            
+            // Fetch only sample flashcards that belong to this collection
+            const { data: collectionSampleData, error: sampleFlashcardsError } = await supabase
+              .from('flashcards')
+              .select(`*`)
+              .in('id', flashcardIds)
+              .or(sampleFilterCondition);
+              
+            if (sampleFlashcardsError) {
+              console.error("UnifiedStudyMode: Error loading collection sample flashcards:", sampleFlashcardsError);
+              throw sampleFlashcardsError;
+            }
+            
+            sampleFlashcardsData = collectionSampleData || [];
+            console.log(`UnifiedStudyMode: Loaded ${sampleFlashcardsData.length} sample flashcards for collection ${collectionParam}`);
+          } else {
+            console.log(`UnifiedStudyMode: No flashcards found for collection ${collectionParam}, loading no samples`);
+            sampleFlashcardsData = [];
+          }
+        } else {
+          // Non-collection mode: load all samples as before
+          console.log("UnifiedStudyMode: Non-collection mode - loading all public sample flashcards");
+          
+          // Create the filter condition for samples only
+          let sampleFilterCondition = 'is_public_sample.eq.true';
+          if (user?.id) {
+            // For logged in users, also get samples they created (but ONLY samples, not all their cards)
+            sampleFilterCondition = `${sampleFilterCondition},and(created_by.eq.${user.id},is_public_sample.eq.true)`;
+          }
+          
+          // Fetch only sample flashcards
+          const { data: allSampleData, error: sampleFlashcardsError } = await supabase
+            .from('flashcards')
+            .select(`*`)
+            .or(sampleFilterCondition);
+            
+          if (sampleFlashcardsError) {
+            console.error("UnifiedStudyMode: Error loading sample flashcards:", sampleFlashcardsError);
+            throw sampleFlashcardsError;
+          }
+          
+          sampleFlashcardsData = allSampleData || [];
         }
         
         console.log(`UnifiedStudyMode: Loaded ${sampleFlashcardsData?.length || 0} sample flashcards`);
@@ -453,6 +515,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           
           // Get mastery status from the progress map
           const isMastered = progressMap.get(card.id) || false;
+          console.log(`UnifiedStudyMode: Card ${card.id} mastery status: ${isMastered} (from progress map)`);
           
           return {
             ...card,
@@ -478,25 +541,75 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         // Give a small delay before loading remaining cards to ensure UI responds
         setTimeout(async () => {
           try {
-            // Create the filter condition for non-sample cards
-            let remainingFilterCondition = 'is_official.eq.true';
-            if (user?.id) {
-              remainingFilterCondition = `created_by.eq.${user.id},${remainingFilterCondition}`;
-            }
+            let remainingFlashcardsData = [];
             
-            // Fetch non-sample flashcards
-            const { data: remainingFlashcardsData, error: remainingFlashcardsError } = await supabase
-              .from('flashcards')
-              .select(`*`)
-              .eq('is_public_sample', false) // Only get non-sample cards
-              .or(remainingFilterCondition);
+            // Check if we're in collection mode - check URL params directly since filters might not be updated yet
+            const searchParams = new URLSearchParams(window.location.search);
+            const collectionParam = searchParams.get('collection');
+            const isCollectionMode = !!collectionParam;
+            
+            if (isCollectionMode) {
+              const collectionId = collectionParam;
+              console.log(`UnifiedStudyMode: Collection mode detected, loading only cards from collection: ${collectionId}`);
               
-            if (remainingFlashcardsError) {
-              console.error("UnifiedStudyMode: Error loading remaining flashcards:", remainingFlashcardsError);
-              throw remainingFlashcardsError;
+              // Get flashcard IDs that belong to this specific collection
+              const { data: collectionCardJunctions, error: junctionError } = await supabase
+                .from('flashcard_collections_junction')
+                .select('flashcard_id')
+                .eq('collection_id', collectionId);
+                
+              if (junctionError) {
+                console.error("UnifiedStudyMode: Error loading collection flashcard junctions:", junctionError);
+                throw junctionError;
+              }
+              
+              if (collectionCardJunctions && collectionCardJunctions.length > 0) {
+                const flashcardIds = collectionCardJunctions.map(j => j.flashcard_id);
+                console.log(`UnifiedStudyMode: Found ${flashcardIds.length} flashcard IDs for collection ${collectionId}`);
+                
+                // Fetch only the flashcards that belong to this collection (excluding samples already loaded)
+                const { data: collectionFlashcardsData, error: collectionFlashcardsError } = await supabase
+                  .from('flashcards')
+                  .select(`*`)
+                  .in('id', flashcardIds)
+                  .eq('is_public_sample', false); // Exclude samples as they're already loaded
+                  
+                if (collectionFlashcardsError) {
+                  console.error("UnifiedStudyMode: Error loading collection flashcards:", collectionFlashcardsError);
+                  throw collectionFlashcardsError;
+                }
+                
+                remainingFlashcardsData = collectionFlashcardsData || [];
+                console.log(`UnifiedStudyMode: Loaded ${remainingFlashcardsData.length} flashcards for collection ${collectionId}`);
+              } else {
+                console.log(`UnifiedStudyMode: No flashcards found for collection ${collectionId}`);
+                remainingFlashcardsData = [];
+              }
+            } else {
+              // Original logic for non-collection modes (unified study, subject study)
+              console.log("UnifiedStudyMode: Non-collection mode, loading all remaining flashcards");
+              
+              // Create the filter condition for non-sample cards
+              let remainingFilterCondition = 'is_official.eq.true';
+              if (user?.id) {
+                remainingFilterCondition = `created_by.eq.${user.id},${remainingFilterCondition}`;
+              }
+              
+              // Fetch non-sample flashcards
+              const { data: allRemainingFlashcardsData, error: remainingFlashcardsError } = await supabase
+                .from('flashcards')
+                .select(`*`)
+                .eq('is_public_sample', false) // Only get non-sample cards
+                .or(remainingFilterCondition);
+                
+              if (remainingFlashcardsError) {
+                console.error("UnifiedStudyMode: Error loading remaining flashcards:", remainingFlashcardsError);
+                throw remainingFlashcardsError;
+              }
+              
+              remainingFlashcardsData = allRemainingFlashcardsData || [];
+              console.log(`UnifiedStudyMode: Loaded ${remainingFlashcardsData.length} remaining flashcards`);
             }
-            
-            console.log(`UnifiedStudyMode: Loaded ${remainingFlashcardsData?.length || 0} remaining flashcards`);
             
             // Process remaining flashcards
             const processedRemainingCards = remainingFlashcardsData?.map(card => {
@@ -716,15 +829,41 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       return;
     }
     
+    console.log('UnifiedStudyMode: markAsMastered - Current card:', currentCard.id, 'User:', user.id);
+    
     try {
-      // Update Supabase
+      // Update or create progress in the flashcard_progress table (not flashcards table)
       const { error } = await supabase
-        .from('flashcards')
-        .update({ is_mastered: true })
-        .eq('id', currentCard.id);
+        .from('flashcard_progress')
+        .upsert({
+          user_id: user.id,
+          flashcard_id: currentCard.id,
+          is_mastered: true,
+          last_reviewed: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,flashcard_id',
+          ignoreDuplicates: false
+        });
 
       if (error) {
+        console.error('UnifiedStudyMode: markAsMastered - Database error:', error);
         throw error;
+      }
+      
+      console.log('UnifiedStudyMode: markAsMastered - Successfully saved to database');
+      
+      // IMPORTANT: Invalidate React Query caches to update collection mastery percentages
+      try {
+        // Invalidate collections queries to update mastery percentages on collections page
+        queryClient.invalidateQueries({ queryKey: ['flashcards', 'collections'] });
+        
+        // Also invalidate progress queries
+        queryClient.invalidateQueries({ queryKey: ['flashcards', 'progress', user.id] });
+        
+        console.log('UnifiedStudyMode: markAsMastered - Invalidated query caches');
+      } catch (cacheError) {
+        console.warn('UnifiedStudyMode: markAsMastered - Error invalidating caches:', cacheError);
+        // Continue with local state update even if cache invalidation fails
       }
       
       // Update local state
@@ -737,6 +876,8 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         // If not showing mastered cards, remove it from filtered list
         const newFiltered = filteredCards.filter((_, i) => i !== currentIndex);
         setFilteredCards(newFiltered);
+        
+        console.log('UnifiedStudyMode: markAsMastered - Filtered out mastered card, new count:', newFiltered.length);
         
         // Adjust current index if needed
         if (currentIndex >= newFiltered.length) {
@@ -771,14 +912,35 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     }
     
     try {
-      // Update Supabase
+      // Update or create progress in the flashcard_progress table (not flashcards table)
       const { error } = await supabase
-        .from('flashcards')
-        .update({ is_mastered: false })
-        .eq('id', currentCard.id);
+        .from('flashcard_progress')
+        .upsert({
+          user_id: user.id,
+          flashcard_id: currentCard.id,
+          is_mastered: false,
+          last_reviewed: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,flashcard_id',
+          ignoreDuplicates: false
+        });
 
       if (error) {
         throw error;
+      }
+      
+      // IMPORTANT: Invalidate React Query caches to update collection mastery percentages
+      try {
+        // Invalidate collections queries to update mastery percentages on collections page
+        queryClient.invalidateQueries({ queryKey: ['flashcards', 'collections'] });
+        
+        // Also invalidate progress queries
+        queryClient.invalidateQueries({ queryKey: ['flashcards', 'progress', user.id] });
+        
+        console.log('UnifiedStudyMode: unmarkAsMastered - Invalidated query caches');
+      } catch (cacheError) {
+        console.warn('UnifiedStudyMode: unmarkAsMastered - Error invalidating caches:', cacheError);
+        // Continue with local state update even if cache invalidation fails
       }
       
       // Update local state
@@ -1032,14 +1194,14 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
             {user ? (
               <Link
                 to="/flashcards/create-flashcard"
-                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+                className="bg-[#F37022] text-white px-4 py-2 rounded-md hover:bg-[#E36012]"
               >
                 Create Flashcards
               </Link>
             ) : (
               <Link
                 to="/auth"
-                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+                className="bg-[#F37022] text-white px-4 py-2 rounded-md hover:bg-[#E36012]"
               >
                 Sign In to Create Cards
               </Link>
@@ -1051,17 +1213,52 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   }
 
   if (filteredCards.length === 0) {
+    // Check if we're in collection mode and all cards are mastered
+    const isCollectionMode = routeMode === 'collection' && routeId;
+    const allCardsAreMastered = isCollectionMode && cards.length > 0 && cards.every(card => card.is_mastered);
+    
+    if (allCardsAreMastered) {
+      // Celebration state for completed collection
+      return (
+        <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md text-center">
+            <div className="mb-6">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Check className="h-8 w-8 text-green-600 dark:text-green-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                🎉 Collection Complete!
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                Congratulations! You've mastered all {cards.length} flashcard{cards.length !== 1 ? 's' : ''} in this collection.
+              </p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={() => {
+                  // Reset filters to show mastered cards and restart study
+                  setFilters(prev => ({ ...prev, showMastered: true }));
+                }}
+                className="bg-[#F37022] text-white px-6 py-2 rounded-md hover:bg-[#E36012] transition-colors"
+              >
+                Review Again
+              </button>
+              <button
+                onClick={() => navigate('/flashcards/study')}
+                className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-6 py-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Study All Flashcards
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    // Generic empty state for other cases
     return (
       <div className="max-w-6xl mx-auto pb-20 md:pb-8 px-4">
-        <div className="mb-8">
-          {isDesktop && (
-          <Link to="/flashcards/collections" className="text-[#F37022] hover:text-[#E36012] flex items-center mb-2">
-            <ChevronLeft className="h-4 w-4" />
-            <span className="ml-1">Back to Collections</span>
-          </Link>
-          )}
-        </div>
-        
         <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
             No matching flashcards
@@ -1071,7 +1268,19 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           </p>
           
           <button
-            onClick={resetFilters}
+            onClick={() => {
+              // Reset filters and show mastered cards
+              const newFilters = {
+                ...filters,
+                showMastered: true,
+                subjects: routeMode === 'subject' && routeId ? [routeId] : [],
+                collections: routeMode === 'collection' && routeId ? [routeId] : [],
+                examTypes: [],
+                difficultyLevels: [],
+                showCommonPitfalls: false
+              };
+              setFilters(newFilters);
+            }}
             className="bg-[#F37022] text-white px-4 py-2 rounded-md hover:bg-[#E36012]"
           >
             Reset Filters
@@ -1181,7 +1390,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
             </label>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Subjects Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -1225,61 +1434,6 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                 ))}
               </select>
             </div>
-            
-            {/* Exam Types Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Exam Types
-              </label>
-              <select
-                multiple
-                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                value={filters.examTypes}
-                onChange={(e) => {
-                  const options = Array.from(e.target.selectedOptions, option => option.value);
-                  handleFilterChange('examTypes', options);
-                }}
-              >
-                {examTypes.map(examType => (
-                  <option key={examType.id} value={examType.id}>
-                    {examType.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Difficulty Levels */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Difficulty
-              </label>
-              <select
-                multiple
-                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                value={filters.difficultyLevels}
-                onChange={(e) => {
-                  const options = Array.from(e.target.selectedOptions, option => option.value);
-                  handleFilterChange('difficultyLevels', options);
-                }}
-              >
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard</option>
-              </select>
-            </div>
-          </div>
-          
-          <div className="mt-4 flex items-center">
-            <input
-              type="checkbox"
-              id="common-pitfalls"
-              checked={filters.showCommonPitfalls}
-              onChange={(e) => handleFilterChange('showCommonPitfalls', e.target.checked)}
-              className="h-4 w-4 text-[#F37022] focus:ring-[#F37022] border-gray-300 rounded"
-            />
-            <label htmlFor="common-pitfalls" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-              Show only common pitfalls
-            </label>
           </div>
         </div>
       )}

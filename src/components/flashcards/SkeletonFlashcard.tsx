@@ -46,12 +46,11 @@ export const SkeletonStudyCard = () => (
   <>
     {/* Main flashcard placeholder */}
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden relative mb-16 md:mb-4">
-      {/* Banner placeholder */}
-      <div className="h-10 bg-orange-500 bg-opacity-60 animate-pulse"></div>
+      {/* Removed the hardcoded orange banner placeholder */}
       
       <div className="p-8 flex flex-col">
         {/* Card content */}
-        <div className="min-h-[250px] flex items-center justify-center pt-4">
+        <div className="min-h-[250px] flex items-center justify-center">
           <div className="text-center w-full">
             <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded-md w-3/4 mx-auto"></div>
             <div className="space-y-3 mt-8 max-w-md mx-auto">

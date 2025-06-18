@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavbar } from '@/contexts/NavbarContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SkeletonSubjectGrid } from './SkeletonSubject';
+import { useAuth } from '@/lib/auth';
 
 interface Subject {
   id: string;
@@ -19,6 +20,7 @@ interface Subject {
   is_official: boolean;
   created_at: string;
   collection_count?: number;
+  user_id: string;
 }
 
 type SubjectFilter = 'all' | 'official' | 'my';
@@ -27,6 +29,7 @@ export default function FlashcardSubjects() {
   const navigate = useNavigate();
   const { toast, showToast, hideToast } = useToast();
   const { updateCount } = useNavbar();
+  const { user } = useAuth();
   const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
   const [filter, setFilter] = useState<SubjectFilter>('all');
   const queryClient = useQueryClient();
@@ -100,29 +103,64 @@ export default function FlashcardSubjects() {
   const handleDeleteSubject = async () => {
     if (!subjectToDelete) return;
     
+    console.log('🗑️ Starting subject deletion:', {
+      subjectId: subjectToDelete.id,
+      subjectName: subjectToDelete.name,
+      isOfficial: subjectToDelete.is_official,
+      subjectUserId: subjectToDelete.user_id,  // Check the subject's owner
+      currentUserId: user?.id,                 // Check current user
+      userMatch: subjectToDelete.user_id === user?.id // Do they match?
+    });
+    
     try {
       // First delete entries in the collection_subjects junction table
-      const { error: junctionError } = await supabase
+      console.log('🔗 Deleting collection_subjects junction entries...');
+      const { error: junctionError, count: junctionCount } = await supabase
         .from('collection_subjects')
-        .delete()
+        .delete({ count: 'exact' })
         .eq('subject_id', subjectToDelete.id);
       
-      if (junctionError) throw junctionError;
+      if (junctionError) {
+        console.error('❌ Junction table deletion error:', junctionError);
+        throw junctionError;
+      }
       
-      // Then delete the subject itself
-      const { error } = await supabase
+      console.log(`✅ Junction table deletion completed. Rows affected: ${junctionCount}`);
+      console.log('📝 Deleting subject from subjects table...');
+      const { error, data, count } = await supabase
         .from('subjects')
-        .delete()
-        .eq('id', subjectToDelete.id)
-        .eq('is_official', false);
+        .delete({ count: 'exact' })
+        .eq('id', subjectToDelete.id);
       
-      if (error) throw error;
+      console.log('📊 Delete operation result:', { error, data, count, rowsAffected: count });
+      
+      if (error) {
+        console.error('❌ Database error during deletion:', error);
+        throw error;
+      }
+      
+      // Check if any rows were actually deleted
+      if (count === 0) {
+        console.warn('⚠️ No rows were deleted. This might indicate an RLS policy issue.');
+        console.log('🔍 RLS Debug Info:', {
+          expectedConditions: 'auth.is_admin() = true OR (is_official = false AND auth.uid() = user_id)',
+          subjectIsOfficial: subjectToDelete.is_official,
+          subjectUserId: subjectToDelete.user_id,
+          currentUserId: user?.id,
+          policyWillAllow: user?.id && subjectToDelete.user_id === user.id && !subjectToDelete.is_official
+        });
+        throw new Error('Subject could not be deleted. You may not have permission to delete this subject.');
+      }
+      
+      console.log(`✅ Subject deleted successfully! ${count} row(s) affected`);
       
       // Invalidate the subjects query to trigger a refetch
       queryClient.invalidateQueries({ queryKey: subjectKeys.all });
       
       setSubjectToDelete(null);
+      showToast('Subject deleted successfully', 'success');
     } catch (err: any) {
+      console.error('💥 Error deleting subject:', err);
       showToast(`Error: ${err.message}`, 'error');
     }
   };
