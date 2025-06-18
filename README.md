@@ -94,6 +94,26 @@ The `user_agreements` table tracks all legal document acceptances:
 
 **Security**: Full RLS policies ensure users can only view their own agreements, while admins can access all records for compliance auditing.
 
+## Performance Optimizations
+
+### Course Access Batch Checking
+
+**Location**: `src/hooks/useCourseAccessBatch.ts`
+
+The platform implements efficient batch course access checking to eliminate performance bottlenecks:
+
+- **Problem Solved**: First course tile's "Access Course" button was loading slower than others due to sequential API calls
+- **Solution**: Batch access checking for all courses in a single API call using `hasCourseAccessMultiple`
+- **Performance Impact**: Reduced API calls from N×3 (where N = number of courses) to 1 batch call
+- **Implementation**: Uses React Query caching with 5-minute stale time for optimal performance
+
+**Key Components**:
+- `useCourseAccessBatch` - Hook for batch access checking
+- `JDSCourseCard` - Updated to accept access props or fallback to individual checking
+- `AvailableCoursesPage` & `AllCoursesPage` - Implement batch pattern for uniform loading
+
+**Result**: All course tiles now load access buttons simultaneously, providing a smoother user experience.
+
 ## Analytics Integration
 
 The platform uses Usermaven for privacy-focused analytics across all domains.

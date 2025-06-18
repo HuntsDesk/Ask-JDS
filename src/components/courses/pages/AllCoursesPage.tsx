@@ -7,6 +7,7 @@ import { JDSCourseCard } from '../JDSCourseCard';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { isPast } from 'date-fns';
+import useCourseAccessBatch from '@/hooks/useCourseAccessBatch';
 
 interface Course {
   id: string;
@@ -233,8 +234,14 @@ export default function AllCoursesPage() {
     fetchUserEnrollments();
   }, [user]);
 
+  // Get course IDs for batch access checking
+  const availableCourseIds = availableCourses.map(course => course.id);
+  
+  // Batch check access for all available courses
+  const { data: accessMap, isLoading: accessLoading } = useCourseAccessBatch(availableCourseIds);
+
   // Combined loading state
-  const isLoading = loadingCourses || loadingEnrollments;
+  const isLoading = loadingCourses || loadingEnrollments || accessLoading;
 
   if (isLoading) {
     return (
@@ -286,6 +293,14 @@ export default function AllCoursesPage() {
                   status={course.status}
                   _count={course._count}
                   enrolled={isEnrolled}
+                  access={accessMap[course.id] ? {
+                    hasAccess: accessMap[course.id].hasAccess,
+                    isLoading: false, // Batch loading is handled at page level
+                    reason: accessMap[course.id].reason,
+                    enrollment: accessMap[course.id].enrollment,
+                    subscription: accessMap[course.id].subscription,
+                    error: accessMap[course.id].error
+                  } : undefined}
                 />
               );
             })}

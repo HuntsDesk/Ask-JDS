@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { useNavbar } from '@/contexts/NavbarContext';
 import PageContainer from '@/components/layout/PageContainer';
 import JDSCourseCard from './JDSCourseCard';
+import useCourseAccessBatch from '@/hooks/useCourseAccessBatch';
 
 interface Course {
   id: string;
@@ -130,7 +131,13 @@ export default function AvailableCoursesPage() {
     !userEnrolledCourseIds.includes(course.id)
   );
 
-  if (loading) {
+  // Get course IDs for batch access checking
+  const courseIds = availableCourses.map(course => course.id);
+  
+  // Batch check access for all courses
+  const { data: accessMap, isLoading: accessLoading } = useCourseAccessBatch(courseIds);
+
+  if (loading || accessLoading) {
     return (
       <PageContainer className="pt-4" flexColumn>
         <div className="flex justify-center items-center min-h-[60vh]">
@@ -181,6 +188,14 @@ export default function AvailableCoursesPage() {
             status={course.status}
             _count={{ modules: 0, lessons: 0 }} // You may want to fetch actual module/lesson counts
             enrolled={false} // These are specifically filtered to be courses the user is not enrolled in
+            access={accessMap[course.id] ? {
+              hasAccess: accessMap[course.id].hasAccess,
+              isLoading: false, // Batch loading is handled at page level
+              reason: accessMap[course.id].reason,
+              enrollment: accessMap[course.id].enrollment,
+              subscription: accessMap[course.id].subscription,
+              error: accessMap[course.id].error
+            } : undefined}
           />
         ))}
       </div>
