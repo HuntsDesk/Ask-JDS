@@ -996,6 +996,16 @@ export function validateEnv<T extends Record<string, string>>(
 - **Database Integration**: `user_agreements` table with full RLS policies for secure compliance tracking
 - **IP Address Logging**: Automatic capture of user IP and browser details for legal audit requirements
 
+### Flashcard System Fixes (January 2025)
+- **Mastery Persistence**: Fixed flashcard mastery state persistence by unifying tracking system to use `flashcard_progress` table consistently
+- **Cache Invalidation**: Added proper React Query cache invalidation when marking cards as mastered to update collection mastery percentages
+- **Subject Deletion Fix**: Resolved RLS permission issues for subject deletion by fixing missing `user_id` fields in CreateSet component
+- **UI Streamlining**: Removed unnecessary filter options (Exam Types, Difficulty, Common Pitfalls) from Study Mode for cleaner interface
+- **Theme Consistency**: Updated button colors from green to orange theme in "No flashcards available" state
+- **Data Integrity**: Created SQL migration script to fix existing subjects with null `user_id` fields
+- **Debug Enhancement**: Added comprehensive debugging logs for RLS policy troubleshooting and permission validation
+- **Performance**: Improved query performance with proper cache management and reduced UI churn in Study Mode
+
 ## Contributing
 
 1. **Development Setup**: Follow the development guide in [docs/development.md](docs/development.md)
