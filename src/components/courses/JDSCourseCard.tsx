@@ -11,6 +11,15 @@ import useCourseAccess from '@/hooks/useCourseAccess';
 // Get Supabase URL from environment variable
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
+interface CourseAccessInfo {
+  hasAccess: boolean;
+  isLoading: boolean;
+  reason?: 'enrollment' | 'subscription' | 'none';
+  enrollment?: any;
+  subscription?: any;
+  error?: any;
+}
+
 interface CourseCardProps {
   id: string;
   title: string;
@@ -24,6 +33,7 @@ interface CourseCardProps {
   };
   expired?: boolean;
   enrolled?: boolean;
+  access?: CourseAccessInfo; // Optional prop for batch access checking
 }
 
 export default function JDSCourseCard({
@@ -35,7 +45,8 @@ export default function JDSCourseCard({
   status = 'Published',
   _count = { modules: 0, lessons: 0 },
   expired = false,
-  enrolled = false
+  enrolled = false,
+  access
 }: CourseCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -145,8 +156,16 @@ export default function JDSCourseCard({
     setShowPaymentModal(false);
   };
   
-  // Use the hook to check access for this specific course
-  const { hasAccess, isLoading: accessLoading } = useCourseAccess(id);
+  // Use provided access prop or fall back to individual hook for backward compatibility
+  const individualAccess = useCourseAccess(access ? undefined : id);
+  const effectiveAccess = access || {
+    hasAccess: individualAccess.hasAccess,
+    isLoading: individualAccess.isLoading,
+    reason: individualAccess.reason,
+    enrollment: individualAccess.enrollment,
+    subscription: individualAccess.subscription,
+    error: individualAccess.error
+  };
   
   return (
     <>
@@ -271,9 +290,9 @@ export default function JDSCourseCard({
           </div>
         ) : (
           <div className="mt-4">
-            {accessLoading ? (
+            {effectiveAccess.isLoading ? (
               <div className="mt-4 h-9 w-full bg-gray-200 dark:bg-gray-700 rounded-md animate-pulse"></div>
-            ) : hasAccess ? (
+            ) : effectiveAccess.hasAccess ? (
               <Link
                 to={`/course/${id}`}
                 className={cn(
