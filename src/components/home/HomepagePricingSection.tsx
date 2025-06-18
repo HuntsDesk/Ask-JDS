@@ -105,7 +105,7 @@ export function HomepagePricingSection({ className = '' }: HomepagePricingSectio
   return (
     <>
       {/* Unified Card View for all screen sizes - Homepage adapted */}
-      <div className={`grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto ${className}`}>
+      <div className={`grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto ${className}`}>
         {pricingTiers.map((tier) => {
           const TierIcon = tier.icon;
           const isCurrentTier = tierName === tier.name;

@@ -84,7 +84,7 @@ export function Paywall({ onCancel, preservedMessage }: PaywallProps) {
         <CardHeader>
           <CardTitle className="text-2xl">You've hit your message limit</CardTitle>
           <CardDescription>
-            You've used all {FREE_MESSAGE_LIMIT} of your free messages. Upgrade to Ask JDS Premium for unlimited messages and premium flashcards.
+            You've used all {FREE_MESSAGE_LIMIT} of your free messages. Upgrade to Ask JDS Unlimited for unlimited messages, premium flashcards, and all courses.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

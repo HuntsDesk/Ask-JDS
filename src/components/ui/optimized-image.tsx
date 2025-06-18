@@ -89,7 +89,7 @@ export function OptimizedImage({
         width={width}
         height={height}
         loading={loading}
-        decoding="async"
+        decoding={props.decoding || "async"}
         onLoad={handleLoad}
         onError={handleError}
         className={cn(
@@ -100,6 +100,10 @@ export function OptimizedImage({
           },
           className
         )}
+        style={{
+          imageRendering: 'auto',
+          ...props.style
+        }}
         {...props}
       />
       

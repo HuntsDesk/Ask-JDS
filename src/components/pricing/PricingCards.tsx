@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useSubscriptionWithTier } from '@/hooks/useSubscription';
 
-// Simplified pricing tiers for homepage (only Free and Premium)
+// Simplified pricing tiers for homepage (Free and Unlimited only - Premium temporarily hidden)
 const homepageTiers = [
   {
     name: 'Free',
@@ -25,12 +25,12 @@ const homepageTiers = [
     ],
   },
   {
-    name: 'Premium',
+    name: 'Unlimited',
     price: '$10',
     period: 'month',
-    description: 'For serious students needing unlimited chat and all premium flashcards.',
+    description: 'For serious students needing unlimited chat, all premium flashcards, and complete course access.',
     icon: Zap,
-    buttonText: 'Get Premium Access',
+    buttonText: 'Get Unlimited Access',
     buttonVariant: 'default',
     highlight: true,
     tagline: 'MOST POPULAR',
@@ -38,9 +38,10 @@ const homepageTiers = [
       'Unlimited Ask JDS messages',
       'Create unlimited personal flashcards',
       '400+ Expert curated flashcards',
+      'Unlimited access to ALL video courses',
       'Flashcard study mode',
       'Access from any device',
-      'A simplified study experience',
+      'Priority Support',
     ],
   },
 ];
@@ -67,7 +68,7 @@ export function PricingCards({ variant = 'homepage', className = '' }: PricingCa
       return;
     }
     
-    // For Premium, redirect to settings for upgrade
+    // For Unlimited, redirect to settings for upgrade
     navigate('/settings');
   };
 

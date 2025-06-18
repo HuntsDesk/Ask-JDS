@@ -89,20 +89,22 @@ export function useDynamicPricing() {
       });
     }
 
-    // Add dynamic tiers (Premium, Unlimited)
-    ['Premium', 'Unlimited'].forEach(tierName => {
-      const staticConfig = staticTierConfigs[tierName];
-      const dynamicPricing = pricingMap.get(`${tierName}-month`);
+    // Add only Unlimited tier (Premium tier temporarily hidden)
+    // Note: Premium tier logic preserved in staticTierConfigs for future reactivation
+    const unlimitedConfig = staticTierConfigs.Unlimited;
+    const unlimitedPricing = pricingMap.get('Unlimited-month');
 
-      if (staticConfig) {
-        const finalPrice = dynamicPricing?.formatted_price || (staticConfig.name === 'Premium' ? '$10' : '$30');
-        
-        tiers.push({
-          ...staticConfig,
-          price: finalPrice
-        });
-      }
-    });
+    if (unlimitedConfig) {
+      const finalPrice = unlimitedPricing?.formatted_price || '$10'; // Updated to $10
+      
+      tiers.push({
+        ...unlimitedConfig,
+        price: finalPrice,
+        highlight: true, // Make Unlimited the highlighted tier
+        description: 'For serious students needing unlimited chat, all premium flashcards, and complete course access.',
+        buttonText: 'Get Unlimited Access'
+      });
+    }
 
     return tiers;
   }, [pricingData]);

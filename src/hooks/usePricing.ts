@@ -17,7 +17,7 @@ interface PricingResponse {
   timestamp?: string;
 }
 
-// Static fallback pricing that matches current pricingData.ts
+// Static fallback pricing - Premium tier temporarily hidden, Unlimited at $10
 const FALLBACK_PRICING: PricingData[] = [
   {
     tier_name: 'Premium',
@@ -29,9 +29,9 @@ const FALLBACK_PRICING: PricingData[] = [
   {
     tier_name: 'Unlimited',
     interval_type: 'month',
-    display_price_cents: 3000,
+    display_price_cents: 1000, // Updated to $10 (was 3000)
     display_currency: 'USD',
-    formatted_price: '$30'
+    formatted_price: '$10'     // Updated to $10 (was $30)
   }
 ];
 

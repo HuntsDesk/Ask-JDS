@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
     if (!priceMappings || priceMappings.length === 0) {
       console.warn('No active pricing data found');
       
-      // Return fallback pricing data
+      // Return fallback pricing data - Premium tier temporarily hidden, Unlimited at $10
       const fallbackPricing: PricingResponse[] = [
         {
           tier_name: 'Premium',
@@ -75,9 +75,9 @@ Deno.serve(async (req) => {
         {
           tier_name: 'Unlimited',
           interval_type: 'month',
-          display_price_cents: 3000,
+          display_price_cents: 1000, // Updated to $10 (was 3000)
           display_currency: 'USD',
-          formatted_price: '$30'
+          formatted_price: '$10'     // Updated to $10 (was $30)
         }
       ];
 

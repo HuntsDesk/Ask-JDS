@@ -117,7 +117,7 @@ export function PricingPage() {
             </div>
 
             {/* Unified Card View for all screen sizes */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 max-w-4xl mx-auto">
               {pricingTiers.map((tier) => {
                 const TierIcon = tier.icon;
                 const isCurrentTier = tierName === tier.name;
@@ -242,7 +242,7 @@ export function PricingPage() {
           onClose={handleClosePaymentModal}
           clientSecret={clientSecret || 'loading'} // Use 'loading' as placeholder when no client secret yet
           title={`Complete your ${currentTierName} subscription`}
-          description="This will give you access to Ask JDS premium features."
+          description="This will give you access to Ask JDS unlimited features."
           tier={currentTierName}
           onError={(error) => {
             console.error('Payment error:', error);

@@ -880,7 +880,7 @@ export async function hasActiveSubscription(userId?: string): Promise<boolean> {
 /**
  * Create a Stripe checkout session
  */
-export async function createCheckoutSession(userId?: string, tierName: string = 'premium'): Promise<string | null> {
+export async function createCheckoutSession(userId?: string, tierName: string = 'unlimited'): Promise<string | null> {
   try {
     // If no userId provided, get the current user
     if (!userId) {
@@ -896,15 +896,19 @@ export async function createCheckoutSession(userId?: string, tierName: string = 
     console.log(`Creating checkout session for user ${userId}, tier: ${tierName}`);
     
     try {
+      // Redirect any premium tier requests to unlimited (Premium tier temporarily hidden)
+      const actualTierName = tierName.toLowerCase() === 'premium' ? 'unlimited' : tierName.toLowerCase();
+      
       // Let the edge function determine the price ID based on tier name
       // This is more secure as price IDs stay on the backend
       console.log(`Sending request to create-payment-handler with: ${JSON.stringify({
         purchaseType: 'subscription',
         userId,
-        subscriptionType: tierName.toLowerCase(),
+        subscriptionType: actualTierName,
         debug: true,
         metadata: {
-          tier: tierName.toLowerCase()
+          tier: actualTierName,
+          originalTier: tierName.toLowerCase() // Track original request for analytics
         }
       })}`);
       
@@ -912,10 +916,11 @@ export async function createCheckoutSession(userId?: string, tierName: string = 
         body: { 
           purchaseType: 'subscription',               // Specify this is a subscription purchase
           userId: userId,                             // User ID with correct camelCase
-          subscriptionType: tierName.toLowerCase(),   // Type of subscription (premium or unlimited)
+          subscriptionType: actualTierName,           // Type of subscription (unlimited only for now)
           debug: true,                                // Enable debugging output
           metadata: {                                 // Add metadata for the checkout session
-            tier: tierName.toLowerCase()              // Include tier in metadata
+            tier: actualTierName,                     // Include tier in metadata
+            originalTier: tierName.toLowerCase()      // Track original request for analytics
           }
         }
       });

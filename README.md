@@ -308,12 +308,12 @@ CREATE TABLE stripe_price_mappings (
 
 The system supports 8 total price ID combinations:
 
-- **Premium + Monthly + Test/Live** (development/production)
-- **Premium + Annual + Test/Live** (development/production)  
+- **Premium + Monthly + Test/Live** (development/production) - *Currently hidden from UI*
+- **Premium + Annual + Test/Live** (development/production) - *Currently hidden from UI*
 - **Unlimited + Monthly + Test/Live** (development/production)
 - **Unlimited + Annual + Test/Live** (development/production)
 
-**Homepage Display**: Only shows "Live" + "Monthly" prices to customers.
+**Homepage Display**: Currently shows Free + Unlimited tiers only. Premium tier temporarily hidden while course content is expanded.
 
 ### Current Subscription Tiers
 
@@ -325,24 +325,17 @@ The system supports 8 total price ID combinations:
   - Access to sample flashcards only
   - No course access
 
-#### Premium Tier
-- **Monthly**: Database-driven pricing (currently $7/month)
-- **Annual**: Database-driven pricing (currently $100/year)
-- **Features**:
-  - Unlimited AI chat messages
-  - Create and manage personal flashcards
-  - Full access to premium flashcards
-  - No course access
-
 #### Unlimited Tier
-- **Monthly**: Database-driven pricing (currently $11/month)
-- **Annual**: Database-driven pricing (currently $250/year)
+- **Monthly**: Database-driven pricing (currently $10/month)
+- **Annual**: Database-driven pricing (currently $100/year)
 - **Features**:
   - Unlimited AI chat messages
   - Create and manage personal flashcards
   - Full access to premium flashcards
   - Access to ALL courses
   - Priority support
+
+**Note**: Premium tier is temporarily hidden from the UI to simplify pricing while course content is being expanded. All Premium tier backend functionality is preserved for easy reactivation. Existing Premium subscribers maintain full access.
 
 ### Admin Price Management
 

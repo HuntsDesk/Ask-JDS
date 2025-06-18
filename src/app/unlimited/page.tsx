@@ -211,11 +211,11 @@ const UnlimitedPage: React.FC = () => {
                 </div>
                 <h3 className="text-2xl font-bold mb-2">Unlimited Subscription</h3>
                 <div className="mb-4">
-                  <span className="text-4xl font-bold">$30</span>
+                  <span className="text-4xl font-bold">$10</span>
                   <span className="text-gray-500">/month</span>
                 </div>
                 <p className="text-gray-600 dark:text-gray-300 mb-6">
-                  Access everything for less than the price of a single course
+                  Complete access to everything for an incredibly affordable price
                 </p>
                 
                 {subscriptionLoading ? (

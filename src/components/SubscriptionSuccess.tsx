@@ -40,7 +40,7 @@ export function SubscriptionSuccess() {
             Subscription Successful!
           </CardTitle>
           <CardDescription>
-            Thank you for your support. to JDS Premium!
+            Thank you for your support. Welcome to JDS Unlimited!
           </CardDescription>
         </CardHeader>
         
@@ -56,7 +56,7 @@ export function SubscriptionSuccess() {
             <div className="space-y-4">
               <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                 <p className="text-green-800">
-                  Your subscription is now active! You now have full access to all premium features.
+                  Your subscription is now active! You now have full access to all unlimited features.
                 </p>
               </div>
               <div className="space-y-2">

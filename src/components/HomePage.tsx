@@ -362,7 +362,7 @@ export function HomePage() {
           <div className="max-w-4xl mx-auto px-4 box-border relative z-10">
             {/* Hero Logo Section - Larger, vertically stacked */}
             <div className="flex flex-col items-center justify-center mb-8">
-              <div className="relative w-40 h-40 mb-3">
+              <div className="relative w-40 h-40 mb-3 flex items-center justify-center">
                 <div className="absolute -top-4 -right-4 animate-float-delayed z-0">
                   <Scale className="w-12 h-12 text-[#F5B111] opacity-60" />
                 </div>
@@ -372,7 +372,7 @@ export function HomePage() {
                 <div className="absolute -bottom-4 -right-3 z-0">
                   <Sparkles className="w-10 h-10 text-[#38BDF8] animate-pulse" />
                 </div>
-                <div className="absolute top-0 left-0 animate-float-slow z-10">
+                <div className="animate-float-slow z-10">
                   <Brain className="w-32 h-32 text-[#F37022]" />
                 </div>
               </div>
@@ -479,17 +479,21 @@ export function HomePage() {
                 </div>
 
                 {/* Integrated Image */}
-                <div className="relative bg-gray-50 rounded-lg overflow-hidden">
-                  <img 
-                    src={chatDemos[currentImageIndex].image} 
-                    alt={chatDemos[currentImageIndex].title}
-                    className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => openModal(currentImageIndex)}
-                  />
-                  <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-lg opacity-0 hover:opacity-100 transition-opacity">
-                    <ZoomIn className="w-5 h-5" />
+                                  <div className="relative bg-gray-50 rounded-lg overflow-hidden">
+                    <OptimizedImage 
+                      src={chatDemos[currentImageIndex].image} 
+                      alt={chatDemos[currentImageIndex].title}
+                      className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity screenshot-image"
+                      onClick={() => openModal(currentImageIndex)}
+                      priority={currentImageIndex === 0}
+                      loading="eager"
+                      decoding="sync"
+                      style={{ imageRendering: 'crisp-edges' }}
+                    />
+                    <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-lg opacity-0 hover:opacity-100 transition-opacity">
+                      <ZoomIn className="w-5 h-5" />
+                    </div>
                   </div>
-                </div>
               </div>
 
               {/* Bottom Navigation Bar */}
@@ -549,7 +553,7 @@ export function HomePage() {
           
           {/* Pop Quiz Header */}
           <div className="text-center mb-8">
-            <h3 className="text-2xl font-bold text-black mb-2">Pop Quiz!</h3>
+            <h3 className="text-2xl font-bold text-orange-500 mb-2">Pop Quiz!</h3>
           </div>
           
           {/* Interactive Flashcard Demo */}
@@ -614,11 +618,15 @@ export function HomePage() {
 
                   {/* Integrated Image */}
                   <div className="relative bg-gray-50 rounded-lg overflow-hidden">
-                    <img 
+                    <OptimizedImage 
                       src={flashcardDemos[currentFlashcardIndex].image} 
                       alt={flashcardDemos[currentFlashcardIndex].title}
-                      className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                      className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity screenshot-image"
                       onClick={() => openFlashcardModal(currentFlashcardIndex)}
+                      priority={currentFlashcardIndex === 0}
+                      loading="eager"
+                      decoding="sync"
+                      style={{ imageRendering: 'crisp-edges' }}
                     />
                     <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-lg opacity-0 hover:opacity-100 transition-opacity">
                       <ZoomIn className="w-5 h-5" />
@@ -757,7 +765,7 @@ export function HomePage() {
           </h2>
           <p className="text-2xl text-[#00178E] mb-10">
             {hasSubscription 
-              ? "You're all set with your premium subscription. Head to the chat to start asking questions."
+              ? "You're all set with your unlimited subscription. Head to the chat to start asking questions."
               : "Skip the overpriced tutors and questionable Reddit advice— Ask JDS."}
           </p>
           <div className="flex flex-col items-center gap-8">
@@ -892,11 +900,14 @@ export function HomePage() {
           >
             <X className="w-6 h-6" />
           </button>
-          <img
+          <OptimizedImage
             src={chatDemos[currentImageIndex].image}
             alt={chatDemos[currentImageIndex].title}
-            className="max-w-full max-h-full object-contain rounded-lg"
+            className="max-w-full max-h-full object-contain rounded-lg screenshot-image"
             onClick={(e) => e.stopPropagation()}
+            loading="eager"
+            decoding="sync"
+            style={{ imageRendering: 'crisp-edges' }}
           />
         </div>
       </div>
@@ -915,11 +926,14 @@ export function HomePage() {
           >
             <X className="w-6 h-6" />
           </button>
-          <img
+          <OptimizedImage
             src={flashcardDemos[currentFlashcardIndex].image}
             alt={flashcardDemos[currentFlashcardIndex].title}
-            className="max-w-full max-h-full object-contain rounded-lg"
+            className="max-w-full max-h-full object-contain rounded-lg screenshot-image"
             onClick={(e) => e.stopPropagation()}
+            loading="eager"
+            decoding="sync"
+            style={{ imageRendering: 'crisp-edges' }}
           />
         </div>
       </div>

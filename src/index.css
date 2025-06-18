@@ -1058,6 +1058,21 @@ div[role="tooltip"],
   background-color: #374151;
 }
 
+/* High-quality image rendering for screenshots */
+img[src*="demo"], img[src*="screenshot"] {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
+/* Force high-quality rendering for text-heavy images */
+.screenshot-image {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: auto;
+  -ms-interpolation-mode: nearest-neighbor;
+}
+
 /* Ensure proper spacing between major sections */
 .outline-markdown > * + h1,
 .outline-markdown > * + h2 {

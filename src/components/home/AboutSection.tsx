@@ -18,18 +18,20 @@ export function AboutSection() {
           </div>
           
           <div className="w-full lg:w-2/3 lg:pl-20">
-            <h5 className="inline-block bg-[#F37022]/10 text-[#F37022] px-4 py-1 rounded-full text-sm font-medium mb-4">
-              ABOUT ME
-            </h5>
-            <h2 className="text-3xl font-bold mb-6 text-[#00178E]">
-              J.D. grad specializing in strategy-based legal instruction
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Proud mommy of the coolest and kindest kid. Lover of law, math, and tacos. Cheerleader of the underdog, and traveler, hopeless dreamer, and determined sleeper.
-              <br />
-              <br />
-              Law school and bar exam course are unnecessarily complicated, boring, and lacking in quality. Let's do this right. 
-            </p>
+            <div className="max-w-2xl mx-auto lg:mx-0 px-6 lg:px-0">
+              <h5 className="inline-block bg-[#F37022]/10 text-[#F37022] px-4 py-1 rounded-full text-sm font-medium mb-4">
+                ABOUT ME
+              </h5>
+              <h2 className="text-3xl font-bold mb-6 text-[#00178E]">
+                J.D. grad specializing in strategy-based legal instruction
+              </h2>
+              <p className="text-gray-600 mb-6">
+                Proud mommy of the coolest and kindest kid. Lover of law, math, and tacos. Cheerleader of the underdog, and traveler, hopeless dreamer, and determined sleeper.
+                <br />
+                <br />
+                Law school and bar exam course are unnecessarily complicated, boring, and lacking in quality. Let's do this right. 
+              </p>
+            </div>
           </div>
         </div>
       </div>
