@@ -10,7 +10,7 @@ import { Calendar, CreditCard, AlertTriangle, CheckCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { createUnlimitedSubscriptionCheckout } from '@/lib/stripe/checkout';
-import { trackEvent } from '@/lib/analytics/track';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { formatDate } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
@@ -35,6 +35,7 @@ const SubscriptionStatus: React.FC<SubscriptionStatusProps> = ({
 }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { trackEvent } = useAnalytics();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [portalLoading, setPortalLoading] = useState<boolean>(false);
@@ -74,16 +75,12 @@ const SubscriptionStatus: React.FC<SubscriptionStatusProps> = ({
       
       // Track view event for analytics
       if (data) {
-        trackEvent(
-          'subscription',
-          'subscription_view' as any,
-          {
-            subscription_id: data.id,
-            subscription_tier: data.tier,
-            subscription_status: data.status,
-            cancel_at_period_end: data.cancel_at_period_end
-          }
-        );
+        trackEvent('subscription_view', {
+          subscription_id: data.id,
+          subscription_tier: data.tier,
+          subscription_status: data.status,
+          cancel_at_period_end: data.cancel_at_period_end
+        });
       }
     } catch (error) {
       console.error('Error in subscription fetch:', error);
@@ -114,14 +111,10 @@ const SubscriptionStatus: React.FC<SubscriptionStatusProps> = ({
     setPortalLoading(true);
     
     try {
-      trackEvent(
-        'subscription',
-        'customer_portal_access' as any,
-        {
-          subscription_id: subscription.id,
-          subscription_tier: subscription.tier
-        }
-      );
+      trackEvent('customer_portal_access', {
+        subscription_id: subscription.id,
+        subscription_tier: subscription.tier
+      });
       
       // Call the API to get the customer portal URL
       const response = await fetch('/api/customer-portal', {
@@ -156,15 +149,9 @@ const SubscriptionStatus: React.FC<SubscriptionStatusProps> = ({
   const handleUpgrade = () => {
     navigate('/unlimited');
     
-    if (user?.id) {
-      trackEvent(
-        'subscription',
-        'upgrade_initiated' as any,
-        {
-          current_tier: subscription?.tier || 'none'
-        }
-      );
-    }
+    trackEvent('upgrade_initiated', {
+      current_tier: subscription?.tier || 'none'
+    });
   };
   
   // Show loading state

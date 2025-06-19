@@ -94,6 +94,9 @@ const Utilities = lazy(() => import('@/components/admin/Utilities').then(module 
 const SetAdminStatus = lazy(() => import('@/components/admin/SetAdmin').then(module => ({ default: module.default })));
 const AdminSecurity = lazy(() => import('@/components/admin/SecurityDashboard').then(module => ({ default: module.SecurityDashboard })));
 
+// Import debug components
+const UsermavenDebug = lazy(() => import('@/components/debug/UsermavenDebug').then(module => ({ default: module.UsermavenDebug })));
+
 // Import SetAdminStatus directly for the setup route
 import SetAdminSetup from './components/admin/SetAdmin';
 
@@ -390,6 +393,18 @@ function AppRoutes() {
       <Route path="/terms" element={<TermsOfService />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/disclaimer" element={<Disclaimer />} />
+      
+      {/* Debug Routes - Development Only */}
+      {import.meta.env.DEV && (
+        <Route 
+          path="/debug/usermaven" 
+          element={
+            <Suspense fallback={<PageLoader message="Loading debug..." />}>
+              <UsermavenDebug />
+            </Suspense>
+          } 
+        />
+      )}
       
       {/* Pricing Page */}
       <Route path="/pricing" element={

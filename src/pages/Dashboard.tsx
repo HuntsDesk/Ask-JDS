@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { LoadingSpinner } from '@/components/course/LoadingSpinner';
 import CourseCard from '@/components/CourseCard';
+import { useAnalytics } from '@/hooks/use-analytics';
 
 // Interface for course data
 interface Course {
@@ -50,6 +51,7 @@ interface CourseEnrollment {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { trackEvent } = useAnalytics();
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -154,7 +156,14 @@ const Dashboard = () => {
           };
         });
         
-        setCourses(processedCourses);
+                setCourses(processedCourses);
+        
+        // Track dashboard page view
+        trackEvent('dashboard_viewed', {
+          course_count: processedCourses.length,
+          purchased_courses: processedCourses.filter(c => c.purchased).length,
+          has_user: !!user
+        });
       } catch (err) {
         console.error('Error fetching courses:', err);
         setError('Failed to load courses');

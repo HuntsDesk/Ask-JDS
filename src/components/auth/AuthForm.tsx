@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { 
   Card, 
   CardContent, 
@@ -58,6 +59,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  const { trackAuth } = useAnalytics();
   const [activeTab, setActiveTab] = useState(initialTab);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -259,6 +261,9 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       
       if (error) throw error;
       
+      // Track successful sign-in
+      trackAuth.logIn('email', { from_page: 'auth_form' });
+      
       // Immediately navigate to chat after successful sign-in
       console.log('Sign-in successful, immediately navigating to /chat');
       navigate('/chat', { replace: true });
@@ -335,6 +340,9 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       
       if (result.success) {
         console.log('Sign up successful, email confirmation required');
+        
+        // Track successful sign-up
+        trackAuth.signUp('email', { from_page: 'auth_form' });
         
         // Record legal agreement acceptance using the user ID
         const agreementsRecorded = await recordSignupAgreements(result.data.user?.id);

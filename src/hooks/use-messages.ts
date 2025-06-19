@@ -17,6 +17,7 @@ import { useSettings } from './use-settings';
 import { usePaywall } from '@/contexts/paywall-context';
 import { useAuth } from '@/lib/auth';
 import { AIProvider } from '@/types/ai';
+import { useAnalytics } from '@/hooks/use-analytics';
 
 // Type definitions for parallel operations
 interface TitleGenerationResult {
@@ -97,6 +98,9 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
   
   // Get the auth context
   const { signOut, user } = useAuth();
+  
+  // Get analytics
+  const { trackChat } = useAnalytics();
 
   // Update the last valid threadId ref
   useEffect(() => {
@@ -725,6 +729,13 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
           }
 
           if (aiMessageData) {
+            // Track AI response received
+            trackChat.responseReceived(threadId, aiMessageData.id, {
+              response_length: aiResponse.length,
+              response_time: responseElapsedTime,
+              is_subscribed: isSubscribed
+            });
+            
             addedMessageIds.current.add(aiMessageData.id);
             setMessages(prev => {
               const exists = prev.some(msg => msg.id === aiMessageData.id);
@@ -869,6 +880,13 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       user_id: user.id,
       created_at: new Date().toISOString()
     };
+    
+    // Track message sent
+    trackChat.messageSent(threadId, optimisticUserMessage.id, {
+      message_length: content.length,
+      is_subscribed: isSubscribed,
+      message_count: messageCount
+    });
       
     addedMessageIds.current.add(optimisticUserMessage.id);
     
