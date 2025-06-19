@@ -18,50 +18,94 @@ function createStreamParser(): TransformStream<Uint8Array, Uint8Array> {
   return new TransformStream({
     transform(chunk, controller) {
       const text = decoder.decode(chunk, { stream: true });
+      console.log(`🔍 Raw chunk received (${text.length} chars):`, JSON.stringify(text.substring(0, 200)));
       buffer += text;
       
-      // Split by comma and newline to get individual JSON objects
-      const parts = buffer.split(',\r\n');
-      buffer = parts.pop() || ''; // Keep the last incomplete part in buffer
+      // Try different parsing strategies
+      // Strategy 1: Split by comma and newline (original approach)
+      let parts = buffer.split(',\r\n');
+      if (parts.length === 1) {
+        // Strategy 2: Split by just newline
+        parts = buffer.split('\n');
+      }
+      if (parts.length === 1) {
+        // Strategy 3: Split by comma
+        parts = buffer.split(',');
+      }
       
-      for (const jsonPart of parts) {
-        const trimmed = jsonPart.trim();
+      console.log(`🔍 Split into ${parts.length} parts using buffer length ${buffer.length}`);
+      
+      // Keep the last incomplete part in buffer
+      buffer = parts.pop() || '';
+      
+      for (let i = 0; i < parts.length; i++) {
+        const jsonPart = parts[i];
+        let trimmed = jsonPart.trim();
         if (!trimmed) continue;
+        
+        // Remove array brackets if present
+        trimmed = trimmed.replace(/^\s*\[/, '').replace(/\]\s*$/, '');
+        if (!trimmed) continue;
+        
+        console.log(`🔍 Processing part ${i}: "${trimmed.substring(0, 100)}..."`);
         
         try {
           const data = JSON.parse(trimmed);
+          console.log(`🔍 Parsed JSON:`, JSON.stringify(data, null, 2).substring(0, 300));
+          
           const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) {
+            console.log(`🔍 Extracted text: "${text.substring(0, 50)}..."`);
             // Format as Server-Sent Events
             const sseData = `data: ${JSON.stringify({ text })}\n\n`;
             controller.enqueue(new TextEncoder().encode(sseData));
+          } else {
+            console.log(`🔍 No text found in candidates structure`);
           }
         } catch (error) {
-          console.warn(`Parse error for: "${trimmed.substring(0, 50)}..."`, error);
+          console.warn(`❌ Parse error for: "${trimmed.substring(0, 50)}..."`, error);
+          
+          // Try parsing as a simple text response (fallback)
+          if (trimmed.includes('"text"')) {
+            try {
+              const textMatch = trimmed.match(/"text":\s*"([^"]+)"/);
+              if (textMatch && textMatch[1]) {
+                const extractedText = textMatch[1];
+                console.log(`🔍 Fallback extracted text: "${extractedText}"`);
+                const sseData = `data: ${JSON.stringify({ text: extractedText })}\n\n`;
+                controller.enqueue(new TextEncoder().encode(sseData));
+              }
+            } catch (fallbackError) {
+              console.warn(`❌ Fallback parse also failed:`, fallbackError);
+            }
+          }
         }
       }
     },
     
     flush(controller) {
+      console.log(`🔍 Flush called with remaining buffer: "${buffer.substring(0, 100)}..."`);
+      
       // Process any remaining complete JSON in buffer
       if (buffer.trim()) {
-        const trimmed = buffer.trim().replace(/^\s*\[/, '').replace(/\]\s*$/, '');
+        let trimmed = buffer.trim().replace(/^\s*\[/, '').replace(/\]\s*$/, '');
         if (trimmed) {
           try {
             const data = JSON.parse(trimmed);
             const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
             if (text) {
-              // Format as Server-Sent Events
+              console.log(`🔍 Flush extracted text: "${text.substring(0, 50)}..."`);
               const sseData = `data: ${JSON.stringify({ text })}\n\n`;
               controller.enqueue(new TextEncoder().encode(sseData));
             }
           } catch (error) {
-            console.warn(`Flush parse error: "${trimmed.substring(0, 50)}..."`, error);
+            console.warn(`❌ Flush parse error: "${trimmed.substring(0, 50)}..."`, error);
           }
         }
       }
       
       // Send completion marker
+      console.log(`🔍 Sending completion marker`);
       const doneData = `data: [DONE]\n\n`;
       controller.enqueue(new TextEncoder().encode(doneData));
     }

@@ -682,14 +682,14 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
           console.log(`[Thread ${threadId}] Starting AI response generation...`);
           const responseStartTime = Date.now();
           
-          // Create optimistic AI message for streaming
+          // Create optimistic AI message for streaming (no timestamp until complete)
           const optimisticAiMessage: Message = {
             id: `optimistic-ai-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
             content: '',
             thread_id: threadId,
             role: 'assistant',
             user_id: user.id,
-            created_at: new Date().toISOString()
+            created_at: '' // No timestamp until response is complete
           };
           
           // Add optimistic AI message to UI
@@ -731,7 +731,17 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
           }
           
           const responseElapsedTime = Date.now() - responseStartTime;
+          const responseCompletionTime = new Date().toISOString();
           console.log(`[Thread ${threadId}] Generated AI response in ${responseElapsedTime}ms`);
+          
+          // First update the optimistic message with completion timestamp
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === optimisticAiMessage.id 
+                ? { ...msg, created_at: responseCompletionTime }
+                : msg
+            )
+          );
           
           // Send AI response to server
           const { data: aiMessageData, error: aiMessageError } = await supabase

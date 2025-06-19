@@ -635,7 +635,7 @@ export function ChatContainer() {
           </header>
         )}
         <div className={cn(
-          "flex-1 flex flex-col items-center justify-center h-full max-w-3xl mx-auto px-4 text-center",
+          "flex-1 flex flex-col items-center justify-center min-h-screen max-w-3xl mx-auto px-4 text-center",
           // Add padding-top when mobile header is shown
           isMobile && "pt-16"
         )}>

@@ -19,104 +19,6 @@ export const useAnalytics = () => {
   const initializedRef = useRef(initialized);
   initializedRef.current = initialized;
   
-  // Only log in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🔍 [ANALYTICS DEBUG] Hook called with initialized:', initialized);
-  }
-  
-  // Call hooks unconditionally (required by React rules)
-  let usermaven: any = null;
-  let pageViewError: any = null;
-  
-  try {
-    // Always call the hooks - React requires this
-    usermaven = useUsermaven();
-    
-    // Update the ref to keep the most recent client
-    usermavenRef.current = usermaven;
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 [ANALYTICS DEBUG] usermaven client:', usermaven ? 'available' : 'null');
-    }
-    
-    // Set up automatic page view tracking
-    usePageView({
-      before: (um) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('🔍 [ANALYTICS DEBUG] usePageView before callback called');
-        }
-        // Before tracking a page view, try to identify the user if they're logged in
-        if (user?.id && user?.email && !identifyCallMadeRef.current) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('🔍 [ANALYTICS DEBUG] Identifying user before page view');
-          }
-          identifyUser(um, user);
-          identifyCallMadeRef.current = true;
-        }
-      }
-    });
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 [ANALYTICS DEBUG] usePageView hook set up successfully');
-    }
-  } catch (error) {
-    console.error('🔍 [ANALYTICS DEBUG] Error setting up Usermaven hooks:', error);
-    pageViewError = error;
-  }
-  
-  // If not initialized, make the functions no-ops
-  if (!initialized) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 [ANALYTICS DEBUG] Analytics not initialized, returning no-op functions');
-    }
-    usermavenRef.current = null;
-  }
-  
-  // Identify user when they log in (memoized to prevent excessive calls)
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 [ANALYTICS DEBUG] useEffect triggered with:', {
-        initialized,
-        hasUsermaven: !!usermaven,
-        hasUser: !!user?.id,
-        userEmail: user?.email,
-        identifyCallMade: identifyCallMadeRef.current
-      });
-    }
-    
-    if (!initialized || !usermaven || !user?.id || !user?.email || identifyCallMadeRef.current) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔍 [ANALYTICS DEBUG] Skipping user identification - missing requirements or already called');
-      }
-      return;
-    }
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 [ANALYTICS DEBUG] Identifying user and sending test event');
-    }
-    identifyUser(usermaven, user);
-    identifyCallMadeRef.current = true;
-    
-    // Send a test event to verify analytics is working (only in development)
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📊 Sending test analytics event...');
-      try {
-        usermaven.track('analytics_test', {
-          timestamp: new Date().toISOString(),
-          page: window.location.pathname,
-          test: true
-        });
-        console.log('✅ [ANALYTICS DEBUG] Test event sent successfully');
-      } catch (error) {
-        console.error('❌ [ANALYTICS DEBUG] Failed to send test event:', error);
-      }
-    }
-  }, [initialized, user?.id, user?.email]); // Removed usermaven from deps to prevent infinite loops
-  
-  // Reset identify call flag when user changes
-  useEffect(() => {
-    identifyCallMadeRef.current = false;
-  }, [user?.id]);
-  
   /**
    * Helper function to identify a user with consistent properties
    */
@@ -140,6 +42,54 @@ export const useAnalytics = () => {
       console.error('Failed to identify user with Usermaven:', error);
     }
   }, []);
+  
+  // Call hooks unconditionally (required by React rules)
+  let usermaven: any = null;
+  let pageViewError: any = null;
+  
+  try {
+    // Always call the hooks - React requires this
+    usermaven = useUsermaven();
+    
+    // Update the ref to keep the most recent client
+    usermavenRef.current = usermaven;
+    
+    // Set up automatic page view tracking with stable callback
+    const pageViewCallback = useCallback((um: any) => {
+      // Before tracking a page view, try to identify the user if they're logged in
+      if (user?.id && user?.email && !identifyCallMadeRef.current) {
+        identifyUser(um, user);
+        identifyCallMadeRef.current = true;
+      }
+    }, [user?.id, user?.email, identifyUser]); // Include identifyUser in deps
+    
+    usePageView({
+      before: pageViewCallback
+    });
+  } catch (error) {
+    console.error('🔍 [ANALYTICS DEBUG] Error setting up Usermaven hooks:', error);
+    pageViewError = error;
+  }
+  
+  // If not initialized, make the functions no-ops
+  if (!initialized) {
+    usermavenRef.current = null;
+  }
+  
+  // Identify user when they log in (memoized to prevent excessive calls)
+  useEffect(() => {
+    if (!initialized || !usermaven || !user?.id || !user?.email || identifyCallMadeRef.current) {
+      return;
+    }
+    
+    identifyUser(usermaven, user);
+    identifyCallMadeRef.current = true;
+  }, [initialized, user?.id, user?.email, identifyUser]); // Removed usermaven from deps to prevent infinite loops
+  
+  // Reset identify call flag when user changes
+  useEffect(() => {
+    identifyCallMadeRef.current = false;
+  }, [user?.id]);
   
   /**
    * Track a custom event

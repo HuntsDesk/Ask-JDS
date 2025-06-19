@@ -144,7 +144,7 @@ export function ChatMessagesArea({
       <div ref={messageTopRef} />
       
       <div className="flex flex-col space-y-0.5 pb-0 mt-2 sm:mb-0 mb-2">
-        {messages.map((msg) => (
+        {messages.map((msg, index) => (
           <div 
             key={msg.id} 
             className="message-wrapper py-0"
@@ -152,6 +152,7 @@ export function ChatMessagesArea({
             <ChatMessage 
               message={msg}
               isLastMessage={msg === messages[messages.length - 1]}
+              isStreaming={isGenerating && index === messages.length - 1 && msg.role === 'assistant'}
             />
           </div>
         ))}

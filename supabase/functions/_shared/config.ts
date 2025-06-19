@@ -126,9 +126,11 @@ const _getActualModelName = (codeName: string): string => {
 /**
  * Get the full API endpoint URL for a given model code name
  * @param modelCodeName The obfuscated code name for the model
+ * @param streaming Whether to use the streaming endpoint (default: false)
  * @returns The complete endpoint URL for the actual model
  */
-export const getModelEndpoint = (modelCodeName: string): string => {
+export const getModelEndpoint = (modelCodeName: string, streaming: boolean = false): string => {
   const actualModelName = _getActualModelName(modelCodeName);
-  return `https://generativelanguage.googleapis.com/v1beta/models/${actualModelName}:generateContent`;
+  const endpoint = streaming ? 'streamGenerateContent' : 'generateContent';
+  return `https://generativelanguage.googleapis.com/v1beta/models/${actualModelName}:${endpoint}`;
 }; 
