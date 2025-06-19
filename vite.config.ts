@@ -6,7 +6,24 @@ import { fileURLToPath } from 'url';
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Load environment variables based on mode
+  // Load from both .env and .env.[mode] files
   const env = loadEnv(mode, process.cwd(), '');
+  
+  // Also try to load from .env directly to ensure we get VITE_ prefixed vars
+  const baseEnv = loadEnv('', process.cwd(), 'VITE_');
+  
+  // Merge the environments, with mode-specific taking precedence
+  const mergedEnv = { ...baseEnv, ...env };
+  
+  // Log environment variables for debugging (only in development)
+  if (mode === 'development' || process.env.NODE_ENV === 'development') {
+    console.log('🔍 [VITE DEBUG] Environment variables loaded:', {
+      mode,
+      usermavenKey: mergedEnv.VITE_USERMAVEN_KEY ? '***set***' : 'undefined',
+      usermavenHost: mergedEnv.VITE_USERMAVEN_TRACKING_HOST || 'undefined',
+      supabaseUrl: mergedEnv.VITE_SUPABASE_URL ? '***set***' : 'undefined'
+    });
+  }
   
   // Determine domain based on mode
   let domain = 'askjds'; // default domain
@@ -19,15 +36,14 @@ export default defineConfig(({ mode }) => {
   }
   
   // Override with explicit env var if set
-  if (env.VITE_BUILD_DOMAIN) {
-    domain = env.VITE_BUILD_DOMAIN;
+  if (mergedEnv.VITE_BUILD_DOMAIN) {
+    domain = mergedEnv.VITE_BUILD_DOMAIN;
   }
   
   // Log configuration for debugging
   console.log('===========================================');
   console.log(`Mode: ${mode}`);
   console.log(`Building for domain: ${domain}`);
-  console.log(`Environment variables:`, env);
   console.log(`Port: ${domain === 'askjds' ? 5173 : domain === 'jdsimplified' ? 5174 : 5175}`);
   console.log('===========================================');
 
@@ -51,25 +67,25 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_BUILD_DOMAIN': JSON.stringify(domain),
       
       // Explicitly inject critical environment variables for production builds
-      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || env.SUPABASE_URL_PROD || env.SUPABASE_URL),
-      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY || env.SUPABASE_ANON_KEY_PROD || env.SUPABASE_ANON_KEY),
-      'import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY': JSON.stringify(env.VITE_STRIPE_PUBLISHABLE_KEY),
-      'import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_DEV': JSON.stringify(env.VITE_STRIPE_PUBLISHABLE_KEY_DEV),
-      'import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_PROD': JSON.stringify(env.VITE_STRIPE_PUBLISHABLE_KEY_PROD),
+      'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(mergedEnv.VITE_SUPABASE_URL || mergedEnv.SUPABASE_URL_PROD || mergedEnv.SUPABASE_URL),
+      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(mergedEnv.VITE_SUPABASE_ANON_KEY || mergedEnv.SUPABASE_ANON_KEY_PROD || mergedEnv.SUPABASE_ANON_KEY),
+      'import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY': JSON.stringify(mergedEnv.VITE_STRIPE_PUBLISHABLE_KEY),
+      'import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_DEV': JSON.stringify(mergedEnv.VITE_STRIPE_PUBLISHABLE_KEY_DEV),
+      'import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY_PROD': JSON.stringify(mergedEnv.VITE_STRIPE_PUBLISHABLE_KEY_PROD),
       
       // Stripe Price IDs for fallback
-      'import.meta.env.VITE_STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID': JSON.stringify(env.VITE_STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID),
-      'import.meta.env.VITE_STRIPE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID': JSON.stringify(env.VITE_STRIPE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID),
-      'import.meta.env.VITE_STRIPE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID': JSON.stringify(env.VITE_STRIPE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID),
-      'import.meta.env.VITE_STRIPE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID': JSON.stringify(env.VITE_STRIPE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID),
-      'import.meta.env.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID': JSON.stringify(env.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID),
-      'import.meta.env.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID': JSON.stringify(env.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID),
-      'import.meta.env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID': JSON.stringify(env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID),
-      'import.meta.env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID': JSON.stringify(env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID),
+      'import.meta.env.VITE_STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID': JSON.stringify(mergedEnv.VITE_STRIPE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID),
+      'import.meta.env.VITE_STRIPE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID': JSON.stringify(mergedEnv.VITE_STRIPE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID),
+      'import.meta.env.VITE_STRIPE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID': JSON.stringify(mergedEnv.VITE_STRIPE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID),
+      'import.meta.env.VITE_STRIPE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID': JSON.stringify(mergedEnv.VITE_STRIPE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID),
+      'import.meta.env.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID': JSON.stringify(mergedEnv.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_MONTHLY_PRICE_ID),
+      'import.meta.env.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID': JSON.stringify(mergedEnv.VITE_STRIPE_LIVE_ASKJDS_PREMIUM_ANNUAL_PRICE_ID),
+      'import.meta.env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID': JSON.stringify(mergedEnv.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID),
+      'import.meta.env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID': JSON.stringify(mergedEnv.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID),
       
-      // Usermaven Analytics
-      'import.meta.env.VITE_USERMAVEN_KEY': JSON.stringify(env.VITE_USERMAVEN_KEY),
-      'import.meta.env.VITE_USERMAVEN_TRACKING_HOST': JSON.stringify(env.VITE_USERMAVEN_TRACKING_HOST),
+      // Usermaven Analytics - Use mergedEnv to ensure we get the variables
+      'import.meta.env.VITE_USERMAVEN_KEY': JSON.stringify(mergedEnv.VITE_USERMAVEN_KEY),
+      'import.meta.env.VITE_USERMAVEN_TRACKING_HOST': JSON.stringify(mergedEnv.VITE_USERMAVEN_TRACKING_HOST),
       
       global: 'globalThis',
     },
