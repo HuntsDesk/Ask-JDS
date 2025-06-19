@@ -102,7 +102,7 @@ export function ChatMessagesArea({
 
   const renderEmptyState = () => {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-6">
+      <div className="flex flex-col items-center justify-center min-h-screen text-center p-6">
         <h2 className="text-2xl font-bold mb-2 text-gray-800 dark:text-white">Welcome to Ask JDS</h2>
         <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-md">
           Ask any law school or bar exam related questions. Start a new chat to begin the conversation.
