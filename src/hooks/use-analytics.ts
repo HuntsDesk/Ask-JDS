@@ -12,21 +12,32 @@ import { useEffect, useCallback } from 'react';
 export const useAnalytics = () => {
   const { initialized } = useUsermavenContext();
   const { user } = useAuth();
-  const usermaven = useUsermaven();
   
-  // Set up automatic page view tracking
-  usePageView({
-    before: (um) => {
-      // Before tracking a page view, try to identify the user if they're logged in
-      if (user?.id && user?.email) {
-        identifyUser(um, user);
-      }
+  // Only call useUsermaven and usePageView if we're initialized
+  let usermaven: any = null;
+  
+  try {
+    // Only call Usermaven hooks if the provider is available
+    if (initialized) {
+      usermaven = useUsermaven();
+      
+      // Set up automatic page view tracking
+      usePageView({
+        before: (um) => {
+          // Before tracking a page view, try to identify the user if they're logged in
+          if (user?.id && user?.email) {
+            identifyUser(um, user);
+          }
+        }
+      });
     }
-  });
+  } catch (error) {
+    console.warn('Usermaven hooks not available:', error);
+  }
   
   // Identify user when they log in
   useEffect(() => {
-    if (!initialized || !user?.id || !user?.email) return;
+    if (!initialized || !usermaven || !user?.id || !user?.email) return;
     identifyUser(usermaven, user);
   }, [initialized, user?.id, user?.email, usermaven]);
   
@@ -61,7 +72,7 @@ export const useAnalytics = () => {
    * @param properties - Additional properties to include with the event
    */
   const trackEvent = useCallback((eventName: string, properties: Record<string, any> = {}) => {
-    if (!initialized) return;
+    if (!initialized || !usermaven) return;
     
     // Add common properties to all events
     const enhancedProperties = {
@@ -84,7 +95,7 @@ export const useAnalytics = () => {
     conversionType: 'signed_up' | 'purchase_complete' | 'subscription_started' | 'course_enrollment' | string, 
     properties: Record<string, any> = {}
   ) => {
-    if (!initialized) return;
+    if (!initialized || !usermaven) return;
     
     usermaven.track('conversion', {
       conversion_type: conversionType,
@@ -195,8 +206,8 @@ export const useAnalytics = () => {
     initialized,
     trackEvent,
     trackConversion,
-    trackPageView: usermaven.trackPageView,
-    identify: usermaven.id,
+    trackPageView: usermaven?.trackPageView || (() => {}),
+    identify: usermaven?.id || (() => {}),
     trackAuth,
     trackChat,
     trackCourse,
