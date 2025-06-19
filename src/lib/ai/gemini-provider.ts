@@ -101,6 +101,146 @@ export class GeminiProvider implements AIProvider {
     throw lastError || new Error('Unknown error in Gemini provider');
   }
 
+  async generateStreamingResponse(prompt: string, threadMessages: Message[] = [], onChunk: (chunk: string) => void): Promise<string> {
+    const maxRetries = 2;
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🚀🚀🚀 USING GEMINI STREAMING PROVIDER (Attempt ${attempt}/${maxRetries}) 🚀🚀🚀`);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          console.error('🚫 No active session found');
+          throw new Error('No active session');
+        }
+
+        // Format messages for the Gemini API
+        const messages = threadMessages.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+
+        // Add the new user message
+        messages.push({
+          role: 'user',
+          content: prompt
+        });
+        
+        console.log('Sending streaming request to Gemini:', {
+          model: this.settings.model,
+          messagesCount: messages.length,
+          attempt: attempt
+        });
+
+        // Set up AbortController for timeout - increased to 90 seconds
+        const controller = new AbortController();
+        const timeoutDuration = 90000; // 90 seconds
+        const timeoutId = setTimeout(() => {
+          console.warn(`⏱️ Gemini streaming request timeout after ${timeoutDuration/1000}s (attempt ${attempt})`);
+          controller.abort();
+        }, timeoutDuration);
+
+        const baseUrl = new URL(import.meta.env.VITE_SUPABASE_URL).origin;
+        const url = `${baseUrl}/functions/v1/chat-stream`;
+        const startTime = Date.now();
+
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ messages }),
+          signal: controller.signal
+        });
+        
+        // Clear the timeout since we got a response
+        clearTimeout(timeoutId);
+        const duration = Date.now() - startTime;
+        console.log(`✅ Gemini streaming response received in ${duration}ms (attempt ${attempt})`);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Gemini streaming API error:', response.status, errorText);
+          throw new Error(`Gemini streaming API error: ${response.status}`);
+        }
+
+        // Handle streaming response
+        if (!response.body) {
+          throw new Error('No response body received from streaming endpoint');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullResponse = '';
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              console.log('📥 Stream reader finished');
+              break;
+            }
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') {
+                  console.log('✅ Streaming completed');
+                  break;
+                }
+                try {
+                  const parsed = JSON.parse(data);
+                  if (parsed.text) {
+                    fullResponse += parsed.text;
+                    onChunk(parsed.text); // Call the callback with each chunk
+                  }
+                } catch (e) {
+                  console.warn('Failed to parse streaming chunk:', data);
+                }
+              }
+            }
+          }
+        } finally {
+          reader.releaseLock();
+        }
+
+        if (!fullResponse.trim()) {
+          throw new Error('No content received from streaming response');
+        }
+
+        console.log(`✅ Gemini streaming response completed: ${fullResponse.length} characters`);
+        return fullResponse;
+
+      } catch (error) {
+        console.error(`❌ Error calling Gemini streaming API (attempt ${attempt}/${maxRetries}):`, error);
+        
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          console.warn(`⏱️ Request timed out after 90 seconds (attempt ${attempt}/${maxRetries})`);
+          lastError = new Error(`The AI service is taking too long to respond (attempt ${attempt}/${maxRetries}). ${attempt < maxRetries ? 'Retrying...' : 'Please try again later.'}`);
+        }
+        
+        // If this is not the last attempt and it's a timeout, retry
+        if (attempt < maxRetries && (error instanceof DOMException && error.name === 'AbortError')) {
+          console.log(`🔄 Retrying Gemini streaming request (attempt ${attempt + 1}/${maxRetries})...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Progressive delay
+          continue;
+        }
+        
+        // If it's the last attempt or a non-retryable error, throw
+        throw lastError;
+      }
+    }
+    
+    // This should never be reached, but just in case
+    throw lastError || new Error('Unknown error in Gemini streaming provider');
+  }
+
   async generateThreadTitle(prompt: string): Promise<string> {
     const maxRetries = 2;
     

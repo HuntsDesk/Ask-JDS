@@ -681,7 +681,55 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
         try {
           console.log(`[Thread ${threadId}] Starting AI response generation...`);
           const responseStartTime = Date.now();
-          const aiResponse = await aiProvider.current.generateResponse(content, conversationHistory);
+          
+          // Create optimistic AI message for streaming
+          const optimisticAiMessage: Message = {
+            id: `optimistic-ai-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+            content: '',
+            thread_id: threadId,
+            role: 'assistant',
+            user_id: user.id,
+            created_at: new Date().toISOString()
+          };
+          
+          // Add optimistic AI message to UI
+          addedMessageIds.current.add(optimisticAiMessage.id);
+          setMessages(prev => [...prev, optimisticAiMessage]);
+          
+          let aiResponse = '';
+          
+          // Use streaming if available, otherwise fall back to regular generation
+          if (aiProvider.current.generateStreamingResponse) {
+            console.log(`[Thread ${threadId}] Using streaming response...`);
+            
+            aiResponse = await aiProvider.current.generateStreamingResponse(
+              content, 
+              conversationHistory,
+              (chunk: string) => {
+                // Update the optimistic message with each chunk
+                setMessages(prev => 
+                  prev.map(msg => 
+                    msg.id === optimisticAiMessage.id 
+                      ? { ...msg, content: msg.content + chunk }
+                      : msg
+                  )
+                );
+              }
+            );
+          } else {
+            console.log(`[Thread ${threadId}] Using non-streaming response...`);
+            aiResponse = await aiProvider.current.generateResponse(content, conversationHistory);
+            
+            // Update optimistic message with full response
+            setMessages(prev => 
+              prev.map(msg => 
+                msg.id === optimisticAiMessage.id 
+                  ? { ...msg, content: aiResponse }
+                  : msg
+              )
+            );
+          }
+          
           const responseElapsedTime = Date.now() - responseStartTime;
           console.log(`[Thread ${threadId}] Generated AI response in ${responseElapsedTime}ms`);
           
@@ -713,13 +761,23 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
               is_subscribed: isSubscribed
             });
             
+            // Replace optimistic message with server message, preserving the full streamed content
             addedMessageIds.current.add(aiMessageData.id);
             setMessages(prev => {
-              const exists = prev.some(msg => msg.id === aiMessageData.id);
-              if (exists) return prev;
-              const newMessages = [...prev, aiMessageData];
-              return newMessages.sort((a, b) => 
-                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+              const updatedMessages = prev.map(msg => {
+                if (msg.id === optimisticAiMessage.id) {
+                  // Use the server message but ensure it has the complete streamed content
+                  return {
+                    ...aiMessageData,
+                    content: aiResponse // Ensure we use the complete response
+                  };
+                }
+                return msg;
+              });
+              
+              // Remove any duplicate optimistic messages
+              return updatedMessages.filter(msg => 
+                !msg.id.startsWith('optimistic-ai-') || msg.id === aiMessageData.id
               );
             });
           }
@@ -727,6 +785,10 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
           return { success: true, response: aiResponse };
         } catch (error) {
           console.error(`[Thread ${threadId}] Error generating AI response:`, error);
+          
+          // Remove optimistic AI message on error
+          setMessages(prev => prev.filter(msg => !msg.id.startsWith('optimistic-ai-')));
+          
           return { success: false, error };
         }
       })();

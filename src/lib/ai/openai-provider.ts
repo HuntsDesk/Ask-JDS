@@ -57,6 +57,33 @@ export class OpenAIProvider implements AIProvider {
     }
   }
 
+  async generateStreamingResponse(prompt: string, threadMessages: Message[] = [], onChunk: (chunk: string) => void): Promise<string> {
+    // OpenAI streaming implementation could be added here in the future
+    // For now, fall back to regular generation and simulate streaming
+    console.log('🔵 OpenAI Provider - Simulating streaming (not yet implemented)');
+    
+    const response = await this.generateResponse(prompt, threadMessages);
+    
+    // Simulate streaming by sending the response in chunks
+    const words = response.split(' ');
+    let currentChunk = '';
+    
+    for (let i = 0; i < words.length; i++) {
+      currentChunk += (i > 0 ? ' ' : '') + words[i];
+      
+      // Send chunks of 3-5 words
+      if (i % 4 === 3 || i === words.length - 1) {
+        onChunk(currentChunk.substring(currentChunk.lastIndexOf(' ', currentChunk.length - words[i].length - 1) + 1));
+        currentChunk = currentChunk.substring(0, currentChunk.lastIndexOf(' ', currentChunk.length - words[i].length - 1) + 1);
+        
+        // Small delay to simulate streaming
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+    }
+    
+    return response;
+  }
+
   async generateThreadTitle(prompt: string): Promise<string> {
     try {
       console.log('🔵 OpenAI Provider - Generating Thread Title');

@@ -11,5 +11,6 @@ export interface AISettings {
 
 export interface AIProvider {
   generateResponse: (prompt: string, threadMessages: Message[]) => Promise<string>;
+  generateStreamingResponse?: (prompt: string, threadMessages: Message[], onChunk: (chunk: string) => void) => Promise<string>;
   generateThreadTitle: (prompt: string) => Promise<string>;
 }
