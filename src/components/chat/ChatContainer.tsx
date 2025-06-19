@@ -4,6 +4,7 @@ import { useThreads, useThreadsRealtime } from '@/hooks/use-query-threads';
 import { useMessages } from '@/hooks/use-messages';
 // ChatInterface import removed - using extracted components instead
 import { useToast } from '@/hooks/use-toast';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { SelectedThreadContext, SidebarContext } from '@/App';
 import { useTheme } from '@/lib/theme-provider';
@@ -103,6 +104,7 @@ export function ChatContainer() {
   const { isExpanded, setIsExpanded, isMobile } = useContext(SidebarContext);
   const { theme } = useTheme();
   const { toast, dismiss } = useToast();
+  const { trackChat, trackEvent } = useAnalytics();
   
   // Media queries
   const isDesktop = useMediaQuery('(min-width: 768px)');
@@ -316,6 +318,12 @@ export function ChatContainer() {
       
       const thread = await createThreadMutation.mutateAsync('New Conversation');
       if (thread) {
+        // Track thread creation
+        trackChat.threadCreated(thread.id, 'New Conversation', {
+          subscription_tier: tierName,
+          has_paid_subscription: hasPaidSubscription
+        });
+        
         setActiveThread(thread.id);
         setSelectedThreadId(thread.id);
         navigate(`/chat/${thread.id}`, { replace: true });

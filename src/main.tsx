@@ -1,12 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App.tsx';
+import App from './App';
 import './index.css';
 // JD Simplified styles are already included in the main index.css
 import { AuthProvider } from './lib/auth';
 import { initializeTheme } from './lib/theme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { UsermavenAnalyticsProvider } from './contexts/UsermavenContext';
 
 // Initialize theme before rendering the app
 initializeTheme();
@@ -31,9 +32,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   // DO NOT add additional AuthProviders in your route components!
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <UsermavenAnalyticsProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </UsermavenAnalyticsProvider>
       {/* Temporarily disabled for testing */}
       {/* {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />} */}
     </QueryClientProvider>

@@ -1,7 +1,7 @@
 import { useUsermaven, usePageView } from '@usermaven/react';
 import { useUsermavenContext } from '@/contexts/UsermavenContext';
 import { useAuth } from '@/lib/auth';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 
 /**
  * Custom hook that provides analytics tracking capabilities
@@ -60,7 +60,7 @@ export const useAnalytics = () => {
    * @param eventName - Name of the event to track
    * @param properties - Additional properties to include with the event
    */
-  const trackEvent = (eventName: string, properties: Record<string, any> = {}) => {
+  const trackEvent = useCallback((eventName: string, properties: Record<string, any> = {}) => {
     if (!initialized) return;
     
     // Add common properties to all events
@@ -72,7 +72,7 @@ export const useAnalytics = () => {
     };
     
     usermaven.track(eventName, enhancedProperties);
-  };
+  }, [initialized, usermaven]);
   
   /**
    * Track a conversion event (e.g., sign up, purchase, etc.)
@@ -80,7 +80,7 @@ export const useAnalytics = () => {
    * @param conversionType - Type of conversion
    * @param properties - Additional properties about the conversion
    */
-  const trackConversion = (
+  const trackConversion = useCallback((
     conversionType: 'signed_up' | 'purchase_complete' | 'subscription_started' | 'course_enrollment' | string, 
     properties: Record<string, any> = {}
   ) => {
@@ -92,7 +92,7 @@ export const useAnalytics = () => {
       timestamp: new Date().toISOString(),
       ...properties
     });
-  };
+  }, [initialized, usermaven]);
   
   /**
    * Track authentication events

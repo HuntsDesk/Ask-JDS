@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { trackEvent, AnalyticsEventType } from '@/lib/flotiq/analytics';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { useSubscriptionContext } from '@/contexts/SubscriptionContext';
@@ -39,6 +39,7 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
   const { user } = useAuth();
   const navigate = useNavigate();
   const { tierName, isActive: isSubscriptionActive, isLoading: isSubscriptionLoading } = useSubscriptionContext();
+  const { trackEvent, trackSubscription } = useAnalytics();
 
   const [enrollmentStatus, setEnrollmentStatus] = useState<AccessStatus>({ hasDirectEnrollment: false });
   const [isEnrollmentLoading, setIsEnrollmentLoading] = useState<boolean>(true);
@@ -115,17 +116,13 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
     setClientSecret(null);
     
     try {
-      trackEvent(
-        AnalyticsEventType.CHECKOUT_INITIATED,
-        user.id,
-        {
-          checkout_type: 'course',
-          course_id: courseId,
-          course_title: courseTitle,
-          price: coursePrice,
-          target_stripe_price_id: stripePriceId,
-        }
-      );
+      trackEvent('checkout_initiated', {
+        checkout_type: 'course',
+        course_id: courseId,
+        course_title: courseTitle,
+        price: coursePrice,
+        target_stripe_price_id: stripePriceId,
+      });
 
       const { data, error } = await supabase.functions.invoke(
         'create-payment-handler',
@@ -151,19 +148,13 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
     } catch (error: any) {
       console.error('Error initiating course purchase:', error);
       toast({ title: "Purchase Error", description: error.message || "Could not start purchase.", variant: "destructive" });
-      if (user) {
-        trackEvent(
-          AnalyticsEventType.CHECKOUT_FAILED,
-          user.id,
-          {
-            checkout_type: 'course',
-            course_id: courseId,
-            course_title: courseTitle,
-            target_stripe_price_id: stripePriceId,
-            error_message: error instanceof Error ? error.message : 'Unknown error',
-          }
-        );
-      }
+      trackEvent('checkout_failed', {
+        checkout_type: 'course',
+        course_id: courseId,
+        course_title: courseTitle,
+        target_stripe_price_id: stripePriceId,
+        error_message: error instanceof Error ? error.message : 'Unknown error',
+      });
     } finally {
       setCheckoutLoading(false);
     }
@@ -174,18 +165,12 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
       navigate('/login?redirectTo=' + encodeURIComponent('/unlimited'));
       return;
     }
-    if (user.id) {
-      trackEvent(
-        AnalyticsEventType.CHECKOUT_INITIATED,
-        user.id,
-        {
-          checkout_type: 'subscription',
-          subscription_type: 'unlimited',
-          from_component: 'CourseAccess',
-          course_id: courseId,
-        }
-      );
-    }
+    trackSubscription.checkoutStarted('unlimited', 'monthly', 0, {
+      checkout_type: 'subscription',
+      subscription_type: 'unlimited',
+      from_component: 'CourseAccess',
+      course_id: courseId,
+    });
     navigate('/unlimited');
   };
   
@@ -296,17 +281,11 @@ const CourseAccess: React.FC<CourseAccessProps> = ({
         <CardFooter>
           <Button 
             onClick={() => {
-              if (user?.id) {
-                trackEvent(
-                  AnalyticsEventType.COURSE_VIEW,
-                  user.id,
-                  {
-                    course_id: courseId,
-                    course_title: courseTitle,
-                    has_unlimited: hasUnlimitedAccess,
-                  }
-                );
-              }
+              trackEvent('course_view', {
+                course_id: courseId,
+                course_title: courseTitle,
+                has_unlimited: hasUnlimitedAccess,
+              });
               navigate(`/course/${courseId}/lessons`);
             }}
             className="w-full"

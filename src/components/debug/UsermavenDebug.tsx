@@ -28,7 +28,7 @@ export const UsermavenDebug: React.FC = () => {
         console.error('Usermaven tracking error:', err);
       }
     }
-  }, [initialized, trackEvent]);
+  }, [initialized]); // Removed trackEvent from dependencies to prevent infinite loop
 
   // Handle a test event button click
   const handleTestEvent = () => {
