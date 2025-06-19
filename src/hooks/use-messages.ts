@@ -18,6 +18,7 @@ import { usePaywall } from '@/contexts/paywall-context';
 import { useAuth } from '@/lib/auth';
 import { AIProvider } from '@/types/ai';
 import { useAnalytics } from '@/hooks/use-analytics';
+import { realtimeManager } from '@/lib/realtime-manager';
 
 // Type definitions for parallel operations
 interface TitleGenerationResult {
@@ -318,21 +319,17 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
   useEffect(() => {
     if (!threadId) return;
     
-    // Subscribe to real-time message inserts for this thread
-    // Use a generic 'any' type to avoid TypeScript errors with RealtimeChannel
-    let channel: any = null;
-    let reconnectTimer: NodeJS.Timeout | null = null;
-    let isSubscribed = false;
     let pollingTimer: NodeJS.Timeout | null = null;
+    let realtimeUnsubscribe: (() => void) | null = null;
     
-         // Fallback polling function when WebSocket fails
-     const startPollingFallback = () => {
-       if (pollingTimer) return; // Already polling
-       
-       console.warn('[useMessages] Starting polling fallback for thread:', threadId);
-       supabaseMonitor.setPollingFallback(true);
-       
-       // Poll every 3 seconds for new messages
+    // Fallback polling function when WebSocket fails
+    const startPollingFallback = () => {
+      if (pollingTimer) return; // Already polling
+      
+      console.warn('[useMessages] Starting polling fallback for thread:', threadId);
+      supabaseMonitor.setPollingFallback(true);
+      
+      // Poll every 3 seconds for new messages
       pollingTimer = setInterval(async () => {
         try {
           const { data, error } = await supabase
@@ -389,145 +386,121 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       }, 3000);
     };
     
-         // Stop polling fallback
-     const stopPollingFallback = () => {
-       if (pollingTimer) {
-         clearInterval(pollingTimer);
-         pollingTimer = null;
-         supabaseMonitor.setPollingFallback(false);
-         console.debug('[useMessages] Stopped polling fallback');
-       }
-     };
+    // Stop polling fallback
+    const stopPollingFallback = () => {
+      if (pollingTimer) {
+        clearInterval(pollingTimer);
+        pollingTimer = null;
+        supabaseMonitor.setPollingFallback(false);
+        console.debug('[useMessages] Stopped polling fallback');
+      }
+    };
     
-         // WebSocket connection attempt with retry logic
-     const setupRealtimeSubscription = (attempt = 1, maxAttempts = 3) => {
-       console.debug(`[useMessages] Setting up real-time subscription (attempt ${attempt}/${maxAttempts})`);
-       supabaseMonitor.recordConnectionAttempt();
-       
-       try {
-        channel = supabase
-          .channel(`messages:thread_id=eq.${threadId}`)
-          .on(
-            'postgres_changes',
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'messages',
-              filter: `thread_id=eq.${threadId}`
-            },
-            async (payload) => {
-              const newMessage = payload.new as Message;
-              if (process.env.NODE_ENV === 'development') {
-                console.debug('[useMessages] Real-time message received:', newMessage.id);
+    // Set up realtime subscription using RealtimeManager
+    console.debug(`[useMessages] Setting up real-time subscription for thread: ${threadId}`);
+    supabaseMonitor.recordConnectionAttempt();
+    
+    try {
+      realtimeUnsubscribe = realtimeManager.subscribe(
+        'messages',
+        {
+          table: 'messages',
+          filter: `thread_id=eq.${threadId}`,
+          onInsert: async (payload) => {
+            const newMessage = payload.new as Message;
+            if (process.env.NODE_ENV === 'development') {
+              console.debug('[useMessages] Real-time message received:', newMessage.id);
+            }
+            
+            // Only process if we haven't seen this message ID before
+            if (!addedMessageIds.current.has(newMessage.id)) {
+              // Add to our tracking set immediately to prevent duplicate processing
+              addedMessageIds.current.add(newMessage.id);
+              
+              // Update the user message counter for title generation
+              if (newMessage.role === 'user') {
+                userMessageCountRef.current++;
+                console.log(`[Thread ${threadId}] User message count incremented to ${userMessageCountRef.current}`);
               }
               
-              // Only process if we haven't seen this message ID before
-              if (!addedMessageIds.current.has(newMessage.id)) {
-                // Add to our tracking set immediately to prevent duplicate processing
-                addedMessageIds.current.add(newMessage.id);
+              // Track the message received event
+              trackChat.responseReceived(threadId, newMessage.id, {
+                message_role: newMessage.role,
+                response_time: Date.now() - (newMessage.created_at ? new Date(newMessage.created_at).getTime() : Date.now())
+              });
+              
+              // Use a more robust update logic that preserves optimistic messages until replaced
+              setMessages(currentMessages => {
+                // 1. Find any optimistic message that this server message might be replacing
+                // Use a time window to ensure we're matching the correct message
+                const matchingOptimistic = currentMessages.find(msg => 
+                  msg.id.startsWith('optimistic-') && 
+                  msg.role === newMessage.role &&
+                  msg.content === newMessage.content &&
+                  // Add a 10-second window to match created_at times
+                  Math.abs(new Date(msg.created_at).getTime() - new Date(newMessage.created_at).getTime()) < 10000
+                );
                 
-                // Update the user message counter for title generation
-                if (newMessage.role === 'user') {
-                  userMessageCountRef.current++;
-                  console.log(`[Thread ${threadId}] User message count incremented to ${userMessageCountRef.current}`);
+                // 2. Remove any messages with the same server ID (deduplication)
+                const withoutDuplicates = currentMessages.filter(msg => msg.id !== newMessage.id);
+                
+                // 3. If we found a matching optimistic message, remove it
+                let withoutOptimistic = withoutDuplicates;
+                if (matchingOptimistic) {
+                  withoutOptimistic = withoutDuplicates.filter(msg => msg.id !== matchingOptimistic.id);
                 }
                 
-                // Use a more robust update logic that preserves optimistic messages until replaced
-                setMessages(currentMessages => {
-                  // 1. Find any optimistic message that this server message might be replacing
-                  // Use a time window to ensure we're matching the correct message
-                  const matchingOptimistic = currentMessages.find(msg => 
-                    msg.id.startsWith('optimistic-') && 
-                    msg.role === newMessage.role &&
-                    msg.content === newMessage.content &&
-                    // Add a 10-second window to match created_at times
-                    Math.abs(new Date(msg.created_at).getTime() - new Date(newMessage.created_at).getTime()) < 10000
-                  );
-                  
-                  // 2. Remove any messages with the same server ID (deduplication)
-                  const withoutDuplicates = currentMessages.filter(msg => msg.id !== newMessage.id);
-                  
-                  // 3. If we found a matching optimistic message, remove it
-                  let withoutOptimistic = withoutDuplicates;
-                  if (matchingOptimistic) {
-                    withoutOptimistic = withoutDuplicates.filter(msg => msg.id !== matchingOptimistic.id);
-                  }
-                  
-                  // 4. Add the server message and ensure proper time-based ordering
-                  const updatedMessages = [...withoutOptimistic, newMessage];
-                  return updatedMessages.sort((a, b) => 
-                    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-                  );
-                });
-              }
+                // 4. Add the server message and ensure proper time-based ordering
+                const updatedMessages = [...withoutOptimistic, newMessage];
+                return updatedMessages.sort((a, b) => 
+                  new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                );
+              });
             }
-          )
-          .subscribe((status) => {
-            console.debug(`[useMessages] Subscription status:`, status);
-            
-            if (status === 'SUBSCRIBED') {
-              isSubscribed = true;
-              stopPollingFallback(); // Stop polling since WebSocket is working
-              console.debug('[useMessages] Real-time subscription established successfully');
-            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-              console.warn(`[useMessages] Subscription failed with status: ${status}`);
-              isSubscribed = false;
-              
-              // Try to reconnect if we have attempts left
-              if (attempt < maxAttempts) {
-                console.debug(`[useMessages] Scheduling retry in ${attempt * 2} seconds`);
-                reconnectTimer = setTimeout(() => {
-                  setupRealtimeSubscription(attempt + 1, maxAttempts);
-                }, attempt * 2000); // Exponential backoff
-              } else {
-                console.warn('[useMessages] Max reconnection attempts reached, falling back to polling');
-                startPollingFallback();
-              }
-            }
-          });
-      } catch (error) {
-        console.error('[useMessages] Error setting up real-time subscription:', error);
-        
-        // If we can't set up WebSocket, immediately fall back to polling
-        if (attempt >= maxAttempts) {
-          console.warn('[useMessages] WebSocket setup failed, falling back to polling');
-          startPollingFallback();
-        } else {
-          // Retry setup
-          reconnectTimer = setTimeout(() => {
-            setupRealtimeSubscription(attempt + 1, maxAttempts);
-          }, attempt * 2000);
-        }
-      }
-    };
-    
-    // Start the subscription process
-    setupRealtimeSubscription();
-    
-    // Cleanup on threadId change or unmount
-    return () => {
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
-      }
-      
-      stopPollingFallback();
-      
-      if (channel) {
-        try {
-          if (process.env.NODE_ENV === 'development') {
-            console.debug('[useMessages] Unsubscribing from real-time messages');
           }
-          // Use supabase.removeChannel for proper cleanup
-          supabase.removeChannel(channel);
-        } catch (error) {
-          console.error('[useMessages] Error unsubscribing from real-time subscription:', error);
+        },
+        user?.id
+      );
+      
+      console.debug('[useMessages] Real-time subscription established successfully');
+      
+      // Monitor connection state and fallback to polling if needed
+      const connectionStateUnsubscribe = realtimeManager.onStatusChange((state) => {
+        if (state.fallbackPolling && !pollingTimer) {
+          console.warn('[useMessages] RealtimeManager enabled fallback polling, starting local polling');
+          startPollingFallback();
+        } else if (!state.fallbackPolling && pollingTimer) {
+          console.debug('[useMessages] RealtimeManager disabled fallback polling, stopping local polling');
+          stopPollingFallback();
         }
-      }
-    };
-  }, [threadId]);
-
-
+      });
+      
+      // Cleanup function
+      return () => {
+        console.debug('[useMessages] Cleaning up real-time subscription');
+        
+        stopPollingFallback();
+        
+        if (realtimeUnsubscribe) {
+          realtimeUnsubscribe();
+        }
+        
+        connectionStateUnsubscribe();
+      };
+      
+    } catch (error) {
+      console.error('[useMessages] Error setting up real-time subscription:', error);
+      
+      // Immediately fall back to polling if subscription setup fails
+      console.warn('[useMessages] Real-time subscription failed, falling back to polling');
+      startPollingFallback();
+      
+      // Return cleanup function for polling
+      return () => {
+        stopPollingFallback();
+      };
+    }
+  }, [threadId, user?.id, trackChat]);
 
   // Handle closing the paywall
   const handleClosePaywall = useCallback(() => {

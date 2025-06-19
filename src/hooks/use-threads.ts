@@ -202,43 +202,8 @@ export function useThreads() {
     // After the first load, set initialLoadRef to false
     initialLoadRef.current = false;
 
-    // Set up realtime subscription for thread changes
-    const setupSubscription = async () => {
-      try {
-        console.log('useThreads: Setting up realtime subscription');
-        
-        const threadsSubscription = supabase
-          .channel('threads')
-          .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'threads',
-            filter: `user_id=eq.${user.id}`
-          }, (payload) => {
-            console.log('useThreads: Received realtime update', payload.eventType);
-            
-            if (payload.eventType === 'INSERT') {
-              setThreads(prev => [payload.new as Thread, ...prev]);
-            } else if (payload.eventType === 'DELETE') {
-              setThreads(prev => prev.filter(thread => thread.id !== payload.old.id));
-            } else if (payload.eventType === 'UPDATE') {
-              setThreads(prev => prev.map(thread => 
-                thread.id === payload.new.id ? payload.new as Thread : thread
-              ));
-            }
-          })
-          .subscribe((status) => {
-            console.log('useThreads: Subscription status:', status);
-          });
-          
-        return threadsSubscription;
-      } catch (err) {
-        console.error('useThreads: Error setting up subscription:', err);
-        return null;
-      }
-    };
-    
-    const subscription = setupSubscription();
+    // Note: Realtime subscription is handled by useThreadsRealtime() in use-query-threads.ts
+    // to avoid channel conflicts. This hook focuses on CRUD operations.
 
     return () => {
       console.log('useThreads: Cleaning up');
@@ -253,15 +218,6 @@ export function useThreads() {
       if (toastTimeoutRef.current) {
         clearTimeout(toastTimeoutRef.current);
         toastTimeoutRef.current = null;
-      }
-      
-      // Unsubscribe from realtime updates
-      if (subscription) {
-        subscription.then(sub => {
-          if (sub) {
-            supabase.removeChannel(sub);
-          }
-        });
       }
     };
   }, [user, toast]); // Removed loading from dependency array

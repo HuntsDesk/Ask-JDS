@@ -1,7 +1,7 @@
 import { useUsermaven, usePageView } from '@usermaven/react';
 import { useUsermavenContext } from '@/contexts/UsermavenContext';
 import { useAuth } from '@/lib/auth';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
 
 /**
  * Custom hook that provides analytics tracking capabilities
@@ -12,8 +12,12 @@ import { useEffect, useCallback } from 'react';
 export const useAnalytics = () => {
   const { initialized } = useUsermavenContext();
   const { user } = useAuth();
+  const identifyCallMadeRef = useRef(false);
   
-  console.log('🔍 [ANALYTICS DEBUG] Hook called with initialized:', initialized);
+  // Only log in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔍 [ANALYTICS DEBUG] Hook called with initialized:', initialized);
+  }
   
   // Call hooks unconditionally (required by React rules)
   let usermaven: any = null;
@@ -22,20 +26,29 @@ export const useAnalytics = () => {
   try {
     // Always call the hooks - React requires this
     usermaven = useUsermaven();
-    console.log('🔍 [ANALYTICS DEBUG] usermaven client:', usermaven ? 'available' : 'null');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 [ANALYTICS DEBUG] usermaven client:', usermaven ? 'available' : 'null');
+    }
     
     // Set up automatic page view tracking
     usePageView({
       before: (um) => {
-        console.log('🔍 [ANALYTICS DEBUG] usePageView before callback called');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔍 [ANALYTICS DEBUG] usePageView before callback called');
+        }
         // Before tracking a page view, try to identify the user if they're logged in
-        if (user?.id && user?.email) {
-          console.log('🔍 [ANALYTICS DEBUG] Identifying user before page view');
+        if (user?.id && user?.email && !identifyCallMadeRef.current) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('🔍 [ANALYTICS DEBUG] Identifying user before page view');
+          }
           identifyUser(um, user);
+          identifyCallMadeRef.current = true;
         }
       }
     });
-    console.log('🔍 [ANALYTICS DEBUG] usePageView hook set up successfully');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 [ANALYTICS DEBUG] usePageView hook set up successfully');
+    }
   } catch (error) {
     console.error('🔍 [ANALYTICS DEBUG] Error setting up Usermaven hooks:', error);
     pageViewError = error;
@@ -43,45 +56,62 @@ export const useAnalytics = () => {
   
   // If not initialized, make the functions no-ops
   if (!initialized) {
-    console.log('🔍 [ANALYTICS DEBUG] Analytics not initialized, returning no-op functions');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 [ANALYTICS DEBUG] Analytics not initialized, returning no-op functions');
+    }
     usermaven = null;
   }
   
-  // Identify user when they log in
+  // Identify user when they log in (memoized to prevent excessive calls)
   useEffect(() => {
-    console.log('🔍 [ANALYTICS DEBUG] useEffect triggered with:', {
-      initialized,
-      hasUsermaven: !!usermaven,
-      hasUser: !!user?.id,
-      userEmail: user?.email
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 [ANALYTICS DEBUG] useEffect triggered with:', {
+        initialized,
+        hasUsermaven: !!usermaven,
+        hasUser: !!user?.id,
+        userEmail: user?.email,
+        identifyCallMade: identifyCallMadeRef.current
+      });
+    }
     
-    if (!initialized || !usermaven || !user?.id || !user?.email) {
-      console.log('🔍 [ANALYTICS DEBUG] Skipping user identification - missing requirements');
+    if (!initialized || !usermaven || !user?.id || !user?.email || identifyCallMadeRef.current) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 [ANALYTICS DEBUG] Skipping user identification - missing requirements or already called');
+      }
       return;
     }
     
-    console.log('🔍 [ANALYTICS DEBUG] Identifying user and sending test event');
-    identifyUser(usermaven, user);
-    
-    // Send a test event to verify analytics is working
-    console.log('📊 Sending test analytics event...');
-    try {
-      usermaven.track('analytics_test', {
-        timestamp: new Date().toISOString(),
-        page: window.location.pathname,
-        test: true
-      });
-      console.log('✅ [ANALYTICS DEBUG] Test event sent successfully');
-    } catch (error) {
-      console.error('❌ [ANALYTICS DEBUG] Failed to send test event:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 [ANALYTICS DEBUG] Identifying user and sending test event');
     }
-  }, [initialized, user?.id, user?.email, usermaven]);
+    identifyUser(usermaven, user);
+    identifyCallMadeRef.current = true;
+    
+    // Send a test event to verify analytics is working (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📊 Sending test analytics event...');
+      try {
+        usermaven.track('analytics_test', {
+          timestamp: new Date().toISOString(),
+          page: window.location.pathname,
+          test: true
+        });
+        console.log('✅ [ANALYTICS DEBUG] Test event sent successfully');
+      } catch (error) {
+        console.error('❌ [ANALYTICS DEBUG] Failed to send test event:', error);
+      }
+    }
+  }, [initialized, user?.id, user?.email]); // Removed usermaven from deps to prevent infinite loops
+  
+  // Reset identify call flag when user changes
+  useEffect(() => {
+    identifyCallMadeRef.current = false;
+  }, [user?.id]);
   
   /**
    * Helper function to identify a user with consistent properties
    */
-  const identifyUser = (client: any, userData: any) => {
+  const identifyUser = useCallback((client: any, userData: any) => {
     try {
       client.id({
         id: userData.id,
@@ -100,7 +130,7 @@ export const useAnalytics = () => {
     } catch (error) {
       console.error('Failed to identify user with Usermaven:', error);
     }
-  };
+  }, []);
   
   /**
    * Track a custom event
@@ -145,7 +175,7 @@ export const useAnalytics = () => {
   /**
    * Track authentication events
    */
-  const trackAuth = {
+  const trackAuth = useMemo(() => ({
     signUp: (method: string = 'email', properties: Record<string, any> = {}) => {
       trackEvent('signed_up', { auth_method: method, ...properties });
       trackConversion('signed_up', { auth_method: method, ...properties });
@@ -158,12 +188,12 @@ export const useAnalytics = () => {
     logOut: (properties: Record<string, any> = {}) => {
       trackEvent('logged_out', properties);
     }
-  };
+  }), [trackEvent, trackConversion]);
   
   /**
    * Track chat interactions
    */
-  const trackChat = {
+  const trackChat = useMemo(() => ({
     threadCreated: (threadId: string, title: string, properties: Record<string, any> = {}) => {
       trackEvent('chat_thread_created', { thread_id: threadId, thread_title: title, ...properties });
     },
@@ -175,12 +205,12 @@ export const useAnalytics = () => {
     responseReceived: (threadId: string, messageId: string, properties: Record<string, any> = {}) => {
       trackEvent('chat_response_received', { thread_id: threadId, message_id: messageId, ...properties });
     }
-  };
+  }), [trackEvent]);
   
   /**
    * Track course interactions
    */
-  const trackCourse = {
+  const trackCourse = useMemo(() => ({
     viewed: (courseId: string, courseName: string, properties: Record<string, any> = {}) => {
       trackEvent('view_course', { course_id: courseId, course_name: courseName, ...properties });
     },
@@ -193,12 +223,12 @@ export const useAnalytics = () => {
       trackEvent('course_enrolled', { course_id: courseId, course_name: courseName, ...properties });
       trackConversion('course_enrollment', { course_id: courseId, course_name: courseName, ...properties });
     }
-  };
+  }), [trackEvent, trackConversion]);
   
   /**
    * Track subscription events
    */
-  const trackSubscription = {
+  const trackSubscription = useMemo(() => ({
     checkoutStarted: (plan: string, interval: string, price: number, properties: Record<string, any> = {}) => {
       trackEvent('initiate_checkout', { plan, interval, price, currency: 'USD', ...properties });
     },
@@ -211,12 +241,12 @@ export const useAnalytics = () => {
     cancelled: (plan: string, reason: string, properties: Record<string, any> = {}) => {
       trackEvent('subscription_canceled', { plan, cancellation_reason: reason, ...properties });
     }
-  };
+  }), [trackEvent, trackConversion]);
   
   /**
    * Track flashcard interactions
    */
-  const trackFlashcards = {
+  const trackFlashcards = useMemo(() => ({
     created: (deckId: string, deckName: string, properties: Record<string, any> = {}) => {
       trackEvent('flashcard_created', { deck_id: deckId, deck_name: deckName, ...properties });
     },
@@ -224,12 +254,12 @@ export const useAnalytics = () => {
     studied: (deckId: string, deckName: string, cardCount: number, properties: Record<string, any> = {}) => {
       trackEvent('flashcard_studied', { deck_id: deckId, deck_name: deckName, card_count: cardCount, ...properties });
     }
-  };
+  }), [trackEvent]);
   
   /**
    * Track search and navigation
    */
-  const trackSearch = {
+  const trackSearch = useMemo(() => ({
     performed: (query: string, resultsCount: number, properties: Record<string, any> = {}) => {
       trackEvent('search', { search_term: query, results_count: resultsCount, ...properties });
     },
@@ -237,9 +267,9 @@ export const useAnalytics = () => {
     filterApplied: (filterType: string, filterValue: string, properties: Record<string, any> = {}) => {
       trackEvent('filter_applied', { filter_type: filterType, filter_value: filterValue, ...properties });
     }
-  };
+  }), [trackEvent]);
   
-  return {
+  return useMemo(() => ({
     initialized,
     trackEvent,
     trackConversion,
@@ -251,5 +281,5 @@ export const useAnalytics = () => {
     trackSubscription,
     trackFlashcards,
     trackSearch
-  };
+  }), [initialized, trackEvent, trackConversion, usermaven, trackAuth, trackChat, trackCourse, trackSubscription, trackFlashcards, trackSearch]);
 }; 

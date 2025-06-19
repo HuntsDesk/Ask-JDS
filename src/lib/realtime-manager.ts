@@ -22,6 +22,7 @@ interface ConnectionState {
 class RealtimeSubscriptionManager {
   private static instance: RealtimeSubscriptionManager;
   private channels: Map<string, RealtimeChannel> = new Map();
+  private channelConfigs: Map<string, { config: RealtimeSubscriptionConfig; userId?: string }> = new Map();
   private connectionState: ConnectionState = {
     isConnected: false,
     lastConnected: null,
@@ -43,9 +44,31 @@ class RealtimeSubscriptionManager {
     this.setupGlobalConnectionListener();
   }
 
+  /**
+   * Generate a unique channel name to prevent collisions
+   */
+  private generateChannelName(base: string, identifier?: string): string {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 9);
+    const suffix = identifier ? `${identifier}-${timestamp}-${random}` : `${timestamp}-${random}`;
+    return `${base}-${suffix}`;
+  }
+
+  /**
+   * Check for potential channel name collisions
+   */
+  private checkChannelCollision(channelName: string): boolean {
+    const exists = this.channels.has(channelName);
+    if (exists) {
+      console.warn(`[RealtimeManager] Channel name collision detected: ${channelName}`);
+    }
+    return exists;
+  }
+
   private setupGlobalConnectionListener() {
     // Monitor global connection status using channel-based approach
-    const statusChannel = supabase.channel('connection-monitor');
+    const statusChannelName = this.generateChannelName('connection-monitor');
+    const statusChannel = supabase.channel(statusChannelName);
     
     statusChannel.subscribe((status) => {
       console.log('[RealtimeManager] Connection status:', status);
@@ -69,7 +92,7 @@ class RealtimeSubscriptionManager {
     });
 
     // Store reference to status channel for cleanup
-    this.channels.set('connection-monitor', statusChannel);
+    this.channels.set(statusChannelName, statusChannel);
   }
 
   private updateConnectionState(updates: Partial<ConnectionState>) {
@@ -125,26 +148,33 @@ class RealtimeSubscriptionManager {
     try {
       console.log('[RealtimeManager] Attempting to reconnect...');
       
-      // Remove and recreate channels to force reconnection
+      // Store channel configurations before removing
       const channelConfigs: Array<{ name: string; config: RealtimeSubscriptionConfig; userId?: string }> = [];
       
-      // Store channel configurations before removing
-      this.channels.forEach((channel, name) => {
-        if (name !== 'connection-monitor') {
-          // Store the channel config (in a real implementation, we'd need to store this)
-          supabase.removeChannel(channel);
+      this.channelConfigs.forEach((value, name) => {
+        if (!name.includes('connection-monitor')) {
+          channelConfigs.push({ name, ...value });
         }
       });
       
-      // Clear channels except connection monitor
-      const connectionMonitor = this.channels.get('connection-monitor');
-      this.channels.clear();
-      if (connectionMonitor) {
-        this.channels.set('connection-monitor', connectionMonitor);
-      }
+      // Remove channels except connection monitor
+      this.channels.forEach((channel, name) => {
+        if (!name.includes('connection-monitor')) {
+          console.log(`[RealtimeManager] Removing channel during reconnection: ${name}`);
+          supabase.removeChannel(channel);
+          this.channels.delete(name);
+          this.channelConfigs.delete(name);
+        }
+      });
       
       // Wait a moment before attempting to reconnect
       await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Recreate channels with new unique names
+      for (const { config, userId } of channelConfigs) {
+        const newChannelName = this.generateChannelName(config.table, userId);
+        this.subscribeInternal(newChannelName, config, userId);
+      }
       
       console.log('[RealtimeManager] Reconnection attempt completed');
     } catch (error) {
@@ -153,12 +183,15 @@ class RealtimeSubscriptionManager {
     }
   }
 
-  public subscribe(
+  /**
+   * Internal subscription method that handles the actual channel creation
+   */
+  private subscribeInternal(
     channelName: string,
     config: RealtimeSubscriptionConfig,
     userId?: string
-  ): () => void {
-    console.log(`[RealtimeManager] Subscribing to channel: ${channelName}`);
+  ): RealtimeChannel {
+    console.log(`[RealtimeManager] Creating subscription for channel: ${channelName}`);
 
     // Build filter with user ID if provided
     let filter = config.filter;
@@ -199,20 +232,48 @@ class RealtimeSubscriptionManager {
             lastConnected: new Date(),
             retryCount: 0
           });
-        } else if (status === 'TIMED_OUT' || status === 'CLOSED') {
+        } else if (status === 'TIMED_OUT' || status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          console.warn(`[RealtimeManager] Channel ${channelName} failed with status: ${status}`);
           this.updateConnectionState({
             isConnected: false,
             lastDisconnected: new Date()
           });
+          
+          // Remove failed channel from our tracking
+          this.channels.delete(channelName);
+          this.channelConfigs.delete(channelName);
         }
       });
 
     this.channels.set(channelName, channel);
+    this.channelConfigs.set(channelName, { config, userId });
+    
+    return channel;
+  }
+
+  public subscribe(
+    baseChannelName: string,
+    config: RealtimeSubscriptionConfig,
+    userId?: string
+  ): () => void {
+    // Generate unique channel name to prevent collisions
+    const uniqueChannelName = this.generateChannelName(baseChannelName, userId);
+    
+    // Double-check for collisions (should never happen with our naming strategy)
+    if (this.checkChannelCollision(uniqueChannelName)) {
+      console.error(`[RealtimeManager] Channel collision detected, generating new name`);
+      return this.subscribe(baseChannelName, config, userId); // Retry with new name
+    }
+
+    console.log(`[RealtimeManager] Subscribing to channel: ${uniqueChannelName}`);
+    
+    const channel = this.subscribeInternal(uniqueChannelName, config, userId);
 
     // Return unsubscribe function
     return () => {
-      console.log(`[RealtimeManager] Unsubscribing from channel: ${channelName}`);
-      this.channels.delete(channelName);
+      console.log(`[RealtimeManager] Unsubscribing from channel: ${uniqueChannelName}`);
+      this.channels.delete(uniqueChannelName);
+      this.channelConfigs.delete(uniqueChannelName);
       supabase.removeChannel(channel);
     };
   }
@@ -257,7 +318,19 @@ class RealtimeSubscriptionManager {
     });
     
     this.channels.clear();
+    this.channelConfigs.clear();
     this.statusListeners = [];
+  }
+
+  /**
+   * Get debug information about active channels
+   */
+  public getDebugInfo(): { channelCount: number; channels: string[]; connectionState: ConnectionState } {
+    return {
+      channelCount: this.channels.size,
+      channels: Array.from(this.channels.keys()),
+      connectionState: this.connectionState
+    };
   }
 }
 
