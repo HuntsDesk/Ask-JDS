@@ -23,20 +23,38 @@ interface UsermavenAnalyticsProviderProps {
  * main layout or inside the root App component
  */
 export const UsermavenAnalyticsProvider: React.FC<UsermavenAnalyticsProviderProps> = ({ children }) => {
+  // Debug logging to see what environment variables are available
+  console.log('🔍 [USERMAVEN DEBUG] Environment check:', {
+    VITE_USERMAVEN_KEY: import.meta.env.VITE_USERMAVEN_KEY,
+    VITE_USERMAVEN_TRACKING_HOST: import.meta.env.VITE_USERMAVEN_TRACKING_HOST,
+    NODE_ENV: import.meta.env.NODE_ENV,
+    MODE: import.meta.env.MODE,
+    allEnvKeys: Object.keys(import.meta.env).filter(key => key.includes('USERMAVEN'))
+  });
+  
   // Only initialize if we have the required API key
   const hasApiKey = Boolean(import.meta.env.VITE_USERMAVEN_KEY);
+  
+  console.log('🔍 [USERMAVEN DEBUG] hasApiKey:', hasApiKey, 'raw value:', import.meta.env.VITE_USERMAVEN_KEY);
   
   // If we don't have an API key, just render children without Usermaven
   if (!hasApiKey) {
     console.warn('⚠️ Usermaven API key not found. Analytics tracking is disabled.');
-    return <>{children}</>;
+    return (
+      <UsermavenContext.Provider value={{ initialized: false }}>
+        {children}
+      </UsermavenContext.Provider>
+    );
   }
 
   console.log('🚀 Usermaven analytics enabled and ready to track events');
 
   // Create the Usermaven client with our configuration
   const config = getUsermavenConfig();
+  console.log('🔍 [USERMAVEN DEBUG] Client config:', config);
+  
   const usermavenClient = createClient(config);
+  console.log('🔍 [USERMAVEN DEBUG] Client created:', usermavenClient);
   
   return (
     <UsermavenProvider client={usermavenClient}>
