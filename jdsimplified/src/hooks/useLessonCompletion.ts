@@ -1,12 +1,14 @@
-
+import React from 'react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { Lesson, Module } from '@/types/course';
 
 export const useLessonCompletion = () => {
   const [completedLessons, setCompletedLessons] = useState<string[]>(['l1', 'l2']);
   const navigate = useNavigate();
+  const { trackCourse } = useAnalytics();
 
   const isLessonCompleted = (lessonId: string) => {
     return completedLessons.includes(lessonId);
@@ -28,6 +30,15 @@ export const useLessonCompletion = () => {
       });
     } else {
       setCompletedLessons(prev => [...prev, currentLesson.id]);
+      
+      // Track lesson completion
+      trackCourse.lessonCompleted(courseId, currentLesson.id, {
+        lesson_title: currentLesson.title,
+        lesson_duration: currentLesson.duration,
+        has_next_lesson: !!nextLesson,
+        auto_advance: !!nextLesson
+      });
+      
       toast({
         title: "Lesson completed",
         description: "Your progress has been saved.",

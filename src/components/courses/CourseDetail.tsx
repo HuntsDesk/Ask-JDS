@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,9 +6,12 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { supabase } from '@/lib/supabase';
 import { CheckCircle2, ChevronDown, ChevronRight, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { toast } from 'react-hot-toast';
+import { useToast } from '@/hooks/use-toast';
 import { StripeCheckoutDialog } from '@/components/stripe/StripeCheckoutDialog';
 import CourseNavbar from './CourseNavbar';
+import { useAuth } from '@/lib/auth';
+import { useAnalytics } from '@/hooks/use-analytics';
+
 
 interface Course {
   id: string;
@@ -39,6 +42,9 @@ interface Module {
 
 export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const { trackCourse } = useAnalytics();
   const [course, setCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +78,13 @@ export default function CourseDetail() {
         if (!courseData) throw new Error('Course not found');
         
         setCourse(courseData);
+
+        // Track course view
+        trackCourse.viewed(courseData.id, courseData.title, {
+          is_featured: courseData.is_featured,
+          days_of_access: courseData.days_of_access,
+          user_logged_in: !!user
+        });
 
         // Fetch course modules
         const { data: moduleData, error: moduleError } = await supabase
@@ -114,7 +127,7 @@ export default function CourseDetail() {
     if (id) {
       fetchCourseData();
     }
-  }, [id]);
+  }, [id, trackCourse, user]);
 
   // Add effect to check for reopenPayment parameter
   useEffect(() => {
@@ -137,6 +150,15 @@ export default function CourseDetail() {
         window.location.href = `/login?redirectTo=${encodeURIComponent(`/course-detail/${id}`)}`;
         return;
       }
+
+      // Track enrollment attempt
+      if (course) {
+        trackCourse.enrolled(course.id, course.title, {
+          enrollment_method: 'direct_purchase',
+          days_of_access: course.days_of_access,
+          is_featured: course.is_featured
+        });
+      }
       
       // Call the Edge Function with the correct parameter names
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-handler`, {
@@ -157,7 +179,11 @@ export default function CourseDetail() {
       if (!response.ok) {
         const error = await response.json();
         console.error('Checkout error:', error);
-        toast.error(error.error || 'Failed to create checkout session');
+        toast({
+          title: 'Checkout Error',
+          description: error.error || 'Failed to create checkout session',
+          variant: 'destructive'
+        });
         setIsProcessing(false);
         return;
       }
@@ -182,11 +208,19 @@ export default function CourseDetail() {
       
       // If we get here, we didn't get a valid response
       console.error('No client_secret or URL returned');
-      toast.error('Failed to create checkout session');
+      toast({
+        title: 'Checkout Error',
+        description: 'Failed to create checkout session',
+        variant: 'destructive'
+      });
       setIsProcessing(false);
     } catch (error) {
       console.error('Error initiating checkout:', error);
-      toast.error('An error occurred. Please try again.');
+      toast({
+        title: 'Checkout Error',
+        description: 'An error occurred. Please try again.',
+        variant: 'destructive'
+      });
       setIsProcessing(false);
     }
   };
@@ -334,7 +368,11 @@ export default function CourseDetail() {
           description={`Enroll in "${course.title}" (${course.days_of_access} days access)`}
           onError={(error) => {
             console.error('Payment error:', error);
-            toast.error(error.message || 'Payment failed');
+            toast({
+              title: 'Payment Error',
+              description: error.message || 'Payment failed',
+              variant: 'destructive'
+            });
           }}
         />
       )}

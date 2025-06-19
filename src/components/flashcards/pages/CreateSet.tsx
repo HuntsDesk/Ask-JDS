@@ -7,6 +7,14 @@ import ErrorMessage from '../ErrorMessage';
 import useToast from '@/hooks/useFlashcardToast';
 import Toast from '../Toast';
 import { useAuth } from '@/lib/auth';
+import { useAnalytics } from '@/hooks/use-analytics';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { ArrowLeft } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Flashcard {
   question: string;
@@ -24,23 +32,24 @@ export default function CreateSet() {
   const [searchParams] = useSearchParams();
   const initialSubjectId = searchParams.get('subject');
   const { user } = useAuth();
-  
+  const { trackFlashcards } = useAnalytics();
   const { toast, showToast, hideToast } = useToast();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>(
-    initialSubjectId ? [initialSubjectId] : []
-  );
-  const [newSubjectName, setNewSubjectName] = useState('');
-  const [newSubjectDescription, setNewSubjectDescription] = useState('');
-  const [showNewSubjectForm, setShowNewSubjectForm] = useState(false);
   const [cards, setCards] = useState<Flashcard[]>([
+    { question: '', answer: '' },
     { question: '', answer: '' }
   ]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>(
+    initialSubjectId ? [initialSubjectId] : []
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showNewSubjectForm, setShowNewSubjectForm] = useState(false);
+  const [newSubjectName, setNewSubjectName] = useState('');
+  const [newSubjectDescription, setNewSubjectDescription] = useState('');
 
   useEffect(() => {
     loadSubjects();
@@ -215,6 +224,14 @@ export default function CreateSet() {
         
         if (junctionError) throw junctionError;
       }
+      
+      // Track flashcard collection creation
+      trackFlashcards.created(collection.id, collection.title, {
+        card_count: cards.length,
+        subject_count: subjectIds.length,
+        has_description: !!description,
+        created_new_subject: !!newSubjectId
+      });
       
       showToast('Flashcard collection created successfully!', 'success');
       

@@ -9,6 +9,10 @@ import useToast from '@/hooks/useFlashcardToast';
 import Toast from './Toast';
 import { useAuth } from '@/lib/auth';
 import { useSubscriptionWithTier } from '@/hooks/useSubscription';
+import { useAnalytics } from '@/hooks/use-analytics';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { hasActiveSubscription } from '@/lib/subscription';
 
 interface Flashcard {
   id: string;
