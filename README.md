@@ -133,11 +133,113 @@ VITE_USERMAVEN_TRACKING_HOST=https://a.jdsimplified.com
 - **Privacy-Focused**: Uses a white-labeled domain (`a.jdsimplified.com`) for first-party data collection
 - **Cross-Domain Tracking**: Seamlessly tracks user journey across all domains
 - **User Identification**: Associates analytics with user profiles when authenticated
-- **Event Tracking**: Captures key user interactions throughout the application:
-  - Authentication events (sign-ups, logins)
-  - Chat interactions (thread creation, message sending)
-  - Subscription events (checkout initiation, purchases)
-  - Feature usage (courses, flashcards, content engagement)
+- **Event Tracking**: Captures key user interactions throughout the application
+
+### Custom Events Implementation
+
+The platform implements comprehensive event tracking across all user interactions. These events provide valuable insights into user behavior and feature usage.
+
+#### Authentication Events
+- **`signed_up`** - User completes account registration
+  - Metadata: `source`, `user_tier`
+  - Location: `src/lib/auth.tsx` (signup flow)
+- **`logged_in`** - User successfully logs in
+  - Metadata: `source`, `user_tier`, `login_method`
+  - Location: `src/lib/auth.tsx` (login flow)
+- **`logged_out`** - User logs out of the application
+  - Metadata: `session_duration`
+  - Location: `src/lib/auth.tsx` (logout flow)
+
+#### Chat System Events
+- **`chat_thread_created`** - New chat thread started
+  - Metadata: `thread_count`, `user_tier`
+  - Location: `src/hooks/use-threads.ts`
+- **`chat_message_sent`** - User sends a chat message
+  - Metadata: `thread_id`, `message_length`, `user_tier`, `message_count`
+  - Location: `src/hooks/use-messages.ts`
+- **`chat_response_received`** - AI response received
+  - Metadata: `thread_id`, `response_time`, `model_used`, `user_tier`
+  - Location: `src/hooks/use-messages.ts`
+
+#### Course & Education Events
+- **`view_course`** - User views a course detail page
+  - Metadata: `course_id`, `course_title`, `is_authenticated`, `has_access`, `user_tier`
+  - Location: `src/components/courses/CourseDetail.tsx`
+- **`course_enrolled`** - User attempts to enroll in a course
+  - Metadata: `course_id`, `course_title`, `enrollment_method`, `has_access`, `user_tier`
+  - Location: `src/components/courses/CourseDetail.tsx`
+- **`lesson_completed`** - User completes a lesson
+  - Metadata: `lesson_id`, `course_id`, `completion_percentage`, `time_spent`
+  - Location: `jdsimplified/src/hooks/useLessonCompletion.ts`
+
+#### Subscription & Payment Events
+- **`initiate_checkout`** - User starts checkout process
+  - Metadata: `tier`, `interval`, `price`, `current_plan`, `features_included`, `is_upgrade`
+  - Location: `src/pages/PricingPage.tsx`, `src/hooks/use-analytics.ts`
+- **`purchase_complete`** - Subscription purchase completed
+  - Metadata: `tier`, `interval`, `price`, `payment_method`
+  - Location: Stripe webhook processing
+- **`subscription_canceled`** - User cancels subscription
+  - Metadata: `tier`, `cancellation_reason`, `remaining_days`
+  - Location: Subscription management flow
+
+#### Flashcard System Events
+- **`flashcard_created`** - New flashcard collection created
+  - Metadata: `collection_id`, `subject_name`, `card_count`, `is_public`
+  - Location: `src/components/flashcards/pages/CreateSet.tsx`
+- **`flashcard_studied`** - User studies flashcards
+  - Metadata: `collection_id`, `cards_studied`, `mastery_rate`, `study_duration`
+  - Location: Flashcard study components
+
+#### Navigation & Discovery Events
+- **`search`** - User performs a search
+  - Metadata: `query`, `results_count`, `category`
+  - Location: Search components
+- **`filter_applied`** - User applies content filters
+  - Metadata: `filter_type`, `filter_value`, `results_count`
+  - Location: Filter components
+- **`dashboard_viewed`** - User visits dashboard
+  - Metadata: `user_tier`, `login_streak`
+  - Location: Dashboard components
+
+#### Conversion Events
+- **`conversion`** - Meta-event for all conversions
+  - Metadata: `conversion_type`, `value`, `tier`
+  - Location: Triggered alongside specific conversion events
+
+### Usermaven Configuration
+
+To set up custom events in your Usermaven dashboard:
+
+1. **Access Usermaven Dashboard**: Log into your Usermaven account
+2. **Navigate to Events**: Go to Events > Custom Events
+3. **Add Event Names**: Configure the following custom events:
+   ```
+   signed_up
+   logged_in
+   logged_out
+   chat_thread_created
+   chat_message_sent
+   chat_response_received
+   view_course
+   course_enrolled
+   lesson_completed
+   initiate_checkout
+   purchase_complete
+   subscription_canceled
+   flashcard_created
+   flashcard_studied
+   search
+   filter_applied
+   dashboard_viewed
+   conversion
+   ```
+4. **Set Event Properties**: Each event includes relevant metadata for deeper analysis
+5. **Create Funnels**: Use these events to create conversion funnels:
+   - **Signup Funnel**: `signed_up` → `logged_in` → `initiate_checkout` → `purchase_complete`
+   - **Chat Engagement**: `chat_thread_created` → `chat_message_sent` → `chat_response_received`
+   - **Course Discovery**: `view_course` → `course_enrolled` → `lesson_completed`
+   - **Flashcard Usage**: `flashcard_created` → `flashcard_studied`
 
 ### Implementation Details
 
@@ -145,6 +247,8 @@ VITE_USERMAVEN_TRACKING_HOST=https://a.jdsimplified.com
 - **Hook**: `useAnalytics` in `src/hooks/use-analytics.ts`
 - **Debug**: Debugging interface available at `/debug/usermaven`
 - **Security**: CSP headers configured to allow connections to the tracking domain
+- **Event Categories**: All events are organized by feature area for easy analysis
+- **User Context**: Events automatically include user tier and authentication status
 
 ## Admin Utilities & Diagnostic Tools 🔧
 

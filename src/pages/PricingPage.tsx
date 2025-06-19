@@ -43,10 +43,10 @@ export function PricingPage() {
         trackSubscription.checkoutStarted(
           tierName.toLowerCase(),
           'month',
-          currentTier.price || 0,
+          typeof currentTier.price === 'string' ? 0 : currentTier.price || 0,
           {
             current_plan: hasActiveSubscription ? tierName : 'free',
-            features_included: currentTier.features?.length || 0,
+            features_included: currentTier.features ? Object.keys(currentTier.features).length : 0,
             is_upgrade: hasActiveSubscription && tierName !== 'free'
           }
         );
@@ -129,7 +129,7 @@ export function PricingPage() {
                 Simple, Transparent Pricing
               </h1>
               <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              Ask JDS. Smarter than your group chat, cheaper than a tutor.
+                Ask JDS. Smarter than your group chat, cheaper than a tutor.
               </p>
             </div>
 
@@ -176,4 +176,101 @@ export function PricingPage() {
                         if (feature.id === 'sample_flashcards_note') {
                           if (tier.name === 'Free' && tierFeatureInfo?.noteOnly) {
                             return (
-                              <li key={`${tier.name}-${feature.id}-note`
+                              <li key={`${tier.name}-${feature.id}-note`} className="flex items-start gap-2.5 text-xs">
+                                <ArrowRight className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${tier.highlight ? 'text-orange-100' : 'text-orange-500 dark:text-orange-400'}`} />
+                                <span className={`${tier.highlight ? 'text-orange-50' : 'text-gray-500 dark:text-gray-400'}`}>
+                                  {feature.displayName}
+                                </span>
+                              </li>
+                            );
+                          } else {
+                            return null; // Don't show this note for other tiers
+                          }
+                        }
+
+                        // For chat messages feature, display the complete text with limits included
+                        if (feature.id === 'chat_messages') {
+                          return (
+                            <li key={`${tier.name}-${feature.id}`} className="flex items-start gap-2.5">
+                              {tierFeatureInfo?.included ? (
+                                <CheckCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${tier.highlight ? 'text-white' : 'text-green-500'}`} />
+                              ) : (
+                                <XCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${tier.highlight ? 'text-white/40' : 'text-gray-400 dark:text-gray-500'}`} />
+                              )}
+                              <span className={`${tier.highlight ? 'text-white/95' : 'text-gray-700 dark:text-gray-200'} ${!tierFeatureInfo?.included ? 'line-through opacity-60' : ''}`}>
+                                {tier.name === 'Free' ? '10 Ask JDS chat messages per month' : 'Unlimited Ask JDS chat messages'}
+                              </span>
+                            </li>
+                          );
+                        }
+
+                        // Regular feature rendering for all other features
+                        return (
+                          <li key={`${tier.name}-${feature.id}`} className="flex items-start gap-2.5">
+                            {tierFeatureInfo?.included ? (
+                              <CheckCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${tier.highlight ? 'text-white' : 'text-green-500'}`} />
+                            ) : (
+                              <XCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${tier.highlight ? 'text-white/40' : 'text-gray-400 dark:text-gray-500'}`} />
+                            )}
+                            <span className={`${tier.highlight ? 'text-white/95' : 'text-gray-700 dark:text-gray-200'} ${!tierFeatureInfo?.included ? 'line-through opacity-60' : ''}`}>
+                              {feature.displayName}
+                              {/* Only show value in parentheses for non-chat features that have a specified value */}
+                              {feature.id !== 'chat_messages' && tierFeatureInfo?.value && tierFeatureInfo.value !== 'Unlimited' && 
+                                <span className={`ml-1 text-xs opacity-80 ${tier.highlight ? 'text-orange-100' : 'text-gray-500 dark:text-gray-400'}`}>
+                                  ({tierFeatureInfo.value})
+                                </span>
+                              }
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    <Button
+                      onClick={() => handleSubscribe(tier.name)}
+                      variant={tier.buttonVariant as any}
+                      size="lg"
+                      className={`w-full mt-auto ${ 
+                        tier.highlight 
+                          ? 'bg-white text-orange-600 hover:bg-gray-100 dark:bg-gray-100 dark:hover:bg-gray-200' 
+                          : tier.name === 'Free'
+                            ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200'
+                            : 'bg-orange-500 hover:bg-orange-600 text-white dark:bg-orange-600 dark:hover:bg-orange-700'
+                      }`}
+                      disabled={isCurrentTier || (tier.name === 'Free') || isLoading}
+                    >
+                      {isLoading && currentTierName === tier.name.toLowerCase() ? (
+                        <LoadingSpinner className="h-5 w-5 mr-2" />
+                      ) : null}
+                      {isCurrentTier || tier.name === 'Free' ? 'Current Plan' : tier.buttonText}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Payment modal */}
+      {showPaymentModal && (
+        <StripeCheckoutDialog
+          open={showPaymentModal}
+          onClose={handleClosePaymentModal}
+          clientSecret={clientSecret || 'loading'} // Use 'loading' as placeholder when no client secret yet
+          title={`Complete your ${currentTierName} subscription`}
+          description="This will give you access to Ask JDS unlimited features."
+          tier={currentTierName}
+          onError={(error) => {
+            console.error('Payment error:', error);
+            toast({
+              title: "Error",
+              description: error.message || 'Payment failed',
+              variant: "destructive",
+            });
+          }}
+        />
+      )}
+    </div>
+  );
+}
