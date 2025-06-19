@@ -13,6 +13,7 @@ import { queryClient } from '@/lib/query-client';
 import { ThemeProvider } from '@/lib/theme-provider';
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 import { logEnvironmentInfo } from '@/lib/environment';
+import { useAnalytics } from '@/hooks/use-analytics';
 
 // Debugging utility
 const debugLog = (message: string, data?: any) => {
@@ -501,6 +502,9 @@ function AppWrapper() {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  
+  // Initialize analytics tracking
+  const analytics = useAnalytics();
   
   // Check for mobile screen size
   useEffect(() => {

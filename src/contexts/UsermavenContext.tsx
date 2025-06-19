@@ -28,10 +28,12 @@ export const UsermavenAnalyticsProvider: React.FC<UsermavenAnalyticsProviderProp
   
   // If we don't have an API key, just render children without Usermaven
   if (!hasApiKey) {
-    console.warn('Usermaven API key not found. Analytics tracking is disabled.');
+    console.warn('⚠️ Usermaven API key not found. Analytics tracking is disabled.');
     return <>{children}</>;
   }
-  
+
+  console.log('🚀 Usermaven analytics enabled and ready to track events');
+
   // Create the Usermaven client with our configuration
   const config = getUsermavenConfig();
   const usermavenClient = createClient(config);

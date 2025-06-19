@@ -67,6 +67,10 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID': JSON.stringify(env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_MONTHLY_PRICE_ID),
       'import.meta.env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID': JSON.stringify(env.VITE_STRIPE_LIVE_ASKJDS_UNLIMITED_ANNUAL_PRICE_ID),
       
+      // Usermaven Analytics
+      'import.meta.env.VITE_USERMAVEN_KEY': JSON.stringify(env.VITE_USERMAVEN_KEY),
+      'import.meta.env.VITE_USERMAVEN_TRACKING_HOST': JSON.stringify(env.VITE_USERMAVEN_TRACKING_HOST),
+      
       global: 'globalThis',
     },
     build: {

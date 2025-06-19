@@ -13,32 +13,69 @@ export const useAnalytics = () => {
   const { initialized } = useUsermavenContext();
   const { user } = useAuth();
   
-  // Only call useUsermaven and usePageView if we're initialized
+  console.log('🔍 [ANALYTICS DEBUG] Hook called with initialized:', initialized);
+  
+  // Call hooks unconditionally (required by React rules)
   let usermaven: any = null;
+  let pageViewError: any = null;
   
   try {
-    // Only call Usermaven hooks if the provider is available
-    if (initialized) {
-      usermaven = useUsermaven();
-      
-      // Set up automatic page view tracking
-      usePageView({
-        before: (um) => {
-          // Before tracking a page view, try to identify the user if they're logged in
-          if (user?.id && user?.email) {
-            identifyUser(um, user);
-          }
+    // Always call the hooks - React requires this
+    usermaven = useUsermaven();
+    console.log('🔍 [ANALYTICS DEBUG] usermaven client:', usermaven ? 'available' : 'null');
+    
+    // Set up automatic page view tracking
+    usePageView({
+      before: (um) => {
+        console.log('🔍 [ANALYTICS DEBUG] usePageView before callback called');
+        // Before tracking a page view, try to identify the user if they're logged in
+        if (user?.id && user?.email) {
+          console.log('🔍 [ANALYTICS DEBUG] Identifying user before page view');
+          identifyUser(um, user);
         }
-      });
-    }
+      }
+    });
+    console.log('🔍 [ANALYTICS DEBUG] usePageView hook set up successfully');
   } catch (error) {
-    console.warn('Usermaven hooks not available:', error);
+    console.error('🔍 [ANALYTICS DEBUG] Error setting up Usermaven hooks:', error);
+    pageViewError = error;
+  }
+  
+  // If not initialized, make the functions no-ops
+  if (!initialized) {
+    console.log('🔍 [ANALYTICS DEBUG] Analytics not initialized, returning no-op functions');
+    usermaven = null;
   }
   
   // Identify user when they log in
   useEffect(() => {
-    if (!initialized || !usermaven || !user?.id || !user?.email) return;
+    console.log('🔍 [ANALYTICS DEBUG] useEffect triggered with:', {
+      initialized,
+      hasUsermaven: !!usermaven,
+      hasUser: !!user?.id,
+      userEmail: user?.email
+    });
+    
+    if (!initialized || !usermaven || !user?.id || !user?.email) {
+      console.log('🔍 [ANALYTICS DEBUG] Skipping user identification - missing requirements');
+      return;
+    }
+    
+    console.log('🔍 [ANALYTICS DEBUG] Identifying user and sending test event');
     identifyUser(usermaven, user);
+    
+    // Send a test event to verify analytics is working
+    console.log('📊 Sending test analytics event...');
+    try {
+      usermaven.track('analytics_test', {
+        timestamp: new Date().toISOString(),
+        page: window.location.pathname,
+        test: true
+      });
+      console.log('✅ [ANALYTICS DEBUG] Test event sent successfully');
+    } catch (error) {
+      console.error('❌ [ANALYTICS DEBUG] Failed to send test event:', error);
+    }
   }, [initialized, user?.id, user?.email, usermaven]);
   
   /**
