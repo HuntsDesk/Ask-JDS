@@ -14,6 +14,11 @@ export const useAnalytics = () => {
   const { user } = useAuth();
   const identifyCallMadeRef = useRef(false);
   
+  // Create stable refs for usermaven client to prevent excessive re-renders
+  const usermavenRef = useRef<any>(null);
+  const initializedRef = useRef(initialized);
+  initializedRef.current = initialized;
+  
   // Only log in development
   if (process.env.NODE_ENV === 'development') {
     console.log('🔍 [ANALYTICS DEBUG] Hook called with initialized:', initialized);
@@ -26,6 +31,10 @@ export const useAnalytics = () => {
   try {
     // Always call the hooks - React requires this
     usermaven = useUsermaven();
+    
+    // Update the ref to keep the most recent client
+    usermavenRef.current = usermaven;
+    
     if (process.env.NODE_ENV === 'development') {
       console.log('🔍 [ANALYTICS DEBUG] usermaven client:', usermaven ? 'available' : 'null');
     }
@@ -59,7 +68,7 @@ export const useAnalytics = () => {
     if (process.env.NODE_ENV === 'development') {
       console.log('🔍 [ANALYTICS DEBUG] Analytics not initialized, returning no-op functions');
     }
-    usermaven = null;
+    usermavenRef.current = null;
   }
   
   // Identify user when they log in (memoized to prevent excessive calls)
@@ -139,7 +148,7 @@ export const useAnalytics = () => {
    * @param properties - Additional properties to include with the event
    */
   const trackEvent = useCallback((eventName: string, properties: Record<string, any> = {}) => {
-    if (!initialized || !usermaven) return;
+    if (!initializedRef.current || !usermavenRef.current) return;
     
     // Add common properties to all events
     const enhancedProperties = {
@@ -149,8 +158,8 @@ export const useAnalytics = () => {
       ...properties
     };
     
-    usermaven.track(eventName, enhancedProperties);
-  }, [initialized, usermaven]);
+    usermavenRef.current.track(eventName, enhancedProperties);
+  }, []); // Empty dependency array since we use refs
   
   /**
    * Track a conversion event (e.g., sign up, purchase, etc.)
@@ -162,15 +171,15 @@ export const useAnalytics = () => {
     conversionType: 'signed_up' | 'purchase_complete' | 'subscription_started' | 'course_enrollment' | string, 
     properties: Record<string, any> = {}
   ) => {
-    if (!initialized || !usermaven) return;
+    if (!initializedRef.current || !usermavenRef.current) return;
     
-    usermaven.track('conversion', {
+    usermavenRef.current.track('conversion', {
       conversion_type: conversionType,
       page_path: window.location.pathname,
       timestamp: new Date().toISOString(),
       ...properties
     });
-  }, [initialized, usermaven]);
+  }, []); // Empty dependency array since we use refs
   
   /**
    * Track authentication events
@@ -273,13 +282,13 @@ export const useAnalytics = () => {
     initialized,
     trackEvent,
     trackConversion,
-    trackPageView: usermaven?.trackPageView || (() => {}),
-    identify: usermaven?.id || (() => {}),
+    trackPageView: usermavenRef.current?.trackPageView || (() => {}),
+    identify: usermavenRef.current?.id || (() => {}),
     trackAuth,
     trackChat,
     trackCourse,
     trackSubscription,
     trackFlashcards,
     trackSearch
-  }), [initialized, trackEvent, trackConversion, usermaven, trackAuth, trackChat, trackCourse, trackSubscription, trackFlashcards, trackSearch]);
+  }), [initialized, trackEvent, trackConversion, trackAuth, trackChat, trackCourse, trackSubscription, trackFlashcards, trackSearch]);
 }; 

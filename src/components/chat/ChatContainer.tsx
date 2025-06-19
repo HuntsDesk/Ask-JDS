@@ -40,8 +40,12 @@ const getTierNameFromSubscription = (subscription: any): string => {
   }
   
   const priceId = subscription.priceId;
+  
+  // CRITICAL FIX: If subscription is active but priceId is missing,
+  // assume Unlimited tier (safest fallback for paid subscriptions)
   if (!priceId) {
-    return 'Free';
+    console.log('[getTierNameFromSubscription] Active subscription with missing priceId, defaulting to Unlimited');
+    return 'Unlimited';
   }
   
   // Get environment-based price IDs for comparison
@@ -84,9 +88,9 @@ const getTierNameFromSubscription = (subscription: any): string => {
     return 'Premium';
   }
   
-  // If we have an active subscription but can't determine the tier, assume Premium
+  // If we have an active subscription but can't determine the tier, assume Unlimited
   // This provides a safe fallback for any new price IDs that haven't been mapped yet
-  return subscription.status === 'active' ? 'Premium' : 'Free';
+  return subscription.status === 'active' ? 'Unlimited' : 'Free';
 };
 
 export function ChatContainer() {

@@ -102,6 +102,10 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
   
   // Get analytics
   const { trackChat } = useAnalytics();
+  
+  // Create a stable ref for trackChat to avoid recreating realtime subscriptions
+  const trackChatRef = useRef(trackChat);
+  trackChatRef.current = trackChat;
 
   // Update the last valid threadId ref
   useEffect(() => {
@@ -424,7 +428,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
               }
               
               // Track the message received event
-              trackChat.responseReceived(threadId, newMessage.id, {
+              trackChatRef.current.responseReceived(threadId, newMessage.id, {
                 message_role: newMessage.role,
                 response_time: Date.now() - (newMessage.created_at ? new Date(newMessage.created_at).getTime() : Date.now())
               });
@@ -500,7 +504,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
         stopPollingFallback();
       };
     }
-  }, [threadId, user?.id, trackChat]);
+  }, [threadId, user?.id]);
 
   // Handle closing the paywall
   const handleClosePaywall = useCallback(() => {
@@ -703,7 +707,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
 
           if (aiMessageData) {
             // Track AI response received
-            trackChat.responseReceived(threadId, aiMessageData.id, {
+            trackChatRef.current.responseReceived(threadId, aiMessageData.id, {
               response_length: aiResponse.length,
               response_time: responseElapsedTime,
               is_subscribed: isSubscribed
@@ -855,7 +859,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     };
     
     // Track message sent
-    trackChat.messageSent(threadId, optimisticUserMessage.id, {
+    trackChatRef.current.messageSent(threadId, optimisticUserMessage.id, {
       message_length: content.length,
       is_subscribed: isSubscribed,
       message_count: messageCount
