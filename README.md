@@ -977,7 +977,8 @@ VITE_JDSIMPLIFIED_DOMAIN=jdsimplified.com
 VITE_ADMIN_DOMAIN=admin.jdsimplified.com
 
 # Media CDNs
-VITE_GUMLET_ACCOUNT_ID=your_gumlet_id      # Video CDN
+VITE_GUMLET_ACCOUNT_ID=your_gumlet_id      # Video CDN account
+VITE_GUMLET_PROPERTY_ID=your_property_id   # Video analytics property
 
 # Analytics
 VITE_USERMAVEN_KEY=your_usermaven_key
@@ -1106,6 +1107,16 @@ export function validateEnv<T extends Record<string, string>>(
 - Fixed video infrastructure with proper Gumlet integration
 - Cleaned up unused image optimization dependencies
 - Enhanced legal framework with comprehensive T&S, privacy policy, and disclaimers
+
+### Video Playback System Fix (June 2025)
+- **Root Cause**: Videos were hosted under different Gumlet account ID than configured in codebase
+- **Account ID Update**: Corrected `VITE_GUMLET_ACCOUNT_ID` from `6747983e53ef464e4ecd1982` to `68434df22ea48d13d456a5ec`
+- **Analytics Property**: Added `VITE_GUMLET_PROPERTY_ID=tNGK09x4` for proper video analytics
+- **Format Switch**: Changed from HLS streaming (`main.m3u8`) to direct MP4 playback (`download.mp4`) for better cross-browser compatibility
+- **Fallback System**: Implemented automatic MP4 fallback when HLS fails or is unsupported
+- **Browser Support**: Resolved issues where HLS streams required special handling in non-Safari browsers
+- **Configuration**: Added `preferMp4` flag (default: true) in VideoPlayer component for format control
+- **Result**: Videos now play reliably across all browsers without dependency on HLS.js for most use cases
 
 ### Production Readiness (January 2025)
 - **Centralized Logging System**: Created environment-aware logger with automatic sensitive data sanitization
