@@ -234,12 +234,12 @@ class RealtimeSubscriptionManager {
             retryCount: 0
           });
         } else if (status === 'TIMED_OUT' || status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          // Only warn for actual errors, not normal closures
-          if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
+          // Only warn for actual errors, not normal closures or timeouts
+          if (status === 'CHANNEL_ERROR') {
             logger.warn(`[RealtimeManager] Channel ${channelName} failed with status: ${status}`);
           } else {
-            // CLOSED is normal when navigating away
-            logger.debug(`[RealtimeManager] Channel ${channelName} closed normally`);
+            // CLOSED and TIMED_OUT are normal when navigating away or during network interruptions
+            logger.debug(`[RealtimeManager] Channel ${channelName} status: ${status}`);
           }
           this.updateConnectionState({
             isConnected: false,
