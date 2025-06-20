@@ -279,7 +279,7 @@ export const Sidebar = memo(function Sidebar({
           // Sort in descending order (newest first)
           return bDate.getTime() - aDate.getTime();
         } catch (err) {
-          logger.error('Error parsing month dates:', err);
+          logger.error('Error parsing month dates', err as Error);
           return 0;
         }
       });
@@ -287,7 +287,7 @@ export const Sidebar = memo(function Sidebar({
 
   const handleDelete = async (threadId: string) => {
     try {
-      logger.debug('Sidebar: handleDelete called with thread ID:', threadId);
+      logger.debug('Sidebar: handleDelete called with thread ID', { threadId });
       
       // If this is the currently selected thread, we need to navigate away first
       if (threadId === selectedThreadId || threadId === currentSession) {
@@ -295,7 +295,7 @@ export const Sidebar = memo(function Sidebar({
         const otherThread = sessions.find(s => s.id !== threadId);
         
         if (otherThread) {
-          logger.debug('Sidebar: Navigating to alternative thread:', otherThread.id);
+          logger.debug('Sidebar: Navigating to alternative thread', { threadId: otherThread.id });
           setSelectedThreadId(otherThread.id);
           setActiveTab(otherThread.id);
           navigate(`/chat/${otherThread.id}`);
@@ -310,7 +310,7 @@ export const Sidebar = memo(function Sidebar({
       // This already has optimistic updates in the useThreads hook
       await onDeleteThread(threadId);
     } catch (error) {
-      logger.error('Failed to delete thread:', error);
+      logger.error('Failed to delete thread', error as Error);
     }
   };
 
@@ -319,13 +319,13 @@ export const Sidebar = memo(function Sidebar({
     // If selectedThreadId is set and different from currentSession,
     // log the mismatch for debugging
     if (selectedThreadId && currentSession && selectedThreadId !== currentSession) {
-      logger.debug('Sidebar: Thread selection mismatch - Context:', selectedThreadId, 'Props:', currentSession);
+      logger.debug('Sidebar: Thread selection mismatch', { context: selectedThreadId, props: currentSession });
     }
   }, [selectedThreadId, currentSession]);
 
   // Modify the handleThreadClick function to ensure proper thread selection and navigation
   const handleThreadClick = (threadId: string) => {
-    logger.debug('Sidebar: Clicked on thread:', threadId);
+    logger.debug('Sidebar: Clicked on thread', { threadId });
     
     // Set current thread ID context
     setSelectedThreadId(threadId);
@@ -345,14 +345,14 @@ export const Sidebar = memo(function Sidebar({
 
   // Modify the handleNavLinkClick function to ensure proper navigation
   const handleNavLinkClick = useCallback((path: string) => {
-    logger.debug('Sidebar: Navigation link clicked, path:', path);
+    logger.debug('Sidebar: Navigation link clicked', { path });
     
     // Special handling for chat route - go directly to most recent thread
     if (path === '/chat' && sessions.length > 0) {
       // Find the most recent thread (sessions are already sorted by date)
       const mostRecentThread = sessions[0];
       
-      logger.debug('Sidebar: Directly navigating to most recent thread:', mostRecentThread.id);
+      logger.debug('Sidebar: Directly navigating to most recent thread', { threadId: mostRecentThread.id });
       
       // Set current thread ID context
       setSelectedThreadId(mostRecentThread.id);
@@ -450,10 +450,22 @@ export const Sidebar = memo(function Sidebar({
               <button 
                 onClick={() => {
                   logger.debug('Sidebar: Mobile close button clicked');
+                  
+                  // If sidebar is pinned, unpin it first
+                  if (effectiveIsPinned) {
+                    logger.debug('Sidebar: Unpinning sidebar before closing on mobile');
+                    setIsPinned(false);
+                    if (onPinChange) {
+                      onPinChange(false);
+                    }
+                  }
+                  
+                  // Close the sidebar
                   onDesktopExpandedChange(false);
                   setIsExpanded(false);
-                  // Add a direct call to the parent's setIsExpanded via context if available
-                  if (window.innerWidth < 768) {
+                  
+                  // Small delay to ensure state updates have propagated
+                  setTimeout(() => {
                     // Force the sidebar to close for mobile
                     document.body.classList.remove('sidebar-open');
                     // Use direct DOM manipulation as a fallback to ensure sidebar closes 
@@ -464,7 +476,7 @@ export const Sidebar = memo(function Sidebar({
                       sidebar.classList.add('opacity-0');
                       sidebar.classList.add('pointer-events-none');
                     }
-                  }
+                  }, 50);
                 }}
                 className="absolute right-2 p-2.5 rounded-md text-muted-foreground hover:bg-muted dark:hover:bg-gray-700 bg-background/80 dark:bg-gray-800/80"
                 aria-label="Close sidebar"
