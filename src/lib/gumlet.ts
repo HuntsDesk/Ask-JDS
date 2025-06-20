@@ -18,7 +18,7 @@ export const constructGumletUrls = (assetId: string) => {
     // Using HLS URL for non-DRM playback
     hlsUrl: `https://video.gumlet.io/${safeAccountId}/${assetId}/main.m3u8`,
     // Fallback to MP4 if needed
-    mp4Url: `https://video.gumlet.io/${safeAccountId}/${assetId}/main.mp4`,
+    mp4Url: `https://video.gumlet.io/${safeAccountId}/${assetId}/download.mp4`,
     thumbnailUrl: `https://video.gumlet.io/${safeAccountId}/${assetId}/thumbnail-1-0.png`,
   };
 }; 

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gumlet Video Test</title>
+</head>
+<body>
+    <h1>Gumlet Video Test</h1>
+    
+    <h2>1. Using Gumlet's Embed Player (iframe)</h2>
+    <div style="position:relative;aspect-ratio:16/9;">
+        <iframe 
+            loading="lazy" 
+            title="Gumlet video player"
+            src="https://play.gumlet.io/embed/685429843f5b603c870c907d?preload=false&autoplay=false&loop=false&background=false&disable_player_controls=false"
+            style="border:none; position: absolute; top: 0; left: 0; height: 100%; width: 100%;"
+            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;">
+        </iframe>
+    </div>
+    
+    <h2>2. Direct HLS URL in Native Video Element</h2>
+    <video 
+        controls 
+        width="100%" 
+        style="max-width: 800px;"
+        src="https://video.gumlet.io/68434df22ea48d13d456a5ec/685429843f5b603c870c907d/main.m3u8">
+    </video>
+    
+    <h2>3. Direct MP4 URL</h2>
+    <video 
+        controls 
+        width="100%" 
+        style="max-width: 800px;"
+        src="https://video.gumlet.io/68434df22ea48d13d456a5ec/685429843f5b603c870c907d/download.mp4">
+    </video>
+    
+    <h2>Console Output</h2>
+    <pre id="console-output"></pre>
+    
+    <script>
+        // Log any errors
+        window.addEventListener('error', (e) => {
+            document.getElementById('console-output').textContent += 'Error: ' + e.message + '\n';
+        });
+        
+        // Check if videos load
+        const videos = document.querySelectorAll('video');
+        videos.forEach((video, index) => {
+            video.addEventListener('loadedmetadata', () => {
+                document.getElementById('console-output').textContent += `Video ${index + 2} loaded metadata successfully\n`;
+            });
+            video.addEventListener('error', (e) => {
+                document.getElementById('console-output').textContent += `Video ${index + 2} error: ${video.error?.message || 'Unknown error'}\n`;
+            });
+        });
+    </script>
+</body>
+</html> 

@@ -240,7 +240,7 @@ export function ChatInterface({
             <div className="max-w-[80%] rounded-lg p-3 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 ml-8 rounded-bl-none">
               <div className="flex items-center">
                 <LoadingSpinner size="sm" />
-                <span className="ml-2">AI is responding...</span>
+                <span className="ml-2">Ask JDS is thinking...</span>
               </div>
             </div>
           </div>

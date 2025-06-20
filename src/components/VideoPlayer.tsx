@@ -36,7 +36,8 @@ export const VideoPlayer = ({
   const analyticsRef = useRef<any>(null);
   
   // Get URLs only when videoId is available
-  const { hlsUrl, thumbnailUrl } = videoId ? constructGumletUrls(videoId) : { hlsUrl: '', thumbnailUrl: '' };
+  const { hlsUrl, mp4Url, thumbnailUrl } = videoId ? constructGumletUrls(videoId) : { hlsUrl: '', mp4Url: '', thumbnailUrl: '' };
+  const [useMp4Fallback, setUseMp4Fallback] = useState(false);
   
   useEffect(() => {
     if (!videoId || !videoRef.current) return;
@@ -44,6 +45,16 @@ export const VideoPlayer = ({
     const video = videoRef.current;
     setError(null);
     setIsLoading(true);
+    
+    // For now, prefer MP4 since it works more reliably
+    const preferMp4 = true; // Toggle this to switch between HLS and MP4
+    
+    if (preferMp4 && mp4Url) {
+      logger.info('Using MP4 for video playback', { mp4Url, videoId });
+      video.src = mp4Url;
+      setIsLoading(false);
+      return;
+    }
     
     // Check if HLS is supported
     if (Hls.isSupported()) {
@@ -73,7 +84,7 @@ export const VideoPlayer = ({
           analytics?.registerHLSJSPlayer(hls, { starttime: Date.now() });
           analyticsRef.current = analytics;
           
-          logger.debug('Gumlet analytics initialized for video:', videoId);
+          logger.debug('Gumlet analytics initialized for video:', { videoId });
         } catch (analyticsError) {
           logger.warn('Gumlet analytics initialization failed:', analyticsError);
           // Continue without analytics - don't block video playback
@@ -89,7 +100,7 @@ export const VideoPlayer = ({
       });
       
       hls.on(Hls.Events.ERROR, (event, data) => {
-        logger.error('HLS error:', event, data);
+        logger.error('HLS error:', new Error(`HLS Error: ${data.type} - ${data.details}`));
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
@@ -101,7 +112,9 @@ export const VideoPlayer = ({
               hls.recoverMediaError();
               break;
             default:
-              setError('Fatal error occurred during video playback.');
+              // Try MP4 fallback for fatal errors
+              logger.warn('Fatal HLS error, attempting MP4 fallback');
+              setUseMp4Fallback(true);
               hls.destroy();
               break;
           }
@@ -110,6 +123,7 @@ export const VideoPlayer = ({
       
       // Attach media and load source
       hls.attachMedia(video);
+      logger.debug('Loading HLS source', { hlsUrl, videoId });
       hls.loadSource(hlsUrl);
       
       // Start loading when play is requested
@@ -127,8 +141,15 @@ export const VideoPlayer = ({
       setIsLoading(false);
       logger.debug('Using native HLS support');
     } else {
-      setError('HLS is not supported in this browser.');
-      setIsLoading(false);
+      // HLS not supported and not Safari - use MP4 fallback
+      logger.info('HLS not supported, using MP4 fallback');
+      if (mp4Url) {
+        video.src = mp4Url;
+        setIsLoading(false);
+      } else {
+        setError('Video playback is not supported in this browser.');
+        setIsLoading(false);
+      }
     }
     
     // Cleanup function
@@ -139,7 +160,18 @@ export const VideoPlayer = ({
       }
       analyticsRef.current = null;
     };
-  }, [videoId, hlsUrl]);
+  }, [videoId, hlsUrl, mp4Url]);
+  
+  // Handle MP4 fallback
+  useEffect(() => {
+    if (useMp4Fallback && videoRef.current && mp4Url) {
+      logger.info('Using MP4 fallback', { mp4Url });
+      const video = videoRef.current;
+      video.src = mp4Url;
+      setIsLoading(false);
+      setError(null);
+    }
+  }, [useMp4Fallback, mp4Url]);
   
   // Handle video events for analytics
   useEffect(() => {
