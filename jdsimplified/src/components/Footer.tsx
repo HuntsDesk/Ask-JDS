@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Mail, Phone, MapPin, Youtube, Twitter, Linkedin, Instagram } from 'lucide-react';
+import { Mail, Phone, MapPin, Youtube } from 'lucide-react';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -21,17 +21,8 @@ const Footer = () => {
               The strategic approach to the study of law. Simplified learning for better results.
             </p>
             <div className="flex space-x-4 mt-6">
-              <a href="https://youtube.com" className="text-gray-300 hover:text-jdorange transition-colors" aria-label="YouTube">
+              <a href="https://www.youtube.com/@JDsimplified" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-jdorange transition-colors" aria-label="YouTube">
                 <Youtube size={20} />
-              </a>
-              <a href="https://twitter.com" className="text-gray-300 hover:text-jdorange transition-colors" aria-label="Twitter">
-                <Twitter size={20} />
-              </a>
-              <a href="https://linkedin.com" className="text-gray-300 hover:text-jdorange transition-colors" aria-label="LinkedIn">
-                <Linkedin size={20} />
-              </a>
-              <a href="https://instagram.com" className="text-gray-300 hover:text-jdorange transition-colors" aria-label="Instagram">
-                <Instagram size={20} />
               </a>
             </div>
           </div>
