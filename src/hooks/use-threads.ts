@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -18,7 +19,7 @@ export function useThreads() {
   // Extract fetchThreads as a function at the hook level so it can be reused
   const fetchThreads = async () => {
     if (!user) {
-      console.log('useThreads: No user, clearing threads');
+      logger.debug('useThreads: No user, clearing threads');
       setThreads([]);
       setLoading(false);
       return;
@@ -26,14 +27,14 @@ export function useThreads() {
 
     // Prevent multiple concurrent fetches
     if (fetchingRef.current) {
-      console.log('useThreads: Fetch already in progress, skipping');
+      logger.debug('useThreads: Fetch already in progress, skipping');
       return;
     }
 
     fetchingRef.current = true;
 
     try {
-      console.log('useThreads: Fetching threads for user', user.email);
+      logger.debug('useThreads: Fetching threads for user', user.email);
       setLoading(true);
       
       let fetchTimeoutId: NodeJS.Timeout | null = null;
@@ -50,7 +51,7 @@ export function useThreads() {
       const timeoutPromise = new Promise<{data: Thread[], error: null}>((resolve) => {
         fetchTimeoutId = setTimeout(() => {
           if (!hasReceivedResponse) {
-            console.warn('useThreads: Database fetch timed out after 10 seconds, returning empty threads');
+            logger.warn('useThreads: Database fetch timed out after 10 seconds, returning empty threads');
             resolve({data: [], error: null});
           }
         }, 10000); // 10 seconds timeout
@@ -62,8 +63,8 @@ export function useThreads() {
       if (fetchTimeoutId) clearTimeout(fetchTimeoutId);
 
       if (error) {
-        console.error('useThreads: Error fetching threads:', error);
-        console.error('Error details:', JSON.stringify(error));
+        logger.error('useThreads: Error fetching threads:', error);
+        logger.error('Error details:', JSON.stringify(error));
         setError(error);
         
         // Show an error toast for a better user experience
@@ -96,7 +97,7 @@ export function useThreads() {
         return;
       }
 
-      console.log('useThreads: Fetched', data?.length ?? 0, 'threads');
+      logger.debug('useThreads: Fetched', data?.length ?? 0, 'threads');
       
       if (data && Array.isArray(data)) {
         setThreads(data);
@@ -107,14 +108,14 @@ export function useThreads() {
           safetyTimeoutRef.current = null;
         }
       } else {
-        console.warn('useThreads: Received non-array data from thread fetch:', data);
+        logger.warn('useThreads: Received non-array data from thread fetch:', data);
         setThreads([]);
       }
       
       setLoading(false);
       fetchingRef.current = false;
     } catch (err) {
-      console.error('useThreads: Error in fetchThreads:', err);
+      logger.error('useThreads: Error in fetchThreads:', err);
       setError(err instanceof Error ? err : new Error(String(err)));
       setLoading(false);
       fetchingRef.current = false;
@@ -144,10 +145,10 @@ export function useThreads() {
   };
 
   useEffect(() => {
-    console.log('useThreads: Initializing with user', user?.email);
+    logger.debug('useThreads: Initializing with user', user?.email);
     
     if (!user) {
-      console.log('useThreads: No user, clearing threads');
+      logger.debug('useThreads: No user, clearing threads');
       setThreads([]);
       setLoading(false);
       return;
@@ -158,7 +159,7 @@ export function useThreads() {
     // Safety timeout to prevent getting stuck in loading state
     safetyTimeoutRef.current = setTimeout(() => {
       if (isMounted && loading) {
-        console.warn('useThreads: Safety timeout triggered after 20 seconds');
+        logger.warn('useThreads: Safety timeout triggered after 20 seconds');
         setLoading(false);
         setError(new Error('Loading conversations timed out. The conversations list will be refreshed automatically when connectivity improves.'));
         
@@ -189,7 +190,7 @@ export function useThreads() {
         // Set up automatic retry after a delay
         setTimeout(() => {
           if (isMounted) {
-            console.log('useThreads: Attempting to retry loading threads after timeout');
+            logger.debug('useThreads: Attempting to retry loading threads after timeout');
             fetchThreads();
           }
         }, 10000); // Retry after 10 seconds
@@ -206,7 +207,7 @@ export function useThreads() {
     // to avoid channel conflicts. This hook focuses on CRUD operations.
 
     return () => {
-      console.log('useThreads: Cleaning up');
+      logger.debug('useThreads: Cleaning up');
       isMounted = false;
       
       // Clear the safety timeout when component unmounts
@@ -224,27 +225,27 @@ export function useThreads() {
 
   const createThread = async () => {
     try {
-      console.log('useThreads: Creating new thread');
+      logger.debug('useThreads: Creating new thread');
       
       if (!user) {
-        console.error('useThreads: Cannot create thread without user');
+        logger.error('useThreads: Cannot create thread without user');
         return null;
       }
 
       // Log user id for debugging
-      console.log('useThreads: Creating thread for user', user.id);
+      logger.debug('useThreads: Creating thread for user', user.id);
 
       // Create a timeout promise that resolves to null
       const timeoutPromise = new Promise<null>((resolve) => {
         setTimeout(() => {
-          console.warn('useThreads: Thread creation timed out after 8 seconds');
+          logger.warn('useThreads: Thread creation timed out after 8 seconds');
           resolve(null);
         }, 8000); // 8 second timeout
       });
 
       // Attempt to ensure profile exists first to address RLS issues
       try {
-        console.log('useThreads: Ensuring profile exists');
+        logger.debug('useThreads: Ensuring profile exists');
         // Check if profile exists
         const profileCheck = await supabase
           .from('profiles')
@@ -253,19 +254,19 @@ export function useThreads() {
           .single();
           
         if (profileCheck.error) {
-          console.log('useThreads: Profile not found, creating one');
+          logger.debug('useThreads: Profile not found, creating one');
           // Create a profile if it doesn't exist
           const profileResult = await supabase
             .from('profiles')
             .insert([{ id: user.id }])
             .select();
             
-          console.log('useThreads: Profile creation result', profileResult);
+          logger.debug('useThreads: Profile creation result', profileResult);
         } else {
-          console.log('useThreads: Profile exists, proceeding with thread creation');
+          logger.debug('useThreads: Profile exists, proceeding with thread creation');
         }
       } catch (err) {
-        console.error('useThreads: Error checking/creating profile:', err);
+        logger.error('useThreads: Error checking/creating profile:', err);
         // Continue anyway, the trigger we created should handle this
       }
 
@@ -297,11 +298,11 @@ export function useThreads() {
       const { data, error } = result;
 
       if (error) {
-        console.error('useThreads: Error creating thread:', error);
+        logger.error('useThreads: Error creating thread:', error);
         
         // If we get an RLS error, try one more time after a delay
         if (error.message?.includes('row-level security') || error.code === '42501') {
-          console.log('useThreads: Got RLS error, trying again after delay');
+          logger.debug('useThreads: Got RLS error, trying again after delay');
           toast({
             title: "Authentication sync issue",
             description: "We're fixing a sync issue. Trying again...",
@@ -323,7 +324,7 @@ export function useThreads() {
             .single();
             
           if (retryResult.error) {
-            console.error('useThreads: Retry also failed:', retryResult.error);
+            logger.error('useThreads: Retry also failed:', retryResult.error);
             toast({
               title: "Error creating thread",
               description: "There was a problem with permissions. Please try signing out and back in.",
@@ -332,7 +333,7 @@ export function useThreads() {
             throw retryResult.error;
           }
           
-          console.log('useThreads: Retry succeeded', retryResult.data);
+          logger.debug('useThreads: Retry succeeded', retryResult.data);
           return retryResult.data as Thread;
         }
         
@@ -344,27 +345,27 @@ export function useThreads() {
         throw error;
       }
 
-      console.log('useThreads: Thread created successfully', data);
+      logger.debug('useThreads: Thread created successfully', data);
       return data as Thread;
     } catch (error) {
-      console.error('useThreads: Exception creating thread:', error);
+      logger.error('useThreads: Exception creating thread:', error);
       return null;
     }
   };
 
   const updateThread = async (id: string, updates: Partial<Thread>) => {
     try {
-      console.log(`useThreads: Updating thread ${id}`, updates);
+      logger.debug(`useThreads: Updating thread ${id}`, updates);
       
       if (!user) {
-        console.error('useThreads: Cannot update thread without user');
+        logger.error('useThreads: Cannot update thread without user');
         return false;
       }
 
       // Create a timeout promise that resolves to a failure result
       const timeoutPromise = new Promise<{error: Error}>((resolve) => {
         setTimeout(() => {
-          console.warn(`useThreads: Thread update timed out after 6 seconds for thread ${id}`);
+          logger.warn(`useThreads: Thread update timed out after 6 seconds for thread ${id}`);
           resolve({error: new Error('Update timed out')});
         }, 6000); // 6 second timeout
       });
@@ -382,7 +383,7 @@ export function useThreads() {
       if ('error' in result && result.error) {
         // Check if this is our timeout error
         if (result.error instanceof Error && result.error.message === 'Update timed out') {
-          console.error('useThreads: Thread update timed out');
+          logger.error('useThreads: Thread update timed out');
           toast({
             title: "Thread update timeout",
             description: "Updating the conversation is taking longer than expected.",
@@ -392,7 +393,7 @@ export function useThreads() {
         }
         
         // This is a regular database error
-        console.error('useThreads: Error updating thread:', result.error);
+        logger.error('useThreads: Error updating thread:', result.error);
         toast({
           title: "Error updating thread",
           description: "There was a problem updating the conversation.",
@@ -401,27 +402,27 @@ export function useThreads() {
         return false;
       }
 
-      console.log(`useThreads: Thread ${id} updated successfully`);
+      logger.debug(`useThreads: Thread ${id} updated successfully`);
       return true;
     } catch (error) {
-      console.error('useThreads: Exception updating thread:', error);
+      logger.error('useThreads: Exception updating thread:', error);
       return false;
     }
   };
 
   const deleteThread = async (id: string) => {
     try {
-      console.log(`useThreads: Deleting thread ${id}`);
+      logger.debug(`useThreads: Deleting thread ${id}`);
       
       if (!user) {
-        console.error('useThreads: Cannot delete thread without user');
+        logger.error('useThreads: Cannot delete thread without user');
         return false;
       }
 
       // Create a timeout promise that resolves to a failure result
       const timeoutPromise = new Promise<{error: Error}>((resolve) => {
         setTimeout(() => {
-          console.warn(`useThreads: Thread deletion timed out after 6 seconds for thread ${id}`);
+          logger.warn(`useThreads: Thread deletion timed out after 6 seconds for thread ${id}`);
           resolve({error: new Error('Deletion timed out')});
         }, 6000); // 6 second timeout
       });
@@ -445,7 +446,7 @@ export function useThreads() {
       if ('error' in result && result.error) {
         // Check if this is our timeout error
         if (result.error instanceof Error && result.error.message === 'Deletion timed out') {
-          console.error('useThreads: Thread deletion timed out');
+          logger.error('useThreads: Thread deletion timed out');
           toast({
             title: "Thread deletion timeout",
             description: "Deleting the conversation is taking longer than expected, but we've updated the UI.",
@@ -456,7 +457,7 @@ export function useThreads() {
         }
         
         // This is a regular database error
-        console.error('useThreads: Error deleting thread:', result.error);
+        logger.error('useThreads: Error deleting thread:', result.error);
         toast({
           title: "Error deleting thread",
           description: "There was a problem deleting the conversation.",
@@ -468,10 +469,10 @@ export function useThreads() {
         return false;
       }
 
-      console.log(`useThreads: Thread ${id} deleted successfully`);
+      logger.debug(`useThreads: Thread ${id} deleted successfully`);
       return true;
     } catch (error) {
-      console.error('useThreads: Exception deleting thread:', error);
+      logger.error('useThreads: Exception deleting thread:', error);
       
       // If we have the previous threads state, restore it
       if (threads.some(thread => thread.id === id)) {
@@ -487,7 +488,7 @@ export function useThreads() {
 
   // Add a dedicated function to refetch threads
   const refetchThreads = async () => {
-    console.log('useThreads: Manually refetching threads');
+    logger.debug('useThreads: Manually refetching threads');
     await fetchThreads();
     return threads;
   };

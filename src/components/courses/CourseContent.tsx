@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -113,7 +114,7 @@ export default function CourseContent() {
           }
         }
       } catch (err) {
-        console.error('Error fetching course data:', err);
+        logger.error('Error fetching course data:', err);
         setError('Failed to load course content. Please try again later.');
       } finally {
         setLoading(false);

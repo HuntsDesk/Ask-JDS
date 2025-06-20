@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect, useRef } from 'react';
 import Hls from 'hls.js';
 import { constructGumletUrls } from '@/lib/gumlet';
@@ -72,23 +73,23 @@ export const VideoPlayer = ({
           analytics?.registerHLSJSPlayer(hls, { starttime: Date.now() });
           analyticsRef.current = analytics;
           
-          console.log('Gumlet analytics initialized for video:', videoId);
+          logger.debug('Gumlet analytics initialized for video:', videoId);
         } catch (analyticsError) {
-          console.warn('Gumlet analytics initialization failed:', analyticsError);
+          logger.warn('Gumlet analytics initialization failed:', analyticsError);
           // Continue without analytics - don't block video playback
         }
       } else {
-        console.warn('Gumlet insights SDK not available');
+        logger.warn('Gumlet insights SDK not available');
       }
       
       // HLS event listeners
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log('HLS manifest parsed successfully');
+        logger.debug('HLS manifest parsed successfully');
         setIsLoading(false);
       });
       
       hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error('HLS error:', event, data);
+        logger.error('HLS error:', event, data);
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
@@ -124,7 +125,7 @@ export const VideoPlayer = ({
       // Native HLS support (Safari)
       video.src = hlsUrl;
       setIsLoading(false);
-      console.log('Using native HLS support');
+      logger.debug('Using native HLS support');
     } else {
       setError('HLS is not supported in this browser.');
       setIsLoading(false);

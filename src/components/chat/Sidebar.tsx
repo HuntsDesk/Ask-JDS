@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -120,7 +121,7 @@ export const Sidebar = memo(function Sidebar({
   // Unpin sidebar when on mobile
   useEffect(() => {
     if (isMobile && effectiveIsPinned) {
-      console.log('Unpinning sidebar on mobile view');
+      logger.debug('Unpinning sidebar on mobile view');
       // Just update our local state, don't call the callback to avoid UI jank
       setIsPinned(false);
     }
@@ -132,7 +133,7 @@ export const Sidebar = memo(function Sidebar({
   const togglePin = () => {
     // Don't allow pinning on mobile devices
     if (isMobile) {
-      console.log('Pinning not supported on mobile devices');
+      logger.debug('Pinning not supported on mobile devices');
       return;
     }
     
@@ -164,7 +165,7 @@ export const Sidebar = memo(function Sidebar({
     if (recentlyToggledPinRef.current) return;
     
     if (!isMobile && !effectiveIsPinned) {
-      console.log('Expanding sidebar on hover');
+      logger.debug('Expanding sidebar on hover');
       onDesktopExpandedChange(true);
       setIsExpanded(true);
     }
@@ -175,7 +176,7 @@ export const Sidebar = memo(function Sidebar({
     if (recentlyToggledPinRef.current) return;
     
     if (!isMobile && !effectiveIsPinned) {
-      console.log('Collapsing sidebar on leave');
+      logger.debug('Collapsing sidebar on leave');
       onDesktopExpandedChange(false);
       setIsExpanded(false);
     }
@@ -197,7 +198,7 @@ export const Sidebar = memo(function Sidebar({
   const groupSessionsByDate = useCallback((sessions: Array<{ id: string; title: string; created_at: string }>) => {
     // Only log in development and throttle to reduce noise
     if (import.meta.env.DEV && Math.random() < 0.1) { // Log ~10% of calculations
-      console.log("Computing grouped sessions");
+      logger.debug("Computing grouped sessions");
     }
     
     const grouped: GroupedSessions = {};
@@ -212,7 +213,7 @@ export const Sidebar = memo(function Sidebar({
       
       // Only log session categorization in development and sparingly
       if (import.meta.env.DEV && Math.random() < 0.05) { // Log ~5% of sessions
-        console.log(`Session "${session.title}" (${date.toLocaleDateString()}): isToday=${isSessionToday}, isYesterday=${isSessionYesterday}, isThisWeek=${isSessionThisWeek}`);
+        logger.debug(`Session "${session.title}" (${date.toLocaleDateString()}): isToday=${isSessionToday}, isYesterday=${isSessionYesterday}, isThisWeek=${isSessionThisWeek}`);
       }
       
       if (isSessionToday) {
@@ -229,7 +230,7 @@ export const Sidebar = memo(function Sidebar({
       
       // Only log grouping results occasionally
       if (import.meta.env.DEV && Math.random() < 0.05) {
-        console.log(`→ Grouped under: ${key}`);
+        logger.debug(`→ Grouped under: ${key}`);
       }
       
       if (!grouped[key]) {
@@ -278,7 +279,7 @@ export const Sidebar = memo(function Sidebar({
           // Sort in descending order (newest first)
           return bDate.getTime() - aDate.getTime();
         } catch (err) {
-          console.error('Error parsing month dates:', err);
+          logger.error('Error parsing month dates:', err);
           return 0;
         }
       });
@@ -286,7 +287,7 @@ export const Sidebar = memo(function Sidebar({
 
   const handleDelete = async (threadId: string) => {
     try {
-      console.log('Sidebar: handleDelete called with thread ID:', threadId);
+      logger.debug('Sidebar: handleDelete called with thread ID:', threadId);
       
       // If this is the currently selected thread, we need to navigate away first
       if (threadId === selectedThreadId || threadId === currentSession) {
@@ -294,12 +295,12 @@ export const Sidebar = memo(function Sidebar({
         const otherThread = sessions.find(s => s.id !== threadId);
         
         if (otherThread) {
-          console.log('Sidebar: Navigating to alternative thread:', otherThread.id);
+          logger.debug('Sidebar: Navigating to alternative thread:', otherThread.id);
           setSelectedThreadId(otherThread.id);
           setActiveTab(otherThread.id);
           navigate(`/chat/${otherThread.id}`);
         } else {
-          console.log('Sidebar: No alternative thread found, navigating to /chat');
+          logger.debug('Sidebar: No alternative thread found, navigating to /chat');
           setSelectedThreadId(null);
           navigate('/chat');
         }
@@ -309,7 +310,7 @@ export const Sidebar = memo(function Sidebar({
       // This already has optimistic updates in the useThreads hook
       await onDeleteThread(threadId);
     } catch (error) {
-      console.error('Failed to delete thread:', error);
+      logger.error('Failed to delete thread:', error);
     }
   };
 
@@ -318,13 +319,13 @@ export const Sidebar = memo(function Sidebar({
     // If selectedThreadId is set and different from currentSession,
     // log the mismatch for debugging
     if (selectedThreadId && currentSession && selectedThreadId !== currentSession) {
-      console.log('Sidebar: Thread selection mismatch - Context:', selectedThreadId, 'Props:', currentSession);
+      logger.debug('Sidebar: Thread selection mismatch - Context:', selectedThreadId, 'Props:', currentSession);
     }
   }, [selectedThreadId, currentSession]);
 
   // Modify the handleThreadClick function to ensure proper thread selection and navigation
   const handleThreadClick = (threadId: string) => {
-    console.log('Sidebar: Clicked on thread:', threadId);
+    logger.debug('Sidebar: Clicked on thread:', threadId);
     
     // Set current thread ID context
     setSelectedThreadId(threadId);
@@ -344,14 +345,14 @@ export const Sidebar = memo(function Sidebar({
 
   // Modify the handleNavLinkClick function to ensure proper navigation
   const handleNavLinkClick = useCallback((path: string) => {
-    console.log('Sidebar: Navigation link clicked, path:', path);
+    logger.debug('Sidebar: Navigation link clicked, path:', path);
     
     // Special handling for chat route - go directly to most recent thread
     if (path === '/chat' && sessions.length > 0) {
       // Find the most recent thread (sessions are already sorted by date)
       const mostRecentThread = sessions[0];
       
-      console.log('Sidebar: Directly navigating to most recent thread:', mostRecentThread.id);
+      logger.debug('Sidebar: Directly navigating to most recent thread:', mostRecentThread.id);
       
       // Set current thread ID context
       setSelectedThreadId(mostRecentThread.id);
@@ -372,7 +373,7 @@ export const Sidebar = memo(function Sidebar({
     
     // If on mobile, collapse the sidebar after navigation
     if (isMobile) {
-      console.log('Sidebar: handleNavLinkClick called on mobile, collapsing sidebar');
+      logger.debug('Sidebar: handleNavLinkClick called on mobile, collapsing sidebar');
       setIsExpanded(false);
       onDesktopExpandedChange(false);
     }
@@ -448,7 +449,7 @@ export const Sidebar = memo(function Sidebar({
             {isMobile && isDesktopExpanded && (
               <button 
                 onClick={() => {
-                  console.log('Sidebar: Mobile close button clicked');
+                  logger.debug('Sidebar: Mobile close button clicked');
                   onDesktopExpandedChange(false);
                   setIsExpanded(false);
                   // Add a direct call to the parent's setIsExpanded via context if available
@@ -498,7 +499,7 @@ export const Sidebar = memo(function Sidebar({
         <div className="p-3 border-b dark:border-gray-700 flex items-center justify-between bg-white dark:bg-gray-800">
           <button
             onClick={() => {
-              console.log('Sidebar: New Chat button clicked');
+              logger.debug('Sidebar: New Chat button clicked');
               onNewChat();
             }}
             className={cn(

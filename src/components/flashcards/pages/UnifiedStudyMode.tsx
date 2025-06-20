@@ -19,6 +19,7 @@ import { useLayoutState } from '@/hooks/useLayoutState';
 import { SkeletonStudyCard } from '../SkeletonFlashcard';
 import { useSubscriptionWithTier } from '@/hooks/useSubscription';
 import { useQueryClient } from '@tanstack/react-query';
+import { logger } from '@/lib/logger';
 
 interface FilterState {
   subjects: string[];
@@ -59,7 +60,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     if (process.env.NODE_ENV === 'development') {
       const forceSubscription = localStorage.getItem('forceSubscription');
       if (forceSubscription === 'true') {
-        console.log('DEV OVERRIDE: Forcing premium access to true in UnifiedStudyMode component');
+        logger.debug('DEV OVERRIDE: Forcing premium access to true in UnifiedStudyMode component');
         setDevHasPremiumAccess(true);
       } else {
         setDevHasPremiumAccess(false);
@@ -128,7 +129,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     
     // Apply the new filters
     setFilters(newFilters);
-    console.log("UnifiedStudyMode: Filters reset to:", newFilters);
+    logger.debug("UnifiedStudyMode: Filters reset to:", newFilters);
   };
 
   // Refs to track latest state values
@@ -157,18 +158,18 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     // Listen for shuffle cards events from navbar
     const handleShuffleEvent = () => {
       // Call the shuffleCards function directly
-      console.log("UnifiedStudyMode: Shuffle event received, shuffling cards...");
+      logger.debug("UnifiedStudyMode: Shuffle event received, shuffling cards...");
       
       // Get a copy of the filtered cards using ref for latest value
       const cardsToShuffle = [...filteredCardsRef.current];
       
       if (cardsToShuffle.length === 0) {
-        console.log("UnifiedStudyMode: No cards to shuffle, resetting filters");
+        logger.debug("UnifiedStudyMode: No cards to shuffle, resetting filters");
         resetFilters();
         return;
       }
       
-      console.log(`UnifiedStudyMode: Shuffling ${cardsToShuffle.length} cards`);
+      logger.debug(`UnifiedStudyMode: Shuffling ${cardsToShuffle.length} cards`);
       
       // Shuffle the cards
       let shuffledCards;
@@ -199,7 +200,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           .map(({ value }) => value);
       }
       
-      console.log("UnifiedStudyMode: Setting shuffled cards and resetting index");
+      logger.debug("UnifiedStudyMode: Setting shuffled cards and resetting index");
       setFilteredCards(shuffledCards);
       setCurrentIndex(0);
       setShowAnswer(false);
@@ -222,7 +223,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     const collectionParam = searchParams.get('collection');
     const cardParam = searchParams.get('card');
     
-    console.log('UnifiedStudyMode: URL Parameters detected:', {
+    logger.debug('UnifiedStudyMode: URL Parameters detected:', {
       subject: subjectParam,
       collection: collectionParam,
       card: cardParam
@@ -236,45 +237,45 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     if (subjectParam) {
       studyMode = 'subject';
       studyId = subjectParam;
-      console.log(`UnifiedStudyMode: Found subject in query params: ${subjectParam}`);
+      logger.debug(`UnifiedStudyMode: Found subject in query params: ${subjectParam}`);
     } else if (collectionParam) {
       studyMode = 'collection';
       studyId = collectionParam;
-      console.log(`UnifiedStudyMode: Found collection in query params: ${collectionParam}`);
+      logger.debug(`UnifiedStudyMode: Found collection in query params: ${collectionParam}`);
     }
     // Check for prop modes
     else if (propMode) {
       studyMode = propMode;
       studyId = propId || null;
-      console.log(`UnifiedStudyMode: Using prop mode: ${propMode}, ID: ${propId || 'none'}`);
+      logger.debug(`UnifiedStudyMode: Using prop mode: ${propMode}, ID: ${propId || 'none'}`);
     } 
     // Check for special props
     else if (subjectId && routeId) {
       studyMode = 'subject';
       studyId = routeId;
-      console.log(`UnifiedStudyMode: Using subject route param: ${routeId}`);
+      logger.debug(`UnifiedStudyMode: Using subject route param: ${routeId}`);
     }
     else if (collectionId && routeId) {
       studyMode = 'collection';
       studyId = routeId;
-      console.log(`UnifiedStudyMode: Using collection route param: ${routeId}`);
+      logger.debug(`UnifiedStudyMode: Using collection route param: ${routeId}`);
     }
     // Check route params if path is like /study/:mode/:id
     else if (routeMode && routeId) {
       if (['subject', 'collection'].includes(routeMode)) {
         studyMode = routeMode as 'subject' | 'collection';
         studyId = routeId;
-        console.log(`UnifiedStudyMode: Using route mode/ID: ${routeMode}/${routeId}`);
+        logger.debug(`UnifiedStudyMode: Using route mode/ID: ${routeMode}/${routeId}`);
       }
     }
     // Direct route param for collection study (legacy mode)
     else if (routeId && !routeMode && location.pathname.includes('/study/')) {
       studyMode = 'collection';
       studyId = routeId;
-      console.log(`UnifiedStudyMode: Using legacy collection route: ${routeId}`);
+      logger.debug(`UnifiedStudyMode: Using legacy collection route: ${routeId}`);
     }
     
-    console.log(`UnifiedStudyMode: Determined study mode: ${studyMode}, ID: ${studyId || 'none'}`);
+    logger.debug(`UnifiedStudyMode: Determined study mode: ${studyMode}, ID: ${studyId || 'none'}`);
     
     // Set initial filters based on mode
     let initialFilters: FilterState = {
@@ -287,20 +288,20 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     };
     
     if (studyMode === 'subject' && studyId) {
-      console.log(`UnifiedStudyMode: Setting initial filter for subject: ${studyId}`);
+      logger.debug(`UnifiedStudyMode: Setting initial filter for subject: ${studyId}`);
       initialFilters.subjects = [studyId];
     } else if (studyMode === 'collection' && studyId) {
-      console.log(`UnifiedStudyMode: Setting initial filter for collection: ${studyId}`);
+      logger.debug(`UnifiedStudyMode: Setting initial filter for collection: ${studyId}`);
       initialFilters.collections = [studyId];
     }
     
     // Completely replace the filters rather than merging
     setFilters(initialFilters);
-    console.log(`UnifiedStudyMode: Initial filters set:`, initialFilters);
+    logger.debug(`UnifiedStudyMode: Initial filters set:`, initialFilters);
     
     // Store the card ID in sessionStorage - will be handled by our direct search mechanism
     if (cardParam) {
-      console.log(`UnifiedStudyMode: Found card ID in query params: ${cardParam}`);
+      logger.debug(`UnifiedStudyMode: Found card ID in query params: ${cardParam}`);
       sessionStorage.setItem('initialCardId', cardParam);
     }
     
@@ -310,16 +311,16 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   useEffect(() => {
     const loadData = async () => {
       try {
-        console.log("UnifiedStudyMode: Starting to load data...");
+        logger.debug("UnifiedStudyMode: Starting to load data...");
         setLoading(true);
         setIsLoadingCards(true);
         
         // Check subscription status - now using tier-based system
         if (user) {
-          console.log("UnifiedStudyMode: User is logged in, using tier-based subscription check...");
-          console.log("UnifiedStudyMode: User subscription status:", hasSubscription);
+          logger.debug("UnifiedStudyMode: User is logged in, using tier-based subscription check...");
+          logger.debug("UnifiedStudyMode: User subscription status:", hasSubscription);
         } else {
-          console.log("UnifiedStudyMode: No user logged in, no subscription access");
+          logger.debug("UnifiedStudyMode: No user logged in, no subscription access");
         }
         
         // Load collections
@@ -328,12 +329,12 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           .select('*');
           
         if (collectionsError) {
-          console.error("UnifiedStudyMode: Error loading collections:", collectionsError);
+          logger.error("UnifiedStudyMode: Error loading collections:", collectionsError);
           throw collectionsError;
         }
         
         setCollections(collectionsData || []);
-        console.log(`UnifiedStudyMode: Loaded ${collectionsData?.length || 0} collections`);
+        logger.debug(`UnifiedStudyMode: Loaded ${collectionsData?.length || 0} collections`);
         
         // Load subjects
         const { data: subjectsData, error: subjectsError } = await supabase
@@ -341,12 +342,12 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           .select('*');
           
         if (subjectsError) {
-          console.error("UnifiedStudyMode: Error loading subjects:", subjectsError);
+          logger.error("UnifiedStudyMode: Error loading subjects:", subjectsError);
           throw subjectsError;
         }
         
         setSubjects(subjectsData || []);
-        console.log(`UnifiedStudyMode: Loaded ${subjectsData?.length || 0} subjects`);
+        logger.debug(`UnifiedStudyMode: Loaded ${subjectsData?.length || 0} subjects`);
         
         // Load exam types
         const { data: examTypesData, error: examTypesError } = await supabase
@@ -354,12 +355,12 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           .select('*');
           
         if (examTypesError) {
-          console.error("UnifiedStudyMode: Error loading exam types:", examTypesError);
+          logger.error("UnifiedStudyMode: Error loading exam types:", examTypesError);
           throw examTypesError;
         }
         
         setExamTypes(examTypesData || []);
-        console.log(`UnifiedStudyMode: Loaded ${examTypesData?.length || 0} exam types`);
+        logger.debug(`UnifiedStudyMode: Loaded ${examTypesData?.length || 0} exam types`);
         
         // Get junction table data to link flashcards to collections
         const { data: flashcardCollections, error: fcError } = await supabase
@@ -370,7 +371,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           `);
           
         if (fcError) {
-          console.error("UnifiedStudyMode: Error loading flashcard-collection relationships:", fcError);
+          logger.error("UnifiedStudyMode: Error loading flashcard-collection relationships:", fcError);
           throw fcError;
         }
         
@@ -383,31 +384,31 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           `);
           
         if (csError) {
-          console.error("UnifiedStudyMode: Error loading collection-subject relationships:", csError);
+          logger.error("UnifiedStudyMode: Error loading collection-subject relationships:", csError);
           throw csError;
         }
         
         // Get flashcard progress for the current user if logged in
         let progressMap = new Map();
         if (user) {
-          console.log("UnifiedStudyMode: Loading flashcard progress for user:", user.id);
+          logger.debug("UnifiedStudyMode: Loading flashcard progress for user:", user.id);
           const { data: progressData, error: progressError } = await supabase
             .from('flashcard_progress')
             .select('flashcard_id, is_mastered')
             .eq('user_id', user.id);
             
           if (progressError) {
-            console.error("UnifiedStudyMode: Error loading flashcard progress:", progressError);
+            logger.error("UnifiedStudyMode: Error loading flashcard progress:", progressError);
           } else if (progressData) {
-            console.log(`UnifiedStudyMode: Loaded ${progressData.length} progress records:`, progressData);
+            logger.debug(`UnifiedStudyMode: Loaded ${progressData.length} progress records:`, progressData);
             // Create a map for O(1) lookups
             progressMap = new Map(progressData.map(p => [p.flashcard_id, p.is_mastered]));
-            console.log("UnifiedStudyMode: Progress map created:", progressMap);
+            logger.debug("UnifiedStudyMode: Progress map created:", progressMap);
           }
         }
         
         // PHASE 1: Load sample flashcards first (quick loading)
-        console.log("UnifiedStudyMode: PHASE 1 - Loading public sample flashcards first");
+        logger.debug("UnifiedStudyMode: PHASE 1 - Loading public sample flashcards first");
         
         // Check if we're in collection mode to filter samples appropriately
         const searchParams = new URLSearchParams(window.location.search);
@@ -418,7 +419,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         
         if (isInCollectionMode) {
           // In collection mode, only load sample cards that belong to this collection
-          console.log(`UnifiedStudyMode: Collection mode - loading only sample cards from collection: ${collectionParam}`);
+          logger.debug(`UnifiedStudyMode: Collection mode - loading only sample cards from collection: ${collectionParam}`);
           
           // Get flashcard IDs that belong to this specific collection
           const { data: collectionCardJunctions, error: junctionError } = await supabase
@@ -427,7 +428,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
             .eq('collection_id', collectionParam);
             
           if (junctionError) {
-            console.error("UnifiedStudyMode: Error loading collection flashcard junctions for samples:", junctionError);
+            logger.error("UnifiedStudyMode: Error loading collection flashcard junctions for samples:", junctionError);
             throw junctionError;
           }
           
@@ -449,19 +450,19 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
               .or(sampleFilterCondition);
               
             if (sampleFlashcardsError) {
-              console.error("UnifiedStudyMode: Error loading collection sample flashcards:", sampleFlashcardsError);
+              logger.error("UnifiedStudyMode: Error loading collection sample flashcards:", sampleFlashcardsError);
               throw sampleFlashcardsError;
             }
             
             sampleFlashcardsData = collectionSampleData || [];
-            console.log(`UnifiedStudyMode: Loaded ${sampleFlashcardsData.length} sample flashcards for collection ${collectionParam}`);
+            logger.debug(`UnifiedStudyMode: Loaded ${sampleFlashcardsData.length} sample flashcards for collection ${collectionParam}`);
           } else {
-            console.log(`UnifiedStudyMode: No flashcards found for collection ${collectionParam}, loading no samples`);
+            logger.debug(`UnifiedStudyMode: No flashcards found for collection ${collectionParam}, loading no samples`);
             sampleFlashcardsData = [];
           }
         } else {
           // Non-collection mode: load all samples as before
-          console.log("UnifiedStudyMode: Non-collection mode - loading all public sample flashcards");
+          logger.debug("UnifiedStudyMode: Non-collection mode - loading all public sample flashcards");
           
           // Create the filter condition for samples only
           let sampleFilterCondition = 'is_public_sample.eq.true';
@@ -477,14 +478,14 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
             .or(sampleFilterCondition);
             
           if (sampleFlashcardsError) {
-            console.error("UnifiedStudyMode: Error loading sample flashcards:", sampleFlashcardsError);
+            logger.error("UnifiedStudyMode: Error loading sample flashcards:", sampleFlashcardsError);
             throw sampleFlashcardsError;
           }
           
           sampleFlashcardsData = allSampleData || [];
         }
         
-        console.log(`UnifiedStudyMode: Loaded ${sampleFlashcardsData?.length || 0} sample flashcards`);
+        logger.debug(`UnifiedStudyMode: Loaded ${sampleFlashcardsData?.length || 0} sample flashcards`);
         
         // Process sample flashcards to include collection and subject info
         const processedSampleCards = sampleFlashcardsData?.map(card => {
@@ -515,7 +516,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           
           // Get mastery status from the progress map
           const isMastered = progressMap.get(card.id) || false;
-          console.log(`UnifiedStudyMode: Card ${card.id} mastery status: ${isMastered} (from progress map)`);
+          logger.debug(`UnifiedStudyMode: Card ${card.id} mastery status: ${isMastered} (from progress map)`);
           
           return {
             ...card,
@@ -536,7 +537,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         
         // PHASE 2: Load remaining flashcards in background
         setLoadingRemainingCards(true);
-        console.log("UnifiedStudyMode: PHASE 2 - Loading remaining flashcards in background");
+        logger.debug("UnifiedStudyMode: PHASE 2 - Loading remaining flashcards in background");
         
         // Give a small delay before loading remaining cards to ensure UI responds
         setTimeout(async () => {
@@ -550,7 +551,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
             
             if (isCollectionMode) {
               const collectionId = collectionParam;
-              console.log(`UnifiedStudyMode: Collection mode detected, loading only cards from collection: ${collectionId}`);
+              logger.debug(`UnifiedStudyMode: Collection mode detected, loading only cards from collection: ${collectionId}`);
               
               // Get flashcard IDs that belong to this specific collection
               const { data: collectionCardJunctions, error: junctionError } = await supabase
@@ -559,13 +560,13 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                 .eq('collection_id', collectionId);
                 
               if (junctionError) {
-                console.error("UnifiedStudyMode: Error loading collection flashcard junctions:", junctionError);
+                logger.error("UnifiedStudyMode: Error loading collection flashcard junctions:", junctionError);
                 throw junctionError;
               }
               
               if (collectionCardJunctions && collectionCardJunctions.length > 0) {
                 const flashcardIds = collectionCardJunctions.map(j => j.flashcard_id);
-                console.log(`UnifiedStudyMode: Found ${flashcardIds.length} flashcard IDs for collection ${collectionId}`);
+                logger.debug(`UnifiedStudyMode: Found ${flashcardIds.length} flashcard IDs for collection ${collectionId}`);
                 
                 // Fetch only the flashcards that belong to this collection (excluding samples already loaded)
                 const { data: collectionFlashcardsData, error: collectionFlashcardsError } = await supabase
@@ -575,19 +576,19 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                   .eq('is_public_sample', false); // Exclude samples as they're already loaded
                   
                 if (collectionFlashcardsError) {
-                  console.error("UnifiedStudyMode: Error loading collection flashcards:", collectionFlashcardsError);
+                  logger.error("UnifiedStudyMode: Error loading collection flashcards:", collectionFlashcardsError);
                   throw collectionFlashcardsError;
                 }
                 
                 remainingFlashcardsData = collectionFlashcardsData || [];
-                console.log(`UnifiedStudyMode: Loaded ${remainingFlashcardsData.length} flashcards for collection ${collectionId}`);
+                logger.debug(`UnifiedStudyMode: Loaded ${remainingFlashcardsData.length} flashcards for collection ${collectionId}`);
               } else {
-                console.log(`UnifiedStudyMode: No flashcards found for collection ${collectionId}`);
+                logger.debug(`UnifiedStudyMode: No flashcards found for collection ${collectionId}`);
                 remainingFlashcardsData = [];
               }
             } else {
               // Original logic for non-collection modes (unified study, subject study)
-              console.log("UnifiedStudyMode: Non-collection mode, loading all remaining flashcards");
+              logger.debug("UnifiedStudyMode: Non-collection mode, loading all remaining flashcards");
               
               // Create the filter condition for non-sample cards
               let remainingFilterCondition = 'is_official.eq.true';
@@ -603,12 +604,12 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
                 .or(remainingFilterCondition);
                 
               if (remainingFlashcardsError) {
-                console.error("UnifiedStudyMode: Error loading remaining flashcards:", remainingFlashcardsError);
+                logger.error("UnifiedStudyMode: Error loading remaining flashcards:", remainingFlashcardsError);
                 throw remainingFlashcardsError;
               }
               
               remainingFlashcardsData = allRemainingFlashcardsData || [];
-              console.log(`UnifiedStudyMode: Loaded ${remainingFlashcardsData.length} remaining flashcards`);
+              logger.debug(`UnifiedStudyMode: Loaded ${remainingFlashcardsData.length} remaining flashcards`);
             }
             
             // Process remaining flashcards
@@ -650,7 +651,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
             
             // Combine sample cards with remaining cards, ensuring samples come first
             const allCards = [...processedSampleCards, ...processedRemainingCards];
-            console.log(`UnifiedStudyMode: Combined ${processedSampleCards.length} sample cards with ${processedRemainingCards.length} remaining cards`);
+            logger.debug(`UnifiedStudyMode: Combined ${processedSampleCards.length} sample cards with ${processedRemainingCards.length} remaining cards`);
             
             // Update state with all cards
             setCards(allCards);
@@ -658,7 +659,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
             // Re-apply filters with the complete card set
             applyFilters(allCards);
           } catch (err: any) {
-            console.error('UnifiedStudyMode: Error loading remaining cards:', err);
+            logger.error('UnifiedStudyMode: Error loading remaining cards:', err);
             // Don't set error state here as we already have sample cards to show
           } finally {
             setLoadingRemainingCards(false);
@@ -667,7 +668,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         }, 300); // Small delay to ensure UI responds first
         
       } catch (err: any) {
-        console.error('UnifiedStudyMode: Error loading study data:', err);
+        logger.error('UnifiedStudyMode: Error loading study data:', err);
         setError(err.message);
         setLoading(false);
         setSampleCardsLoaded(false);
@@ -676,20 +677,20 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       }
     };
     
-    console.log("UnifiedStudyMode: Running effect to load data");
+    logger.debug("UnifiedStudyMode: Running effect to load data");
     loadData();
   }, [user]);
 
   // Define the applyFilters function
   const applyFilters = (cardsToFilter: Flashcard[]) => {
-    console.log("UnifiedStudyMode: Applying filters", filters);
-    console.log(`UnifiedStudyMode: Starting with ${cardsToFilter.length} cards to filter`);
+    logger.debug("UnifiedStudyMode: Applying filters", filters);
+    logger.debug(`UnifiedStudyMode: Starting with ${cardsToFilter.length} cards to filter`);
     
     let filtered = [...cardsToFilter];
     
     // Filter by subjects
     if (filters.subjects.length > 0) {
-      console.log(`UnifiedStudyMode: Filtering by subjects:`, filters.subjects);
+      logger.debug(`UnifiedStudyMode: Filtering by subjects:`, filters.subjects);
       filtered = filtered.filter(card => {
         // A card matches if any of its collections' subjects match any of the filter subjects
         if (!card.collections || card.collections.length === 0) {
@@ -709,58 +710,58 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
           );
         });
       });
-      console.log(`UnifiedStudyMode: After subject filtering: ${filtered.length} cards`);
+      logger.debug(`UnifiedStudyMode: After subject filtering: ${filtered.length} cards`);
     }
     
     // Filter by exam types
     if (filters.examTypes.length > 0) {
-      console.log(`UnifiedStudyMode: Filtering by exam types:`, filters.examTypes);
+      logger.debug(`UnifiedStudyMode: Filtering by exam types:`, filters.examTypes);
       filtered = filtered.filter(card => 
         card.exam_types && card.exam_types.some(examType => 
           filters.examTypes.includes(examType.id)
         )
       );
-      console.log(`UnifiedStudyMode: After exam type filtering: ${filtered.length} cards`);
+      logger.debug(`UnifiedStudyMode: After exam type filtering: ${filtered.length} cards`);
     }
     
     // Filter by collections
     if (filters.collections.length > 0) {
-      console.log(`UnifiedStudyMode: Filtering by collections:`, filters.collections);
+      logger.debug(`UnifiedStudyMode: Filtering by collections:`, filters.collections);
       filtered = filtered.filter(card => 
         card.collections && card.collections.some(collection => 
           filters.collections.includes(collection.id)
         )
       );
-      console.log(`UnifiedStudyMode: After collection filtering: ${filtered.length} cards`);
+      logger.debug(`UnifiedStudyMode: After collection filtering: ${filtered.length} cards`);
     }
     
     // Filter by difficulty levels
     if (filters.difficultyLevels.length > 0) {
-      console.log(`UnifiedStudyMode: Filtering by difficulty levels:`, filters.difficultyLevels);
+      logger.debug(`UnifiedStudyMode: Filtering by difficulty levels:`, filters.difficultyLevels);
       filtered = filtered.filter(card => 
         filters.difficultyLevels.includes(card.difficulty_level || 'medium')
       );
-      console.log(`UnifiedStudyMode: After difficulty filtering: ${filtered.length} cards`);
+      logger.debug(`UnifiedStudyMode: After difficulty filtering: ${filtered.length} cards`);
     }
     
     // Filter by common pitfalls
     if (filters.showCommonPitfalls) {
-      console.log(`UnifiedStudyMode: Filtering to show only common pitfalls`);
+      logger.debug(`UnifiedStudyMode: Filtering to show only common pitfalls`);
       filtered = filtered.filter(card => card.is_common_pitfall);
-      console.log(`UnifiedStudyMode: After common pitfalls filtering: ${filtered.length} cards`);
+      logger.debug(`UnifiedStudyMode: After common pitfalls filtering: ${filtered.length} cards`);
     }
     
     // Filter by mastered status
     if (!filters.showMastered) {
-      console.log(`UnifiedStudyMode: Filtering to hide mastered cards`);
+      logger.debug(`UnifiedStudyMode: Filtering to hide mastered cards`);
       filtered = filtered.filter(card => !card.is_mastered);
-      console.log(`UnifiedStudyMode: After mastery filtering: ${filtered.length} cards`);
+      logger.debug(`UnifiedStudyMode: After mastery filtering: ${filtered.length} cards`);
     }
     
-    console.log(`UnifiedStudyMode: Filtered ${cardsToFilter.length} cards down to ${filtered.length} cards`);
+    logger.debug(`UnifiedStudyMode: Filtered ${cardsToFilter.length} cards down to ${filtered.length} cards`);
     
     if (filtered.length === 0) {
-      console.log("UnifiedStudyMode: No cards match current filters:", filters);
+      logger.debug("UnifiedStudyMode: No cards match current filters:", filters);
     }
     
     setFilteredCards(filtered);
@@ -772,13 +773,13 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
   useEffect(() => {
     if (cards.length === 0) return;
     
-    console.log("UnifiedStudyMode: Applying filters from useEffect", filters);
+    logger.debug("UnifiedStudyMode: Applying filters from useEffect", filters);
     applyFilters(cards);
   }, [filters, cards]);
 
   // Card navigation functions
   const shuffleCards = useCallback(() => {
-    console.log("UnifiedStudyMode: Shuffle function called directly");
+    logger.debug("UnifiedStudyMode: Shuffle function called directly");
       
     // Simply dispatch the same event that the navbar uses
     // This will ensure we have a single code path for shuffling
@@ -829,7 +830,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       return;
     }
     
-    console.log('UnifiedStudyMode: markAsMastered - Current card:', currentCard.id, 'User:', user.id);
+    logger.debug('UnifiedStudyMode: markAsMastered - Current card:', currentCard.id, 'User:', user.id);
     
     try {
       // Update or create progress in the flashcard_progress table (not flashcards table)
@@ -846,11 +847,11 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         });
 
       if (error) {
-        console.error('UnifiedStudyMode: markAsMastered - Database error:', error);
+        logger.error('UnifiedStudyMode: markAsMastered - Database error:', error);
         throw error;
       }
       
-      console.log('UnifiedStudyMode: markAsMastered - Successfully saved to database');
+      logger.debug('UnifiedStudyMode: markAsMastered - Successfully saved to database');
       
       // IMPORTANT: Invalidate React Query caches to update collection mastery percentages
       try {
@@ -860,9 +861,9 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         // Also invalidate progress queries
         queryClient.invalidateQueries({ queryKey: ['flashcards', 'progress', user.id] });
         
-        console.log('UnifiedStudyMode: markAsMastered - Invalidated query caches');
+        logger.debug('UnifiedStudyMode: markAsMastered - Invalidated query caches');
       } catch (cacheError) {
-        console.warn('UnifiedStudyMode: markAsMastered - Error invalidating caches:', cacheError);
+        logger.warn('UnifiedStudyMode: markAsMastered - Error invalidating caches:', cacheError);
         // Continue with local state update even if cache invalidation fails
       }
       
@@ -877,7 +878,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         const newFiltered = filteredCards.filter((_, i) => i !== currentIndex);
         setFilteredCards(newFiltered);
         
-        console.log('UnifiedStudyMode: markAsMastered - Filtered out mastered card, new count:', newFiltered.length);
+        logger.debug('UnifiedStudyMode: markAsMastered - Filtered out mastered card, new count:', newFiltered.length);
         
         // Adjust current index if needed
         if (currentIndex >= newFiltered.length) {
@@ -890,7 +891,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         setFilteredCards(newFiltered);
       }
     } catch (err: any) {
-      console.error("Error in markAsMastered:", err);
+      logger.error("Error in markAsMastered:", err);
       showToast(`Error: ${err.message}`, 'error');
     }
   };
@@ -937,9 +938,9 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         // Also invalidate progress queries
         queryClient.invalidateQueries({ queryKey: ['flashcards', 'progress', user.id] });
         
-        console.log('UnifiedStudyMode: unmarkAsMastered - Invalidated query caches');
+        logger.debug('UnifiedStudyMode: unmarkAsMastered - Invalidated query caches');
       } catch (cacheError) {
-        console.warn('UnifiedStudyMode: unmarkAsMastered - Error invalidating caches:', cacheError);
+        logger.warn('UnifiedStudyMode: unmarkAsMastered - Error invalidating caches:', cacheError);
         // Continue with local state update even if cache invalidation fails
       }
       
@@ -954,7 +955,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
       newFiltered[currentIndex] = { ...currentCard, is_mastered: false };
       setFilteredCards(newFiltered);
     } catch (err: any) {
-      console.error("Error in unmarkAsMastered:", err);
+      logger.error("Error in unmarkAsMastered:", err);
       showToast(`Error: ${err.message}`, 'error');
     }
   };
@@ -970,32 +971,32 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
 
   // Add a direct search for card by ID
   const findCardDirectly = (cardId: string) => {
-    console.log(`UnifiedStudyMode: DIRECT SEARCH - Looking for card: ${cardId}`);
+    logger.debug(`UnifiedStudyMode: DIRECT SEARCH - Looking for card: ${cardId}`);
     
     // First check in the filtered list
     let cardIndex = filteredCards.findIndex(card => card.id === cardId);
     
     if (cardIndex !== -1) {
-      console.log(`UnifiedStudyMode: DIRECT SEARCH - Card found in filtered list at index ${cardIndex}`);
+      logger.debug(`UnifiedStudyMode: DIRECT SEARCH - Card found in filtered list at index ${cardIndex}`);
       return cardIndex;
     }
     
     // If not found in filtered list, we need to modify our filters to include it
     const cardData = cards.find(card => card.id === cardId);
     if (!cardData) {
-      console.log(`UnifiedStudyMode: DIRECT SEARCH - Card not found in any list`);
+      logger.debug(`UnifiedStudyMode: DIRECT SEARCH - Card not found in any list`);
       return -1;
     }
     
     // Find the collections this card belongs to
     if (!cardData.collections || cardData.collections.length === 0) {
-      console.log(`UnifiedStudyMode: DIRECT SEARCH - Card has no collections assigned`);
+      logger.debug(`UnifiedStudyMode: DIRECT SEARCH - Card has no collections assigned`);
       return -1;
     }
     
     // Get the first collection ID
     const collectionId = cardData.collections[0].id;
-    console.log(`UnifiedStudyMode: DIRECT SEARCH - Card belongs to collection ${collectionId}`);
+    logger.debug(`UnifiedStudyMode: DIRECT SEARCH - Card belongs to collection ${collectionId}`);
     
     // Update filters to include all cards from this collection and show mastered cards
     setFilters({
@@ -1005,7 +1006,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     });
     
     // This will trigger a refilter, so return -1 for now
-    console.log(`UnifiedStudyMode: DIRECT SEARCH - Updated filters, wait for refiltering`);
+    logger.debug(`UnifiedStudyMode: DIRECT SEARCH - Updated filters, wait for refiltering`);
     return -1;
   };
 
@@ -1021,13 +1022,13 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     const cardParam = searchParams.get('card');
     
     if (cardParam) {
-      console.log(`UnifiedStudyMode: URL has card parameter: ${cardParam}`);
+      logger.debug(`UnifiedStudyMode: URL has card parameter: ${cardParam}`);
       
       // Direct search for the card
       const cardIndex = findCardDirectly(cardParam);
       
       if (cardIndex !== -1) {
-        console.log(`UnifiedStudyMode: Setting initial card index to ${cardIndex} from URL param`);
+        logger.debug(`UnifiedStudyMode: Setting initial card index to ${cardIndex} from URL param`);
         setCurrentIndex(cardIndex);
       }
     }
@@ -1041,14 +1042,14 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     // Check if we need to show a specific card
     const initialCardId = sessionStorage.getItem('initialCardId');
     if (initialCardId) {
-      console.log(`UnifiedStudyMode: Looking for initial card in session storage: ${initialCardId}`);
+      logger.debug(`UnifiedStudyMode: Looking for initial card in session storage: ${initialCardId}`);
       
       // Direct search
       const cardIndex = findCardDirectly(initialCardId);
       
       if (cardIndex !== -1) {
         // Card found directly
-        console.log(`UnifiedStudyMode: Setting card index to ${cardIndex} from session storage`);
+        logger.debug(`UnifiedStudyMode: Setting card index to ${cardIndex} from session storage`);
         setCurrentIndex(cardIndex);
         sessionStorage.removeItem('initialCardId');
       }
@@ -1079,7 +1080,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     if (process.env.NODE_ENV === 'development') {
       const forceSubscription = localStorage.getItem('forceSubscription');
       if (forceSubscription === 'true') {
-        console.log('DEV OVERRIDE: Bypassing premium check due to forceSubscription');
+        logger.debug('DEV OVERRIDE: Bypassing premium check due to forceSubscription');
         return false;
       }
     }
@@ -1088,7 +1089,7 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
     const isOfficial = collection.is_official === true;
     const needsSubscription = isOfficial && !hasSubscription;
     
-    console.log(`Premium content check: official=${isOfficial}, hasSubscription=${hasSubscription}, needsSubscription=${needsSubscription}`);
+    logger.debug(`Premium content check: official=${isOfficial}, hasSubscription=${hasSubscription}, needsSubscription=${needsSubscription}`);
     
     return needsSubscription;
   }, [hasSubscription]);
@@ -1100,12 +1101,12 @@ export default function UnifiedStudyMode({ mode: propMode, id: propId, subjectId
         const needsSubscription = !hasSubscription;
         
         if (needsSubscription) {
-          console.log('UnifiedStudyMode: User does not have premium access, may need paywall for premium content');
+          logger.debug('UnifiedStudyMode: User does not have premium access, may need paywall for premium content');
         } else {
-          console.log('UnifiedStudyMode: User has premium access');
+          logger.debug('UnifiedStudyMode: User has premium access');
         }
       } catch (err) {
-        console.error('Error checking subscription in UnifiedStudyMode:', err);
+        logger.error('Error checking subscription in UnifiedStudyMode:', err);
       }
     };
 

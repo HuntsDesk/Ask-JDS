@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Shield, AlertTriangle, Activity, TrendingUp, Eye, Clock, Map, User } from 'lucide-react';
@@ -62,7 +63,7 @@ export const SecurityDashboard: React.FC = () => {
       });
       // Refetch data
     } catch (error) {
-      console.error('Failed to update violation:', error);
+      logger.error('Failed to update violation:', error);
     }
   };
 

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
@@ -35,7 +36,7 @@ export function ProtectedRoute({
   // For debugging only - but reduce frequency to avoid console spam
   useEffect(() => {
     if (user || hasManualSession || redirectLock) {
-      console.log('[ProtectedRoute] Auth state:', {
+      logger.debug('[ProtectedRoute] Auth state:', {
         user: user ? `found` : null,
         isAuthResolved,
         hasManualSession,
@@ -54,10 +55,10 @@ export function ProtectedRoute({
     
     // If auth hasn't resolved after a delay, show timeout message
     if (!isAuthResolved && !loadingTimeout) {
-      console.log('ProtectedRoute: Setting loading safety timeout');
+      logger.debug('ProtectedRoute: Setting loading safety timeout');
       timeoutId = setTimeout(() => {
         if (isMountedRef.current) {
-          console.log('ProtectedRoute: Loading safety timeout triggered');
+          logger.debug('ProtectedRoute: Loading safety timeout triggered');
           setLoadingTimeout(true);
         }
       }, 2000); // Reduced to 2 seconds for faster perceived loading
@@ -78,7 +79,7 @@ export function ProtectedRoute({
         try {
           setIsCheckingSession(true);
           didCheckSessionRef.current = true;
-          console.log('[ProtectedRoute] Context shows no user but auth is resolved. Checking session directly with Supabase...');
+          logger.debug('[ProtectedRoute] Context shows no user but auth is resolved. Checking session directly with Supabase...');
           
           // First check if we have a recent session marker in storage
           const sessionMarker = sessionStorage.getItem(SESSION_FOUND_KEY);
@@ -92,7 +93,7 @@ export function ProtectedRoute({
             const fiveMinutesAgo = now - (5 * 60 * 1000);
             
             if (timestamp > fiveMinutesAgo) {
-              console.log('[ProtectedRoute] Found recent session marker in storage, using it');
+              logger.debug('[ProtectedRoute] Found recent session marker in storage, using it');
               setHasManualSession(true);
               setManualSessionChecked(true);
               setIsCheckingSession(false);
@@ -104,7 +105,7 @@ export function ProtectedRoute({
           const { data, error } = await supabase.auth.getSession();
           
           if (error) {
-            console.error('[ProtectedRoute] Error checking session directly:', error);
+            logger.error('[ProtectedRoute] Error checking session directly:', error);
             setManualSessionChecked(true);
             setHasManualSession(false);
             setIsCheckingSession(false);
@@ -112,7 +113,7 @@ export function ProtectedRoute({
           }
           
           if (data?.session?.user) {
-            console.log('[ProtectedRoute] Found valid session directly from Supabase, preventing redirect loop');
+            logger.debug('[ProtectedRoute] Found valid session directly from Supabase, preventing redirect loop');
             
             // Store session information to help coordinate with AuthPage
             sessionStorage.setItem(SESSION_FOUND_KEY, 'true');
@@ -127,7 +128,7 @@ export function ProtectedRoute({
               }
             }, 500);
           } else {
-            console.log('[ProtectedRoute] No session found directly from Supabase');
+            logger.debug('[ProtectedRoute] No session found directly from Supabase');
             
             // Clear any previous session markers
             sessionStorage.removeItem(SESSION_FOUND_KEY);
@@ -140,7 +141,7 @@ export function ProtectedRoute({
           
           setManualSessionChecked(true);
         } catch (err) {
-          console.error('[ProtectedRoute] Exception checking session directly:', err);
+          logger.error('[ProtectedRoute] Exception checking session directly:', err);
           setManualSessionChecked(true);
           setHasManualSession(false);
           setIsCheckingSession(false);
@@ -158,12 +159,12 @@ export function ProtectedRoute({
       const prevRedirectAttempts = parseInt(sessionStorage.getItem(REDIRECT_ATTEMPTS_KEY) || '0');
       
       if (prevRedirectAttempts > 3) {
-        console.warn('ProtectedRoute: Too many redirects detected, stopping redirect loop');
+        logger.warn('ProtectedRoute: Too many redirects detected, stopping redirect loop');
         sessionStorage.removeItem(REDIRECT_ATTEMPTS_KEY);
         setRedirectLock(true);
         // Force authentication refresh after a delay
         setTimeout(() => {
-          console.log('ProtectedRoute: Forcing refresh after redirect loop');
+          logger.debug('ProtectedRoute: Forcing refresh after redirect loop');
           window.location.reload();
         }, 2000);
         return;

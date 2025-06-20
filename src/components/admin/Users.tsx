@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from "react";
 import { AdminLayout } from "./AdminLayout";
 import { supabase } from "@/lib/supabase";
@@ -57,7 +58,7 @@ export const AdminUsers = () => {
         .select('user_id, status');
 
       if (subError) {
-        console.error("Error fetching subscriptions:", subError);
+        logger.error("Error fetching subscriptions:", subError);
       }
 
       // Create a mapping of user ID to subscription status
@@ -74,7 +75,7 @@ export const AdminUsers = () => {
         .select('id, is_admin');
 
       if (profilesError) {
-        console.error("Error fetching profiles:", profilesError);
+        logger.error("Error fetching profiles:", profilesError);
       }
 
       // Create a mapping of user ID to admin status
@@ -97,7 +98,7 @@ export const AdminUsers = () => {
 
       setUsers(formattedUsers);
     } catch (error: any) {
-      console.error("Error fetching users:", error);
+      logger.error("Error fetching users:", error);
       setError(error.message || "Failed to fetch users");
     } finally {
       setLoading(false);
@@ -121,7 +122,7 @@ export const AdminUsers = () => {
         )
       );
     } catch (error: any) {
-      console.error("Error promoting user to admin:", error);
+      logger.error("Error promoting user to admin:", error);
       setError(error.message || "Failed to promote user to admin");
     }
   };
@@ -143,7 +144,7 @@ export const AdminUsers = () => {
         )
       );
     } catch (error: any) {
-      console.error("Error revoking admin status:", error);
+      logger.error("Error revoking admin status:", error);
       setError(error.message || "Failed to revoke admin status");
     }
   };

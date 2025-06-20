@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 /**
  * Debug Logger System
  * Provides structured, context-aware logging with configurable levels
@@ -43,7 +44,7 @@ class DebugLogger {
           const contexts = JSON.parse(savedContexts) as LogContext[];
           this.enabledContexts = new Set<LogContext>(contexts);
         } catch (e) {
-          console.warn('Failed to parse saved debug contexts');
+          logger.warn('Failed to parse saved debug contexts');
         }
       }
     }
@@ -124,7 +125,7 @@ class DebugLogger {
     };
 
     this.addToHistory(entry);
-    console.debug(this.formatMessage(context, message), data ? data : '');
+    logger.debug(this.formatMessage(context, message), data ? data : '');
   }
 
   info(context: LogContext, message: string, data?: any, location?: string) {
@@ -140,7 +141,7 @@ class DebugLogger {
     };
 
     this.addToHistory(entry);
-    console.info(this.formatMessage(context, message), data ? data : '');
+    logger.info(this.formatMessage(context, message), data ? data : '');
   }
 
   warn(context: LogContext, message: string, data?: any, location?: string) {
@@ -156,7 +157,7 @@ class DebugLogger {
     };
 
     this.addToHistory(entry);
-    console.warn(this.formatMessage(context, message), data ? data : '');
+    logger.warn(this.formatMessage(context, message), data ? data : '');
   }
 
   error(context: LogContext, message: string, data?: any, location?: string) {
@@ -172,7 +173,7 @@ class DebugLogger {
     };
 
     this.addToHistory(entry);
-    console.error(this.formatMessage(context, message), data ? data : '');
+    logger.error(this.formatMessage(context, message), data ? data : '');
   }
 
   getHistory(context?: LogContext): LogEntry[] {

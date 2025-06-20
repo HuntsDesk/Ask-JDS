@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "../ui/button";
@@ -36,7 +37,7 @@ export function SetAdminStatus() {
       }
       
       if (rpcError) {
-        console.log('RPC method failed, trying direct method:', rpcError);
+        logger.debug('RPC method failed, trying direct method:', rpcError);
       }
       
       // If RPC fails, try finding the user and updating directly
@@ -47,7 +48,7 @@ export function SetAdminStatus() {
         .single();
       
       if (userError) {
-        console.error('Error finding user by email:', userError);
+        logger.error('Error finding user by email:', userError);
         setStatus('error');
         setMessage(`Error finding user: ${userError.message}`);
         return;
@@ -64,7 +65,7 @@ export function SetAdminStatus() {
         .rpc('upgrade_to_admin', { user_id: userData.id });
       
       if (upgradeError) {
-        console.error('Error using upgrade_to_admin:', upgradeError);
+        logger.error('Error using upgrade_to_admin:', upgradeError);
         
         // Fall back to directly updating the profile
         const { error: profileError } = await supabase
@@ -73,7 +74,7 @@ export function SetAdminStatus() {
           .eq('id', userData.id);
         
         if (profileError) {
-          console.error('Error updating profile admin status:', profileError);
+          logger.error('Error updating profile admin status:', profileError);
           setStatus('error');
           setMessage(`Error updating profile: ${profileError.message}`);
           return;
@@ -83,7 +84,7 @@ export function SetAdminStatus() {
       setStatus("success");
       setMessage(`Successfully set ${email} as admin!`);
     } catch (error: any) {
-      console.error('Error setting admin status:', error);
+      logger.error('Error setting admin status:', error);
       setStatus("error");
       setMessage(`Error: ${error.message}`);
     }

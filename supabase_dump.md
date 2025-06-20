@@ -5,9 +5,27 @@
         "type": "tables",
         "data": [
           {
-            "table_name": "schema_overview",
-            "column_name": "rowsecurity",
-            "data_type": "boolean",
+            "table_name": "rate_limits",
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "models",
+            "column_name": "max_tokens",
+            "data_type": "integer",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "models",
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "models",
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
             "is_nullable": "YES"
           },
           {
@@ -191,7 +209,7 @@
             "is_nullable": "YES"
           },
           {
-            "table_name": "rate_limits",
+            "table_name": "stripe_price_mappings",
             "column_name": "id",
             "data_type": "uuid",
             "is_nullable": "NO"
@@ -428,6 +446,72 @@
             "table_name": "schema_overview",
             "column_name": "hastriggers",
             "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "schema_overview",
+            "column_name": "rowsecurity",
+            "data_type": "boolean",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "user_agreements",
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "user_agreements",
+            "column_name": "user_id",
+            "data_type": "uuid",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "user_agreements",
+            "column_name": "accepted_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "user_agreements",
+            "column_name": "ip_address",
+            "data_type": "inet",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "user_agreements",
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "stripe_price_mappings",
+            "column_name": "is_active",
+            "data_type": "boolean",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "stripe_price_mappings",
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "stripe_price_mappings",
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "stripe_price_mappings",
+            "column_name": "created_by",
+            "data_type": "uuid",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "stripe_price_mappings",
+            "column_name": "display_price_cents",
+            "data_type": "integer",
             "is_nullable": "YES"
           },
           {
@@ -941,38 +1025,50 @@
             "is_nullable": "YES"
           },
           {
-            "table_name": "models",
-            "column_name": "max_tokens",
-            "data_type": "integer",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "models",
-            "column_name": "created_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "models",
-            "column_name": "updated_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "security_violations",
-            "column_name": "notes",
+            "table_name": "query_logs",
+            "column_name": "query",
             "data_type": "text",
             "is_nullable": "YES"
           },
           {
-            "table_name": "collections",
-            "column_name": "description",
+            "table_name": "stripe_price_mappings",
+            "column_name": "tier_name",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "stripe_price_mappings",
+            "column_name": "interval_type",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "stripe_price_mappings",
+            "column_name": "environment",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "rate_limits",
+            "column_name": "user_agent",
             "data_type": "text",
             "is_nullable": "YES"
           },
           {
-            "table_name": "flashcards",
-            "column_name": "difficulty_level",
+            "table_name": "user_agreements",
+            "column_name": "version",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "models",
+            "column_name": "name",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "user_agreements",
+            "column_name": "user_agent",
             "data_type": "text",
             "is_nullable": "YES"
           },
@@ -989,38 +1085,50 @@
             "is_nullable": "YES"
           },
           {
+            "table_name": "flashcards",
+            "column_name": "difficulty_level",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "stripe_price_mappings",
+            "column_name": "price_id",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "stripe_price_mappings",
+            "column_name": "display_currency",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "security_violations",
+            "column_name": "violation_type",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
             "table_name": "collections",
             "column_name": "title",
             "data_type": "text",
             "is_nullable": "NO"
           },
           {
-            "table_name": "models",
-            "column_name": "name",
-            "data_type": "text",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "rate_limits",
-            "column_name": "endpoint",
-            "data_type": "text",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "query_logs",
-            "column_name": "query",
+            "table_name": "collections",
+            "column_name": "description",
             "data_type": "text",
             "is_nullable": "YES"
           },
           {
-            "table_name": "messages",
-            "column_name": "content",
+            "table_name": "security_violations",
+            "column_name": "document_uri",
             "data_type": "text",
-            "is_nullable": "NO"
+            "is_nullable": "YES"
           },
           {
-            "table_name": "rate_limits",
-            "column_name": "user_agent",
+            "table_name": "security_violations",
+            "column_name": "violated_directive",
             "data_type": "text",
             "is_nullable": "YES"
           },
@@ -1038,9 +1146,45 @@
           },
           {
             "table_name": "security_violations",
-            "column_name": "violation_type",
+            "column_name": "blocked_uri",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "security_violations",
+            "column_name": "source_file",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "ai_settings",
+            "column_name": "provider",
             "data_type": "text",
             "is_nullable": "NO"
+          },
+          {
+            "table_name": "user_subscriptions",
+            "column_name": "status",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "ai_settings",
+            "column_name": "model",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "messages",
+            "column_name": "content",
+            "data_type": "text",
+            "is_nullable": "NO"
+          },
+          {
+            "table_name": "user_subscriptions",
+            "column_name": "stripe_customer_id",
+            "data_type": "text",
+            "is_nullable": "YES"
           },
           {
             "table_name": "error_logs",
@@ -1055,26 +1199,26 @@
             "is_nullable": "YES"
           },
           {
-            "table_name": "security_violations",
-            "column_name": "document_uri",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "security_violations",
-            "column_name": "violated_directive",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
             "table_name": "user_subscriptions",
+            "column_name": "stripe_subscription_id",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "security_violations",
+            "column_name": "user_agent",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "course_enrollments",
             "column_name": "status",
             "data_type": "text",
             "is_nullable": "NO"
           },
           {
-            "table_name": "security_violations",
-            "column_name": "blocked_uri",
+            "table_name": "course_enrollments",
+            "column_name": "stripe_price_id",
             "data_type": "text",
             "is_nullable": "YES"
           },
@@ -1097,34 +1241,16 @@
             "is_nullable": "YES"
           },
           {
-            "table_name": "security_violations",
-            "column_name": "source_file",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "course_enrollments",
-            "column_name": "status",
-            "data_type": "text",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "course_enrollments",
-            "column_name": "stripe_price_id",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
             "table_name": "course_enrollments",
             "column_name": "stripe_payment_intent_id",
             "data_type": "text",
             "is_nullable": "YES"
           },
           {
-            "table_name": "user_subscriptions",
-            "column_name": "stripe_customer_id",
+            "table_name": "messages",
+            "column_name": "role",
             "data_type": "text",
-            "is_nullable": "YES"
+            "is_nullable": "NO"
           },
           {
             "table_name": "threads",
@@ -1134,49 +1260,25 @@
           },
           {
             "table_name": "user_subscriptions",
-            "column_name": "stripe_subscription_id",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "lessons",
-            "column_name": "title",
-            "data_type": "text",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "lessons",
-            "column_name": "content",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "courses",
             "column_name": "stripe_price_id",
             "data_type": "text",
             "is_nullable": "YES"
           },
           {
-            "table_name": "courses",
-            "column_name": "stripe_price_id_dev",
+            "table_name": "security_violations",
+            "column_name": "endpoint",
             "data_type": "text",
             "is_nullable": "YES"
           },
           {
-            "table_name": "profiles",
-            "column_name": "full_name",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "exam_types",
+            "table_name": "subjects",
             "column_name": "name",
             "data_type": "text",
             "is_nullable": "NO"
           },
           {
-            "table_name": "exam_types",
-            "column_name": "description",
+            "table_name": "profiles",
+            "column_name": "full_name",
             "data_type": "text",
             "is_nullable": "YES"
           },
@@ -1193,26 +1295,56 @@
             "is_nullable": "YES"
           },
           {
-            "table_name": "user_subscriptions",
+            "table_name": "courses",
             "column_name": "stripe_price_id",
             "data_type": "text",
             "is_nullable": "YES"
           },
           {
-            "table_name": "lessons",
-            "column_name": "video_id",
+            "table_name": "courses",
+            "column_name": "stripe_price_id_dev",
             "data_type": "text",
             "is_nullable": "YES"
           },
           {
             "table_name": "subjects",
+            "column_name": "description",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "exam_types",
             "column_name": "name",
             "data_type": "text",
             "is_nullable": "NO"
           },
           {
+            "table_name": "exam_types",
+            "column_name": "description",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "security_violations",
+            "column_name": "severity",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
             "table_name": "profiles",
             "column_name": "first_name",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "profiles",
+            "column_name": "last_name",
+            "data_type": "text",
+            "is_nullable": "YES"
+          },
+          {
+            "table_name": "profiles",
+            "column_name": "email",
             "data_type": "text",
             "is_nullable": "YES"
           },
@@ -1235,16 +1367,16 @@
             "is_nullable": "YES"
           },
           {
-            "table_name": "profiles",
-            "column_name": "last_name",
+            "table_name": "lessons",
+            "column_name": "title",
             "data_type": "text",
-            "is_nullable": "YES"
+            "is_nullable": "NO"
           },
           {
-            "table_name": "subjects",
-            "column_name": "description",
+            "table_name": "system_prompts",
+            "column_name": "content",
             "data_type": "text",
-            "is_nullable": "YES"
+            "is_nullable": "NO"
           },
           {
             "table_name": "document_chunks",
@@ -1253,14 +1385,14 @@
             "is_nullable": "NO"
           },
           {
-            "table_name": "profiles",
-            "column_name": "email",
+            "table_name": "modules",
+            "column_name": "title",
             "data_type": "text",
-            "is_nullable": "YES"
+            "is_nullable": "NO"
           },
           {
-            "table_name": "security_violations",
-            "column_name": "user_agent",
+            "table_name": "modules",
+            "column_name": "description",
             "data_type": "text",
             "is_nullable": "YES"
           },
@@ -1283,10 +1415,10 @@
             "is_nullable": "YES"
           },
           {
-            "table_name": "ai_settings",
-            "column_name": "provider",
+            "table_name": "security_violations",
+            "column_name": "notes",
             "data_type": "text",
-            "is_nullable": "NO"
+            "is_nullable": "YES"
           },
           {
             "table_name": "document_chunks",
@@ -1307,10 +1439,10 @@
             "is_nullable": "YES"
           },
           {
-            "table_name": "modules",
-            "column_name": "title",
+            "table_name": "lessons",
+            "column_name": "content",
             "data_type": "text",
-            "is_nullable": "NO"
+            "is_nullable": "YES"
           },
           {
             "table_name": "flashcards",
@@ -1325,46 +1457,22 @@
             "is_nullable": "NO"
           },
           {
-            "table_name": "modules",
-            "column_name": "description",
+            "table_name": "lessons",
+            "column_name": "video_id",
             "data_type": "text",
             "is_nullable": "YES"
           },
           {
-            "table_name": "security_violations",
+            "table_name": "rate_limits",
             "column_name": "endpoint",
             "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "ai_settings",
-            "column_name": "model",
-            "data_type": "text",
             "is_nullable": "NO"
           },
           {
-            "table_name": "system_prompts",
-            "column_name": "content",
+            "table_name": "user_agreements",
+            "column_name": "document_type",
             "data_type": "text",
             "is_nullable": "NO"
-          },
-          {
-            "table_name": "security_violations",
-            "column_name": "severity",
-            "data_type": "text",
-            "is_nullable": "YES"
-          },
-          {
-            "table_name": "messages",
-            "column_name": "role",
-            "data_type": "text",
-            "is_nullable": "NO"
-          },
-          {
-            "table_name": "schema_overview",
-            "column_name": "tablespace",
-            "data_type": "name",
-            "is_nullable": "YES"
           },
           {
             "table_name": "schema_overview",
@@ -1374,7 +1482,7 @@
           },
           {
             "table_name": "schema_overview",
-            "column_name": "tablename",
+            "column_name": "tablespace",
             "data_type": "name",
             "is_nullable": "YES"
           },
@@ -1383,12 +1491,38 @@
             "column_name": "tableowner",
             "data_type": "name",
             "is_nullable": "YES"
+          },
+          {
+            "table_name": "schema_overview",
+            "column_name": "tablename",
+            "data_type": "name",
+            "is_nullable": "YES"
           }
         ]
       },
       {
         "type": "indexes",
         "data": [
+          {
+            "tablename": "stripe_price_mappings",
+            "indexname": "stripe_price_mappings_pkey",
+            "indexdef": "CREATE UNIQUE INDEX stripe_price_mappings_pkey ON public.stripe_price_mappings USING btree (id)"
+          },
+          {
+            "tablename": "stripe_price_mappings",
+            "indexname": "one_active_price_per_tier",
+            "indexdef": "CREATE UNIQUE INDEX one_active_price_per_tier ON public.stripe_price_mappings USING btree (tier_name, interval_type, environment) WHERE (is_active = true)"
+          },
+          {
+            "tablename": "stripe_price_mappings",
+            "indexname": "idx_stripe_price_mappings_price_id",
+            "indexdef": "CREATE INDEX idx_stripe_price_mappings_price_id ON public.stripe_price_mappings USING btree (price_id)"
+          },
+          {
+            "tablename": "stripe_price_mappings",
+            "indexname": "idx_stripe_price_mappings_active",
+            "indexdef": "CREATE INDEX idx_stripe_price_mappings_active ON public.stripe_price_mappings USING btree (is_active) WHERE (is_active = true)"
+          },
           {
             "tablename": "collections",
             "indexname": "flashcard_collections_pkey",
@@ -1748,6 +1882,31 @@
             "tablename": "query_logs",
             "indexname": "query_logs_pkey",
             "indexdef": "CREATE UNIQUE INDEX query_logs_pkey ON public.query_logs USING btree (id)"
+          },
+          {
+            "tablename": "user_agreements",
+            "indexname": "user_agreements_pkey",
+            "indexdef": "CREATE UNIQUE INDEX user_agreements_pkey ON public.user_agreements USING btree (id)"
+          },
+          {
+            "tablename": "user_agreements",
+            "indexname": "user_agreements_user_id_document_type_version_key",
+            "indexdef": "CREATE UNIQUE INDEX user_agreements_user_id_document_type_version_key ON public.user_agreements USING btree (user_id, document_type, version)"
+          },
+          {
+            "tablename": "user_agreements",
+            "indexname": "idx_user_agreements_user_document",
+            "indexdef": "CREATE INDEX idx_user_agreements_user_document ON public.user_agreements USING btree (user_id, document_type)"
+          },
+          {
+            "tablename": "user_agreements",
+            "indexname": "idx_user_agreements_version",
+            "indexdef": "CREATE INDEX idx_user_agreements_version ON public.user_agreements USING btree (document_type, version)"
+          },
+          {
+            "tablename": "user_agreements",
+            "indexname": "idx_user_agreements_accepted_at",
+            "indexdef": "CREATE INDEX idx_user_agreements_accepted_at ON public.user_agreements USING btree (accepted_at DESC)"
           }
         ]
       },
@@ -2188,12 +2347,61 @@
             "table_name": "rate_limits",
             "constraint_name": "rate_limits_user_id_fkey",
             "constraint_type": "f"
+          },
+          {
+            "table_name": "user_agreements",
+            "constraint_name": "user_agreements_document_type_check",
+            "constraint_type": "c"
+          },
+          {
+            "table_name": "user_agreements",
+            "constraint_name": "user_agreements_pkey",
+            "constraint_type": "p"
+          },
+          {
+            "table_name": "user_agreements",
+            "constraint_name": "user_agreements_user_id_document_type_version_key",
+            "constraint_type": "u"
+          },
+          {
+            "table_name": "user_agreements",
+            "constraint_name": "user_agreements_user_id_fkey",
+            "constraint_type": "f"
+          },
+          {
+            "table_name": "stripe_price_mappings",
+            "constraint_name": "stripe_price_mappings_tier_name_check",
+            "constraint_type": "c"
+          },
+          {
+            "table_name": "stripe_price_mappings",
+            "constraint_name": "stripe_price_mappings_interval_type_check",
+            "constraint_type": "c"
+          },
+          {
+            "table_name": "stripe_price_mappings",
+            "constraint_name": "stripe_price_mappings_environment_check",
+            "constraint_type": "c"
+          },
+          {
+            "table_name": "stripe_price_mappings",
+            "constraint_name": "stripe_price_mappings_pkey",
+            "constraint_type": "p"
+          },
+          {
+            "table_name": "stripe_price_mappings",
+            "constraint_name": "stripe_price_mappings_created_by_fkey",
+            "constraint_type": "f"
           }
         ]
       },
       {
         "type": "functions",
         "data": [
+          {
+            "proname": "record_user_agreements",
+            "prosrc": "\nDECLARE\n  agreement JSONB;\nBEGIN\n  FOR agreement IN SELECT * FROM jsonb_array_elements(_agreements)\n  LOOP\n    INSERT INTO user_agreements (\n      user_id, \n      document_type, \n      version, \n      ip_address, \n      user_agent, \n      accepted_at\n    )\n    VALUES (\n      _user_id,\n      (agreement->>'document_type')::TEXT,\n      (agreement->>'version')::TEXT,\n      CASE \n        WHEN COALESCE((agreement->>'ip_address')::TEXT, _ip_address) IS NOT NULL \n        THEN COALESCE((agreement->>'ip_address')::TEXT, _ip_address)::INET \n        ELSE NULL \n      END,\n      COALESCE((agreement->>'user_agent')::TEXT, _user_agent),\n      NOW()\n    );\n  END LOOP;\nEND;\n"
+          },
           {
             "proname": "check_rate_limit_enhanced",
             "prosrc": "\nDECLARE\n  current_window TIMESTAMP WITH TIME ZONE;\n  request_count INTEGER;\n  rate_limit INTEGER;\n  user_tier TEXT;\n  is_suspicious BOOLEAN := FALSE;\n  recent_violations INTEGER;\nBEGIN\n  -- Get user tier from existing subscription system\n  SELECT CASE \n    WHEN sub.status = 'active' AND sub.current_period_end > NOW() THEN\n      CASE \n        WHEN sub.stripe_price_id LIKE '%unlimited%' THEN 'unlimited'\n        WHEN sub.stripe_price_id LIKE '%premium%' THEN 'premium'\n        ELSE 'free'\n      END\n    ELSE 'free'\n  END INTO user_tier\n  FROM user_subscriptions sub \n  WHERE sub.user_id = p_user_id \n  ORDER BY sub.created_at DESC \n  LIMIT 1;\n  \n  -- Set endpoint-specific limits based on tier\n  rate_limit := CASE \n    WHEN user_tier = 'unlimited' THEN\n      CASE \n        WHEN p_endpoint = 'chat' THEN 10000\n        WHEN p_endpoint = 'payment' THEN 20\n        WHEN p_endpoint = 'admin' THEN 1000\n        ELSE 5000\n      END\n    WHEN user_tier = 'premium' THEN\n      CASE \n        WHEN p_endpoint = 'chat' THEN 1000\n        WHEN p_endpoint = 'payment' THEN 10\n        WHEN p_endpoint = 'admin' THEN 0  -- No admin access\n        ELSE 500\n      END\n    ELSE -- free tier\n      CASE \n        WHEN p_endpoint = 'chat' THEN 10  -- Monthly limit handled separately\n        WHEN p_endpoint = 'payment' THEN 5\n        WHEN p_endpoint = 'admin' THEN 0  -- No admin access\n        ELSE 100\n      END\n  END;\n  \n  -- Calculate current window\n  current_window := date_trunc('hour', NOW()) + \n    (EXTRACT(MINUTE FROM NOW())::INTEGER / p_window_minutes) * \n    (p_window_minutes || ' minutes')::INTERVAL;\n  \n  -- Check for recent violations from this IP/user\n  SELECT COUNT(*) INTO recent_violations\n  FROM security_violations\n  WHERE (user_id = p_user_id OR client_ip = p_client_ip)\n  AND violation_type = 'rate_limit'\n  AND created_at > NOW() - INTERVAL '1 hour';\n  \n  -- Flag as suspicious if multiple recent violations\n  is_suspicious := recent_violations >= 3;\n  \n  -- Reduce limits for suspicious activity\n  IF is_suspicious THEN\n    rate_limit := GREATEST(1, rate_limit / 4);\n  END IF;\n  \n  -- Upsert rate limit record\n  INSERT INTO rate_limits (user_id, endpoint, request_count, window_start, client_ip, user_agent)\n  VALUES (p_user_id, p_endpoint, 1, current_window, p_client_ip, p_user_agent)\n  ON CONFLICT (user_id, endpoint, window_start)\n  DO UPDATE SET \n    request_count = rate_limits.request_count + 1,\n    updated_at = NOW(),\n    client_ip = COALESCE(p_client_ip, rate_limits.client_ip),\n    user_agent = COALESCE(p_user_agent, rate_limits.user_agent)\n  RETURNING request_count INTO request_count;\n  \n  -- Log rate limit violation if exceeded\n  IF request_count > rate_limit THEN\n    INSERT INTO security_violations (\n      violation_type, user_id, endpoint, client_ip, user_agent,\n      raw_report, severity\n    ) VALUES (\n      'rate_limit', p_user_id, p_endpoint, p_client_ip, p_user_agent,\n      jsonb_build_object(\n        'request_count', request_count,\n        'rate_limit', rate_limit,\n        'tier', user_tier,\n        'window_start', current_window,\n        'is_suspicious', is_suspicious\n      ),\n      CASE WHEN request_count > rate_limit * 2 THEN 'high' ELSE 'medium' END\n    );\n  END IF;\n  \n  RETURN jsonb_build_object(\n    'allowed', request_count <= rate_limit,\n    'current_count', request_count,\n    'limit', rate_limit,\n    'tier', user_tier,\n    'is_suspicious', is_suspicious,\n    'reset_time', current_window + (p_window_minutes || ' minutes')::INTERVAL,\n    'window_start', current_window\n  );\nEND;\n"
@@ -2257,10 +2465,6 @@
           {
             "proname": "handle_updated_at_profile",
             "prosrc": "\nBEGIN\n  NEW.updated_at = now();\n  RETURN NEW;\nEND;\n"
-          },
-          {
-            "proname": "handle_new_user",
-            "prosrc": "\nBEGIN\n  INSERT INTO public.users (id, email, is_admin)\n  VALUES (NEW.id, NEW.email, false)\n  ON CONFLICT (id) DO NOTHING;\n  \n  RETURN NEW;\nEND;\n"
           },
           {
             "proname": "has_any_admin",
@@ -3134,6 +3338,36 @@
             "with_check": null
           },
           {
+            "policyname": "Users can view their own agreements",
+            "tablename": "user_agreements",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "public"
+            ],
+            "qual": "(auth.uid() = user_id)",
+            "with_check": null
+          },
+          {
+            "policyname": "Users can insert their own agreements",
+            "tablename": "user_agreements",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "public"
+            ],
+            "qual": null,
+            "with_check": "(auth.uid() = user_id)"
+          },
+          {
+            "policyname": "Admins can view all agreements",
+            "tablename": "user_agreements",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "public"
+            ],
+            "qual": "auth.is_admin()",
+            "with_check": null
+          },
+          {
             "policyname": "Admin users can update any collection_subjects",
             "tablename": "collection_subjects",
             "permissive": "PERMISSIVE",
@@ -3172,6 +3406,26 @@
             ],
             "qual": null,
             "with_check": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)"
+          },
+          {
+            "policyname": "Public read active price mappings",
+            "tablename": "stripe_price_mappings",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "public"
+            ],
+            "qual": "(is_active = true)",
+            "with_check": null
+          },
+          {
+            "policyname": "Admin full access to price mappings",
+            "tablename": "stripe_price_mappings",
+            "permissive": "PERMISSIVE",
+            "roles": [
+              "public"
+            ],
+            "qual": "(( SELECT auth.is_admin() AS is_admin) = true)",
+            "with_check": null
           },
           {
             "policyname": "Admin users can update any flashcard_exam_types",
@@ -3266,5 +3520,918 @@
         ]
       }
     ]
+  }
+]
+
+[
+  {
+    "schemaname": "public",
+    "tablename": "ai_settings",
+    "policyname": "Authenticated users can read AI settings and admins can manage",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((is_active = true) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collection_subjects",
+    "policyname": "Admin users can update any collection_subjects",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
+    "with_check_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collection_subjects",
+    "policyname": "Authenticated users can delete collection_subjects",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = collection_subjects.collection_id) AND (c.user_id = ( SELECT auth.uid() AS uid))))))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collection_subjects",
+    "policyname": "Authenticated users can insert collection_subjects",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = collection_subjects.collection_id) AND (c.user_id = ( SELECT auth.uid() AS uid))))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collection_subjects",
+    "policyname": "Authenticated users can read collection_subjects",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collections",
+    "policyname": "Anyone can read flashcard collections",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collections",
+    "policyname": "Users can create flashcard collections",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(is_official = false)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collections",
+    "policyname": "Users can delete non-official flashcard collections",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(is_official = false)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "collections",
+    "policyname": "Users can update non-official flashcard collections",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(is_official = false)",
+    "with_check_raw": "(is_official = false)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "course_enrollments",
+    "policyname": "Users and admins can create enrollments",
+    "roles": "{public}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (user_id = ( SELECT auth.uid() AS uid)))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "course_enrollments",
+    "policyname": "Users and admins can update enrollments",
+    "roles": "{public}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (user_id = ( SELECT auth.uid() AS uid)))",
+    "with_check_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (user_id = ( SELECT auth.uid() AS uid)))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "course_enrollments",
+    "policyname": "Users and admins can view enrollments",
+    "roles": "{public}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (user_id = ( SELECT auth.uid() AS uid)))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "course_subjects",
+    "policyname": "Admins can create course-subject relationships",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "( SELECT auth.is_admin() AS is_admin)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "course_subjects",
+    "policyname": "Admins can delete course-subject relationships",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT auth.is_admin() AS is_admin)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "course_subjects",
+    "policyname": "Admins can update course-subject relationships",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT auth.is_admin() AS is_admin)",
+    "with_check_raw": "( SELECT auth.is_admin() AS is_admin)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "course_subjects",
+    "policyname": "Users can access course subjects",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "courses",
+    "policyname": "Admins can delete courses",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.is_admin() AS is_admin) = true)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "courses",
+    "policyname": "Admins can insert courses",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.is_admin() AS is_admin) = true)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "courses",
+    "policyname": "Admins can update courses",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.is_admin() AS is_admin) = true)",
+    "with_check_raw": "(( SELECT auth.is_admin() AS is_admin) = true)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "courses",
+    "policyname": "All users can view courses",
+    "roles": "{anon,authenticated,authenticator,dashboard_user}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(((status = 'Published'::lesson_status) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text))) OR ((status = 'Coming Soon'::lesson_status) AND (( SELECT auth.role() AS role) = 'authenticated'::text)) OR ((( SELECT auth.uid() AS uid) IS NOT NULL) AND (EXISTS ( SELECT 1\n   FROM course_enrollments ce\n  WHERE ((ce.course_id = courses.id) AND (ce.user_id = ( SELECT auth.uid() AS uid)) AND (ce.expires_at >= now()))))) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "document_chunks",
+    "policyname": "Enable read access for all users",
+    "roles": "{anon,authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "error_logs",
+    "policyname": "Only admins can view error logs",
+    "roles": "{public}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT auth.is_admin() AS is_admin)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "error_logs",
+    "policyname": "Users can create error logs",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "exam_types",
+    "policyname": "Authenticated users can access exam types",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_collections_junction",
+    "policyname": "Admin users can update any flashcard_collections_junction",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
+    "with_check_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_collections_junction",
+    "policyname": "Authenticated users can delete flashcard_collections_junction",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = flashcard_collections_junction.collection_id) AND (c.user_id = ( SELECT auth.uid() AS uid))))))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_collections_junction",
+    "policyname": "Authenticated users can insert flashcard_collections_junction",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (EXISTS ( SELECT 1\n   FROM collections c\n  WHERE ((c.id = flashcard_collections_junction.collection_id) AND ((c.user_id = ( SELECT auth.uid() AS uid)) OR (c.is_official = true))))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_collections_junction",
+    "policyname": "Users can read any flashcard_collections_junction",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_exam_types",
+    "policyname": "Admin users can delete any flashcard_exam_types",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_exam_types",
+    "policyname": "Admin users can insert any flashcard_exam_types",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_exam_types",
+    "policyname": "Admin users can update any flashcard_exam_types",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
+    "with_check_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_exam_types",
+    "policyname": "Users can access flashcard exam types",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_progress",
+    "policyname": "Users can delete their own flashcard progress",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_progress",
+    "policyname": "Users can insert their own flashcard progress",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_progress",
+    "policyname": "Users can update their own flashcard progress",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_progress",
+    "policyname": "Users can view their own flashcard progress",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_subjects",
+    "policyname": "Admin users can delete any flashcard_subjects",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_subjects",
+    "policyname": "Admin users can update any flashcard_subjects",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)",
+    "with_check_raw": "( SELECT ( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) AS is_admin)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_subjects",
+    "policyname": "Users can access flashcard subjects",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "true",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcard_subjects",
+    "policyname": "Users can insert flashcard-subject associations",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.is_admin(( SELECT auth.uid() AS uid)) AS is_admin) OR (EXISTS ( SELECT 1\n   FROM flashcards f\n  WHERE ((f.id = flashcard_subjects.flashcard_id) AND (f.created_by = ( SELECT auth.uid() AS uid))))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcards",
+    "policyname": "Anonymous users can view sample flashcards",
+    "roles": "{anon}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((is_official = true) AND (is_public_sample = true) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text)))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcards",
+    "policyname": "Authenticated users can update flashcards",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = ( SELECT auth.uid() AS uid)) AND (profiles.is_admin = true)))) OR (( SELECT auth.uid() AS uid) = created_by))",
+    "with_check_raw": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = ( SELECT auth.uid() AS uid)) AND (profiles.is_admin = true)))) OR (( SELECT auth.uid() AS uid) = created_by))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcards",
+    "policyname": "Authenticated users can view flashcards",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = ( SELECT auth.uid() AS uid)) AND (profiles.is_admin = true)))) OR ((is_official = true) AND (is_public_sample = true)) OR (is_official = true) OR ((is_official = true) AND (( SELECT auth.uid() AS uid) IN ( SELECT user_subscriptions.user_id\n   FROM user_subscriptions\n  WHERE ((user_subscriptions.status = 'active'::text) AND (user_subscriptions.current_period_end > now()))))) OR (( SELECT auth.uid() AS uid) = created_by))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcards",
+    "policyname": "Users can create flashcards",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "true"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "flashcards",
+    "policyname": "Users can delete their own flashcards",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.uid() AS uid) = created_by) AND (is_official = false))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "lesson_progress",
+    "policyname": "Users can view their own lesson progress",
+    "roles": "{public}",
+    "command": "ALL",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "lessons",
+    "policyname": "Admins can delete lessons",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.is_admin() AS is_admin) = true)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "lessons",
+    "policyname": "Admins can insert lessons",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.is_admin() AS is_admin) = true)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "lessons",
+    "policyname": "Admins can update lessons",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.is_admin() AS is_admin) = true)",
+    "with_check_raw": "(( SELECT auth.is_admin() AS is_admin) = true)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "lessons",
+    "policyname": "All users can view lessons",
+    "roles": "{anon,authenticated,authenticator,dashboard_user}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(((status = 'Published'::lesson_status) AND (module_id IN ( SELECT m.id\n   FROM modules m\n  WHERE (m.course_id IN ( SELECT c.id\n           FROM courses c\n          WHERE (c.status = 'Published'::lesson_status))))) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text))) OR ((( SELECT auth.uid() AS uid) IS NOT NULL) AND (module_id IN ( SELECT m.id\n   FROM modules m\n  WHERE (m.course_id IN ( SELECT ce.course_id\n           FROM course_enrollments ce\n          WHERE ((ce.user_id = ( SELECT auth.uid() AS uid)) AND (ce.expires_at >= now()))))))) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "message_counts",
+    "policyname": "Users can insert their own message counts",
+    "roles": "{public}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "message_counts",
+    "policyname": "Users can update their own message counts",
+    "roles": "{public}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "message_counts",
+    "policyname": "Users can view their own message counts",
+    "roles": "{public}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "messages",
+    "policyname": "Users can create messages in own threads",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(EXISTS ( SELECT 1\n   FROM threads\n  WHERE ((threads.id = messages.thread_id) AND (threads.user_id = ( SELECT auth.uid() AS uid)))))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "messages",
+    "policyname": "Users can view messages from own threads",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(EXISTS ( SELECT 1\n   FROM threads\n  WHERE ((threads.id = messages.thread_id) AND (threads.user_id = ( SELECT auth.uid() AS uid)))))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "models",
+    "policyname": "models_access",
+    "roles": "{authenticated}",
+    "command": "ALL",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.is_admin() AS is_admin) OR (is_public = true))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "modules",
+    "policyname": "Admins can delete modules",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.is_admin() AS is_admin) = true)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "modules",
+    "policyname": "Admins can insert modules",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.is_admin() AS is_admin) = true)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "modules",
+    "policyname": "Admins can update modules",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.is_admin() AS is_admin) = true)",
+    "with_check_raw": "(( SELECT auth.is_admin() AS is_admin) = true)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "modules",
+    "policyname": "All users can view modules",
+    "roles": "{anon,authenticated,authenticator,dashboard_user}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(((course_id IN ( SELECT courses.id\n   FROM courses\n  WHERE (courses.status = 'Published'::lesson_status))) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text))) OR ((( SELECT auth.uid() AS uid) IS NOT NULL) AND (course_id IN ( SELECT ce.course_id\n   FROM course_enrollments ce\n  WHERE ((ce.user_id = ( SELECT auth.uid() AS uid)) AND (ce.expires_at >= now()))))) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Users can insert their own profile",
+    "roles": "{public}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Users can update their own profile",
+    "roles": "{public}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = id)",
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Users can view their own profile",
+    "roles": "{public}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "query_logs",
+    "policyname": "Only admins can view query logs",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "( SELECT auth.is_admin() AS is_admin)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "rate_limits",
+    "policyname": "Service role can manage rate limits",
+    "roles": "{public}",
+    "command": "ALL",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((auth.jwt() ->> 'role'::text) = 'service_role'::text)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "rate_limits",
+    "policyname": "Users can view their own rate limits",
+    "roles": "{public}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(auth.uid() = user_id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "security_violations",
+    "policyname": "Admins can view security violations",
+    "roles": "{public}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.is_admin = true))))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "security_violations",
+    "policyname": "Service role can manage security violations",
+    "roles": "{public}",
+    "command": "ALL",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((auth.jwt() ->> 'role'::text) = 'service_role'::text)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "stripe_price_mappings",
+    "policyname": "Admin full access to price mappings",
+    "roles": "{public}",
+    "command": "ALL",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.is_admin() AS is_admin) = true)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "stripe_price_mappings",
+    "policyname": "Public read active price mappings",
+    "roles": "{public}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(is_active = true)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "subjects",
+    "policyname": "Anonymous users can view official subjects",
+    "roles": "{anon}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((is_official = true) AND ((( SELECT current_setting('app.public_access'::text, true) AS current_setting))::boolean OR (( SELECT auth.role() AS role) = 'authenticated'::text)))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "subjects",
+    "policyname": "Authenticated users can delete subjects",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR ((is_official = false) AND (( SELECT auth.uid() AS uid) = user_id)))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "subjects",
+    "policyname": "Authenticated users can insert subjects",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR ((is_official = false) AND (( SELECT auth.uid() AS uid) = user_id)))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "subjects",
+    "policyname": "Authenticated users can update subjects",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR ((is_official = false) AND (( SELECT auth.uid() AS uid) = user_id)))",
+    "with_check_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR ((is_official = false) AND (( SELECT auth.uid() AS uid) = user_id)))"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "subjects",
+    "policyname": "Authenticated users can view subjects",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.is_admin() AS is_admin) = true) OR (( SELECT auth.uid() AS uid) = user_id) OR (is_official = true) OR ((user_id IS NULL) AND (is_official = false)))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "system_prompts",
+    "policyname": "Authenticated users can read system prompts and admins can mana",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((is_active = true) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "threads",
+    "policyname": "threads_delete_consolidated",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "threads",
+    "policyname": "threads_insert_consolidated",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "threads",
+    "policyname": "threads_select_consolidated",
+    "roles": "{authenticated}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "threads",
+    "policyname": "threads_update_consolidated",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.uid() AS uid) = user_id)",
+    "with_check_raw": "(( SELECT auth.uid() AS uid) = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_agreements",
+    "policyname": "Admins can view all agreements",
+    "roles": "{public}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "auth.is_admin()",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_agreements",
+    "policyname": "Users can insert their own agreements",
+    "roles": "{public}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(auth.uid() = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_agreements",
+    "policyname": "Users can view their own agreements",
+    "roles": "{public}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(auth.uid() = user_id)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_entitlements",
+    "policyname": "Service role can delete entitlements",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_entitlements",
+    "policyname": "Service role can manage entitlements",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_entitlements",
+    "policyname": "Service role can update entitlements",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)",
+    "with_check_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_entitlements",
+    "policyname": "Users can view entitlements",
+    "roles": "{anon,authenticated,authenticator,dashboard_user}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.uid() AS uid) = user_id) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_subscriptions",
+    "policyname": "Service role can delete subscriptions",
+    "roles": "{authenticated}",
+    "command": "DELETE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)",
+    "with_check_raw": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_subscriptions",
+    "policyname": "Service role can insert subscriptions",
+    "roles": "{authenticated}",
+    "command": "INSERT",
+    "permissive": "PERMISSIVE",
+    "using_raw": null,
+    "with_check_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_subscriptions",
+    "policyname": "Service role can update subscriptions",
+    "roles": "{authenticated}",
+    "command": "UPDATE",
+    "permissive": "PERMISSIVE",
+    "using_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)",
+    "with_check_raw": "(( SELECT auth.role() AS role) = 'service_role'::text)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_subscriptions",
+    "policyname": "Users can view subscriptions",
+    "roles": "{anon,authenticated,authenticator,dashboard_user}",
+    "command": "SELECT",
+    "permissive": "PERMISSIVE",
+    "using_raw": "((( SELECT auth.uid() AS uid) = user_id) OR (( SELECT auth.is_admin() AS is_admin) = true))",
+    "with_check_raw": null
   }
 ]

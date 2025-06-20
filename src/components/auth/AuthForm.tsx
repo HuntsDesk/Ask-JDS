@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -114,7 +115,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
         newUrl.searchParams.delete('error');
         window.history.replaceState(null, '', newUrl.toString());
       } catch (e) {
-        console.error('Failed to parse auth error:', e);
+        logger.error('Failed to parse auth error:', e);
       }
     }
   }, [toast]);
@@ -151,7 +152,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
     // Check if we have a session expiration message in sessionStorage
     const redirectReason = sessionStorage.getItem('auth_redirect_reason');
     if (redirectReason === 'session_expired') {
-      console.log('User was redirected due to session expiration');
+      logger.debug('User was redirected due to session expiration');
       setSessionExpired(true);
       
       // Check if there's a preserved message to show in the notification
@@ -180,11 +181,11 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
     const prevRedirectAttempts = parseInt(sessionStorage.getItem('auth_redirect_attempts') || '0');
     
     if (user) {
-      console.log('User already authenticated, checking redirect loop counter:', prevRedirectAttempts);
+      logger.debug('User already authenticated, checking redirect loop counter:', prevRedirectAttempts);
       
       // If we've already tried to redirect too many times, don't continue the cycle
       if (prevRedirectAttempts > 3) {
-        console.warn('Too many redirect attempts detected (', prevRedirectAttempts, ') - breaking potential infinite loop');
+        logger.warn('Too many redirect attempts detected (', prevRedirectAttempts, ') - breaking potential infinite loop');
         sessionStorage.removeItem('auth_redirect_attempts');
         // Force a complete page reload to reset all state
         window.location.href = '/chat';
@@ -192,7 +193,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       }
       
       // Otherwise proceed with normal navigation
-      console.log('User already authenticated, navigating to /chat', user);
+      logger.debug('User already authenticated, navigating to /chat', user);
       
       // Increment redirect counter
       sessionStorage.setItem('auth_redirect_attempts', (prevRedirectAttempts + 1).toString());
@@ -211,9 +212,9 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
     let timeoutId: NodeJS.Timeout | null = null;
     
     if (isLoading) {
-      console.log('Auth loading state started, setting safety timeout');
+      logger.debug('Auth loading state started, setting safety timeout');
       timeoutId = setTimeout(() => {
-        console.log('Auth safety timeout triggered after 8 seconds');
+        logger.debug('Auth safety timeout triggered after 8 seconds');
         setIsLoading(false);
         toast({
           title: 'Authentication Timeout',
@@ -225,7 +226,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
     
     return () => {
       if (timeoutId) {
-        console.log('Clearing auth safety timeout');
+        logger.debug('Clearing auth safety timeout');
         clearTimeout(timeoutId);
       }
     };
@@ -234,30 +235,30 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
   // Sign in handler
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Sign in form submitted with email:', email);
+    logger.debug('Sign in form submitted with email:', email);
     setIsLoading(true);
 
     try {
-      console.log('Calling signIn with email:', email);
+      logger.debug('Calling signIn with email:', email);
       
       // Improved error handling to deal with unexpected return values
       let signInResult;
       try {
         signInResult = await signIn(email, password);
-        console.log('SignIn result:', signInResult);
+        logger.debug('SignIn result:', signInResult);
       } catch (signInError) {
-        console.error('Exception during signIn call:', signInError);
+        logger.error('Exception during signIn call:', signInError);
         throw new Error('Authentication service error. Please try again.');
       }
       
       // Handle case where signInResult is undefined or doesn't have the expected structure
       if (!signInResult) {
-        console.error('SignIn returned undefined result');
+        logger.error('SignIn returned undefined result');
         throw new Error('Authentication failed. Please try again.');
       }
       
       const { error } = signInResult;
-      console.log('SignIn response error:', error);
+      logger.debug('SignIn response error:', error);
       
       if (error) throw error;
       
@@ -265,18 +266,18 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       trackAuth.logIn('email', { from_page: 'auth_form' });
       
       // Immediately navigate to chat after successful sign-in
-      console.log('Sign-in successful, immediately navigating to /chat');
+      logger.debug('Sign-in successful, immediately navigating to /chat');
       navigate('/chat', { replace: true });
       
     } catch (error) {
-      console.error('Sign in error:', error);
+      logger.error('Sign in error:', error);
       
       // More descriptive user-facing error messages based on the error type
       let errorMessage = 'Failed to sign in. Please check your credentials and try again.';
       
       if (error instanceof TypeError) {
         // Special handling for the TypeError which was our original issue
-        console.error('TypeError in authentication process - likely an API integration issue');
+        logger.error('TypeError in authentication process - likely an API integration issue');
         errorMessage = 'Authentication system error. Our team has been notified.';
       } else if (error instanceof Error) {
         // If it's a specific authentication error, show that message
@@ -319,7 +320,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
     }
     setLastSubmitTime(now);
     
-    console.log('Sign up form submitted with email:', email);
+    logger.debug('Sign up form submitted with email:', email);
     
     setIsLoading(true);
     setPasswordError(null); // Clear previous errors
@@ -327,19 +328,19 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
     // Set a safety timeout for loading state
     const timeout = setTimeout(() => {
       setIsLoading(false);
-      console.log('Auth safety timeout triggered');
+      logger.debug('Auth safety timeout triggered');
     }, 30000);
     
-    console.log('Auth loading state started, setting safety timeout');
+    logger.debug('Auth loading state started, setting safety timeout');
     
     try {
-      console.log('Calling signUp with email:', email);
+      logger.debug('Calling signUp with email:', email);
       const result = await signUp(email, password);
-      console.log('SignUp result:', result);
+      logger.debug('SignUp result:', result);
       clearTimeout(timeout);
       
       if (result.success) {
-        console.log('Sign up successful, email confirmation required');
+        logger.debug('Sign up successful, email confirmation required');
         
         // Track successful sign-up
         trackAuth.signUp('email', { from_page: 'auth_form' });
@@ -347,7 +348,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
         // Record legal agreement acceptance using the user ID
         const agreementsRecorded = await recordSignupAgreements(result.data.user?.id);
         if (!agreementsRecorded) {
-          console.warn('Failed to record legal agreements, but signup succeeded');
+          logger.warn('Failed to record legal agreements, but signup succeeded');
         }
         
         // Show email confirmation page instead of auto-redirect
@@ -360,13 +361,13 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
           variant: 'default',
         });
       } else {
-        console.log('SignUp response error:', result.error);
+        logger.debug('SignUp response error:', result.error);
         const error = new Error(result.error || 'Unknown error occurred');
         throw error;
       }
     } catch (error) {
       clearTimeout(timeout);
-      console.log('Sign up error:', error);
+      logger.debug('Sign up error:', error);
       
       // More descriptive user-facing error messages based on the error type
       let errorMessage = 'Failed to create account. Please try again.';
@@ -374,7 +375,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       
       if (error instanceof TypeError) {
         // Special handling for the TypeError which was our original issue
-        console.error('TypeError in registration process - likely an API integration issue');
+        logger.error('TypeError in registration process - likely an API integration issue');
         errorMessage = 'Registration system error. Please notify support.';
       } else if (error instanceof Error) {
         // If it's a specific authentication error, show that message
@@ -416,7 +417,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
   const handleResendEmail = async () => {
     try {
       setIsLoading(true);
-      console.log('Resending confirmation email to:', confirmationEmail);
+      logger.debug('Resending confirmation email to:', confirmationEmail);
       
       const { error } = await supabase.auth.resend({
         type: 'signup',
@@ -425,7 +426,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       
       if (error) throw error;
       
-      console.log('Confirmation email resent successfully to:', confirmationEmail);
+      logger.debug('Confirmation email resent successfully to:', confirmationEmail);
       
       toast({
         title: 'Email Sent',
@@ -433,7 +434,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
         variant: 'default',
       });
     } catch (error) {
-      console.error('Resend email error:', error);
+      logger.error('Resend email error:', error);
       toast({
         title: 'Error',
         description: 'Failed to resend email. Please try again.',
@@ -459,7 +460,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       // Save email for future use
       localStorage.setItem('last_auth_email', trimmedEmail);
       
-      console.log('Resending confirmation email from error form to:', trimmedEmail);
+      logger.debug('Resending confirmation email from error form to:', trimmedEmail);
       
       const { error } = await supabase.auth.resend({
         type: 'signup',
@@ -468,7 +469,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       
       if (error) throw error;
       
-      console.log('Confirmation email resent successfully to:', trimmedEmail);
+      logger.debug('Confirmation email resent successfully to:', trimmedEmail);
       
       // Show success and transition to email confirmation page
       setConfirmationEmail(trimmedEmail);
@@ -481,7 +482,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
         variant: 'default',
       });
     } catch (error: any) {
-      console.error('Resend email error:', error);
+      logger.error('Resend email error:', error);
       
       let errorMessage = 'Failed to resend email. Please try again.';
       if (error.message?.includes('rate limit')) {

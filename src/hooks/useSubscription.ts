@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase'; // Assuming supabase client is exported from here
 import { useAuth } from '@/lib/auth'; // Assuming useAuth hook provides user context
@@ -35,7 +36,7 @@ const fetchSubscriptionStatus = async (): Promise<SubscriptionDetails | null> =>
     );
 
     if (error) {
-      console.warn(`Subscription API error:`, error);
+      logger.warn(`Subscription API error:`, error);
       // Return free tier on error
       return {
           isActive: false,
@@ -48,7 +49,7 @@ const fetchSubscriptionStatus = async (): Promise<SubscriptionDetails | null> =>
 
     return data;
   } catch (error) {
-    console.error('Error fetching subscription status:', error);
+    logger.error('Error fetching subscription status:', error);
     // Return free tier on any error
     return {
         isActive: false,

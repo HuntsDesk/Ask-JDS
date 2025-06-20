@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Filter, BookOpen, Clock, ChevronDown } from 'lucide-react';
@@ -28,7 +29,7 @@ const Courses = () => {
         const coursesData = await getCourses();
         setCourses(coursesData);
       } catch (err) {
-        console.error('Error loading courses:', err);
+        logger.error('Error loading courses:', err);
         setError('Failed to load courses. Please try again later.');
       } finally {
         setLoading(false);

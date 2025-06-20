@@ -3,6 +3,7 @@ import type { Message } from '@/types';
 import { prepareConversationHistory } from '../token-utils';
 import { getSystemPrompt } from '../system-prompt';
 import { supabase } from '../supabase';
+import { logger } from '../logger';
 
 export class GeminiProvider implements AIProvider {
   constructor(private settings: { model: string; provider: string }) {}
@@ -13,10 +14,10 @@ export class GeminiProvider implements AIProvider {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-        console.log(`🚀🚀🚀 USING GEMINI PROVIDER (Attempt ${attempt}/${maxRetries}) 🚀🚀🚀`);
+        logger.debug(`🚀🚀🚀 USING AI STREAMING PROVIDER (Attempt ${attempt}/${maxRetries}) 🚀🚀🚀`);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        console.error('🚫 No active session found');
+        logger.error('🚫 No active session found');
         throw new Error('No active session');
       }
 
@@ -32,7 +33,7 @@ export class GeminiProvider implements AIProvider {
         content: prompt
       });
       
-      console.log('Sending request to Gemini:', {
+      logger.debug('Sending request to AI provider:', {
         model: this.settings.model,
           messagesCount: messages.length,
           attempt: attempt
@@ -42,7 +43,7 @@ export class GeminiProvider implements AIProvider {
       const controller = new AbortController();
         const timeoutDuration = 90000; // 90 seconds
         const timeoutId = setTimeout(() => {
-          console.warn(`⏱️ Gemini request timeout after ${timeoutDuration/1000}s (attempt ${attempt})`);
+          logger.warn(`⏱️ AI request timeout after ${timeoutDuration/1000}s (attempt ${attempt})`);
           controller.abort();
         }, timeoutDuration);
 
@@ -63,31 +64,31 @@ export class GeminiProvider implements AIProvider {
       // Clear the timeout since we got a response
       clearTimeout(timeoutId);
         const duration = Date.now() - startTime;
-        console.log(`✅ Gemini API response received in ${duration}ms (attempt ${attempt})`);
+        logger.debug(`✅ AI API response received in ${duration}ms (attempt ${attempt})`);
 
       if (!response.ok) {
-        console.error('Gemini API error:', response.status, await response.text());
-        throw new Error(`Gemini API error: ${response.status}`);
+        logger.error('AI API error', new Error(`Status: ${response.status}, Body: ${await response.text()}`));
+        throw new Error(`AI API error: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('Gemini API response:', data);
+      logger.debug('AI API response:', data);
 
       return data.choices?.[0]?.message?.content || 'Error retrieving response';
     } catch (error) {
         const duration = Date.now() - (Date.now() - 90000); // Approximate
-        console.error(`❌ Error calling Gemini API (attempt ${attempt}/${maxRetries}):`, error);
+        logger.error(`❌ Error calling AI API (attempt ${attempt}/${maxRetries}):`, error);
         
         lastError = error instanceof Error ? error : new Error(String(error));
         
       if (error instanceof DOMException && error.name === 'AbortError') {
-          console.warn(`⏱️ Request timed out after 90 seconds (attempt ${attempt}/${maxRetries})`);
+          logger.warn(`⏱️ Request timed out after 90 seconds (attempt ${attempt}/${maxRetries})`);
           lastError = new Error(`The AI service is taking too long to respond (attempt ${attempt}/${maxRetries}). ${attempt < maxRetries ? 'Retrying...' : 'Please try again later.'}`);
       }
         
         // If this is not the last attempt and it's a timeout, retry
         if (attempt < maxRetries && (error instanceof DOMException && error.name === 'AbortError')) {
-          console.log(`🔄 Retrying Gemini request (attempt ${attempt + 1}/${maxRetries})...`);
+          logger.debug(`🔄 Retrying AI request (attempt ${attempt + 1}/${maxRetries})...`);
           await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Progressive delay
           continue;
     }
@@ -107,10 +108,10 @@ export class GeminiProvider implements AIProvider {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`🚀🚀🚀 USING GEMINI STREAMING PROVIDER (Attempt ${attempt}/${maxRetries}) 🚀🚀🚀`);
+        logger.debug(`🚀🚀🚀 USING AI STREAMING PROVIDER (Attempt ${attempt}/${maxRetries}) 🚀🚀🚀`);
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          console.error('🚫 No active session found');
+          logger.error('🚫 No active session found');
           throw new Error('No active session');
         }
 
@@ -126,7 +127,7 @@ export class GeminiProvider implements AIProvider {
           content: prompt
         });
         
-        console.log('Sending streaming request to Gemini:', {
+        logger.debug('Sending streaming request to AI provider:', {
           model: this.settings.model,
           messagesCount: messages.length,
           attempt: attempt
@@ -136,13 +137,15 @@ export class GeminiProvider implements AIProvider {
         const controller = new AbortController();
         const timeoutDuration = 90000; // 90 seconds
         const timeoutId = setTimeout(() => {
-          console.warn(`⏱️ Gemini streaming request timeout after ${timeoutDuration/1000}s (attempt ${attempt})`);
+          logger.warn(`⏱️ AI streaming request timeout after ${timeoutDuration/1000}s (attempt ${attempt})`);
           controller.abort();
         }, timeoutDuration);
 
         const baseUrl = new URL(import.meta.env.VITE_SUPABASE_URL).origin;
         const url = `${baseUrl}/functions/v1/chat-stream`;
         const startTime = Date.now();
+        
+        logger.info(`[AI Streaming] Starting request to edge function at ${new Date().toISOString()}`);
 
         const response = await fetch(url, {
           method: "POST",
@@ -156,13 +159,14 @@ export class GeminiProvider implements AIProvider {
         
         // Clear the timeout since we got a response
         clearTimeout(timeoutId);
-        const duration = Date.now() - startTime;
-        console.log(`✅ Gemini streaming response received in ${duration}ms (attempt ${attempt})`);
+        const responseHeadersTime = Date.now() - startTime;
+        logger.info(`[AI Streaming] Response headers received after ${responseHeadersTime}ms`);
+        logger.debug(`✅ AI streaming response received in ${responseHeadersTime}ms (attempt ${attempt})`);
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('Gemini streaming API error:', response.status, errorText);
-          throw new Error(`Gemini streaming API error: ${response.status}`);
+          logger.error('AI streaming API error', new Error(`Status: ${response.status}, Body: ${errorText}`));
+          throw new Error(`AI streaming API error: ${response.status}`);
         }
 
         // Handle streaming response
@@ -178,7 +182,7 @@ export class GeminiProvider implements AIProvider {
           while (true) {
             const { done, value } = await reader.read();
             if (done) {
-              console.log('📥 Stream reader finished');
+              logger.debug('📥 Stream reader finished');
               break;
             }
 
@@ -189,7 +193,7 @@ export class GeminiProvider implements AIProvider {
               if (line.startsWith('data: ')) {
                 const data = line.slice(6);
                 if (data === '[DONE]') {
-                  console.log('✅ Streaming completed');
+                  logger.debug('✅ Streaming completed');
                   break;
                 }
                 try {
@@ -199,7 +203,7 @@ export class GeminiProvider implements AIProvider {
                     onChunk(parsed.text); // Call the callback with each chunk
                   }
                 } catch (e) {
-                  console.warn('Failed to parse streaming chunk:', data);
+                  logger.warn('Failed to parse streaming chunk', { data });
                 }
               }
             }
@@ -212,22 +216,22 @@ export class GeminiProvider implements AIProvider {
           throw new Error('No content received from streaming response');
         }
 
-        console.log(`✅ Gemini streaming response completed: ${fullResponse.length} characters`);
+                  logger.debug(`✅ AI streaming response completed: ${fullResponse.length} characters`);
         return fullResponse;
 
       } catch (error) {
-        console.error(`❌ Error calling Gemini streaming API (attempt ${attempt}/${maxRetries}):`, error);
+        logger.error(`❌ Error calling AI streaming API (attempt ${attempt}/${maxRetries}):`, error);
         
         lastError = error instanceof Error ? error : new Error(String(error));
         
         if (error instanceof DOMException && error.name === 'AbortError') {
-          console.warn(`⏱️ Request timed out after 90 seconds (attempt ${attempt}/${maxRetries})`);
+          logger.warn(`⏱️ Request timed out after 90 seconds (attempt ${attempt}/${maxRetries})`);
           lastError = new Error(`The AI service is taking too long to respond (attempt ${attempt}/${maxRetries}). ${attempt < maxRetries ? 'Retrying...' : 'Please try again later.'}`);
         }
         
         // If this is not the last attempt and it's a timeout, retry
         if (attempt < maxRetries && (error instanceof DOMException && error.name === 'AbortError')) {
-          console.log(`🔄 Retrying Gemini streaming request (attempt ${attempt + 1}/${maxRetries})...`);
+          logger.debug(`🔄 Retrying AI streaming request (attempt ${attempt + 1}/${maxRetries})...`);
           await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Progressive delay
           continue;
         }
@@ -246,12 +250,12 @@ export class GeminiProvider implements AIProvider {
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-        console.log(`🚀 Gemini Provider - Generating Thread Title (Attempt ${attempt}/${maxRetries})`);
+        logger.debug(`🚀 AI Provider - Generating Thread Title (Attempt ${attempt}/${maxRetries})`);
       
       // Get current session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        console.error('🚫 No active session found for thread title generation');
+        logger.error('🚫 No active session found for thread title generation');
         return 'New Chat';
       }
       
@@ -262,7 +266,7 @@ export class GeminiProvider implements AIProvider {
       const controller = new AbortController();
         const timeoutDuration = 45000; // 45 seconds
         const timeoutId = setTimeout(() => {
-          console.warn(`⏱️ Title generation timeout after ${timeoutDuration/1000}s (attempt ${attempt})`);
+          logger.warn(`⏱️ Title generation timeout after ${timeoutDuration/1000}s (attempt ${attempt})`);
           controller.abort();
         }, timeoutDuration);
       
@@ -270,7 +274,7 @@ export class GeminiProvider implements AIProvider {
       const url = `${baseUrl}/functions/v1/chat-google`;
         const startTime = Date.now();
       
-      console.log('Sending thread title generation request with header and body param');
+      logger.debug('Sending thread title generation request with header and body param');
       
       const response = await fetch(url, {
         method: "POST",
@@ -289,10 +293,10 @@ export class GeminiProvider implements AIProvider {
       // Clear the timeout
       clearTimeout(timeoutId);
         const duration = Date.now() - startTime;
-        console.log(`✅ Title generation response received in ${duration}ms (attempt ${attempt})`);
+        logger.debug(`✅ Title generation response received in ${duration}ms (attempt ${attempt})`);
       
       if (!response.ok) {
-          console.error(`Gemini API error for title generation (attempt ${attempt}):`, response.status);
+          logger.error(`AI API error for title generation (attempt ${attempt})`, undefined, { status: response.status });
           if (attempt === maxRetries) {
         return 'New Chat';
           }
@@ -312,11 +316,11 @@ export class GeminiProvider implements AIProvider {
       
       return title;
     } catch (error) {
-        console.error(`Error generating thread title with Gemini (attempt ${attempt}/${maxRetries}):`, error);
+        logger.error(`Error generating thread title with AI (attempt ${attempt}/${maxRetries}):`, error);
         
         // If this is a timeout and not the last attempt, retry
         if (attempt < maxRetries && error instanceof DOMException && error.name === 'AbortError') {
-          console.log(`🔄 Retrying title generation (attempt ${attempt + 1}/${maxRetries})...`);
+          logger.debug(`🔄 Retrying title generation (attempt ${attempt + 1}/${maxRetries})...`);
           await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Progressive delay
           continue;
         }

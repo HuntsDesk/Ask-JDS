@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { AISettings } from '@/types/ai';
@@ -25,7 +26,7 @@ export function useSettings() {
           .single();
 
         if (error) {
-          console.warn('Error loading AI settings:', error);
+          logger.warn('Error loading AI settings:', error);
           return; // Keep using default settings
         }
 
@@ -33,7 +34,7 @@ export function useSettings() {
           setSettings(data);
         }
       } catch (error) {
-        console.error('Error loading AI settings:', error);
+        logger.error('Error loading AI settings:', error);
       } finally {
         setLoading(false);
       }

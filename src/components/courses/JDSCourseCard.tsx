@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BookOpen, Clock, Layers, Ticket } from 'lucide-react';
@@ -74,12 +75,12 @@ export default function JDSCourseCard({
     e.preventDefault();
     
     if (!user) {
-      console.log('User not authenticated, redirecting to login');
+      logger.debug('User not authenticated, redirecting to login');
       navigate(`/login?redirectTo=${encodeURIComponent(`/courses/${id}`)}`);
       return;
     }
     
-    console.log(`Starting checkout for course: ${id}`);
+    logger.debug(`Starting checkout for course: ${id}`);
     
     setIsLoading(true);
     
@@ -88,7 +89,7 @@ export default function JDSCourseCard({
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        console.error('No authenticated session available');
+        logger.error('No authenticated session available');
         toast.error('Authentication error. Please try again.');
         setIsLoading(false);
         return;
@@ -110,22 +111,22 @@ export default function JDSCourseCard({
         }),
       });
       
-      console.log(`Checkout API response status: ${response.status}`);
+      logger.debug(`Checkout API response status: ${response.status}`);
       
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Checkout API error:', errorData);
+        logger.error('Checkout API error:', errorData);
         toast.error(errorData.error || 'Failed to create checkout session');
         setIsLoading(false);
         return;
       }
       
       const data = await response.json();
-      console.log('Payment handler response:', data);
+      logger.debug('Payment handler response:', data);
       
       // Handle Payment Elements Flow (client_secret response)
       if (data.client_secret) {
-        console.log(`Got client_secret, showing payment form`);
+        logger.debug(`Got client_secret, showing payment form`);
         setClientSecret(data.client_secret);
         setShowPaymentModal(true);
         setIsLoading(false);
@@ -134,17 +135,17 @@ export default function JDSCourseCard({
       
       // Legacy handling for URL response
       if (data.url) {
-        console.log(`Redirecting to checkout: ${data.url}`);
+        logger.debug(`Redirecting to checkout: ${data.url}`);
         window.location.href = data.url;
         return;
       }
       
       // If we get here, we didn't get a valid response
-      console.error('No client_secret or URL returned');
+      logger.error('No client_secret or URL returned');
         toast.error('Failed to create checkout session');
       setIsLoading(false);
     } catch (error) {
-      console.error('Error creating checkout session:', error);
+      logger.error('Error creating checkout session:', error);
       toast.error('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -364,7 +365,7 @@ export default function JDSCourseCard({
           title="Complete your purchase"
           description={`Purchase access to "${title}"`}
           onError={(error) => {
-            console.error('Payment error:', error);
+            logger.error('Payment error:', error);
             toast.error(error.message || 'Payment failed');
           }}
         />

@@ -24,14 +24,15 @@ import { cn } from '@/lib/utils';
 import type { LayoutMetrics } from '@/components/layout/ChatLayoutContainer';
 import { useSubscriptionDetails } from '@/hooks/useSubscription';
 import { updateInputOffset } from '@/lib/layout-utils';
+import { logger } from '@/lib/logger';
 
 // Helper function to determine tier name from subscription data
 // Uses environment variables for proper price ID mapping instead of fragile string matching
 const getTierNameFromSubscription = (subscription: any): string => {
-  console.log('[getTierNameFromSubscription] Input:', subscription);
+  logger.debug('[getTierNameFromSubscription] Input:', { subscription });
   
   if (!subscription || subscription.status !== 'active') {
-    console.log('[getTierNameFromSubscription] Returning Free due to:', {
+    logger.debug('[getTierNameFromSubscription] Returning Free due to:', {
       hasSubscription: !!subscription,
       status: subscription?.status,
       isActive: subscription?.status === 'active'
@@ -44,7 +45,7 @@ const getTierNameFromSubscription = (subscription: any): string => {
   // CRITICAL FIX: If subscription is active but priceId is missing,
   // assume Unlimited tier (safest fallback for paid subscriptions)
   if (!priceId) {
-    console.log('[getTierNameFromSubscription] Active subscription with missing priceId, defaulting to Unlimited');
+    logger.debug('[getTierNameFromSubscription] Active subscription with missing priceId, defaulting to Unlimited');
     return 'Unlimited';
   }
   
@@ -120,16 +121,13 @@ export function ChatContainer() {
   const subscriptionQuery = useSubscriptionDetails();
   
   // Debug log the subscription data
-  if (process.env.NODE_ENV === 'development') {
-    // Only log once when data changes
-    useEffect(() => {
-      console.log('[ChatContainer] Raw subscription data:', {
-        data: subscriptionQuery.data,
-        isLoading: subscriptionQuery.isLoading,
-        isError: subscriptionQuery.isError
-      });
-    }, [subscriptionQuery.data, subscriptionQuery.isLoading, subscriptionQuery.isError]);
-  }
+  useEffect(() => {
+    logger.debug('[ChatContainer] Raw subscription data:', {
+      data: subscriptionQuery.data,
+      isLoading: subscriptionQuery.isLoading,
+      isError: subscriptionQuery.isError
+    });
+  }, [subscriptionQuery.data, subscriptionQuery.isLoading, subscriptionQuery.isError]);
   
   const tierName = useMemo(() => getTierNameFromSubscription(subscriptionQuery.data), [subscriptionQuery.data]);
   
@@ -143,16 +141,14 @@ export function ChatContainer() {
   
   // Only log subscription status once when it changes
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[ChatContainer] Subscription status check:', {
-        tierName,
-        hasPaidSubscription,
-        subscriptionIsActive,
-        status: subscriptionQuery.data?.status,
-        periodEnd: subscriptionQuery.data?.periodEnd,
-        isExpired: subscriptionQuery.data ? new Date(subscriptionQuery.data.periodEnd) <= new Date() : 'no data'
-      });
-    }
+    logger.debug('[ChatContainer] Subscription status check:', {
+    tierName,
+    hasPaidSubscription,
+    subscriptionIsActive,
+    status: subscriptionQuery.data?.status,
+    periodEnd: subscriptionQuery.data?.periodEnd,
+    isExpired: subscriptionQuery.data ? new Date(subscriptionQuery.data.periodEnd) <= new Date() : 'no data'
+  });
   }, [tierName, hasPaidSubscription, subscriptionIsActive, subscriptionQuery.data]);
   
   // Refs for state tracking
@@ -192,9 +188,7 @@ export function ChatContainer() {
   
   // Define callbacks that will be passed to hooks
   const handleFirstMessage = useCallback((message: string) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.debug('[ChatContainer] First message sent:', message);
-    }
+    logger.debug('[ChatContainer] First message sent:', { message });
     // No-op for now, but defining it ensures consistent hook order
   }, []);
   
@@ -205,11 +199,14 @@ export function ChatContainer() {
       const threadIdToUpdate = urlThreadId;
       
       if (threadIdToUpdate) {
-        console.log(`[ChatContainer] Updating thread title for ${threadIdToUpdate} to "${title}"`);
+        logger.info(`[ChatContainer] Updating thread title for ${threadIdToUpdate} to "${title}"`);
         
         // If activeThread doesn't match urlThreadId, update it for consistency
         if (activeThread !== threadIdToUpdate) {
-          console.debug(`[ChatContainer] Fixing activeThread mismatch: current=${activeThread}, should be=${threadIdToUpdate}`);
+          logger.debug(`[ChatContainer] Fixing activeThread mismatch`, { 
+            current: activeThread, 
+            shouldBe: threadIdToUpdate 
+          });
           setActiveThread(threadIdToUpdate);
         }
         
@@ -217,12 +214,12 @@ export function ChatContainer() {
           id: threadIdToUpdate, 
           title 
         });
-        console.log(`[ChatContainer] Thread title update completed for ${threadIdToUpdate}`);
+        logger.info(`[ChatContainer] Thread title update completed for ${threadIdToUpdate}`);
       } else {
-        console.error('[ChatContainer] Cannot update thread title: No URL thread ID');
+        logger.error('[ChatContainer] Cannot update thread title: No URL thread ID');
       }
     } catch (error) {
-      console.error('[ChatContainer] Failed to update thread title:', error);
+      logger.error('[ChatContainer] Failed to update thread title', error as Error);
     }
   }, [activeThread, urlThreadId, updateThreadMutation, setActiveThread]);
 
@@ -232,13 +229,11 @@ export function ChatContainer() {
   const stableThreadId = useMemo(() => {
     // Give priority to URL parameter when switching threads
     const id = urlThreadId || activeThread;
-    if (process.env.NODE_ENV === 'development') {
-      console.debug('[ChatContainer] Computing stable thread ID:', {
+    logger.debug('[ChatContainer] Computing stable thread ID:', {
         activeThreadId: activeThread,
         urlThreadId: urlThreadId,
         result: id
       });
-    }
     return id;
   }, [activeThread, urlThreadId]);
 
@@ -377,10 +372,7 @@ export function ChatContainer() {
   // Initialize FSM state based on auth status - optimized to reduce flashing
   // Skip auth loading since ProtectedRoute already handles authentication
   useEffect(() => {
-    // Only log in development to reduce console noise
-    if (process.env.NODE_ENV === 'development') {
-      console.log('ChatContainer: Auth state update', { isAuthResolved, user: !!user });
-    }
+    logger.debug('ChatContainer: Auth state update', { isAuthResolved, user: !!user });
     
     // Since we're inside ProtectedRoute, auth is already resolved
     // Jump directly to threads loading
@@ -399,7 +391,7 @@ export function ChatContainer() {
       return; // Silently skip when auth not ready
     }
     
-    console.log('[ChatContainer] Thread loading effect:', {
+    logger.debug('[ChatContainer] Thread loading effect:', {
       originalThreadsLoading,
       fsmStatus: chatFSM.state.status,
       fsmPhase: chatFSM.state.phase,
@@ -409,7 +401,7 @@ export function ChatContainer() {
     });
     
     if (originalThreadsLoading && chatFSM.state.status !== 'loading') {
-      console.log('[ChatContainer] Starting FSM loading for threads');
+      logger.debug('[ChatContainer] Starting FSM loading for threads');
       chatFSM.startLoading('threads');
     } else if (!originalThreadsLoading && chatFSM.state.status === 'loading' && chatFSM.state.phase === 'threads') {
       // If we have threads or this is a different page (no thread ID expected)
@@ -445,7 +437,7 @@ export function ChatContainer() {
       // Get most recent thread (they're already sorted by created_at desc)
       const mostRecentThread = originalThreads[0];
       if (mostRecentThread && mostRecentThread.id && location.pathname === '/chat') {
-        console.log('ChatContainer: Redirecting to most recent thread:', mostRecentThread.id);
+        logger.info('ChatContainer: Redirecting to most recent thread:', { threadId: mostRecentThread.id });
         
         // Set the active thread and selected thread ID before navigation
         setActiveThread(mostRecentThread.id);
@@ -556,11 +548,11 @@ export function ChatContainer() {
     if (!urlThreadId) return;
     
     if (!activeThread || activeThread !== urlThreadId) {
-      console.debug(`[ChatContainer] Syncing activeThread state to match URL thread ID: ${urlThreadId}`);
+      logger.debug('[ChatContainer] Syncing activeThread state to match URL thread ID', { urlThreadId });
       
       // Check if threads are loaded
       if (originalThreadsLoading) {
-        console.debug('[ChatContainer] Waiting for threads to load before syncing activeThread');
+        logger.debug('[ChatContainer] Waiting for threads to load before syncing activeThread');
         return;
       }
       
@@ -568,14 +560,17 @@ export function ChatContainer() {
       const foundThread = originalThreads.find(t => t.id === urlThreadId);
       
       if (foundThread) {
-        console.debug(`[ChatContainer] Found matching thread in loaded threads: ${foundThread.id}, title: "${foundThread.title}"`);
+        logger.debug('[ChatContainer] Found matching thread in loaded threads', { 
+          threadId: foundThread.id, 
+          title: foundThread.title 
+        });
         setActiveThread(foundThread.id);
         // IMPORTANT: Also update the selectedThreadId context for sidebar highlighting
         setSelectedThreadId(foundThread.id);
       } else if (!originalThreadsLoading && originalThreads.length > 0) {
         // If threads are loaded but we didn't find a match, set it anyway
         // This handles cases where the thread might be new and not in our cache yet
-        console.debug(`[ChatContainer] Thread not found in loaded threads, setting activeThread to URL ID: ${urlThreadId}`);
+        logger.debug('[ChatContainer] Thread not found in loaded threads, setting activeThread to URL ID', { urlThreadId });
         setActiveThread(urlThreadId);
         // IMPORTANT: Also update the selectedThreadId context for sidebar highlighting
         setSelectedThreadId(urlThreadId);
@@ -617,7 +612,7 @@ export function ChatContainer() {
           <header className="fixed top-0 left-0 right-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-4 px-6 flex items-center justify-between">
             <button
               onClick={() => {
-                console.log('Welcome screen: Hamburger menu clicked');
+                logger.debug('Welcome screen: Hamburger menu clicked');
                 setIsExpanded(!isExpanded);
               }}
               className="p-2 rounded-md bg-[#f37022] text-white hover:bg-[#e36012] flex items-center justify-center"
@@ -676,7 +671,7 @@ export function ChatContainer() {
       {!isDesktop && (
         <ChatMobileHeader 
           onToggleSidebar={() => {
-            console.log('ChatContainer: Toggle sidebar from hamburger');
+            logger.debug('ChatContainer: Toggle sidebar from hamburger');
             setIsExpanded(!isExpanded);
           }}
         />

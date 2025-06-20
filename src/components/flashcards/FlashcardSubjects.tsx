@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Plus, Trash2, BookOpen, Lock, Filter } from 'lucide-react';
@@ -103,7 +104,7 @@ export default function FlashcardSubjects() {
   const handleDeleteSubject = async () => {
     if (!subjectToDelete) return;
     
-    console.log('🗑️ Starting subject deletion:', {
+    logger.debug('🗑️ Starting subject deletion:', {
       subjectId: subjectToDelete.id,
       subjectName: subjectToDelete.name,
       isOfficial: subjectToDelete.is_official,
@@ -114,35 +115,35 @@ export default function FlashcardSubjects() {
     
     try {
       // First delete entries in the collection_subjects junction table
-      console.log('🔗 Deleting collection_subjects junction entries...');
+      logger.debug('🔗 Deleting collection_subjects junction entries...');
       const { error: junctionError, count: junctionCount } = await supabase
         .from('collection_subjects')
         .delete({ count: 'exact' })
         .eq('subject_id', subjectToDelete.id);
       
       if (junctionError) {
-        console.error('❌ Junction table deletion error:', junctionError);
+        logger.error('❌ Junction table deletion error:', junctionError);
         throw junctionError;
       }
       
-      console.log(`✅ Junction table deletion completed. Rows affected: ${junctionCount}`);
-      console.log('📝 Deleting subject from subjects table...');
+      logger.debug(`✅ Junction table deletion completed. Rows affected: ${junctionCount}`);
+      logger.debug('📝 Deleting subject from subjects table...');
       const { error, data, count } = await supabase
         .from('subjects')
         .delete({ count: 'exact' })
         .eq('id', subjectToDelete.id);
       
-      console.log('📊 Delete operation result:', { error, data, count, rowsAffected: count });
+      logger.debug('📊 Delete operation result:', { error, data, count, rowsAffected: count });
       
       if (error) {
-        console.error('❌ Database error during deletion:', error);
+        logger.error('❌ Database error during deletion:', error);
         throw error;
       }
       
       // Check if any rows were actually deleted
       if (count === 0) {
-        console.warn('⚠️ No rows were deleted. This might indicate an RLS policy issue.');
-        console.log('🔍 RLS Debug Info:', {
+        logger.warn('⚠️ No rows were deleted. This might indicate an RLS policy issue.');
+        logger.debug('🔍 RLS Debug Info:', {
           expectedConditions: 'auth.is_admin() = true OR (is_official = false AND auth.uid() = user_id)',
           subjectIsOfficial: subjectToDelete.is_official,
           subjectUserId: subjectToDelete.user_id,
@@ -152,7 +153,7 @@ export default function FlashcardSubjects() {
         throw new Error('Subject could not be deleted. You may not have permission to delete this subject.');
       }
       
-      console.log(`✅ Subject deleted successfully! ${count} row(s) affected`);
+      logger.debug(`✅ Subject deleted successfully! ${count} row(s) affected`);
       
       // Invalidate the subjects query to trigger a refetch
       queryClient.invalidateQueries({ queryKey: subjectKeys.all });
@@ -160,7 +161,7 @@ export default function FlashcardSubjects() {
       setSubjectToDelete(null);
       showToast('Subject deleted successfully', 'success');
     } catch (err: any) {
-      console.error('💥 Error deleting subject:', err);
+      logger.error('💥 Error deleting subject:', err);
       showToast(`Error: ${err.message}`, 'error');
     }
   };

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Clock, Layers, Ticket } from 'lucide-react';
@@ -57,12 +58,12 @@ const CourseCard = ({
     e.preventDefault();
     
     if (!user) {
-      console.log('User not authenticated, redirecting to login');
+      logger.debug('User not authenticated, redirecting to login');
       navigate(`/login?redirectTo=${encodeURIComponent(`/courses/${id}`)}`);
       return;
     }
     
-    console.log(`Starting checkout for course: ${id}`);
+    logger.debug(`Starting checkout for course: ${id}`);
     
     setIsLoading(true);
     
@@ -71,7 +72,7 @@ const CourseCard = ({
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        console.error('No authenticated session available');
+        logger.error('No authenticated session available');
         toast.error('Authentication error. Please try again.');
         setIsLoading(false);
         return;
@@ -89,11 +90,11 @@ const CourseCard = ({
         }),
       });
       
-      console.log(`Checkout API response status: ${response.status}`);
+      logger.debug(`Checkout API response status: ${response.status}`);
       
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Checkout API error:', errorData);
+        logger.error('Checkout API error:', errorData);
         toast.error(errorData.error || 'Failed to create checkout session');
         setIsLoading(false);
         return;
@@ -102,14 +103,14 @@ const CourseCard = ({
       const { url: checkoutUrl } = await response.json();
       
       if (checkoutUrl) {
-        console.log(`Redirecting to checkout: ${checkoutUrl}`);
+        logger.debug(`Redirecting to checkout: ${checkoutUrl}`);
         window.location.href = checkoutUrl;
       } else {
-        console.error('No checkout URL returned');
+        logger.error('No checkout URL returned');
         toast.error('Failed to create checkout session');
       }
     } catch (error) {
-      console.error('Error creating checkout session:', error);
+      logger.error('Error creating checkout session:', error);
       toast.error('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);

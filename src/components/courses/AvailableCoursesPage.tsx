@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -52,20 +53,20 @@ export default function AvailableCoursesPage() {
             .eq('user_id', user.id);
           
           if (error) {
-            console.error('Error fetching enrollments:', error);
+            logger.error('Error fetching enrollments:', error);
             return;
           }
           
           setUserEnrolledCourseIds(data ? data.map(enrollment => enrollment.course_id) : []);
         } catch (err) {
-          console.error('Error in fetchEnrolledCourses:', err);
+          logger.error('Error in fetchEnrolledCourses:', err);
         }
       }
     }
     
     async function fetchCourses() {
       try {
-        console.log('Starting to fetch available courses...');
+        logger.debug('Starting to fetch available courses...');
         
         // Get all published courses
         const { data, error } = await supabase
@@ -74,7 +75,7 @@ export default function AvailableCoursesPage() {
           .or('status.eq.Published,status.eq.Coming Soon');
 
         if (error) {
-          console.error('Error fetching courses:', error);
+          logger.error('Error fetching courses:', error);
           setError('Failed to load courses. Please try again later.');
           return;
         }
@@ -115,7 +116,7 @@ export default function AvailableCoursesPage() {
         setCourses(sortedCourses);
         updateCount(sortedCourses.length);
       } catch (error) {
-        console.error('Error fetching available courses:', error);
+        logger.error('Error fetching available courses:', error);
         setError('Failed to load courses. Please try again later.');
       } finally {
         setLoading(false);

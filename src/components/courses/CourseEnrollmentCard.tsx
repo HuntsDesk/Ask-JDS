@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 /**
  * Component for handling course enrollment and purchase
  */
@@ -72,7 +73,7 @@ export function CourseEnrollmentCard({
         
         setLoading(false);
       } catch (error: any) {
-        console.error('Error checking enrollment:', error);
+        logger.error('Error checking enrollment:', error);
         setError('Failed to check enrollment status');
         setLoading(false);
       }
@@ -104,7 +105,7 @@ export function CourseEnrollmentCard({
       window.location.href = `/checkout?course=${courseId}`;
       
     } catch (error: any) {
-      console.error('Error initiating purchase:', error);
+      logger.error('Error initiating purchase:', error);
       setError(error.message || 'Failed to initiate purchase');
       setPurchaseLoading(false);
     }

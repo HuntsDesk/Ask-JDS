@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -117,7 +118,7 @@ export default function CourseDetail() {
           setExpandedModules({ [modulesWithLessons[0].id]: true });
         }
       } catch (err) {
-        console.error('Error fetching course data:', err);
+        logger.error('Error fetching course data:', err);
         setError('Failed to load course details. Please try again later.');
       } finally {
         setLoading(false);
@@ -141,7 +142,7 @@ export default function CourseDetail() {
   // Function to handle enrollment
   const handleEnroll = async () => {
     try {
-      console.log('Course data:', course); // Debug course data
+      logger.debug('Course data:', course); // Debug course data
       
       setIsProcessing(true);
       
@@ -178,7 +179,7 @@ export default function CourseDetail() {
       
       if (!response.ok) {
         const error = await response.json();
-        console.error('Checkout error:', error);
+        logger.error('Checkout error:', error);
         toast({
           title: 'Checkout Error',
           description: error.error || 'Failed to create checkout session',
@@ -192,7 +193,7 @@ export default function CourseDetail() {
       
       // Handle Payment Elements Flow (client_secret response)
       if (data.client_secret) {
-        console.log(`Got client_secret, showing payment form`);
+        logger.debug(`Got client_secret, showing payment form`);
         setClientSecret(data.client_secret);
         setShowPaymentModal(true);
         setIsProcessing(false);
@@ -201,13 +202,13 @@ export default function CourseDetail() {
       
       // Legacy handling for URL response
       if (data.url) {
-        console.log(`Redirecting to checkout: ${data.url}`);
+        logger.debug(`Redirecting to checkout: ${data.url}`);
         window.location.href = data.url;
         return;
       }
       
       // If we get here, we didn't get a valid response
-      console.error('No client_secret or URL returned');
+      logger.error('No client_secret or URL returned');
       toast({
         title: 'Checkout Error',
         description: 'Failed to create checkout session',
@@ -215,7 +216,7 @@ export default function CourseDetail() {
       });
       setIsProcessing(false);
     } catch (error) {
-      console.error('Error initiating checkout:', error);
+      logger.error('Error initiating checkout:', error);
       toast({
         title: 'Checkout Error',
         description: 'An error occurred. Please try again.',
@@ -367,7 +368,7 @@ export default function CourseDetail() {
           title="Complete your enrollment"
           description={`Enroll in "${course.title}" (${course.days_of_access} days access)`}
           onError={(error) => {
-            console.error('Payment error:', error);
+            logger.error('Payment error:', error);
             toast({
               title: 'Payment Error',
               description: error.message || 'Payment failed',

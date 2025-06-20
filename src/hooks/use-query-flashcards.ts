@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
@@ -21,7 +22,7 @@ export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all
   return useInfiniteQuery({
     queryKey: [...flashcardKeys.collections(), filter, subjectIds],
     queryFn: async ({ pageParam = 0 }) => {
-      console.log("useFlashcardCollections: Fetching collections with filter:", filter, "and subjects:", subjectIds, "pageParam:", pageParam);
+      logger.debug("useFlashcardCollections: Fetching collections with filter:", filter, "and subjects:", subjectIds, "pageParam:", pageParam);
       
       // First build the base query
       let query = supabase
@@ -41,7 +42,7 @@ export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all
       const pageSize = 30;
       const offset = typeof pageParam === 'number' ? pageParam * pageSize : 0;
       query = query.range(offset, offset + pageSize - 1);
-      console.log(`Using offset pagination: offset=${offset}, limit=${pageSize}`);
+      logger.debug(`Using offset pagination: offset=${offset}, limit=${pageSize}`);
       
       // Apply tab filters
       if (filter === 'official') {
@@ -105,7 +106,7 @@ export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all
       
       // Fetch the actual collections with pagination
       const { data: collectionsData, error: collectionsError } = await query;
-      console.log("useFlashcardCollections: Fetched collections:", collectionsData?.length || 0);
+      logger.debug("useFlashcardCollections: Fetched collections:", collectionsData?.length || 0);
       
       if (collectionsError) throw collectionsError;
       
@@ -125,7 +126,7 @@ export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all
       
       // Calculate if there are more pages
       const hasNextPage = offset + collectionsData.length < (count || 0);
-      console.log(`hasNextPage=${hasNextPage}, offset=${offset}, fetched=${collectionsData.length}, total=${count}`);
+      logger.debug(`hasNextPage=${hasNextPage}, offset=${offset}, fetched=${collectionsData.length}, total=${count}`);
       
       // Get next page number
       const nextCursor = hasNextPage ? (pageParam as number) + 1 : null;
@@ -163,7 +164,7 @@ export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all
         
       if (countQueryError) throw countQueryError;
       
-      console.log("useFlashcardCollections: Card junction data:", cardCounts?.length || 0, "entries");
+      logger.debug("useFlashcardCollections: Card junction data:", cardCounts?.length || 0, "entries");
       
       // Process card counts
       const cardCountMap: Record<string, number> = {};
@@ -174,7 +175,7 @@ export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all
         cardCountMap[junction.collection_id]++;
       });
       
-      console.log("useFlashcardCollections: Processed card counts:", cardCountMap);
+      logger.debug("useFlashcardCollections: Processed card counts:", cardCountMap);
       
       // BATCH QUERY: Get user progress data if user is logged in
       let masteryData: Record<string, { total: number; mastered: number }> = {};
@@ -184,7 +185,7 @@ export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all
         const flashcardIds = Array.from(new Set((cardCounts || []).map(j => j.flashcard_id)));
         
         if (flashcardIds.length > 0) {
-          console.log("useFlashcardCollections: Fetching progress for", flashcardIds.length, "flashcards");
+          logger.debug("useFlashcardCollections: Fetching progress for", flashcardIds.length, "flashcards");
           
           const { data: progressData, error: progressError } = await supabase
             .from('flashcard_progress')
@@ -194,7 +195,7 @@ export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all
             
           if (progressError) throw progressError;
           
-          console.log("useFlashcardCollections: Got progress data for", progressData?.length || 0, "flashcards");
+          logger.debug("useFlashcardCollections: Got progress data for", progressData?.length || 0, "flashcards");
           
           // Create a map of flashcard ID to mastery level
           const progressMap: Record<string, boolean> = {};
@@ -216,7 +217,7 @@ export function useFlashcardCollections(filter: 'all' | 'official' | 'my' = 'all
             }
           });
           
-          console.log("useFlashcardCollections: Processed mastery data:", masteryData);
+          logger.debug("useFlashcardCollections: Processed mastery data:", masteryData);
         }
       }
       
@@ -449,7 +450,7 @@ export function useFlashcardsWithProgress(collectionId: string, options = {}) {
         .in('flashcard_id', cardsData.map(c => c.id));
       
       if (progressError) {
-        console.error('Error fetching progress:', progressError);
+        logger.error('Error fetching progress:', progressError);
         // Continue without progress data if there's an error
       }
       
@@ -583,7 +584,7 @@ export function useToggleCardMastered() {
               queryKey: flashcardKeys.all 
             });
           } catch (err) {
-            console.error('Error invalidating queries:', err);
+            logger.error('Error invalidating queries:', err);
             // Fallback to invalidating all flashcard queries
             queryClient.invalidateQueries({ 
               queryKey: flashcardKeys.all 

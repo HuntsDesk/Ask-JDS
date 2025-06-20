@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthForm } from './AuthForm';
@@ -16,10 +17,10 @@ export function AuthPage() {
   useEffect(() => {
     const checkAuth = async () => {
       // Don't set isAuthenticating to true to avoid showing the banner
-      console.log('AuthPage: Auth state check', { user, loading, authInitialized });
+      logger.debug('AuthPage: Auth state check', { user, loading, authInitialized });
       
       if (user) {
-        console.log('AuthPage: User already authenticated, navigating to /chat', user);
+        logger.debug('AuthPage: User already authenticated, navigating to /chat', user);
         navigate('/chat', { replace: true });
         return;
       }
@@ -27,24 +28,24 @@ export function AuthPage() {
       // If auth is initialized and we're not loading, but still don't have a user,
       // check the session manually to be sure
       if (!user) {
-        console.log('AuthPage: No user, checking session manually');
+        logger.debug('AuthPage: No user, checking session manually');
         try {
           const { data, error } = await supabase.auth.getSession();
           
           if (error) {
-            console.error('AuthPage: Error checking session manually', error);
+            logger.error('AuthPage: Error checking session manually', error);
             return;
           }
           
           if (data?.session?.user) {
-            console.log('AuthPage: Session found manually, navigating to /chat', data.session.user.email);
+            logger.debug('AuthPage: Session found manually, navigating to /chat', data.session.user.email);
             // Force a page reload to ensure all authentication states are properly initialized
             window.location.href = '/chat';
           } else {
-            console.log('AuthPage: No session found manually');
+            logger.debug('AuthPage: No session found manually');
           }
         } catch (err) {
-          console.error('AuthPage: Exception checking session', err);
+          logger.error('AuthPage: Exception checking session', err);
         }
       }
     };

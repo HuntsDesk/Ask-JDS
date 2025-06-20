@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useEffect, useState, Suspense, lazy, createContext, useContext, startTransition } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Toaster } from '@/components/ui/toaster';
@@ -17,7 +18,7 @@ import { useAnalytics } from '@/hooks/use-analytics';
 
 // Debugging utility
 const debugLog = (message: string, data?: any) => {
-  console.log(`[App Debug] ${message}`, data || '');
+  logger.debug(`[App Debug] ${message}`, data || '');
 };
 
 // Log environment information on app startup
@@ -240,7 +241,7 @@ import CourseAccessGuard from './components/guards/CourseAccessGuard';
 function AppRoutes() {
   const { isJDSimplified, isAskJDS, isAdmin } = useDomain();
   
-  console.log('Rendering routes with isJDSimplified:', isJDSimplified, 'isAdmin:', isAdmin);
+  logger.debug('Rendering routes with isJDSimplified:', isJDSimplified, 'isAdmin:', isAdmin);
   
   // Admin domain routes
   if (isAdmin) {
@@ -347,23 +348,31 @@ function AppRoutes() {
             </ProtectedRoute>
           } 
         />
+        <Route 
+          path="/admin/utilities" 
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader message="Loading utilities..." />}>
+                <Utilities />
+              </Suspense>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/set-admin" 
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageLoader message="Loading admin setup..." />}>
+                <SetAdminStatus />
+              </Suspense>
+            </ProtectedRoute>
+          } 
+        />
 
         <Route path="/auth" element={
           <AsyncAuthPage />
         } />
-        <Route path="admin" element={<AdminDashboard />} />
-        <Route path="admin/users" element={<AdminUsers />} />
-        <Route path="admin/security" element={<AdminSecurity />} />
-        <Route path="admin/error-logs" element={<AdminErrorLogs />} />
-        <Route path="admin/courses" element={<AdminCourses />} />
-        <Route path="admin/courses/:courseId" element={<CourseDetail />} />
-        <Route path="admin/flashcards" element={<AdminFlashcards />} />
-        <Route path="admin/askjds" element={<AdminAskJDS />} />
-        <Route path="admin/settings" element={<AdminSettings />} />
-                        <Route path="admin/price-mapping" element={<AdminPriceMapping />} />
-                <Route path="admin/utilities" element={<Utilities />} />
-                <Route path="admin/set-admin" element={<SetAdminStatus />} />
-                {/* Special setup route that doesn't require admin auth */}
+        {/* Special setup route that doesn't require admin auth */}
         {allowSetupAdmin && (
           <Route path="setup-admin" element={<SetAdminSetup />} />
         )}
@@ -534,11 +543,11 @@ function AppWrapper() {
     keysToReset.forEach(key => {
       try {
         if (sessionStorage.getItem(key)) {
-          console.log(`Cleaning up ${key} from sessionStorage`);
+          logger.debug(`Cleaning up ${key} from sessionStorage`);
           sessionStorage.removeItem(key);
         }
       } catch (e) {
-        console.warn(`Error cleaning up ${key}:`, e);
+        logger.warn(`Error cleaning up ${key}:`, e);
       }
     });
   }, []);

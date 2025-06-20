@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 /**
  * Utilities for Stripe checkout flows
  */
@@ -88,7 +89,7 @@ export async function createCourseCheckout(
       sessionId: data.sessionId
     };
   } catch (error: any) {
-    console.error('Error creating course checkout:', error);
+    logger.error('Error creating course checkout:', error);
     
     // Track checkout error
     trackEvent('checkout_failed', {
@@ -175,7 +176,7 @@ export async function createCourseRenewalCheckout(
       sessionId: data.sessionId
     };
   } catch (error: any) {
-    console.error('Error creating course renewal checkout:', error);
+    logger.error('Error creating course renewal checkout:', error);
     
     // Track renewal error
     trackEvent('checkout_failed', {
@@ -255,7 +256,7 @@ export async function createUnlimitedSubscriptionCheckout(
       sessionId: data.sessionId
     };
   } catch (error: any) {
-    console.error('Error creating unlimited subscription checkout:', error);
+    logger.error('Error creating unlimited subscription checkout:', error);
     
     // Track subscription error
     trackEvent('checkout_failed', {

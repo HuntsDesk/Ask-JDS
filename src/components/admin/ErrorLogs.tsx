@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from "react";
 import { AdminLayout } from "./AdminLayout";
 import { supabase } from "@/lib/supabase";
@@ -61,7 +62,7 @@ export const AdminErrorLogs = () => {
 
       setErrorLogs(data || []);
     } catch (error: any) {
-      console.error("Error fetching error logs:", error);
+      logger.error("Error fetching error logs:", error);
       setError(error.message || "Failed to fetch error logs");
     } finally {
       setLoading(false);
@@ -87,7 +88,7 @@ export const AdminErrorLogs = () => {
         )
       );
     } catch (error: any) {
-      console.error("Error toggling investigated status:", error);
+      logger.error("Error toggling investigated status:", error);
       setError(error.message || "Failed to update error log");
     }
   };

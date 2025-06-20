@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useUsermaven, usePageView } from '@usermaven/react';
 import { useUsermavenContext } from '@/contexts/UsermavenContext';
 import { useAuth } from '@/lib/auth';
@@ -39,7 +40,7 @@ export const useAnalytics = () => {
         }
       });
     } catch (error) {
-      console.error('Failed to identify user with Usermaven:', error);
+      logger.error('Failed to identify user with Usermaven:', error);
     }
   }, []);
   
@@ -67,7 +68,7 @@ export const useAnalytics = () => {
       before: pageViewCallback
     });
   } catch (error) {
-    console.error('🔍 [ANALYTICS DEBUG] Error setting up Usermaven hooks:', error);
+    logger.error('🔍 [ANALYTICS DEBUG] Error setting up Usermaven hooks:', error);
     pageViewError = error;
   }
   

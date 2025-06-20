@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { realtimeManager } from '@/lib/realtime-manager';
@@ -22,8 +23,8 @@ export function useThreads() {
     debugContext: 'useThreads' 
   });
   
-  // Add debugging for session and timing state
-  debugLogger.info('api', `useThreads hook state: ${authTiming.timingDebugInfo}, hasSession=${!!session}`);
+  // Add debugging for session and timing state (commented to reduce noise)
+  // debugLogger.info('api', `useThreads hook state: ${authTiming.timingDebugInfo}, hasSession=${!!session}`);
   
   return useQuery<Thread[]>({
     queryKey: threadKeys.all,
@@ -175,7 +176,7 @@ export function useUpdateThread() {
   
   return useMutation<Thread, Error, { id: string } & Partial<Thread>>({
     mutationFn: async ({ id, ...updates }) => {
-      console.log(`[useUpdateThread] Mutation started for thread ${id}:`, updates);
+      logger.debug(`[useUpdateThread] Mutation started for thread ${id}:`, updates);
       const { data, error } = await supabase
         .from('threads')
         .update(updates)
@@ -184,18 +185,18 @@ export function useUpdateThread() {
         .single();
       
       if (error) {
-        console.error(`[useUpdateThread] Error updating thread ${id}:`, error);
+        logger.error(`[useUpdateThread] Error updating thread ${id}:`, error);
         throw error;
       }
-      console.log(`[useUpdateThread] Mutation successful for thread ${id}:`, data);
+      logger.debug(`[useUpdateThread] Mutation successful for thread ${id}:`, data);
       return data as Thread;
     },
     // When mutation succeeds, update the thread in the cache
     onSuccess: (updatedThread) => {
-      console.log(`[useUpdateThread] Updating cache for thread ${updatedThread.id}`);
+      logger.debug(`[useUpdateThread] Updating cache for thread ${updatedThread.id}`);
       // Update in the threads list
       const previousThreads = queryClient.getQueryData<Thread[]>(threadKeys.all) || [];
-      console.log(`[useUpdateThread] Previous threads count: ${previousThreads.length}`);
+      logger.debug(`[useUpdateThread] Previous threads count: ${previousThreads.length}`);
       
       queryClient.setQueryData(
         threadKeys.all, 
@@ -206,7 +207,7 @@ export function useUpdateThread() {
       
       // Update the individual thread cache
       queryClient.setQueryData(threadKeys.thread(updatedThread.id), updatedThread);
-      console.log(`[useUpdateThread] Cache updated for thread ${updatedThread.id}`);
+      logger.debug(`[useUpdateThread] Cache updated for thread ${updatedThread.id}`);
     },
   });
 }
@@ -251,18 +252,18 @@ export function useThreadsRealtime() {
   useEffect(() => {
     if (!user) return;
     
-    console.log('[useThreadsRealtime] Setting up realtime subscription for threads');
+    logger.debug('[useThreadsRealtime] Setting up realtime subscription for threads');
     
     const unsubscribe = realtimeManager.subscribe(
       'threads-realtime',
       {
         table: 'threads',
         onInsert: (payload) => {
-          console.log('[useThreadsRealtime] Invalidating threads query due to INSERT');
+          logger.debug('[useThreadsRealtime] Invalidating threads query due to INSERT');
           queryClient.invalidateQueries({ queryKey: threadKeys.all });
         },
                           onDelete: (payload) => {
-          console.log('[useThreadsRealtime] Invalidating threads query due to DELETE');
+          logger.debug('[useThreadsRealtime] Invalidating threads query due to DELETE');
           queryClient.invalidateQueries({ queryKey: threadKeys.all });
           const oldRecord = payload.old as any;
           if (oldRecord && oldRecord.id) {
@@ -270,7 +271,7 @@ export function useThreadsRealtime() {
           }
          },
          onUpdate: (payload) => {
-          console.log('[useThreadsRealtime] Thread UPDATE received:', payload.new);
+          logger.debug('[useThreadsRealtime] Thread UPDATE received:', payload.new);
           
           const newRecord = payload.new as Thread;
           if (!newRecord || !newRecord.id) return;
@@ -292,9 +293,9 @@ export function useThreadsRealtime() {
               queryClient.setQueryData(threadKeys.thread(newRecord.id), newRecord);
             }
             
-            console.log('[useThreadsRealtime] Thread cache updated for:', newRecord.id);
+            logger.debug('[useThreadsRealtime] Thread cache updated for:', newRecord.id);
           } else {
-            console.log('[useThreadsRealtime] No threads in cache, invalidating queries');
+            logger.debug('[useThreadsRealtime] No threads in cache, invalidating queries');
             queryClient.invalidateQueries({ queryKey: threadKeys.all });
           }
         }
@@ -303,7 +304,7 @@ export function useThreadsRealtime() {
     );
       
     return () => {
-      console.log('[useThreadsRealtime] Cleaning up realtime subscription');
+      logger.debug('[useThreadsRealtime] Cleaning up realtime subscription');
       unsubscribe();
     };
   }, [user, queryClient]);

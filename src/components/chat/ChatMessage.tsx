@@ -51,6 +51,9 @@ export function ChatMessage({ message, isLastMessage, isStreaming = false }: Cha
   // Don't display system messages
   if (isSystem) return null;
   
+  // Don't display empty assistant messages (during streaming initialization)
+  if (message.role === 'assistant' && !message.content) return null;
+  
   // Format timestamp
   const formatTimestamp = (dateString: string) => {
     const messageDate = new Date(dateString);
@@ -128,28 +131,28 @@ export function ChatMessage({ message, isLastMessage, isStreaming = false }: Cha
         
         {/* Message timestamp with copy button - only show when message has timestamp */}
         {message.created_at && (
-          <div 
-            className={`flex items-center text-xs mt-0.5 ${
-              isUserMessage ? 'justify-end mr-1' : 'ml-1'
-            } text-gray-500 dark:text-gray-400 message-timestamp ${isLastMessage ? 'mb-1' : ''}`}
-          >
+        <div 
+          className={`flex items-center text-xs mt-0.5 ${
+            isUserMessage ? 'justify-end mr-1' : 'ml-1'
+          } text-gray-500 dark:text-gray-400 message-timestamp ${isLastMessage ? 'mb-1' : ''}`}
+        >
             {/* Copy button next to timestamp - hidden during streaming for assistant messages */}
             {!(isStreaming && !isUserMessage) && (
-              <button
-                onClick={handleCopyMessage}
-                className={`p-1 rounded-md mr-1 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center transition-colors duration-200`}
-                aria-label="Copy message"
-              >
-                {copied ? (
-                  <Check className="h-3.5 w-3.5" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-              </button>
+          <button
+            onClick={handleCopyMessage}
+            className={`p-1 rounded-md mr-1 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-center transition-colors duration-200`}
+            aria-label="Copy message"
+          >
+            {copied ? (
+              <Check className="h-3.5 w-3.5" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
             )}
-            
-            {formatTimestamp(message.created_at)}
-          </div>
+          </button>
+            )}
+          
+          {formatTimestamp(message.created_at)}
+        </div>
         )}
       </div>
     </div>

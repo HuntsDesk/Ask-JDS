@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, ArrowRight } from 'lucide-react';
@@ -55,28 +56,28 @@ export function PricingPage() {
       // Show modal immediately with loading state for better UX
       setShowPaymentModal(true);
       
-      console.log(`Initiating subscription for tier: ${tierName}`);
+      logger.debug(`Initiating subscription for tier: ${tierName}`);
       
       const redirectUrlOrClientSecret = await createCheckoutSession(user?.id, tierName.toLowerCase());
-      console.log(`Response from createCheckoutSession:`, redirectUrlOrClientSecret);
+      logger.debug(`Response from createCheckoutSession:`, redirectUrlOrClientSecret);
       
       if (redirectUrlOrClientSecret) {
         // Check if the result is a URL or a client secret
         if (redirectUrlOrClientSecret.startsWith('/checkout-confirmation')) {
-          console.log('Received checkout-confirmation URL, redirecting...');
+          logger.debug('Received checkout-confirmation URL, redirecting...');
           setShowPaymentModal(false); // Close modal before redirect
           window.location.href = redirectUrlOrClientSecret;
         } else if (redirectUrlOrClientSecret.startsWith('http')) {
-          console.log('Received direct URL, redirecting...');
+          logger.debug('Received direct URL, redirecting...');
           setShowPaymentModal(false); // Close modal before redirect
           window.location.href = redirectUrlOrClientSecret;
         } else {
-          console.log('Received client secret, updating modal...');
+          logger.debug('Received client secret, updating modal...');
           setClientSecret(redirectUrlOrClientSecret);
           // Modal is already open, just update with client secret
         }
       } else {
-        console.error('No response from createCheckoutSession');
+        logger.error('No response from createCheckoutSession');
         setShowPaymentModal(false); // Close modal on error
         toast({
           title: 'Error',
@@ -85,7 +86,7 @@ export function PricingPage() {
         });
       }
     } catch (error) {
-      console.error('Error creating checkout session:', error);
+      logger.error('Error creating checkout session:', error);
       
       setShowPaymentModal(false); // Close modal on error
       
@@ -262,7 +263,7 @@ export function PricingPage() {
           description="This will give you access to Ask JDS unlimited features."
           tier={currentTierName}
           onError={(error) => {
-            console.error('Payment error:', error);
+            logger.error('Payment error:', error);
             toast({
               title: "Error",
               description: error.message || 'Payment failed',

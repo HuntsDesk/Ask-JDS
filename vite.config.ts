@@ -99,7 +99,28 @@ export default defineConfig(({ mode }) => {
       // Increase the warning limit to avoid warnings about chunk sizes
       chunkSizeWarningLimit: 1000,
       target: 'es2022',
-      minify: false,
+      minify: mode === 'development' ? false : 'terser',
+      terserOptions: mode === 'development' ? undefined : {
+        compress: {
+          drop_console: true,
+          drop_debugger: true,
+          pure_funcs: [
+            'console.log',
+            'console.debug', 
+            'console.info',
+            'logger.debug',
+            'logger.info',
+            'logger.performance'
+          ],
+          passes: 2,
+        },
+        mangle: {
+          safari10: true,
+        },
+        format: {
+          comments: false,
+        },
+      },
       rollupOptions: {
         external: [/\.test\./],
         output: {

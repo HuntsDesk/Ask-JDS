@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -74,7 +75,7 @@ export const CreateCourse = ({
             });
           }
         } catch (err: any) {
-          console.error('Error fetching course:', err);
+          logger.error('Error fetching course:', err);
           setError(`Failed to load course data: ${err.message}`);
         } finally {
           setLoading(prev => ({ ...prev, fetch: false }));
@@ -149,7 +150,7 @@ export const CreateCourse = ({
       
       onSuccess();
     } catch (err: any) {
-      console.error('Error saving course:', err);
+      logger.error('Error saving course:', err);
       setError(`Failed to save course: ${err.message}`);
       
       toast({

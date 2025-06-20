@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 
 interface ChatInputAreaProps {
   threadId: string | null;
@@ -68,7 +69,7 @@ export function ChatInputArea({
   
   // Debug subscription status
   useEffect(() => {
-    console.log('[ChatInputArea] Props received:', {
+    logger.debug('[ChatInputArea] Props received:', {
       isSubscribed,
       messageCount,
       messageLimit,
@@ -93,7 +94,7 @@ export function ChatInputArea({
     try {
       await onSend(messageContent);
     } catch (error) {
-      console.error('Error sending message:', error);
+      logger.error('Error sending message', error as Error);
       setSendError("An error occurred while sending. Please try again.");
       setMessage(messageContent); // Restore message on error
     } finally {

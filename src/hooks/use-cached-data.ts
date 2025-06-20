@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 // Update cache expiration times
@@ -65,7 +66,7 @@ export function useCachedData<T>(
       };
       localStorage.setItem(cacheKey, JSON.stringify(cacheItem));
     } catch (err) {
-      console.error(`Error saving to cache (${key}):`, err);
+      logger.error(`Error saving to cache (${key}):`, err);
     }
   }, [cacheKey, key]);
 
@@ -91,7 +92,7 @@ export function useCachedData<T>(
             }
           }
         } catch (cacheErr) {
-          console.warn(`Cache read error (${key}):`, cacheErr);
+          logger.warn(`Cache read error (${key}):`, cacheErr);
           // Continue to fetch data if cache read fails
         }
       }
@@ -101,7 +102,7 @@ export function useCachedData<T>(
       setData(freshData);
       saveToCache(freshData);
     } catch (err) {
-      console.error(`Error fetching data (${key}):`, err);
+      logger.error(`Error fetching data (${key}):`, err);
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setLoading(false);

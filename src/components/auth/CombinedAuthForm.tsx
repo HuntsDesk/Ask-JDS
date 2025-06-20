@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -64,7 +65,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
   // Check if user is already authenticated
   useEffect(() => {
     if (user) {
-      console.log('User already authenticated, navigating to /chat', user);
+      logger.debug('User already authenticated, navigating to /chat', user);
       navigate('/chat', { replace: true });
     }
   }, [user, navigate]);
@@ -74,9 +75,9 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
     let timeoutId: NodeJS.Timeout | null = null;
     
     if (isLoading) {
-      console.log('Auth loading state started, setting safety timeout');
+      logger.debug('Auth loading state started, setting safety timeout');
       timeoutId = setTimeout(() => {
-        console.log('Auth safety timeout triggered after 8 seconds');
+        logger.debug('Auth safety timeout triggered after 8 seconds');
         setIsLoading(false);
         toast({
           title: 'Authentication Timeout',
@@ -88,7 +89,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
     
     return () => {
       if (timeoutId) {
-        console.log('Clearing auth safety timeout');
+        logger.debug('Clearing auth safety timeout');
         clearTimeout(timeoutId);
       }
     };
@@ -97,22 +98,22 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
   // Sign in handler
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Sign in form submitted with email:', email);
+    logger.debug('Sign in form submitted with email:', email);
     setIsLoading(true);
 
     try {
-      console.log('Calling signIn with email:', email);
+      logger.debug('Calling signIn with email:', email);
       const { error } = await signIn(email, password);
-      console.log('SignIn response error:', error);
+      logger.debug('SignIn response error:', error);
       
       if (error) throw error;
       
       // Immediately navigate to chat after successful sign-in
-      console.log('Sign-in successful, immediately navigating to /chat');
+      logger.debug('Sign-in successful, immediately navigating to /chat');
       navigate('/chat', { replace: true });
       
     } catch (error) {
-      console.error('Sign in error:', error);
+      logger.error('Sign in error:', error);
       toast({
         title: 'Error',
         description: 'Failed to sign in. Please check your credentials and try again.',
@@ -125,13 +126,13 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Sign up form submitted with email:', email);
+    logger.debug('Sign up form submitted with email:', email);
     setIsLoading(true);
 
     try {
-      console.log('Calling signUp with email:', email);
+      logger.debug('Calling signUp with email:', email);
       const { error } = await signUp(email, password);
-      console.log('SignUp response error:', error);
+      logger.debug('SignUp response error:', error);
       
       if (error) throw error;
       
@@ -142,7 +143,7 @@ export function AuthForm({ initialTab = 'signin' }: AuthFormProps) {
       
       setActiveTab('signin');
     } catch (error) {
-      console.error('Sign up error:', error);
+      logger.error('Sign up error:', error);
       toast({
         title: 'Error',
         description: 'Failed to create account. Please try again.',

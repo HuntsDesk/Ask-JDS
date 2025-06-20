@@ -115,7 +115,7 @@ export const validateConfig = (config: AppConfig): { isValid: boolean; missingKe
  */
 const _getActualModelName = (codeName: string): string => {
   const modelMap: Record<string, string> = {
-    'jds-titan': 'gemini-2.5-pro-preview-05-06',
+    'jds-titan': 'gemini-2.5-pro',  // Updated to stable version (June 17, 2025)
     'jds-flash': 'gemini-1.5-flash-8b',
     // Add more mappings as needed for future models
   };

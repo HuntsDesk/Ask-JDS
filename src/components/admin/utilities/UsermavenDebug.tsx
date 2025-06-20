@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useEffect, useState } from 'react';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,7 @@ export function UsermavenDebug() {
         const data = { page: 'usermaven_debug' };
         
         // Log the tracking call for debugging
-        console.log('Sending Usermaven page view:', { eventName, data });
+        logger.debug('Sending Usermaven page view:', { eventName, data });
         
         // Track the event using our analytics hook
         trackEvent(eventName, data);
@@ -26,7 +27,7 @@ export function UsermavenDebug() {
         setEventsSent(prev => [...prev, `${eventName}: ${JSON.stringify(data)}`]);
       } catch (err) {
         setError(`Failed to send page view: ${err instanceof Error ? err.message : String(err)}`);
-        console.error('Usermaven tracking error:', err);
+        logger.error('Usermaven tracking error:', err);
       }
     }
   }, [initialized, trackEvent]);
@@ -47,7 +48,7 @@ export function UsermavenDebug() {
       };
       
       // Log the tracking call for debugging
-      console.log('Sending Usermaven test event:', { eventName, data });
+      logger.debug('Sending Usermaven test event:', { eventName, data });
       
       // Track the event using our analytics hook
       trackEvent(eventName, data);
@@ -56,7 +57,7 @@ export function UsermavenDebug() {
       setEventsSent(prev => [...prev, `${eventName}: ${JSON.stringify(data)}`]);
     } catch (err) {
       setError(`Failed to send test event: ${err instanceof Error ? err.message : String(err)}`);
-      console.error('Usermaven tracking error:', err);
+      logger.error('Usermaven tracking error:', err);
     }
   };
 

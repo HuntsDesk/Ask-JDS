@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Plus, PenSquare, Trash2, Layers, FileText, GripVertical, Info, ChevronDown, ChevronRight, ChevronUp, Edit, X, RefreshCw } from 'lucide-react';
@@ -185,7 +186,7 @@ export const CourseDetail = () => {
         
         setCourse(data);
       } catch (err: any) {
-        console.error('Error fetching course:', err);
+        logger.error('Error fetching course:', err);
         setError(prev => ({ ...prev, course: err.message }));
       } finally {
         setLoading(prev => ({ ...prev, course: false }));
@@ -245,7 +246,7 @@ export const CourseDetail = () => {
         
         setModules(modulesWithLessons);
       } catch (err: any) {
-        console.error('Error fetching modules and lessons:', err);
+        logger.error('Error fetching modules and lessons:', err);
         setError(prev => ({ ...prev, modules: err.message }));
       } finally {
         setLoading(prev => ({ ...prev, modules: false }));
@@ -328,7 +329,7 @@ export const CourseDetail = () => {
       }
       
     } catch (err) {
-      console.error('Error reloading data:', err);
+      logger.error('Error reloading data:', err);
       toast({
         title: "Error",
         description: `Failed to reload data: ${err.message}`,
@@ -447,7 +448,7 @@ export const CourseDetail = () => {
         
         setModules(modulesWithLessons);
       } catch (err) {
-        console.error('Error refreshing modules and lessons:', err);
+        logger.error('Error refreshing modules and lessons:', err);
       }
     };
     
@@ -491,7 +492,7 @@ export const CourseDetail = () => {
       });
       
     } catch (err: any) {
-      console.error('Error deleting module:', err);
+      logger.error('Error deleting module:', err);
       toast({
         title: "Error deleting module",
         description: err.message || "An unknown error occurred",
@@ -559,7 +560,7 @@ export const CourseDetail = () => {
       });
       
     } catch (err: any) {
-      console.error('Error deleting lesson:', err);
+      logger.error('Error deleting lesson:', err);
       toast({
         title: "Error deleting lesson",
         description: err.message || "An unknown error occurred",
@@ -608,7 +609,7 @@ export const CourseDetail = () => {
             .eq('id', module.id);
         }
       } catch (err) {
-        console.error('Error updating module positions:', err);
+        logger.error('Error updating module positions:', err);
         alert('Failed to update module positions. Please refresh and try again.');
       }
     } else if (type === 'LESSON') {
@@ -654,7 +655,7 @@ export const CourseDetail = () => {
               .eq('id', lesson.id);
           }
         } catch (err) {
-          console.error('Error updating lesson positions:', err);
+          logger.error('Error updating lesson positions:', err);
           alert('Failed to update lesson positions. Please refresh and try again.');
         }
       } else {
@@ -719,7 +720,7 @@ export const CourseDetail = () => {
             }
           }
         } catch (err) {
-          console.error('Error updating lessons:', err);
+          logger.error('Error updating lessons:', err);
           alert('Failed to update lessons. Please refresh and try again.');
         }
       }
@@ -825,7 +826,7 @@ export const CourseDetail = () => {
         });
       }
     } catch (error: any) {
-      console.error('Error saving module:', error);
+      logger.error('Error saving module:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to save module. Please try again.",
@@ -905,10 +906,10 @@ export const CourseDetail = () => {
       }
     });
     
-    console.log('Saving lesson:', { lessonId, title, moduleIndex, lessonIndex });
+    logger.debug('Saving lesson:', { lessonId, title, moduleIndex, lessonIndex });
     
     if (moduleIndex === -1 || lessonIndex === -1) {
-      console.error('Could not find lesson to save', { lessonId, moduleIndex, lessonIndex });
+      logger.error('Could not find lesson to save', { lessonId, moduleIndex, lessonIndex });
       return;
     }
     
@@ -919,7 +920,7 @@ export const CourseDetail = () => {
     try {
       if (isNew) {
         // This is a new lesson, insert it
-        console.log('Creating new lesson:', { 
+        logger.debug('Creating new lesson:', { 
           title: title.trim(), 
           module_id: module.id, 
           position: lesson.position 
@@ -939,7 +940,7 @@ export const CourseDetail = () => {
           
         if (error) throw error;
         
-        console.log('Lesson created successfully:', data);
+        logger.debug('Lesson created successfully:', data);
         
         // Update modules array with real ID from database
         const updatedModules = [...modules];
@@ -970,7 +971,7 @@ export const CourseDetail = () => {
         });
       }
     } catch (error: any) {
-      console.error('Error saving lesson:', error);
+      logger.error('Error saving lesson:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to save lesson. Please try again.",
@@ -996,7 +997,7 @@ export const CourseDetail = () => {
     });
     
     if (moduleIndex === -1 || lessonIndex === -1) {
-      console.error('Could not find lesson to cancel', { lessonId });
+      logger.error('Could not find lesson to cancel', { lessonId });
       setInlineEditingLessonId(null);
       return;
     }
@@ -1067,7 +1068,7 @@ export const CourseDetail = () => {
       loadData();
       setIsCourseModalOpen(false);
     } catch (error) {
-      console.error('Error updating course:', error);
+      logger.error('Error updating course:', error);
       toast({
         title: "Error",
         description: `Failed to update course: ${error.message}`,
@@ -1109,7 +1110,7 @@ export const CourseDetail = () => {
           }
         }
       } catch (error) {
-        console.error('Error fetching subjects:', error);
+        logger.error('Error fetching subjects:', error);
       }
     };
     

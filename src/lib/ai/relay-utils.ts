@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { supabase } from '../supabase';
 import { AIResponse } from '@/types';
 import { handleSessionExpiration } from '../auth';
@@ -16,7 +17,7 @@ export async function callAIRelay(
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      console.error('🚫 No active session found');
+      logger.error('🚫 No active session found');
       // Handle session expiration
       handleSessionExpiration();
       throw new Error('Your session has expired. Please sign in again.');
@@ -33,7 +34,7 @@ export async function callAIRelay(
     const baseUrl = new URL(import.meta.env.VITE_SUPABASE_URL).origin;
     const url = `${baseUrl}/functions/v1/chat-relay`;
 
-    console.log('🚀 Sending AI Relay Request:', {
+    logger.debug('🚀 Sending AI Relay Request:', {
       url,
       provider,
       model,
@@ -61,7 +62,7 @@ export async function callAIRelay(
 
       // Check for auth errors first
       if (response.status === 401 || response.status === 403) {
-        console.error('❌ Authentication error:', response.status);
+        logger.error('❌ Authentication error:', response.status);
         
         // Get specific error details if available
         let errorDetails = "Your session has expired.";
@@ -72,7 +73,7 @@ export async function callAIRelay(
           } else if (errorData?.message) {
             errorDetails = errorData.message;
           }
-          console.log('Auth error details:', errorDetails);
+          logger.debug('Auth error details:', errorDetails);
         } catch (e) {
           // Unable to parse error details, use default message
         }
@@ -92,7 +93,7 @@ export async function callAIRelay(
             }
           }
         } catch (e) {
-          console.error('Error extracting message to preserve:', e);
+          logger.error('Error extracting message to preserve:', e);
         }
         
         // Handle session expiration with a slight delay to allow error to be visible
@@ -125,7 +126,7 @@ export async function callAIRelay(
           throw jsonError;
         }
       } catch (error) {
-        console.error('❌ Response Parsing Error:', error);
+        logger.error('❌ Response Parsing Error:', error);
         throw error;
       }
 
@@ -148,7 +149,7 @@ export async function callAIRelay(
         throw new Error(`AI Relay failed: ${data.error?.message || data.error || response.statusText}`);
       }
 
-      console.log('✅ AI Relay Success:', {
+      logger.debug('✅ AI Relay Success:', {
         status: response.status,
         dataLength: JSON.stringify(data).length
       });
@@ -157,7 +158,7 @@ export async function callAIRelay(
     } catch (error) {
       // Specific handling for AbortController timeout
       if (error instanceof DOMException && error.name === 'AbortError') {
-        console.error('⏱️ AI Relay Timeout: Request aborted after 90 seconds');
+        logger.error('⏱️ AI Relay Timeout: Request aborted after 90 seconds');
         throw new Error("The AI service is taking too long to respond. Please try again later.");
       }
       
@@ -181,7 +182,7 @@ export async function callAIRelay(
       throw error;
     }
   } catch (error) {
-    console.error('🔥 AI Relay Request Setup Error:', error);
+    logger.error('🔥 AI Relay Request Setup Error:', error);
     throw error;
   }
 }

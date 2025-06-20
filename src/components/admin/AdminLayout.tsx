@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
@@ -34,18 +35,18 @@ export const AdminLayout = ({ children, title }: AdminLayoutProps) => {
       try {
         // Set up a timeout to prevent infinite loading
         const timeoutId = setTimeout(() => {
-          console.log("Admin check timeout occurred after 8 seconds");
+          logger.debug("Admin check timeout occurred after 8 seconds");
           setTimeoutOccurred(true);
           setIsLoading(false);
         }, 8000);
 
         // Try multiple methods to determine admin status
-        console.log("Checking admin status for user:", user);
+        logger.debug("Checking admin status for user:", user);
         setCheckStatus("Checking user metadata...");
         
         // Method 1: Check user metadata
         if (user.user_metadata?.is_admin) {
-          console.log("Admin found via user_metadata.is_admin");
+          logger.debug("Admin found via user_metadata.is_admin");
           setIsAdmin(true);
           setIsLoading(false);
           clearTimeout(timeoutId);
@@ -54,7 +55,7 @@ export const AdminLayout = ({ children, title }: AdminLayoutProps) => {
         
         // Method 2: Check for legacy admin field
         if (user.user_metadata?.admin) {
-          console.log("Admin found via user_metadata.admin");
+          logger.debug("Admin found via user_metadata.admin");
           setIsAdmin(true);
           setIsLoading(false);
           clearTimeout(timeoutId);
@@ -63,7 +64,7 @@ export const AdminLayout = ({ children, title }: AdminLayoutProps) => {
 
         // Method 3: Check isAdmin property directly (if it exists)
         if ((user as any).isAdmin) {
-          console.log("Admin found via user.isAdmin property");
+          logger.debug("Admin found via user.isAdmin property");
           setIsAdmin(true);
           setIsLoading(false);
           clearTimeout(timeoutId);
@@ -79,27 +80,27 @@ export const AdminLayout = ({ children, title }: AdminLayoutProps) => {
           .single();
           
         if (error) {
-          console.error("Error checking admin status from profiles:", error);
+          logger.error("Error checking admin status from profiles:", error);
           setCheckStatus("Checking admin RPC function...");
           // Try the RPC function as a fallback
           const { data: rpcData, error: rpcError } = await supabase
             .rpc('is_user_admin', { user_id: user.id });
             
           if (rpcError) {
-            console.error("Error checking admin status via RPC:", rpcError);
+            logger.error("Error checking admin status via RPC:", rpcError);
             setIsAdmin(false);
           } else {
-            console.log("Admin status via RPC:", rpcData);
+            logger.debug("Admin status via RPC:", rpcData);
             setIsAdmin(rpcData);
           }
         } else {
-          console.log("Admin status from profiles table:", data?.is_admin);
+          logger.debug("Admin status from profiles table:", data?.is_admin);
           setIsAdmin(data?.is_admin || false);
         }
         
         clearTimeout(timeoutId);
       } catch (error) {
-        console.error("Error checking admin status:", error);
+        logger.error("Error checking admin status:", error);
         setIsAdmin(false);
       } finally {
         setIsLoading(false);

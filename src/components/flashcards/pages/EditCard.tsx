@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Save, ArrowLeft, ExternalLink, ChevronLeft, Plus, X, Tag } from 'lucide-react';
@@ -384,7 +385,7 @@ export default function EditCard() {
             if (cachedData && 
                 (cachedData.data && Array.isArray(cachedData.data)) || 
                 key.includes('flashcard')) {
-              console.log(`Clearing potentially stale cache: ${key}`);
+              logger.debug(`Clearing potentially stale cache: ${key}`);
               localStorage.removeItem(key);
             }
           } catch (e) {

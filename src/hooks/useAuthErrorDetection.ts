@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -25,7 +26,7 @@ export function useAuthErrorDetection() {
     const errorDescription = params.get('error_description');
 
     if (error || errorCode) {
-      console.log('Auth error detected in URL:', { error, errorCode, errorDescription });
+      logger.debug('Auth error detected in URL:', { error, errorCode, errorDescription });
       
       // Map error codes to user-friendly messages
       let friendlyMessage = errorDescription || 'An authentication error occurred';

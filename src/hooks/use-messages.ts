@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase, logError } from '@/lib/supabase';
@@ -127,7 +128,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       try {
         // Only proceed if we have a valid user ID
         if (!user?.id) {
-          console.debug('useMessages: No user ID available yet, skipping user data load');
+          logger.debug('useMessages: No user ID available yet, skipping user data load');
           return;
         }
         
@@ -140,7 +141,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
         const subscription = await hasActiveSubscription(user.id);
         setIsSubscribed(subscription);
       } catch (error) {
-        console.error('Error loading user data:', error);
+        logger.error('Error loading user data:', error);
       }
     };
     
@@ -150,20 +151,20 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
   // Function to generate a thread title based on user messages
   const generateThreadTitle = async (userMessages: Message[]): Promise<string> => {
     if (!aiProvider.current || userMessages.length === 0) {
-      console.error('Cannot generate thread title: missing AI provider or no user messages');
+      logger.error('Cannot generate thread title: missing AI provider or no user messages');
       return 'New Conversation';
     }
 
     try {
-      console.debug(`Starting thread title generation from ${userMessages.length} user messages`);
+      logger.debug(`Starting thread title generation from ${userMessages.length} user messages`);
       const firstUserMessage = userMessages[0].content;
-      console.debug(`Using first message for title generation: "${firstUserMessage.substring(0, 30)}${firstUserMessage.length > 30 ? '...' : ''}"`);
+      logger.debug(`Using first message for title generation: "${firstUserMessage.substring(0, 30)}${firstUserMessage.length > 30 ? '...' : ''}"`);
       
       const title = await aiProvider.current.generateThreadTitle(firstUserMessage);
-      console.debug(`Successfully generated title: "${title}"`);
+      logger.debug(`Successfully generated title: "${title}"`);
       return title;
     } catch (error) {
-      console.error('Error generating thread title:', error);
+      logger.error('Error generating thread title:', error);
       return 'New Conversation';
     }
   };
@@ -177,13 +178,13 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       const hasReachedLimit = count >= FREE_MESSAGE_LIMIT;
       
       if (hasReachedLimit) {
-        console.log(`User has reached message limit (${count}/${FREE_MESSAGE_LIMIT})`);
+        logger.debug(`User has reached message limit (${count}/${FREE_MESSAGE_LIMIT})`);
         
         // Check if user has an active subscription - using user.id directly
         const hasSubscription = await hasActiveSubscription(user.id);
         
         if (!hasSubscription) {
-          console.log('User has reached message limit');
+          logger.debug('User has reached message limit');
           // Save the message they were trying to send
           setPreservedMessage(content);
           setShowPaywall(true);
@@ -191,13 +192,13 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
         }
         
         // User has subscription, bypassing message limit
-        console.log('User has subscription, bypassing message limit');
+        logger.debug('User has subscription, bypassing message limit');
         return false;
       }
       
       return false;
     } catch (err) {
-      console.error('Error checking message limit:', err);
+      logger.error('Error checking message limit:', err);
       return false;
     }
   }, [user]);
@@ -207,7 +208,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     // Don't refresh if no thread ID
     if (!threadId) {
       if (process.env.NODE_ENV === 'development') {
-        console.debug("[useMessages] No thread ID, skipping refresh");
+        logger.debug("[useMessages] No thread ID, skipping refresh");
       }
       return;
     }
@@ -226,7 +227,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     const currentThreadId = threadId;
     
     if (process.env.NODE_ENV === 'development') {
-      console.debug(`[useMessages] ${forceRefresh ? 'Force refreshing' : 'Refreshing'} messages for thread: ${currentThreadId} (previous: ${previousThreadId})`);
+      logger.debug(`[useMessages] ${forceRefresh ? 'Force refreshing' : 'Refreshing'} messages for thread: ${currentThreadId} (previous: ${previousThreadId})`);
     }
 
     try {
@@ -250,27 +251,27 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
           userMessageCountRef.current = data.filter(msg => msg.role === 'user').length;
           
           // Add debug logging for the user message counter
-          console.log(`[Thread ${threadId}] User message count set to ${userMessageCountRef.current}`);
+          logger.debug(`[Thread ${threadId}] User message count set to ${userMessageCountRef.current}`);
           
           // If we haven't sent any messages yet and there are no messages, flag for thread title generation
           isFirstMessageRef.current = userMessageCountRef.current === 0;
           
           setMessages(data);
           if (process.env.NODE_ENV === 'development') {
-            console.debug(`[useMessages] Loaded ${data.length} messages for thread ${currentThreadId}`);
+            logger.debug(`[useMessages] Loaded ${data.length} messages for thread ${currentThreadId}`);
           }
         } else {
           // Set empty array if no data
           setMessages([]);
           if (process.env.NODE_ENV === 'development') {
-            console.debug(`[useMessages] No messages found for thread ${currentThreadId}`);
+            logger.debug(`[useMessages] No messages found for thread ${currentThreadId}`);
           }
         }
       } else {
-        console.debug(`[useMessages] Thread changed during fetch, discarding results for ${currentThreadId}, current thread is ${threadId}`);
+        logger.debug(`[useMessages] Thread changed during fetch, discarding results for ${currentThreadId}, current thread is ${threadId}`);
       }
     } catch (error) {
-      console.error('[useMessages] Error loading messages:', error);
+      logger.error('[useMessages] Error loading messages:', error);
       await logError(error, 'Load Messages');
       
       toast({
@@ -283,7 +284,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       if (threadId === currentThreadId) {
         setLoading(false);
       } else {
-        console.debug(`[useMessages] Thread changed during fetch, not updating loading state`);
+        logger.debug(`[useMessages] Thread changed during fetch, not updating loading state`);
       }
     }
   }, [threadId, toast]);
@@ -291,7 +292,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
   // Reset messages when threadId changes to prevent stale data showing
   useEffect(() => {
     if (threadId && threadId !== lastFetchedThreadId.current) {
-      console.debug(`[useMessages] Thread ID changed from ${lastFetchedThreadId.current} to ${threadId}, forcing full refresh`);
+      logger.debug(`[useMessages] Thread ID changed from ${lastFetchedThreadId.current} to ${threadId}, forcing full refresh`);
       
       // Clear messages immediately when switching threads
       setMessages([]);
@@ -330,7 +331,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     const startPollingFallback = () => {
       if (pollingTimer) return; // Already polling
       
-      console.warn('[useMessages] Starting polling fallback for thread:', threadId);
+      logger.warn('[useMessages] Starting polling fallback for thread', { threadId });
       supabaseMonitor.setPollingFallback(true);
       
       // Poll every 3 seconds for new messages
@@ -350,7 +351,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
             
             // Check if this is a new message we haven't seen
             if (!addedMessageIds.current.has(latestMessage.id)) {
-              console.debug('[useMessages] Polling detected new message:', latestMessage.id);
+              logger.debug('[useMessages] Polling detected new message:', latestMessage.id);
               
               // Add to our tracking set
               addedMessageIds.current.add(latestMessage.id);
@@ -358,7 +359,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
               // Update the user message counter
               if (latestMessage.role === 'user') {
                 userMessageCountRef.current++;
-                console.log(`[Thread ${threadId}] User message count incremented to ${userMessageCountRef.current}`);
+                logger.debug(`[Thread ${threadId}] User message count incremented to ${userMessageCountRef.current}`);
               }
               
               // Add to messages
@@ -385,7 +386,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
             }
           }
         } catch (error) {
-          console.error('[useMessages] Polling fallback error:', error);
+          logger.error('[useMessages] Polling fallback error:', error);
         }
       }, 3000);
     };
@@ -396,12 +397,12 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
         clearInterval(pollingTimer);
         pollingTimer = null;
         supabaseMonitor.setPollingFallback(false);
-        console.debug('[useMessages] Stopped polling fallback');
+        logger.debug('[useMessages] Stopped polling fallback');
       }
     };
     
     // Set up realtime subscription using RealtimeManager
-    console.debug(`[useMessages] Setting up real-time subscription for thread: ${threadId}`);
+    logger.debug(`[useMessages] Setting up real-time subscription for thread: ${threadId}`);
     supabaseMonitor.recordConnectionAttempt();
     
     try {
@@ -413,7 +414,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
           onInsert: async (payload) => {
             const newMessage = payload.new as Message;
             if (process.env.NODE_ENV === 'development') {
-              console.debug('[useMessages] Real-time message received:', newMessage.id);
+              logger.debug('[useMessages] Real-time message received', { messageId: newMessage.id });
             }
             
             // Only process if we haven't seen this message ID before
@@ -424,7 +425,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
               // Update the user message counter for title generation
               if (newMessage.role === 'user') {
                 userMessageCountRef.current++;
-                console.log(`[Thread ${threadId}] User message count incremented to ${userMessageCountRef.current}`);
+                logger.debug(`[Thread ${threadId}] User message count incremented to ${userMessageCountRef.current}`);
               }
               
               // Track the message received event
@@ -466,22 +467,22 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
         user?.id
       );
       
-      console.debug('[useMessages] Real-time subscription established successfully');
+      logger.debug('[useMessages] Real-time subscription established successfully');
       
       // Monitor connection state and fallback to polling if needed
       const connectionStateUnsubscribe = realtimeManager.onStatusChange((state) => {
         if (state.fallbackPolling && !pollingTimer) {
-          console.warn('[useMessages] RealtimeManager enabled fallback polling, starting local polling');
+          logger.warn('[useMessages] RealtimeManager enabled fallback polling, starting local polling');
           startPollingFallback();
         } else if (!state.fallbackPolling && pollingTimer) {
-          console.debug('[useMessages] RealtimeManager disabled fallback polling, stopping local polling');
+          logger.debug('[useMessages] RealtimeManager disabled fallback polling, stopping local polling');
           stopPollingFallback();
         }
       });
       
       // Cleanup function
       return () => {
-        console.debug('[useMessages] Cleaning up real-time subscription');
+        logger.debug('[useMessages] Cleaning up real-time subscription');
         
         stopPollingFallback();
         
@@ -493,10 +494,10 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       };
       
     } catch (error) {
-      console.error('[useMessages] Error setting up real-time subscription:', error);
+      logger.error('[useMessages] Error setting up real-time subscription:', error);
       
       // Immediately fall back to polling if subscription setup fails
-      console.warn('[useMessages] Real-time subscription failed, falling back to polling');
+      logger.warn('[useMessages] Real-time subscription failed, falling back to polling');
       startPollingFallback();
       
       // Return cleanup function for polling
@@ -555,7 +556,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
           currentThreadTitle = threadData.title;
         }
       } catch (error) {
-        console.error('Error fetching thread title:', error);
+        logger.error('Error fetching thread title:', error);
       }
 
       // Send user message to server
@@ -594,19 +595,19 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       }
 
       // Increment user message count in database and update local state
-      console.log('Incrementing message count after sending message');
+      logger.debug('Incrementing message count after sending message');
       try {
         const newCount = await incrementUserMessageCount();
-        console.log('Message count updated to:', newCount);
+        logger.debug('Message count updated', { newCount });
         setMessageCount(newCount);
         try {
           const newLifetimeCount = await getLifetimeMessageCount();
           setLifetimeMessageCount(newLifetimeCount);
         } catch (lifetimeError) {
-          console.error('Failed to update lifetime count:', lifetimeError);
+          logger.error('Failed to update lifetime count:', lifetimeError);
         }
       } catch (countError) {
-        console.error('Failed to update message count:', countError);
+        logger.error('Failed to update message count:', countError);
       }
       
       userMessageCountRef.current++;
@@ -634,7 +635,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
          // Special recovery case: responding to a user in a thread with default title
          (isRespondingToUserMessage && hasDefaultTitle));
       
-      console.log(`[Thread ${threadId}] Title generation conditions:`, {
+      logger.debug(`[Thread ${threadId}] Title generation conditions:`, {
         isFirstUserMessage,
         hasDefaultTitle,
         isRespondingToUserMessage,
@@ -651,23 +652,23 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
             try {
               // Mark title generation as starting
               setIsTitleGenerating(true);
-              console.log(`[Thread ${threadId}] Starting parallel title generation...`);
+              logger.debug(`[Thread ${threadId}] Starting parallel title generation...`);
               
               const userMessagesForTitle = conversationHistory.filter(msg => msg.role === 'user');
-              console.log(`[Thread ${threadId}] Title generation input: ${userMessagesForTitle.length} user messages`);
+              logger.debug(`[Thread ${threadId}] Title generation input: ${userMessagesForTitle.length} user messages`);
               
               const titleStartTime = Date.now();
               const generatedTitle = await generateThreadTitle(userMessagesForTitle);
               const titleElapsedTime = Date.now() - titleStartTime;
-              console.log(`[Thread ${threadId}] Generated title in ${titleElapsedTime}ms: "${generatedTitle}"`);
+              logger.debug(`[Thread ${threadId}] Generated title in ${titleElapsedTime}ms: "${generatedTitle}"`);
               
-              console.log(`[Thread ${threadId}] Updating thread title in database...`);
+              logger.debug(`[Thread ${threadId}] Updating thread title in database...`);
               await onThreadTitleGenerated(generatedTitle);
-              console.log(`[Thread ${threadId}] Thread title update completed: "${generatedTitle}"`);
+              logger.debug(`[Thread ${threadId}] Thread title update completed: "${generatedTitle}"`);
               
               return { success: true, title: generatedTitle };
             } catch (error) {
-              console.error(`[Thread ${threadId}] Error in parallel title generation:`, error);
+              logger.error(`[Thread ${threadId}] Error in parallel title generation:`, error);
               return { success: false, error };
             } finally {
               // Always reset title generation state
@@ -679,7 +680,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       // Generate AI response (always happens)
       const responsePromise: Promise<ResponseGenerationResult> = (async () => {
         try {
-          console.log(`[Thread ${threadId}] Starting AI response generation...`);
+          logger.debug(`[Thread ${threadId}] Starting AI response generation...`);
           const responseStartTime = Date.now();
           
           // Create optimistic AI message for streaming (no timestamp until complete)
@@ -692,32 +693,43 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
             created_at: '' // No timestamp until response is complete
           };
           
-          // Add optimistic AI message to UI
+          // Don't add the message to UI yet - wait for first chunk
           addedMessageIds.current.add(optimisticAiMessage.id);
-          setMessages(prev => [...prev, optimisticAiMessage]);
+          let firstChunkReceived = false;
           
           let aiResponse = '';
           
           // Use streaming if available, otherwise fall back to regular generation
           if (aiProvider.current.generateStreamingResponse) {
-            console.log(`[Thread ${threadId}] Using streaming response...`);
+            logger.debug(`[Thread ${threadId}] Using streaming response...`);
+            
+            const streamStartTime = Date.now();
+            let firstChunkTime = 0;
             
             aiResponse = await aiProvider.current.generateStreamingResponse(
               content, 
               conversationHistory,
               (chunk: string) => {
-                // Update the optimistic message with each chunk
-                setMessages(prev => 
-                  prev.map(msg => 
-                    msg.id === optimisticAiMessage.id 
-                      ? { ...msg, content: msg.content + chunk }
-                      : msg
-                  )
-                );
+                // On first chunk, add the message to UI
+                if (!firstChunkReceived) {
+                  firstChunkReceived = true;
+                  firstChunkTime = Date.now() - streamStartTime;
+                  logger.info(`[Thread ${threadId}] First chunk received after ${firstChunkTime}ms`);
+                  setMessages(prev => [...prev, { ...optimisticAiMessage, content: chunk }]);
+                } else {
+                  // Update the optimistic message with each subsequent chunk
+                  setMessages(prev => 
+                    prev.map(msg => 
+                      msg.id === optimisticAiMessage.id 
+                        ? { ...msg, content: msg.content + chunk }
+                        : msg
+                    )
+                  );
+                }
               }
             );
           } else {
-            console.log(`[Thread ${threadId}] Using non-streaming response...`);
+            logger.debug(`[Thread ${threadId}] Using non-streaming response...`);
             aiResponse = await aiProvider.current.generateResponse(content, conversationHistory);
             
             // Update optimistic message with full response
@@ -732,7 +744,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
           
           const responseElapsedTime = Date.now() - responseStartTime;
           const responseCompletionTime = new Date().toISOString();
-          console.log(`[Thread ${threadId}] Generated AI response in ${responseElapsedTime}ms`);
+          logger.debug(`[Thread ${threadId}] Generated AI response in ${responseElapsedTime}ms`);
           
           // First update the optimistic message with completion timestamp
           setMessages(prev => 
@@ -794,7 +806,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
           
           return { success: true, response: aiResponse };
         } catch (error) {
-          console.error(`[Thread ${threadId}] Error generating AI response:`, error);
+          logger.error(`[Thread ${threadId}] Error generating AI response:`, error);
           
           // Remove optimistic AI message on error
           setMessages(prev => prev.filter(msg => !msg.id.startsWith('optimistic-ai-')));
@@ -810,7 +822,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       ]);
       
       // Log timing results
-      console.log(`[Thread ${threadId}] Parallel operations completed:`, {
+      logger.debug(`[Thread ${threadId}] Parallel operations completed:`, {
         titleSuccess: titleResult.status === 'fulfilled' && titleResult.value.success,
         responseSuccess: responseResult.status === 'fulfilled' && responseResult.value.success,
       });
@@ -821,7 +833,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
           ? responseResult.reason 
           : responseResult.value.error;
         
-        console.error(`[Thread ${threadId}] AI response failed:`, error);
+        logger.error(`[Thread ${threadId}] AI response failed:`, error);
         throw error; // Will be caught by outer try/catch
       }
       
@@ -842,7 +854,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       // Remove optimistic message on error
       setMessages(prev => prev.filter(msg => msg.id !== optimisticUserMessage.id));
       
-      console.error('Error in _handleMessageProcessingAndAIResponse:', error);
+      logger.error('Error in _handleMessageProcessingAndAIResponse:', error);
       await logError(error, 'Background Message Processing');
       
       let errorMessage = 'Failed to process message. Please try again.';
@@ -882,7 +894,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     // Check message limit before attempting to send
     const hasReachedLimit = await checkMessageLimit(content);
     if (hasReachedLimit) {
-      console.log('User has reached message limit');
+      logger.debug('User has reached message limit');
       return null;
     }
     
@@ -893,7 +905,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
     try {
       const isValid = await validateSessionToken();
       if (!isValid) {
-        console.error('🚫 Session token invalid during message sending');
+        logger.error('🚫 Session token invalid during message sending');
         toast({
           title: 'Session expired',
           description: 'Your session has expired. Please sign in again.',
@@ -904,14 +916,14 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
         return null;
       }
     } catch (error) {
-      console.error('Error validating session token before sending message:', error);
+      logger.error('Error validating session token before sending message:', error);
     }
     
     setPaywallActive(true); // Prevent other toasts
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      console.error('Error fetching user or no user found:', userError);
+      logger.error('Error fetching user or no user found:', userError);
       toast({ title: 'Authentication Error', description: 'Could not verify user. Please sign in again.', variant: 'destructive'});
       // Optionally, trigger session expiration
       // handleSessionExpiration(content); 
@@ -959,7 +971,7 @@ export function useMessages(threadId: string | null, onFirstMessage?: (message: 
       // This catch is for unhandled promise rejections from the background task itself
       // Errors during the process should ideally be handled within _handleMessageProcessingAndAIResponse
       // (e.g., removing optimistic message, showing toast)
-      console.error('Unhandled error from background message processing:', error);
+      logger.error('Unhandled error from background message processing:', error);
       await logError(error, 'Unhandled Background Send Message');
       // Ensure optimistic message is cleared if something went really wrong
       setMessages(prev => prev.filter(msg => msg.id !== optimisticUserMessage.id));

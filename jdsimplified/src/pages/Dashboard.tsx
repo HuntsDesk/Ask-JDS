@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -156,7 +157,7 @@ const Dashboard = () => {
         
         setCourses(processedCourses);
       } catch (err) {
-        console.error('Error fetching courses:', err);
+        logger.error('Error fetching courses:', err);
         setError('Failed to load courses');
       } finally {
         setIsLoading(false);

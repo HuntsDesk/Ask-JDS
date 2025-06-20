@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { Search, Plus, Filter, Sparkles, FileEdit, Trash2, Check, X, AlertCircle, Download, MoveRight, RefreshCw } from 'lucide-react';
 import AdminLayout from './AdminLayout';
@@ -160,7 +161,7 @@ export const AdminFlashcards = () => {
 
   const loadData = async () => {
     try {
-      console.log('Loading flashcard data...');
+      logger.debug('Loading flashcard data...');
       setLoading(prev => ({ ...prev, flashcards: true }));
       setError(prev => ({ ...prev, flashcards: null }));
       
@@ -174,7 +175,7 @@ export const AdminFlashcards = () => {
         if (collectionsError) throw collectionsError;
         setCollections(collectionsData || []);
         setLoading(prev => ({ ...prev, collections: false }));
-        console.log('Loaded collections:', collectionsData?.length || 0);
+        logger.debug('Loaded collections:', collectionsData?.length || 0);
       } else {
         setLoading(prev => ({ ...prev, collections: false }));
       }
@@ -188,7 +189,7 @@ export const AdminFlashcards = () => {
         if (subjectsError) throw subjectsError;
         setSubjects(subjectsData || []);
         setLoading(prev => ({ ...prev, subjects: false }));
-        console.log('Loaded subjects:', subjectsData?.length || 0);
+        logger.debug('Loaded subjects:', subjectsData?.length || 0);
       } else {
         setLoading(prev => ({ ...prev, subjects: false }));
       }
@@ -256,13 +257,13 @@ export const AdminFlashcards = () => {
       const from = (currentPage - 1) * cardsPerPage;
       const to = from + cardsPerPage - 1;
       
-      console.log('Fetching flashcards with pagination:', { from, to });
+      logger.debug('Fetching flashcards with pagination:', { from, to });
       const { data, error } = await query
         .order('created_at', { ascending: false })
         .range(from, to);
         
       if (error) throw error;
-      console.log('Received flashcards data:', data?.length || 0);
+      logger.debug('Received flashcards data:', data?.length || 0);
       
       // Process results
       const processedFlashcards = [];
@@ -302,12 +303,12 @@ export const AdminFlashcards = () => {
               subjects
             });
           } catch (err) {
-            console.error('Error processing flashcard:', err, flashcard);
+            logger.error('Error processing flashcard:', err, flashcard);
           }
         }
       }
       
-      console.log('Processed flashcards:', processedFlashcards.length);
+      logger.debug('Processed flashcards:', processedFlashcards.length);
       
       // Count total
       try {
@@ -318,10 +319,10 @@ export const AdminFlashcards = () => {
         if (countError) throw countError;
         
         const totalPages = Math.max(1, Math.ceil((count || 0) / cardsPerPage));
-        console.log('Total pages:', totalPages, 'from count:', count);
+        logger.debug('Total pages:', totalPages, 'from count:', count);
         setTotalPages(totalPages);
       } catch (countErr) {
-        console.error('Error counting flashcards:', countErr);
+        logger.error('Error counting flashcards:', countErr);
         setTotalPages(1);
       }
       
@@ -336,15 +337,15 @@ export const AdminFlashcards = () => {
           
         if (statsError) throw statsError;
         if (statsData) {
-          console.log('Stats data received');
+          logger.debug('Stats data received');
           setStats(statsData);
         }
       } catch (statsErr) {
-        console.error('Error fetching stats:', statsErr);
+        logger.error('Error fetching stats:', statsErr);
       }
       
     } catch (err) {
-      console.error('Error in loadData:', err);
+      logger.error('Error in loadData:', err);
       setError(prev => ({ ...prev, flashcards: err.message }));
       toast({
         variant: "destructive",
@@ -352,7 +353,7 @@ export const AdminFlashcards = () => {
         description: err.message,
       });
     } finally {
-      console.log('Finished loading flashcard data');
+      logger.debug('Finished loading flashcard data');
       setLoading(prev => ({ ...prev, flashcards: false }));
     }
   };
@@ -434,7 +435,7 @@ export const AdminFlashcards = () => {
       
       setIsEditDialogOpen(false);
     } catch (err: any) {
-      console.error('Error updating flashcard:', err);
+      logger.error('Error updating flashcard:', err);
       setError(prev => ({ ...prev, edit: err.message }));
       
       toast({
@@ -530,7 +531,7 @@ export const AdminFlashcards = () => {
       setDeleteCardId(null);
       setDeletingCard(null);
     } catch (err: any) {
-      console.error('Error deleting flashcard:', err);
+      logger.error('Error deleting flashcard:', err);
       
       toast({
         title: "Error",

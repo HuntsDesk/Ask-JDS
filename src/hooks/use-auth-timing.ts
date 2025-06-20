@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { debugLogger } from '@/lib/debug-logger';

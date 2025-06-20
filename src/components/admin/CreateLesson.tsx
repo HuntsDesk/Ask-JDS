@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,7 +81,7 @@ export const CreateLesson = ({
         
         setModules(processedModules);
       } catch (err: any) {
-        console.error('Error fetching modules:', err);
+        logger.error('Error fetching modules:', err);
         setError(`Failed to load modules: ${err.message}`);
       } finally {
         setLoading(prev => ({ ...prev, modules: false }));
@@ -120,7 +121,7 @@ export const CreateLesson = ({
             });
           }
         } catch (err: any) {
-          console.error('Error fetching lesson:', err);
+          logger.error('Error fetching lesson:', err);
           setError(`Failed to load lesson data: ${err.message}`);
         } finally {
           setLoading(prev => ({ ...prev, fetch: false }));
@@ -160,7 +161,7 @@ export const CreateLesson = ({
       
       setLesson(prev => ({ ...prev, position: nextPosition }));
     } catch (err) {
-      console.error('Error determining next position:', err);
+      logger.error('Error determining next position:', err);
       // Default to position 1 if there's an error
       setLesson(prev => ({ ...prev, position: 1 }));
     }
@@ -228,7 +229,7 @@ export const CreateLesson = ({
       
       onSuccess();
     } catch (err: any) {
-      console.error('Error saving lesson:', err);
+      logger.error('Error saving lesson:', err);
       setError(`Failed to save lesson: ${err.message}`);
       
       toast({

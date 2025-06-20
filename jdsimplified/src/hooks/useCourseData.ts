@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
@@ -43,7 +44,7 @@ export const useCourseData = (courseId: string | undefined) => {
         }));
         setLessons(lessonsData);
       } catch (error) {
-        console.error('Error fetching course data:', error);
+        logger.error('Error fetching course data:', error);
         setError('An error occurred while loading the course content.');
         toast({
           title: 'Error loading course',

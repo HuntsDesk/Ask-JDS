@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 
 // Storage key prefix
@@ -25,7 +26,7 @@ export function usePersistedState<T>(key: string, defaultValue: T): [T, (value: 
       const stored = localStorage.getItem(storageKey);
       return stored ? JSON.parse(stored) : defaultValue;
     } catch (error) {
-      console.error(`Error loading persisted state '${key}':`, error);
+      logger.error(`Error loading persisted state '${key}':`, error);
       return defaultValue;
     }
   });
@@ -43,7 +44,7 @@ export function usePersistedState<T>(key: string, defaultValue: T): [T, (value: 
         localStorage.setItem(storageKey, JSON.stringify(value));
       }
     } catch (error) {
-      console.error(`Error persisting state '${key}':`, error);
+      logger.error(`Error persisting state '${key}':`, error);
     }
   }, [storageKey, value]);
   
@@ -68,7 +69,7 @@ export function useSessionPersistedState<T>(key: string, defaultValue: T): [T, (
       const stored = sessionStorage.getItem(storageKey);
       return stored ? JSON.parse(stored) : defaultValue;
     } catch (error) {
-      console.error(`Error loading session persisted state '${key}':`, error);
+      logger.error(`Error loading session persisted state '${key}':`, error);
       return defaultValue;
     }
   });
@@ -86,7 +87,7 @@ export function useSessionPersistedState<T>(key: string, defaultValue: T): [T, (
         sessionStorage.setItem(storageKey, JSON.stringify(value));
       }
     } catch (error) {
-      console.error(`Error persisting session state '${key}':`, error);
+      logger.error(`Error persisting session state '${key}':`, error);
     }
   }, [storageKey, value]);
   

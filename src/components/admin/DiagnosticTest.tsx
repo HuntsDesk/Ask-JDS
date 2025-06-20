@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { AdminLayout } from './AdminLayout';
@@ -40,7 +41,7 @@ export default function DiagnosticTest() {
 
     // Test admin_connection_test
     try {
-      console.log("Testing admin_connection_test...");
+      logger.debug("Testing admin_connection_test...");
       const { data, error } = await supabase.rpc('admin_connection_test');
       if (error) throw error;
       newResults[0] = {
@@ -49,7 +50,7 @@ export default function DiagnosticTest() {
         data
       };
     } catch (error) {
-      console.error("admin_connection_test error:", error);
+      logger.error("admin_connection_test error:", error);
       newResults[0] = {
         name: 'admin_connection_test',
         status: 'error',
@@ -59,7 +60,7 @@ export default function DiagnosticTest() {
 
     // Test get_course_statistics
     try {
-      console.log("Testing get_course_statistics...");
+      logger.debug("Testing get_course_statistics...");
       const { data, error } = await supabase.rpc('get_course_statistics');
       if (error) throw error;
       newResults[1] = {
@@ -68,7 +69,7 @@ export default function DiagnosticTest() {
         data
       };
     } catch (error) {
-      console.error("get_course_statistics error:", error);
+      logger.error("get_course_statistics error:", error);
       newResults[1] = {
         name: 'get_course_statistics',
         status: 'error',
@@ -78,7 +79,7 @@ export default function DiagnosticTest() {
 
     // Test get_flashcard_stats
     try {
-      console.log("Testing get_flashcard_stats...");
+      logger.debug("Testing get_flashcard_stats...");
       const { data, error } = await supabase.rpc('get_flashcard_stats');
       if (error) throw error;
       newResults[2] = {
@@ -87,7 +88,7 @@ export default function DiagnosticTest() {
         data
       };
     } catch (error) {
-      console.error("get_flashcard_stats error:", error);
+      logger.error("get_flashcard_stats error:", error);
       newResults[2] = {
         name: 'get_flashcard_stats',
         status: 'error',
@@ -97,7 +98,7 @@ export default function DiagnosticTest() {
 
     // Test get_total_users
     try {
-      console.log("Testing get_total_users...");
+      logger.debug("Testing get_total_users...");
       const { data, error } = await supabase.rpc('get_total_users');
       if (error) throw error;
       newResults[3] = {
@@ -106,7 +107,7 @@ export default function DiagnosticTest() {
         data
       };
     } catch (error) {
-      console.error("get_total_users error:", error);
+      logger.error("get_total_users error:", error);
       newResults[3] = {
         name: 'get_total_users',
         status: 'error',
@@ -116,7 +117,7 @@ export default function DiagnosticTest() {
 
     // Test is_admin directly
     try {
-      console.log("Testing user auth status...");
+      logger.debug("Testing user auth status...");
       const { data: { user } } = await supabase.auth.getUser();
       const isAdmin = user?.user_metadata?.is_admin === true;
       newResults[4] = {
@@ -125,7 +126,7 @@ export default function DiagnosticTest() {
         data: { isAdmin, userId: user?.id }
       };
     } catch (error) {
-      console.error("auth status error:", error);
+      logger.error("auth status error:", error);
       newResults[4] = {
         name: 'is_admin check',
         status: 'error',
@@ -135,7 +136,7 @@ export default function DiagnosticTest() {
     
     // Test browser detection
     try {
-      console.log("Testing browser detection...");
+      logger.debug("Testing browser detection...");
       const isSafariBrowser = isSafari();
       const userAgent = navigator.userAgent;
       
@@ -154,7 +155,7 @@ export default function DiagnosticTest() {
         }
       };
     } catch (error) {
-      console.error("browser detection error:", error);
+      logger.error("browser detection error:", error);
       newResults[5] = {
         name: 'browser detection',
         status: 'error',
@@ -173,7 +174,7 @@ export default function DiagnosticTest() {
     
     // Test 1: Fetch flashcards basic query
     try {
-      console.log("Testing basic flashcard fetch...");
+      logger.debug("Testing basic flashcard fetch...");
       const startTime = performance.now();
       
       const { data, error } = await supabase
@@ -193,7 +194,7 @@ export default function DiagnosticTest() {
         duration
       };
     } catch (error) {
-      console.error("Basic flashcard fetch error:", error);
+      logger.error("Basic flashcard fetch error:", error);
       newResults[0] = {
         name: 'fetch_flashcards_basic',
         status: 'error',
@@ -203,7 +204,7 @@ export default function DiagnosticTest() {
     
     // Test 2: Fetch collections
     try {
-      console.log("Testing collections fetch...");
+      logger.debug("Testing collections fetch...");
       const startTime = performance.now();
       
       const { data, error } = await supabase
@@ -223,7 +224,7 @@ export default function DiagnosticTest() {
         duration
       };
     } catch (error) {
-      console.error("Collections fetch error:", error);
+      logger.error("Collections fetch error:", error);
       newResults[1] = {
         name: 'fetch_collections',
         status: 'error',
@@ -233,7 +234,7 @@ export default function DiagnosticTest() {
     
     // Test 3: Fetch subjects
     try {
-      console.log("Testing subjects fetch...");
+      logger.debug("Testing subjects fetch...");
       const startTime = performance.now();
       
       const { data, error } = await supabase
@@ -253,7 +254,7 @@ export default function DiagnosticTest() {
         duration
       };
     } catch (error) {
-      console.error("Subjects fetch error:", error);
+      logger.error("Subjects fetch error:", error);
       newResults[2] = {
         name: 'fetch_subjects',
         status: 'error',
@@ -263,7 +264,7 @@ export default function DiagnosticTest() {
     
     // Test 4: Count flashcards
     try {
-      console.log("Testing flashcard count...");
+      logger.debug("Testing flashcard count...");
       const startTime = performance.now();
       
       const { count, error } = await supabase
@@ -282,7 +283,7 @@ export default function DiagnosticTest() {
         duration
       };
     } catch (error) {
-      console.error("Count flashcards error:", error);
+      logger.error("Count flashcards error:", error);
       newResults[3] = {
         name: 'count_flashcards',
         status: 'error',

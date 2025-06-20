@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,7 +60,7 @@ export const CreateModule = ({
         
         setCourses(data || []);
       } catch (err: any) {
-        console.error('Error fetching courses:', err);
+        logger.error('Error fetching courses:', err);
         setError(`Failed to load courses: ${err.message}`);
       } finally {
         setLoading(prev => ({ ...prev, courses: false }));
@@ -90,7 +91,7 @@ export const CreateModule = ({
             });
           }
         } catch (err: any) {
-          console.error('Error fetching module:', err);
+          logger.error('Error fetching module:', err);
           setError(`Failed to load module data: ${err.message}`);
         } finally {
           setLoading(prev => ({ ...prev, fetch: false }));
@@ -130,7 +131,7 @@ export const CreateModule = ({
       
       setModule(prev => ({ ...prev, position: nextPosition }));
     } catch (err) {
-      console.error('Error determining next position:', err);
+      logger.error('Error determining next position:', err);
       // Default to position 1 if there's an error
       setModule(prev => ({ ...prev, position: 1 }));
     }
@@ -198,7 +199,7 @@ export const CreateModule = ({
       
       onSuccess();
     } catch (err: any) {
-      console.error('Error saving module:', err);
+      logger.error('Error saving module:', err);
       setError(`Failed to save module: ${err.message}`);
       
       toast({

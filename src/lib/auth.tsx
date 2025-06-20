@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
@@ -75,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const errorDescription = params.get('error_description');
       
       if (error || errorCode) {
-        console.log('Auth error detected IMMEDIATELY:', { error, errorCode, errorDescription });
+        logger.debug('Auth error detected IMMEDIATELY:', { error, errorCode, errorDescription });
         
         // Map to user-friendly message
         let friendlyMessage = errorDescription || 'An authentication error occurred';
@@ -109,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: extractedEmail
         };
         
-        console.log('Storing auth error with email:', authError);
+        logger.debug('Storing auth error with email:', authError);
         localStorage.setItem('auth_error', JSON.stringify(authError));
         
         // Clean up URL and redirect to auth page
@@ -237,7 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         lastSessionId: null
       };
     } catch (err) {
-      console.error('Error signing out:', err);
+      logger.error('Error signing out:', err);
     } finally {
       setLoading(false);
     }
@@ -294,10 +295,10 @@ export function clearAuthStorage() {
       });
     }
     
-    console.log('Auth storage cleared successfully');
+    logger.debug('Auth storage cleared successfully');
     return true;
   } catch (error) {
-    console.error('Error clearing auth storage:', error);
+    logger.error('Error clearing auth storage:', error);
     return false;
   }
 }
@@ -337,7 +338,7 @@ export async function validateSessionToken(): Promise<boolean> {
     ]);
     
     if (error) {
-      console.error('Session token validation failed:', error);
+      logger.error('Session token validation failed:', error);
       localStorage.setItem('last_validation_result', 'false');
       return false;
     }
@@ -346,7 +347,7 @@ export async function validateSessionToken(): Promise<boolean> {
     localStorage.setItem('last_validation_result', result.toString());
     return result;
   } catch (err) {
-    console.error('Error validating session token:', err);
+    logger.error('Error validating session token:', err);
     localStorage.setItem('last_validation_result', 'false');
     return false;
   }
@@ -354,7 +355,7 @@ export async function validateSessionToken(): Promise<boolean> {
 
 // Function to handle session expiration and preserve user data
 export const handleSessionExpiration = (messageContent?: string) => {
-  console.log('[DEBUG] Session expired, preserving message and redirecting');
+  logger.debug('[DEBUG] Session expired, preserving message and redirecting');
   if (messageContent && messageContent.trim()) {
     localStorage.setItem('preservedMessage', messageContent);
     // Optional: consider if preservedThreadId also needs to be saved from localStorage if available

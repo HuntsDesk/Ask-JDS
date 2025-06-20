@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useState, useRef, useEffect } from 'react';
 import { format } from 'date-fns';
 import {
@@ -75,14 +76,14 @@ export function SubscriptionSettings() {
         
         try {
           count = await getUserMessageCount(user?.id);
-          console.log('Message count loaded:', count);
+          logger.debug('Message count loaded:', count);
         } catch (countError) {
-          console.error('Error loading message count:', countError);
+          logger.error('Error loading message count:', countError);
         }
         
         setMessageCount(count);
       } catch (error) {
-        console.error('Error loading message count:', error);
+        logger.error('Error loading message count:', error);
         toast({
           title: 'Error',
           description: 'Failed to load message count information. Please try again later.',
@@ -142,7 +143,7 @@ export function SubscriptionSettings() {
         const portalUrl = await createCustomerPortalSession();
         
         if (!portalUrl) {
-          console.error('No portal URL returned');
+          logger.error('No portal URL returned');
           toast({
             title: "Error",
             description: "Could not open subscription portal. Please try again later.",
@@ -154,7 +155,7 @@ export function SubscriptionSettings() {
         // Open Stripe portal in new tab
         window.open(portalUrl, '_blank');
       } catch (err: any) {
-        console.error('Error creating customer portal session:', err);
+        logger.error('Error creating customer portal session:', err);
         
         // Show different error messages based on the error
         if (err.message?.includes('No subscription found')) {
@@ -209,12 +210,12 @@ export function SubscriptionSettings() {
   // Function to refresh message count
   const refreshMessageCount = async () => {
     try {
-      console.log('Refreshing message count');
+      logger.debug('Refreshing message count');
       setIsActionLoading(true);
       
       // Always force refresh to get the latest count from the database
       const refreshedCount = await getUserMessageCount(user?.id, true);
-      console.log('Message count refreshed to:', refreshedCount);
+      logger.debug('Message count refreshed to:', refreshedCount);
       
       setMessageCount(refreshedCount);
       toast({
@@ -224,7 +225,7 @@ export function SubscriptionSettings() {
       
       return refreshedCount;
     } catch (error) {
-      console.error("Error refreshing message count:", error);
+      logger.error("Error refreshing message count:", error);
       toast({
         title: "Error",
         description: "Failed to refresh message count. See console for details.",
@@ -248,7 +249,7 @@ export function SubscriptionSettings() {
         description: `Your message count is now ${newCount}`,
       });
     } catch (error) {
-      console.error("Error incrementing count:", error);
+      logger.error("Error incrementing count:", error);
       toast({
         title: "Error",
         description: "Failed to increment count. See console for details.",
@@ -268,7 +269,7 @@ export function SubscriptionSettings() {
       const now = new Date();
       const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       
-      console.log('Resetting message count to 0...');
+      logger.debug('Resetting message count to 0...');
       
       // First get any records for this user
       const { data: records, error: fetchError } = await supabase
@@ -280,7 +281,7 @@ export function SubscriptionSettings() {
         .order('created_at', { ascending: false });
       
       if (fetchError) {
-        console.error('Error fetching message count records:', fetchError);
+        logger.error('Error fetching message count records:', fetchError);
         toast({
           title: "Error",
           description: "Failed to find message count records",
@@ -290,7 +291,7 @@ export function SubscriptionSettings() {
       }
       
       if (records && records.length > 0) {
-        console.log(`Found existing record with id ${records[0].id} and count ${records[0].count}. Updating to 0.`);
+        logger.debug(`Found existing record with id ${records[0].id} and count ${records[0].count}. Updating to 0.`);
         
         // Update the most recent record to count=0
         const { error: updateError } = await supabase
@@ -302,7 +303,7 @@ export function SubscriptionSettings() {
           .eq('id', records[0].id);
         
         if (updateError) {
-          console.error('Error resetting count:', updateError);
+          logger.error('Error resetting count:', updateError);
           toast({
             title: "Error",
             description: "Failed to reset message count",
@@ -331,7 +332,7 @@ export function SubscriptionSettings() {
           });
         }
       } else {
-        console.log('No message count records found, creating a new one with count=0');
+        logger.debug('No message count records found, creating a new one with count=0');
         
         // Create a record with count=0
         const monthStart = firstDayOfMonth.toISOString();
@@ -349,11 +350,11 @@ export function SubscriptionSettings() {
           });
         
         if (insertError) {
-          console.error('Error creating record with count=0:', insertError);
+          logger.error('Error creating record with count=0:', insertError);
           
           // Try upsert if the insert failed (might be a unique constraint violation)
           if (insertError.code === '23505') {
-            console.log('Unique constraint violation. Trying upsert instead.');
+            logger.debug('Unique constraint violation. Trying upsert instead.');
             
             const { error: upsertError } = await supabase
               .from('message_counts')
@@ -366,7 +367,7 @@ export function SubscriptionSettings() {
               });
             
             if (upsertError) {
-              console.error('Upsert also failed:', upsertError);
+              logger.error('Upsert also failed:', upsertError);
               toast({
                 title: "Error",
                 description: "Failed to reset message count",
@@ -405,7 +406,7 @@ export function SubscriptionSettings() {
         });
       }
     } catch (error) {
-      console.error("Error resetting count:", error);
+      logger.error("Error resetting count:", error);
       toast({
         title: "Error",
         description: "Failed to reset message count. See console for details.",
@@ -429,7 +430,7 @@ export function SubscriptionSettings() {
         variant: result.success ? "default" : "destructive",
       });
     } catch (error) {
-      console.error("Error running database test:", error);
+      logger.error("Error running database test:", error);
       setDiagnosticResult(String(error));
       toast({
         title: "Error",
@@ -447,26 +448,26 @@ export function SubscriptionSettings() {
       setIsActionLoading(true);
       setCurrentTierName(tierName);
       
-      console.log(`Initiating subscription for tier: ${tierName}`);
+      logger.debug(`Initiating subscription for tier: ${tierName}`);
       
       const redirectUrlOrClientSecret = await createCheckoutSession(user?.id, tierName.toLowerCase());
-      console.log(`Response from createCheckoutSession:`, redirectUrlOrClientSecret);
+      logger.debug(`Response from createCheckoutSession:`, redirectUrlOrClientSecret);
       
       if (redirectUrlOrClientSecret) {
         // Check if the result is a URL or a client secret
         if (redirectUrlOrClientSecret.startsWith('/checkout-confirmation')) {
-          console.log('Received checkout-confirmation URL, redirecting...');
+          logger.debug('Received checkout-confirmation URL, redirecting...');
           window.location.href = redirectUrlOrClientSecret;
         } else if (redirectUrlOrClientSecret.startsWith('http')) {
-          console.log('Received direct URL, redirecting...');
+          logger.debug('Received direct URL, redirecting...');
           window.location.href = redirectUrlOrClientSecret;
         } else {
-          console.log('Received client secret, showing payment modal...');
+          logger.debug('Received client secret, showing payment modal...');
           setClientSecret(redirectUrlOrClientSecret);
           setShowPaymentModal(true);
         }
       } else {
-        console.error('No response from createCheckoutSession');
+        logger.error('No response from createCheckoutSession');
         toast({
           title: 'Error',
           description: 'Failed to create checkout session. Please try again later.',
@@ -474,7 +475,7 @@ export function SubscriptionSettings() {
         });
       }
     } catch (error) {
-      console.error('Error creating checkout session:', error);
+      logger.error('Error creating checkout session:', error);
       
       // Show more detailed error to the user
       let errorMessage = 'Failed to create checkout session. Please try again later.';
@@ -489,7 +490,7 @@ export function SubscriptionSettings() {
       });
       
       // Log additional diagnostic information
-      console.log('Diagnostic information:', {
+      logger.debug('Diagnostic information:', {
         tier: tierName.toLowerCase(),
         userId: user?.id,
         // Don't log any sensitive information
@@ -700,7 +701,7 @@ export function SubscriptionSettings() {
           title={`Complete your ${currentTierName} subscription`}
           description="This will give you unlimited access to Ask JDS features"
           onError={(error) => {
-            console.error('Payment error:', error);
+            logger.error('Payment error:', error);
             toast({
               title: "Error",
               description: error.message || 'Payment failed',

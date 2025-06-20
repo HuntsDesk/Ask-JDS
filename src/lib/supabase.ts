@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 
@@ -21,7 +22,7 @@ declare global {
 }
 
 // Simple Supabase client following official docs
-console.log('Initializing Supabase client', {
+logger.debug('Initializing Supabase client', {
   url: supabaseUrl,
   hasAnonKey: !!supabaseAnonKey
 });
@@ -61,14 +62,14 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
       ? input.pathname
       : 'Request';
   
-  console.log(`[${requestId}] Starting Supabase request: ${url}`);
+  logger.debug(`[${requestId}] Starting Supabase request: ${url}`);
   
   // Check network status
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    console.warn(`[${requestId}] Network appears to be offline. This will likely cause the request to fail.`);
+    logger.warn(`[${requestId}] Network appears to be offline. This will likely cause the request to fail.`);
     // Return a rejected promise immediately if we know we're offline
     if (url.includes('/subjects') || url.includes('/collections') || url.includes('/flashcards')) {
-      console.error(`[${requestId}] Critical flashcard request attempted while offline - rejecting early to prevent hanging UI`);
+      logger.error(`[${requestId}] Critical flashcard request attempted while offline - rejecting early to prevent hanging UI`);
       return Promise.reject(new Error('Network connection unavailable. Please check your internet connection.'));
     }
   }
@@ -81,17 +82,17 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
     controller.abort();
     const duration = Date.now() - startTime;
     
-    console.warn(`[${requestId}] Supabase fetch request timed out after ${timeoutDuration/1000} seconds: ${url} (${duration}ms)`);
+    logger.warn(`[${requestId}] Supabase fetch request timed out after ${timeoutDuration/1000} seconds: ${url} (${duration}ms)`);
     
     // Log additional information about the request
     if (typeof input === 'string') {
       const urlObj = new URL(input, window.location.origin);
-      console.warn(`[${requestId}] Timed out request details: Path: ${urlObj.pathname}, Search: ${urlObj.search}`);
+      logger.warn(`[${requestId}] Timed out request details: Path: ${urlObj.pathname}, Search: ${urlObj.search}`);
     }
     
     // Check network status
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      console.warn(`[${requestId}] Network appears to be offline. This may be causing the timeout.`);
+      logger.warn(`[${requestId}] Network appears to be offline. This may be causing the timeout.`);
     }
   }, timeoutDuration); // Variable timeout based on request type
   
@@ -106,12 +107,12 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
   return fetchPromise
     .then(response => {
       const duration = Date.now() - startTime;
-      console.info(`[${requestId}] Completed Supabase request: ${url} (${duration}ms) - Status: ${response.status}`);
+      logger.info(`[${requestId}] Completed Supabase request: ${url} (${duration}ms) - Status: ${response.status}`);
       return response;
     })
     .catch(error => {
       const duration = Date.now() - startTime;
-      console.error(`[${requestId}] Supabase request failed: ${url} (${duration}ms)`, error);
+      logger.error(`[${requestId}] Supabase request failed: ${url} (${duration}ms)`, error);
       
       // If this is an abort error from our timeout, provide a clearer message
       if (error.name === 'AbortError') {
@@ -134,9 +135,9 @@ function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Resp
 // Check if session is available and pre-fetch to warm up auth
 if (typeof window !== 'undefined') {
   setTimeout(() => {
-    console.log('Pre-fetching auth session to warm up connection...');
+    logger.debug('Pre-fetching auth session to warm up connection...');
     supabase.auth.getSession().catch(err => {
-      console.warn('Pre-fetch session failed:', err);
+      logger.warn('Pre-fetch session failed:', err);
     });
   }, 100);
 }
@@ -153,7 +154,7 @@ export async function logError(
     // First check if user is authenticated
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      console.error('User not authenticated, skipping error logging');
+      logger.error('User not authenticated, skipping error logging');
       return;
     }
 
@@ -167,9 +168,9 @@ export async function logError(
       }]);
 
     if (insertError) {
-      console.error('Failed to log error:', insertError);
+      logger.error('Failed to log error:', insertError);
     }
   } catch (logError) {
-    console.error('Failed to log error:', logError);
+    logger.error('Failed to log error:', logError);
   }
 }

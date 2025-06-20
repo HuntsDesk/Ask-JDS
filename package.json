@@ -12,7 +12,11 @@
     "build:jds": "vite build --mode jds",
     "build:admin": "vite build --mode admin",
     "build": "npm run build:askjds && npm run build:jds && npm run build:admin",
+    "build:production": "chmod +x scripts/build-production.sh && ./scripts/build-production.sh",
+    "build:analyze": "chmod +x scripts/build-production.sh && ./scripts/build-production.sh --analyze",
     "verify-env": "node scripts/verify-build-env.js",
+    "verify-build": "chmod +x scripts/verify-production-build.sh && ./scripts/verify-production-build.sh",
+    "replace-console": "chmod +x scripts/batch-replace-console.sh && ./scripts/batch-replace-console.sh",
     "type-check": "tsc -b --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"

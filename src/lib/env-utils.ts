@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 /**
  * Environment utilities for consistent environment variable access
  * Provides a single abstraction layer for all environment variable access
@@ -33,8 +34,8 @@ declare global {
 // Environment variable validation schema
 const requiredEnvVars = [
   'VITE_SUPABASE_URL',
-  'VITE_SUPABASE_ANON_KEY',
-  'VITE_STRIPE_PUBLISHABLE_KEY'
+  'VITE_SUPABASE_ANON_KEY'
+  // Stripe key is checked separately with getStripePublishableKey()
 ] as const;
 
 /**
@@ -96,16 +97,16 @@ export function getEnvVar(key: string, defaultValue?: string, runtimeKey?: strin
   }
   
   if (defaultValue) {
-    console.warn(`Using default value for ${key}`);
+    logger.warn(`Using default value for ${key}`);
     return defaultValue;
   }
   
   // Only throw in production if no fallback available
   if (isProduction()) {
-    console.error(`Missing required environment variable: ${key}`);
+    logger.error(`Missing required environment variable: ${key}`);
     throw new Error(`Missing required environment variable: ${key}`);
   } else {
-    console.warn(`Missing environment variable: ${key} (continuing in development)`);
+    logger.warn(`Missing environment variable: ${key} (continuing in development)`);
     return '';
   }
 }
@@ -116,7 +117,7 @@ export function getEnvVar(key: string, defaultValue?: string, runtimeKey?: strin
 export function getStripePublishableKey(): string {
   const isProd = isProduction();
   
-  console.log('getStripePublishableKey called:', {
+  logger.debug('getStripePublishableKey called:', {
     isProd,
     hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
     hasRuntimeConfig: typeof window !== 'undefined' && !!window.RUNTIME_CONFIG
@@ -126,34 +127,38 @@ export function getStripePublishableKey(): string {
     // Try production-specific key first
     const prodKey = getRuntimeValue('VITE_STRIPE_PUBLISHABLE_KEY_PROD', 'STRIPE_PUBLISHABLE_KEY_PROD');
     if (prodKey) {
-      console.log('Using production Stripe publishable key');
+      logger.debug('Using production Stripe publishable key');
       return prodKey;
     }
     
     // Fallback to legacy key
     const legacyKey = getRuntimeValue('VITE_STRIPE_PUBLISHABLE_KEY', 'STRIPE_PUBLISHABLE_KEY');
     if (legacyKey) {
-      console.warn('Using legacy Stripe publishable key for production');
+      logger.warn('Using legacy Stripe publishable key for production');
       return legacyKey;
     }
     
-    throw new Error('Missing production Stripe publishable key');
+    // Return a placeholder for non-critical pages (like utilities)
+    logger.warn('Stripe publishable key not found in build - returning placeholder');
+    return 'stripe_key_not_available_in_build';
   } else {
     // Try development-specific key first
     const devKey = getRuntimeValue('VITE_STRIPE_PUBLISHABLE_KEY_DEV', 'STRIPE_PUBLISHABLE_KEY_DEV');
     if (devKey) {
-      console.log('Using development Stripe publishable key');
+      logger.debug('Using development Stripe publishable key');
       return devKey;
     }
     
     // Fallback to legacy key
     const legacyKey = getRuntimeValue('VITE_STRIPE_PUBLISHABLE_KEY', 'STRIPE_PUBLISHABLE_KEY');
     if (legacyKey) {
-      console.warn('Using legacy Stripe publishable key for development');
+      logger.warn('Using legacy Stripe publishable key for development');
       return legacyKey;
     }
     
-    throw new Error('Missing development Stripe publishable key');
+    // Return a placeholder for non-critical pages (like utilities)
+    logger.warn('Stripe publishable key not found in build - returning placeholder');
+    return 'stripe_key_not_available_in_build';
   }
 }
 
@@ -206,7 +211,12 @@ export function validateEnvironment(): { valid: boolean; errors: string[]; warni
   try {
     getStripePublishableKey();
   } catch (error) {
-    errors.push(`Stripe configuration error: ${error.message}`);
+    // In production, make Stripe key warnings instead of errors for utilities page
+    if (isProduction() && error.message.includes('Stripe publishable key')) {
+      warnings.push(`Stripe configuration warning: ${error.message}`);
+    } else {
+      errors.push(`Stripe configuration error: ${error.message}`);
+    }
   }
 
   return {
@@ -224,9 +234,9 @@ export function getEnvironmentConfig(): EnvironmentConfig {
   const validation = validateEnvironment();
   
   if (!validation.valid) {
-    console.error('Environment validation failed:', validation.errors);
+    logger.error('Environment validation failed:', validation.errors);
     if (validation.warnings.length > 0) {
-      console.warn('Environment validation warnings:', validation.warnings);
+      logger.warn('Environment validation warnings:', validation.warnings);
     }
     
     // In production, we might want to throw, but in development we can continue with warnings
@@ -234,7 +244,7 @@ export function getEnvironmentConfig(): EnvironmentConfig {
       throw new Error(`Environment validation failed: ${validation.errors.join(', ')}`);
     }
   } else if (validation.warnings.length > 0) {
-    console.warn('Environment validation warnings:', validation.warnings);
+    logger.warn('Environment validation warnings:', validation.warnings);
   }
 
   return {
@@ -253,19 +263,19 @@ export function getEnvironmentConfig(): EnvironmentConfig {
 export const envLog = {
   debug: (message: string, ...args: any[]) => {
     if (!isProduction()) {
-      console.debug(`[ENV-DEBUG] ${message}`, ...args);
+      logger.debug(`[ENV-DEBUG] ${message}`, ...args);
     }
   },
   info: (message: string, ...args: any[]) => {
     if (!isProduction()) {
-      console.info(`[ENV-INFO] ${message}`, ...args);
+      logger.info(`[ENV-INFO] ${message}`, ...args);
     }
   },
   warn: (message: string, ...args: any[]) => {
-    console.warn(`[ENV-WARN] ${message}`, ...args);
+    logger.warn(`[ENV-WARN] ${message}`, ...args);
   },
   error: (message: string, ...args: any[]) => {
-    console.error(`[ENV-ERROR] ${message}`, ...args);
+    logger.error(`[ENV-ERROR] ${message}`, ...args);
   }
 };
 
@@ -289,29 +299,29 @@ export function getFeatureFlags() {
 export function debugEnvironment(): void {
   console.group('🔧 Environment Debug Information');
   
-  console.log('Production Mode:', isProduction());
-  console.log('Has Runtime Config:', typeof window !== 'undefined' && !!window.RUNTIME_CONFIG);
-  console.log('Has Build-time Config:', typeof import.meta !== 'undefined' && !!import.meta.env);
+  logger.debug('Production Mode:', isProduction());
+  logger.debug('Has Runtime Config:', typeof window !== 'undefined' && !!window.RUNTIME_CONFIG);
+  logger.debug('Has Build-time Config:', typeof import.meta !== 'undefined' && !!import.meta.env);
   
   if (typeof window !== 'undefined' && window.RUNTIME_CONFIG) {
-    console.log('Runtime Config Keys:', Object.keys(window.RUNTIME_CONFIG));
+    logger.debug('Runtime Config Keys:', Object.keys(window.RUNTIME_CONFIG));
   }
   
   if (typeof import.meta !== 'undefined' && import.meta.env) {
-    console.log('Build-time Env Keys:', Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')));
+    logger.debug('Build-time Env Keys:', Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')));
   }
   
   const validation = validateEnvironment();
-  console.log('Validation Result:', validation);
+  logger.debug('Validation Result:', validation);
   
   try {
     const config = getEnvironmentConfig();
-    console.log('Environment Config:', {
+    logger.debug('Environment Config:', {
       ...config,
       stripePublishableKey: config.stripePublishableKey ? `${config.stripePublishableKey.substring(0, 12)}...` : 'missing'
     });
   } catch (error) {
-    console.error('Failed to get environment config:', error);
+    logger.error('Failed to get environment config:', error);
   }
   
   console.groupEnd();

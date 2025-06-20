@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { supabase } from './supabase';
 
 interface SearchResult {
@@ -15,14 +16,14 @@ export async function searchLegalDocuments(query: string): Promise<SearchResult[
     });
 
     if (error) {
-      console.error('Error searching legal documents:', error);
+      logger.error('Error searching legal documents:', error);
       await logError(error, 'Error searching legal documents');
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('Unexpected error searching legal documents:', error);
+    logger.error('Unexpected error searching legal documents:', error);
     await logError(error, 'Unexpected error searching legal documents');
     return [];
   }
@@ -44,14 +45,14 @@ export async function addLegalDocument(title: string, content: string, category:
       .single();
 
     if (error) {
-      console.error('Error adding legal document:', error);
+      logger.error('Error adding legal document:', error);
       await logError(error, 'Error adding legal document');
       return null;
     }
 
     return data;
   } catch (error) {
-    console.error('Unexpected error adding legal document:', error);
+    logger.error('Unexpected error adding legal document:', error);
     await logError(error, 'Unexpected error adding legal document');
     return null;
   }
@@ -80,7 +81,7 @@ export async function getAIResponse(query: string, context: string) {
     if (error) throw error;
     return data?.response || 'I do not know. The available legal materials do not cover this question.';
   } catch (error) {
-    console.error('Error getting AI response:', error);
+    logger.error('Error getting AI response:', error);
     await logError(error, 'Error getting AI response');
     return 'There was an error processing your request. Please try again.';
   }
@@ -95,14 +96,14 @@ async function getSystemPrompt(): Promise<string> {
       .single();
 
     if (error) {
-      console.error('Error fetching system prompt:', error);
+      logger.error('Error fetching system prompt:', error);
       await logError(error, 'Error fetching system prompt');
       return 'You are a tutor for law school students and aspiring bar-takers.';
     }
 
     return data.content;
   } catch (error) {
-    console.error('Unexpected error fetching system prompt:', error);
+    logger.error('Unexpected error fetching system prompt:', error);
     await logError(error, 'Unexpected error fetching system prompt');
     return null;
   }
@@ -122,9 +123,9 @@ async function logError(error: unknown, context: string) {
       }]);
 
     if (insertError) {
-      console.error('Failed to log error:', insertError);
+      logger.error('Failed to log error:', insertError);
     }
   } catch (err) {
-    console.error('Failed to log error:', err);
+    logger.error('Failed to log error:', err);
   }
 }

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -92,7 +93,7 @@ export default function CourseSearchBar({ isMobileOverlay = false, onSearchResul
 
       setResults(formattedResults);
     } catch (error) {
-      console.error('Course search error:', error);
+      logger.error('Course search error:', error);
     } finally {
       setIsSearching(false);
     }

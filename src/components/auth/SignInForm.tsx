@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,7 @@ export function SignInForm() {
   // Check if user is already authenticated
   useEffect(() => {
     if (user) {
-      console.log('User already authenticated, navigating to /chat');
+      logger.debug('User already authenticated, navigating to /chat');
       navigate('/chat', { replace: true });
     }
   }, [user, navigate]);
@@ -29,9 +30,9 @@ export function SignInForm() {
     let timeoutId: NodeJS.Timeout | null = null;
     
     if (isLoading) {
-      console.log('Sign in loading state started, setting safety timeout');
+      logger.debug('Sign in loading state started, setting safety timeout');
       timeoutId = setTimeout(() => {
-        console.log('Sign in safety timeout triggered after 5 seconds');
+        logger.debug('Sign in safety timeout triggered after 5 seconds');
         setIsLoading(false);
         toast({
           title: 'Sign In Timeout',
@@ -43,7 +44,7 @@ export function SignInForm() {
     
     return () => {
       if (timeoutId) {
-        console.log('Clearing sign in safety timeout');
+        logger.debug('Clearing sign in safety timeout');
         clearTimeout(timeoutId);
       }
     };
@@ -53,7 +54,7 @@ export function SignInForm() {
   useEffect(() => {
     if (user && isLoading) {
       // User is authenticated and we were loading, navigate to chat
-      console.log('User authenticated during sign-in process, navigating to /chat');
+      logger.debug('User authenticated during sign-in process, navigating to /chat');
       setIsLoading(false);
       navigate('/chat', { replace: true });
     }
@@ -74,20 +75,20 @@ export function SignInForm() {
     setIsLoading(true);
 
     try {
-      console.log('Attempting to sign in with email:', email);
+      logger.debug('Attempting to sign in with email:', email);
       const { error } = await signIn(email, password);
       
       if (error) {
-        console.error('Sign in returned error:', error);
+        logger.error('Sign in returned error:', error);
         throw error;
       }
       
-      console.log('Sign in successful, waiting for auth state to update');
+      logger.debug('Sign in successful, waiting for auth state to update');
       
       // Note: Navigation is now handled by the useEffect that monitors user state
       
     } catch (error) {
-      console.error('Sign in error:', error);
+      logger.error('Sign in error:', error);
       
       // Get a more specific error message if possible
       let errorMessage = 'Invalid email or password';

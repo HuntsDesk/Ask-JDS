@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Activity, Users, Layers, AlertTriangle, BookOpen } from "lucide-react";
 import { AdminLayout } from "./AdminLayout";
@@ -103,7 +104,7 @@ export const AdminDashboard = () => {
           },
         ]);
       } catch (error) {
-        console.error("Error fetching admin stats:", error);
+        logger.error("Error fetching admin stats:", error);
       } finally {
         setLoading(false);
       }

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useEffect, useMemo } from 'react';
 import { loadStripe, Appearance } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
@@ -73,14 +74,14 @@ export function StripeCheckoutDialog({
       const publishableKey = getStripePublishableKey();
       return loadStripe(publishableKey);
     } catch (error) {
-      console.error('Failed to load Stripe:', error);
+      logger.error('Failed to load Stripe:', error);
       return null;
     }
   }, []);
   
   // Log key information when props change
   useEffect(() => {
-    console.log('StripeCheckoutDialog:', {
+    logger.debug('StripeCheckoutDialog:', {
       open,
       hasClientSecret: !!clientSecret,
       stripeLoaded: !!stripePromise,
@@ -88,11 +89,11 @@ export function StripeCheckoutDialog({
     });
     
     if (!stripePromise) {
-      console.warn('Stripe has not loaded yet. Check VITE_STRIPE_PUBLISHABLE_KEY environment variable.');
+      logger.warn('Stripe has not loaded yet. Check VITE_STRIPE_PUBLISHABLE_KEY environment variable.');
     }
     
     if (!clientSecret) {
-      console.warn('No client secret provided to StripeCheckoutDialog.');
+      logger.warn('No client secret provided to StripeCheckoutDialog.');
     }
   }, [open, clientSecret, theme, stripePromise]);
   
@@ -145,7 +146,7 @@ export function StripeCheckoutDialog({
   } : undefined;
   
   const handleError = (error: any) => {
-    console.error('Payment error:', error);
+    logger.error('Payment error:', error);
     toast.error(error.message || 'Payment failed');
     if (onError) onError(error);
   };

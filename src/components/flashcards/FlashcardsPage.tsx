@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useState, useEffect, useContext, useRef, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
@@ -80,7 +81,7 @@ export default function FlashcardsPage() {
     if (process.env.NODE_ENV === 'development') {
       const forceSubscription = localStorage.getItem('forceSubscription');
       if (forceSubscription === 'true') {
-        console.log('DEV OVERRIDE: Forcing premium access to true in FlashcardsPage component');
+        logger.debug('DEV OVERRIDE: Forcing premium access to true in FlashcardsPage component');
         setDevHasPremiumAccess(true);
       } else {
         setDevHasPremiumAccess(false);
@@ -94,14 +95,14 @@ export default function FlashcardsPage() {
   // Function to check if a collection is a user collection or premium one
   const checkAccessToCollection = async (collectionId: string) => {
     try {
-      console.log("Checking access to collection:", collectionId);
+      logger.debug("Checking access to collection:", collectionId);
       
       // Modified to always allow access to collections
       // Premium content will be controlled at the flashcard level
-      console.log("Bypassing collection-level premium check as requested");
+      logger.debug("Bypassing collection-level premium check as requested");
       return true;
     } catch (error) {
-      console.error("Error checking collection access:", error);
+      logger.error("Error checking collection access:", error);
       return true; // Default to allowing access on error
     }
   };
@@ -164,7 +165,7 @@ export default function FlashcardsPage() {
       const hasAccess = await hasSubscription;
       setLoading(false);
     } catch (error) {
-      console.error('Error checking subscription:', error);
+      logger.error('Error checking subscription:', error);
       setLoading(false);
     }
   };
@@ -184,11 +185,11 @@ export default function FlashcardsPage() {
   // Handler for navigating to chat
   const handleThreadSelect = (threadId: string) => {
     // First set the global selected thread ID
-    console.log('FlashcardsPage: handleThreadSelect called with thread ID:', threadId);
+    logger.debug('FlashcardsPage: handleThreadSelect called with thread ID:', threadId);
     setSelectedThreadId(threadId);
     
     // Debug log
-    console.log('FlashcardsPage: Set global thread ID, now preparing navigation');
+    logger.debug('FlashcardsPage: Set global thread ID, now preparing navigation');
     
     // Navigate to the chat page with the selected thread ID
     navigate(`/chat/${threadId}`, { state: { fromSidebar: true } });
@@ -265,7 +266,7 @@ function ProtectedResource({ checkAccess, component: Component, ...rest }: any) 
       const current = localStorage.getItem('forceSubscription');
       const newValue = current === 'true' ? 'false' : 'true';
       localStorage.setItem('forceSubscription', newValue);
-      console.log(`DEV: Test subscription set to ${newValue}`);
+      logger.debug(`DEV: Test subscription set to ${newValue}`);
       
       // Force a reload to apply the change
       window.location.reload();
@@ -277,7 +278,7 @@ function ProtectedResource({ checkAccess, component: Component, ...rest }: any) 
     let longLoadingTimeoutId: NodeJS.Timeout | null = null;
     
     async function verifyAccess() {
-      console.log("ProtectedResource: Verifying access for resource with ID:", id);
+      logger.debug("ProtectedResource: Verifying access for resource with ID:", id);
       
       // Only show loading indicator if the check takes longer than 300ms
       timeoutId = setTimeout(() => {
@@ -292,10 +293,10 @@ function ProtectedResource({ checkAccess, component: Component, ...rest }: any) 
       try {
         const hasAccess = await checkAccess(id);
         setCanAccess(hasAccess);
-        console.log("ProtectedResource: Access check result:", hasAccess);
+        logger.debug("ProtectedResource: Access check result:", hasAccess);
         
       } catch (error) {
-        console.error("ProtectedResource: Error during access check:", error);
+        logger.error("ProtectedResource: Error during access check:", error);
         // Default to no access on error for better security
         setCanAccess(false);
       } finally {

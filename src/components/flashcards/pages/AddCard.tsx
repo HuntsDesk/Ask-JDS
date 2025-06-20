@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Save, ArrowLeft, ExternalLink, ChevronLeft } from 'lucide-react';
@@ -52,15 +53,15 @@ export default function AddCard() {
             .eq('collection_id', id);
           
           if (error) {
-            console.error("Error loading subjects:", error);
+            logger.error("Error loading subjects:", error);
           } else if (data && data.length > 0) {
             // Just use the first subject if there are multiple
             subjectData = data[0];
           } else {
-            console.log("No subjects found for this collection");
+            logger.debug("No subjects found for this collection");
           }
         } catch (err) {
-          console.error("Error in subject query:", err);
+          logger.error("Error in subject query:", err);
           // Continue without subject data
         }
         
@@ -87,7 +88,7 @@ export default function AddCard() {
     setError(null);
 
     try {
-      console.log('Creating flashcard with user ID:', user?.id);
+      logger.debug('Creating flashcard with user ID:', user?.id);
       
       // Step 1: Create the flashcard without collection_id
       const { data: flashcardData, error: flashcardError } = await supabase
@@ -127,9 +128,9 @@ export default function AddCard() {
       showToast('Card added successfully', 'success');
       
       // Log the creation with user ID
-      console.log('Flashcard created successfully:', flashcardData);
-      console.log('User ID attached to card:', user?.id);
-      console.log('Added to collection using junction table');
+      logger.debug('Flashcard created successfully:', flashcardData);
+      logger.debug('User ID attached to card:', user?.id);
+      logger.debug('Added to collection using junction table');
       
       // Skip if we're still creating more cards
       if (mode === 'addAnother') {
@@ -160,7 +161,7 @@ export default function AddCard() {
     setError(null);
 
     try {
-      console.log('Creating flashcard with user ID:', user?.id);
+      logger.debug('Creating flashcard with user ID:', user?.id);
       
       // Step 1: Create the flashcard without collection_id
       const { data: flashcardData, error: flashcardError } = await supabase
@@ -195,9 +196,9 @@ export default function AddCard() {
       if (junctionError) throw junctionError;
       
       // Log the creation with user ID
-      console.log('Flashcard created successfully:', flashcardData);
-      console.log('User ID attached to card:', user?.id);
-      console.log('Added to collection using junction table');
+      logger.debug('Flashcard created successfully:', flashcardData);
+      logger.debug('User ID attached to card:', user?.id);
+      logger.debug('Added to collection using junction table');
       
       showToast('Card added successfully', 'success');
       

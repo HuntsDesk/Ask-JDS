@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { LoadingSpinner } from '@/components/LoadingSpinner';

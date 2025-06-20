@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 /**
  * Usermaven analytics integration
  * This file provides utilities for tracking events and user identification with Usermaven
@@ -39,7 +40,7 @@ export const trackEvent = (client: UsermavenClient, eventName: string, propertie
   try {
     client.track(eventName, properties);
   } catch (error) {
-    console.error('Failed to track event with Usermaven:', error);
+    logger.error('Failed to track event with Usermaven:', error);
   }
 };
 
@@ -70,7 +71,7 @@ export const identifyUser = (
       }
     });
   } catch (error) {
-    console.error('Failed to identify user with Usermaven:', error);
+    logger.error('Failed to identify user with Usermaven:', error);
   }
 };
 
@@ -88,6 +89,6 @@ export const trackPageView = (client: UsermavenClient, path?: string) => {
       client.track('pageview');
     }
   } catch (error) {
-    console.error('Failed to track page view with Usermaven:', error);
+    logger.error('Failed to track page view with Usermaven:', error);
   }
 }; 

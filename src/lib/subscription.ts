@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { withTimeout, fetchWithRetry } from './auth-utils';
+import { logger } from './logger';
 
 // Constants
 export const FREE_MESSAGE_LIMIT = import.meta.env.VITE_FREE_MESSAGE_LIMIT ? parseInt(import.meta.env.VITE_FREE_MESSAGE_LIMIT) : 10;
@@ -56,11 +57,11 @@ function isMissingTableError(error: any): boolean {
 function handleDatabaseError(error: any, context: string): void {
   if (isMissingTableError(error)) {
     if (!hasLoggedDatabaseErrors) {
-      console.warn(`Database tables for subscription system not set up yet. ${context} will return default values.`);
+      logger.warn(`Database tables for subscription system not set up yet. ${context} will return default values.`);
       hasLoggedDatabaseErrors = true;
     }
   } else {
-    console.error(`Error in ${context}:`, error);
+    logger.error(`Error in ${context}:`, error as Error);
   }
 }
 
@@ -75,7 +76,7 @@ export async function getUserMessageCount(userId?: string, forceRefresh: boolean
   const timeoutPromise = new Promise<number>((resolve) => {
     timeoutId = window.setTimeout(() => {
       if (!hasReturnedValue) {
-        console.warn('Message count check timed out');
+        logger.warn('Message count check timed out');
         resolve(0);
       }
     }, 3000); // 3 second timeout
@@ -88,7 +89,7 @@ export async function getUserMessageCount(userId?: string, forceRefresh: boolean
       userId = user?.id;
       
       if (!userId) {
-        console.warn('No user ID available for getting message count');
+        logger.warn('No user ID available for getting message count');
         hasReturnedValue = true;
         if (timeoutId) clearTimeout(timeoutId);
         return 0;
@@ -99,18 +100,18 @@ export async function getUserMessageCount(userId?: string, forceRefresh: boolean
     if (!forceRefresh) {
       const cached = messageCountCache.get(userId);
       if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-        console.log(`Using cached message count for user ${userId}: ${cached.count} (cache age: ${(Date.now() - cached.timestamp)/1000}s)`);
+        logger.debug(`Using cached message count for user ${userId}: ${cached.count} (cache age: ${(Date.now() - cached.timestamp)/1000}s)`);
         hasReturnedValue = true;
         if (timeoutId) clearTimeout(timeoutId);
         return cached.count;
       }
     } else {
-      console.log(`Force refreshing message count for user ${userId}`);
+      logger.debug(`Force refreshing message count for user ${userId}`);
       // Clear the cache entry for this user
       messageCountCache.delete(userId);
     }
     
-    console.log(`Getting message count for user: ${userId} (direct database query)`);
+    logger.debug(`Getting message count for user: ${userId} (direct database query)`);
     
     // Query the message_counts table directly
     const now = new Date();
@@ -133,7 +134,7 @@ export async function getUserMessageCount(userId?: string, forceRefresh: boolean
       
       // Handle errors
       if (fetchError) {
-        console.error(`Error fetching message count: ${fetchError.message}`);
+        logger.error(`Error fetching message count: ${fetchError.message}`);
         
         // Try to count messages directly as a fallback
         const { count, error: countError } = await supabase
@@ -143,13 +144,13 @@ export async function getUserMessageCount(userId?: string, forceRefresh: boolean
           .gte('created_at', firstDayOfMonth.toISOString());
         
         if (countError) {
-          console.error(`Error counting messages: ${countError.message}`);
+          logger.error(`Error counting messages: ${countError.message}`);
           hasReturnedValue = true;
           if (timeoutId) clearTimeout(timeoutId);
           return 0;
         }
         
-        console.log(`Direct message count from messages table: ${count}`);
+        logger.debug(`Direct message count from messages table: ${count}`);
         
         // Cache the result
         messageCountCache.set(userId, {
@@ -164,7 +165,7 @@ export async function getUserMessageCount(userId?: string, forceRefresh: boolean
       
       // If no records found, count might be 0 or we might need to create a record
       if (!records || records.length === 0) {
-        console.log(`No message count record found for user ${userId}`);
+        logger.debug(`No message count record found for user ${userId}`);
         
         // Try to count messages directly as a fallback
         const { count, error: countError } = await supabase
@@ -174,13 +175,13 @@ export async function getUserMessageCount(userId?: string, forceRefresh: boolean
           .gte('created_at', firstDayOfMonth.toISOString());
         
         if (countError) {
-          console.error(`Error counting messages: ${countError.message}`);
+          logger.error(`Error counting messages: ${countError.message}`);
           hasReturnedValue = true;
           if (timeoutId) clearTimeout(timeoutId);
           return 0;
         }
         
-        console.log(`Direct message count from messages table: ${count}`);
+        logger.debug(`Direct message count from messages table: ${count}`);
         
         // Cache the result
         messageCountCache.set(userId, {
@@ -195,7 +196,7 @@ export async function getUserMessageCount(userId?: string, forceRefresh: boolean
       
       // We found a record, use its count
       const count = records[0].count || 0;
-      console.log(`Direct database query returned message count: ${count}`);
+      logger.debug(`Direct database query returned message count: ${count}`);
       
       // Cache the result
       messageCountCache.set(userId, {
@@ -207,13 +208,13 @@ export async function getUserMessageCount(userId?: string, forceRefresh: boolean
       if (timeoutId) clearTimeout(timeoutId);
       return count;
     } catch (err) {
-      console.error(`Error in direct message count query: ${err}`);
+      logger.error(`Error in direct message count query: ${err}`);
       hasReturnedValue = true;
       if (timeoutId) clearTimeout(timeoutId);
       return 0;
     }
   } catch (err) {
-    console.error(`Error getting message count: ${err}`);
+    logger.error(`Error getting message count: ${err}`);
     hasReturnedValue = true;
     if (timeoutId) clearTimeout(timeoutId);
     return 0;
@@ -237,7 +238,7 @@ export async function incrementUserMessageCount(userId?: string): Promise<number
       userId = user?.id;
       
       if (!userId) {
-        console.warn('No user ID available to increment message count');
+        logger.warn('No user ID available to increment message count');
         return 0;
       }
     }
@@ -249,9 +250,9 @@ export async function incrementUserMessageCount(userId?: string): Promise<number
       });
       
       if (lifetimeError) {
-        console.error(`Lifetime message count increment error: ${lifetimeError.message}`);
+        logger.error(`Lifetime message count increment error: ${lifetimeError.message}`);
       } else if (typeof lifetimeCount === 'number') {
-        console.log(`Incremented lifetime message count to: ${lifetimeCount}`);
+        logger.debug(`Incremented lifetime message count to: ${lifetimeCount}`);
         
         // Update lifetime count cache
         lifetimeMessageCountCache.set(userId, {
@@ -260,11 +261,11 @@ export async function incrementUserMessageCount(userId?: string): Promise<number
         });
       }
     } catch (lifetimeErr) {
-      console.error(`Exception incrementing lifetime message count: ${lifetimeErr}`);
+      logger.error(`Exception incrementing lifetime message count: ${lifetimeErr}`);
     }
     
     // Instead of using RPC, work directly with the message_counts table
-    console.log('Using direct database approach to increment message count');
+    logger.debug('Using direct database approach to increment message count');
     
     // Get the current time for period calculation
     const now = new Date();
@@ -282,7 +283,7 @@ export async function incrementUserMessageCount(userId?: string): Promise<number
       .limit(1);
     
     if (fetchError) {
-      console.error(`Error fetching message count record: ${fetchError.message}`);
+      logger.error(`Error fetching message count record: ${fetchError.message}`);
       // Continue to try create a new record
     }
     
@@ -304,12 +305,12 @@ export async function incrementUserMessageCount(userId?: string): Promise<number
         .select();
       
       if (updateError) {
-        console.error(`Error updating message count: ${updateError.message}`);
+        logger.error(`Error updating message count: ${updateError.message}`);
         
         // We failed to update, try again with a new record
         newCount = 1;
       } else {
-        console.log(`Directly incremented message count to ${newCount}`);
+        logger.debug(`Directly incremented message count to ${newCount}`);
         
         // Update cache
         messageCountCache.set(userId, {
@@ -338,7 +339,7 @@ export async function incrementUserMessageCount(userId?: string): Promise<number
     if (insertError) {
       // Check if this is a unique constraint violation (record already exists)
       if (insertError.code === '23505') {
-        console.log('Unique constraint violation - record already exists. Trying upsert instead.');
+        logger.debug('Unique constraint violation - record already exists. Trying upsert instead.');
         
         // Try one more time with upsert
         const { data: upsertData, error: upsertError } = await supabase
@@ -353,11 +354,11 @@ export async function incrementUserMessageCount(userId?: string): Promise<number
           .select();
         
         if (upsertError) {
-          console.error(`Final attempt (upsert) failed: ${upsertError.message}`);
+          logger.error(`Final attempt (upsert) failed: ${upsertError.message}`);
           return 0;
         } else {
           const finalCount = upsertData?.[0]?.count || newCount;
-          console.log(`Upserted message count to ${finalCount}`);
+          logger.debug(`Upserted message count to ${finalCount}`);
           
           // Update cache
           messageCountCache.set(userId, {
@@ -368,12 +369,12 @@ export async function incrementUserMessageCount(userId?: string): Promise<number
           return finalCount;
         }
       } else {
-        console.error(`Error creating message count record: ${insertError.message}`);
+        logger.error(`Error creating message count record: ${insertError.message}`);
         return 0;
       }
     } else if (insertData && insertData.length > 0) {
       const finalCount = insertData[0].count;
-      console.log(`Created new message count record with count ${finalCount}`);
+      logger.debug(`Created new message count record with count ${finalCount}`);
       
       // Update cache
       messageCountCache.set(userId, {
@@ -385,10 +386,10 @@ export async function incrementUserMessageCount(userId?: string): Promise<number
     }
     
     // If we got here, something really went wrong
-    console.error('All attempts to increment message count failed');
+    logger.error('All attempts to increment message count failed');
     return 0;
   } catch (err) {
-    console.error('Error incrementing message count:', err);
+    logger.error('Error incrementing message count:', err as Error);
     return 0;
   }
 }
@@ -408,7 +409,7 @@ export async function hasReachedFreeMessageLimit(userId?: string): Promise<boole
     const messageCount = await getUserMessageCount(userId);
     return messageCount >= FREE_MESSAGE_LIMIT;
   } catch (err) {
-    console.error('Failed to check if user reached message limit:', err);
+    logger.error('Failed to check if user reached message limit:', err as Error);
     return false; // Default to not showing paywall on error
   }
 }
@@ -421,7 +422,7 @@ export async function getUserSubscription(
   forceRefresh: boolean = false
 ): Promise<Subscription | null> {
   if (!userId) {
-    console.log('No userId provided for subscription check');
+    logger.debug('No userId provided for subscription check');
     return null;
   }
 
@@ -434,7 +435,7 @@ export async function getUserSubscription(
     // Ensure we have a valid session before proceeding
     const hasValidSession = await ensureValidSession();
     if (!hasValidSession) {
-      console.warn('No valid session found for subscription check, using fallback');
+      logger.warn('No valid session found for subscription check, using fallback');
       // Continue with the API call but it will likely fail
       // The fallback to supabase client might still work
     }
@@ -446,7 +447,7 @@ export async function getUserSubscription(
     let timeoutId: NodeJS.Timeout | null = null;
     const timeoutPromise = new Promise<null>((resolve) => {
       timeoutId = setTimeout(() => {
-        console.warn('Subscription check timed out, returning null');
+        logger.warn('Subscription check timed out, returning null');
         resolve(null);
       }, 5000);
     });
@@ -461,7 +462,7 @@ export async function getUserSubscription(
 
     // Try direct API request first to avoid 406 errors
     try {
-      console.log(`Fetching subscription for user ${userId}`);
+      logger.debug(`Fetching subscription for user ${userId}`);
       const endpoint = `${baseUrl}/rest/v1/user_subscriptions?user_id=eq.${userId}&select=*`;
       
       // Get the user's JWT token from local storage
@@ -473,7 +474,7 @@ export async function getUserSubscription(
             const authData = JSON.parse(authStorage);
             if (authData?.access_token) {
               userToken = authData.access_token;
-              console.log('Found user JWT token in localStorage');
+              logger.debug('Found user JWT token in localStorage');
               
               // Log token expiration if available
               if (authData.expires_at) {
@@ -489,22 +490,22 @@ export async function getUserSubscription(
                   if (!isNaN(expiresAt.getTime())) {
                     const now = new Date();
                     const minutesRemaining = Math.round((expiresAt.getTime() - now.getTime()) / (60 * 1000));
-                    console.log(`Token expires in approximately ${minutesRemaining} minutes`);
+                    logger.debug(`Token expires in approximately ${minutesRemaining} minutes`);
                   } else {
-                    console.warn('Invalid token expiration date:', authData.expires_at);
+                    logger.warn('Invalid token expiration date:', authData.expires_at);
                   }
                 } catch (dateError) {
-                  console.warn('Error parsing token expiration:', dateError);
+                  logger.warn('Error parsing token expiration:', dateError);
                 }
               }
             } else {
-              console.warn('No access_token found in auth storage');
+              logger.warn('No access_token found in auth storage');
             }
           } else {
-            console.warn('No auth storage found in localStorage');
+            logger.warn('No auth storage found in localStorage');
           }
         } catch (e) {
-          console.error('Error retrieving user token from localStorage:', e);
+          logger.error('Error retrieving user token from localStorage:', e as Error);
         }
       }
       
@@ -521,10 +522,10 @@ export async function getUserSubscription(
       
       // Use the user's JWT token if available, otherwise use the API key
       if (userToken) {
-        console.log('Using user JWT token for subscription API request');
+        logger.debug('Using user JWT token for subscription API request');
         headers['Authorization'] = `Bearer ${userToken}`;
       } else {
-        console.log('No user JWT token available, using API key as fallback');
+        logger.debug('No user JWT token available, using API key as fallback');
         headers['Authorization'] = `Bearer ${apiKey}`;
       }
       
@@ -540,7 +541,7 @@ export async function getUserSubscription(
       const response = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (response === null) {
-        console.warn('Direct API subscription fetch timed out');
+        logger.warn('Direct API subscription fetch timed out');
       } else {
         // We got a response, so cancel the timeout
         receivedResponse = true;
@@ -548,7 +549,7 @@ export async function getUserSubscription(
         
         if (response.ok) {
           const subscriptions = await response.json();
-          console.log(`Received ${subscriptions.length} subscriptions via direct API`);
+          logger.debug(`Received ${subscriptions.length} subscriptions via direct API`);
           
           if (subscriptions && subscriptions.length > 0) {
             const subscription = subscriptions[0];
@@ -556,31 +557,31 @@ export async function getUserSubscription(
             return cachedSubscription;
           }
         } else {
-          console.warn(`Direct API subscription fetch failed with status ${response.status}`);
+          logger.warn(`Direct API subscription fetch failed with status ${response.status}`);
           if (response.status === 401) {
-            console.warn('Authentication error (401), user may need to re-authenticate');
+            logger.warn('Authentication error (401), user may need to re-authenticate');
             
             // Try refreshing the session
             try {
               const { data } = await supabase.auth.refreshSession();
               if (data?.session) {
-                console.log('Successfully refreshed session, user should retry');
+                logger.debug('Successfully refreshed session, user should retry');
               }
             } catch (refreshError) {
-              console.error('Failed to refresh session:', refreshError);
+              logger.error('Failed to refresh session:', refreshError as Error);
             }
           }
         }
       }
     } catch (apiError) {
-      console.warn('Direct API subscription fetch failed, falling back to Supabase client', apiError);
+      logger.warn('Direct API subscription fetch failed, falling back to Supabase client', apiError);
     }
 
     // Cancel any remaining timeout before starting the next request
     cancelTimeout();
     
     // Fallback to Supabase client
-    console.log('Using Supabase client as fallback for subscription check');
+    logger.debug('Using Supabase client as fallback for subscription check');
     
     // Create a new promise that will be resolved with the query result
     const queryPromise = new Promise(async (resolve) => {
@@ -589,13 +590,13 @@ export async function getUserSubscription(
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
-          console.error('Error getting auth session for subscription fallback:', sessionError);
+          logger.error('Error getting auth session for subscription fallback:', sessionError as Error);
           resolve(null);
           return;
         }
         
         if (!session) {
-          console.warn('No active session found for subscription fallback');
+          logger.warn('No active session found for subscription fallback');
           resolve(null);
           return;
         }
@@ -608,17 +609,17 @@ export async function getUserSubscription(
           .single();
           
         if (error) {
-          console.error('Error fetching user subscription:', error);
+          logger.error('Error fetching user subscription:', error as Error);
           handleDatabaseError(error, 'getUserSubscription');
           resolve(null);
         } else if (!data) {
-          console.log('No subscription found for user');
+          logger.debug('No subscription found for user');
           resolve(null);
         } else {
           resolve(data);
         }
       } catch (err) {
-        console.error('Unexpected error in Supabase query:', err);
+        logger.error('Unexpected error in Supabase query:', err as Error);
         resolve(null);
       }
     });
@@ -627,7 +628,7 @@ export async function getUserSubscription(
     let fallbackTimeoutId: NodeJS.Timeout | null = null;
     const fallbackTimeoutPromise = new Promise<null>((resolve) => {
       fallbackTimeoutId = setTimeout(() => {
-        console.warn('Supabase fallback subscription check timed out');
+        logger.warn('Supabase fallback subscription check timed out');
         resolve(null);
       }, 5000);
     });
@@ -647,14 +648,14 @@ export async function getUserSubscription(
     cancelFallbackTimeout();
 
     if (!result) {
-      console.warn('Subscription query returned null (timed out or no subscription)');
+      logger.warn('Subscription query returned null (timed out or no subscription)');
       return null;
     }
     
     cachedSubscription = mapDatabaseSubscription(result);
     return cachedSubscription;
   } catch (error) {
-    console.error('Unexpected error in getUserSubscription:', error);
+    logger.error('Unexpected error in getUserSubscription:', error as Error);
     return null;
   }
 }
@@ -683,7 +684,7 @@ function mapDatabaseSubscription(data: any): Subscription {
  */
 export function clearCachedSubscription(): void {
   cachedSubscription = null;
-  console.log('Subscription cache cleared');
+  logger.debug('Subscription cache cleared');
 }
 
 /**
@@ -692,7 +693,7 @@ export function clearCachedSubscription(): void {
  */
 async function ensureValidSession(): Promise<boolean> {
   try {
-    console.log('Validating session before subscription API call');
+    logger.debug('Validating session before subscription API call');
     
     // First check if we have a session in localStorage
     if (typeof window === 'undefined') {
@@ -706,20 +707,20 @@ async function ensureValidSession(): Promise<boolean> {
     const TEN_SECONDS = 10 * 1000;
     
     if (lastRefreshAttempt && now - lastRefreshAttempt < TEN_SECONDS) {
-      console.log('Last refresh attempt was less than 10 seconds ago, skipping');
+      logger.debug('Last refresh attempt was less than 10 seconds ago, skipping');
       return true; // Assume valid to prevent refresh loops
     }
     
     const authStorage = localStorage.getItem('ask-jds-auth-storage');
     if (!authStorage) {
-      console.warn('No auth storage found in localStorage');
+      logger.warn('No auth storage found in localStorage');
       return false;
     }
     
     try {
       const authData = JSON.parse(authStorage);
       if (!authData?.access_token || !authData?.expires_at) {
-        console.warn('Invalid auth data in localStorage');
+        logger.warn('Invalid auth data in localStorage');
         return false;
       }
       
@@ -735,24 +736,24 @@ async function ensureValidSession(): Promise<boolean> {
         
         // Validate the date is actually valid
         if (isNaN(expiresAt.getTime())) {
-          console.warn('Invalid expiration date, using fallback expiration');
+          logger.warn('Invalid expiration date, using fallback expiration');
           // Set a fallback 1 hour from now
           expiresAt = new Date(now + 60 * 60 * 1000);
         }
       } catch (dateError) {
-        console.warn('Error parsing expiration date:', dateError);
+        logger.warn('Error parsing expiration date:', dateError);
         // Set a fallback 1 hour from now
         expiresAt = new Date(now + 60 * 60 * 1000);
       }
       
       // Log actual expiration for debugging
       const minutesRemaining = Math.round((expiresAt.getTime() - now) / (60 * 1000));
-      console.log(`Token actually expires in: ${minutesRemaining} minutes`);
+      logger.debug(`Token actually expires in: ${minutesRemaining} minutes`);
       
       // If token expires in less than 5 minutes, refresh it, but only if we haven't refreshed recently
       const fiveMinutes = 5 * 60 * 1000;
       if (expiresAt.getTime() - now < fiveMinutes) {
-        console.log('Token expires soon, refreshing session');
+        logger.debug('Token expires soon, refreshing session');
         
         // Record this refresh attempt time
         localStorage.setItem('last_refresh_attempt', now.toString());
@@ -761,14 +762,14 @@ async function ensureValidSession(): Promise<boolean> {
           const { data, error } = await supabase.auth.refreshSession();
           
           if (error || !data?.session) {
-            console.error('Failed to refresh session:', error);
+            logger.error('Failed to refresh session:', error as Error);
             return false;
           }
           
-          console.log('Session refreshed successfully');
+          logger.debug('Session refreshed successfully');
           return true;
         } catch (refreshError) {
-          console.error('Error during session refresh:', refreshError);
+          logger.error('Error during session refresh:', refreshError as Error);
           // If we hit an error, still return true to prevent cascading failures
           // on subsequent calls
           return true;
@@ -778,11 +779,11 @@ async function ensureValidSession(): Promise<boolean> {
       // Token is still valid
       return true;
     } catch (e) {
-      console.error('Error parsing auth storage:', e);
+      logger.error('Error parsing auth storage:', e as Error);
       return false;
     }
   } catch (error) {
-    console.error('Error ensuring valid session:', error);
+    logger.error('Error ensuring valid session:', error as Error);
     return false;
   }
 }
@@ -791,24 +792,24 @@ async function ensureValidSession(): Promise<boolean> {
  * Check if the user has an active subscription
  */
 export async function hasActiveSubscription(userId?: string): Promise<boolean> {
-  console.log(`hasActiveSubscription called for userId: ${userId || 'undefined'}`);
+  logger.debug(`hasActiveSubscription called for userId: ${userId || 'undefined'}`);
   
   // DEV ONLY: Enable force subscription flag via localStorage
   if (import.meta.env.DEV) {
     const forceSubscription = localStorage.getItem('forceSubscription');
     if (forceSubscription === 'true') {
-      console.log('DEV: Forcing subscription to true via localStorage flag');
+      logger.debug('DEV: Forcing subscription to true via localStorage flag');
       return true;
     }
     if (forceSubscription === 'false') {
-      console.log('DEV: Forcing subscription to false via localStorage flag');
+      logger.debug('DEV: Forcing subscription to false via localStorage flag');
       return false;
     }
   }
 
   // Early return if no user ID provided - prevents unnecessary auth checks
   if (!userId) {
-    console.log('hasActiveSubscription: No user ID provided, returning false');
+    logger.debug('hasActiveSubscription: No user ID provided, returning false');
     return false;
   }
 
@@ -820,10 +821,10 @@ export async function hasActiveSubscription(userId?: string): Promise<boolean> {
   // First ensure we have a valid session
   try {
     const hasValidSession = await ensureValidSession();
-    console.log(`hasActiveSubscription: Session validity check result: ${hasValidSession}`);
+    logger.debug(`hasActiveSubscription: Session validity check result: ${hasValidSession}`);
     
     if (!hasValidSession) {
-      console.warn('No valid session found, redirecting to authentication');
+      logger.warn('No valid session found, redirecting to authentication');
       
       // Only redirect if we haven't redirected recently
       if (now - lastRedirectAttempt > THIRTY_SECONDS) {
@@ -836,7 +837,7 @@ export async function hasActiveSubscription(userId?: string): Promise<boolean> {
           }
         }, 0);
       } else {
-        console.log('Skipping redirect - redirected recently');
+        logger.debug('Skipping redirect - redirected recently');
       }
       
       return false;
@@ -845,13 +846,13 @@ export async function hasActiveSubscription(userId?: string): Promise<boolean> {
     try {
       // Only log this once per session to reduce spam
       if (!hasLoggedSubscriptionCheck) {
-        console.log(`Checking if user has active subscription for ${userId}`);
+        logger.debug(`Checking if user has active subscription for ${userId}`);
         hasLoggedSubscriptionCheck = true;
       }
       
       // Get the user's subscription information
       const subscription = await getUserSubscription(userId);
-      console.log(`hasActiveSubscription: Retrieved subscription:`, subscription);
+      logger.debug(`hasActiveSubscription: Retrieved subscription:`, subscription);
       
       // Determine if the subscription is active based on its status and expiry
       const isActive = (subscription?.status === 'active' || subscription?.status === 'trialing')
@@ -859,19 +860,19 @@ export async function hasActiveSubscription(userId?: string): Promise<boolean> {
       
       // Log subscription status only when it changes to reduce spam
       if (lastSubscriptionStatus === null || lastSubscriptionStatus !== isActive) {
-        console.log(`Subscription for user ${userId} has status: ${subscription?.status}, isActive: ${isActive}`);
+        logger.debug(`Subscription for user ${userId} has status: ${subscription?.status}, isActive: ${isActive}`);
         lastSubscriptionStatus = isActive;
       } else {
-        console.log(`Subscription check: returning cached result: ${isActive}`);
+        logger.debug(`Subscription check: returning cached result: ${isActive}`);
       }
       
       return isActive;
     } catch (error) {
-      console.error('Error checking subscription status:', error);
+      logger.error('Error checking subscription status:', error as Error);
       return false; // Default to false on error for better security
     }
   } catch (error) {
-    console.error('Session validation or subscription check failed:', error);
+    logger.error('Session validation or subscription check failed:', error as Error);
     // Still return false but don't force redirect on unexpected errors
     return false;
   }
@@ -888,12 +889,12 @@ export async function createCheckoutSession(userId?: string, tierName: string = 
       userId = user?.id;
       
       if (!userId) {
-        console.warn('No user ID available for creating checkout session');
+        logger.warn('No user ID available for creating checkout session');
         return null;
       }
     }
     
-    console.log(`Creating checkout session for user ${userId}, tier: ${tierName}`);
+    logger.debug(`Creating checkout session for user ${userId}, tier: ${tierName}`);
     
     try {
       // Redirect any premium tier requests to unlimited (Premium tier temporarily hidden)
@@ -901,7 +902,7 @@ export async function createCheckoutSession(userId?: string, tierName: string = 
       
       // Let the edge function determine the price ID based on tier name
       // This is more secure as price IDs stay on the backend
-      console.log(`Sending request to create-payment-handler with: ${JSON.stringify({
+      logger.debug(`Sending request to create-payment-handler with: ${JSON.stringify({
         purchaseType: 'subscription',
         userId,
         subscriptionType: actualTierName,
@@ -926,19 +927,19 @@ export async function createCheckoutSession(userId?: string, tierName: string = 
       });
       
       if (error) {
-        console.error('Error creating checkout session:', error);
+        logger.error('Error creating checkout session:', error as Error);
         
         // Try to extract the response body if available
         let responseBody = null;
         try {
           if (error.context && error.context.response) {
             responseBody = await error.context.response.json();
-            console.error('Error response body:', responseBody);
+            logger.error('Error response body:', responseBody as Error);
             
             // Log detailed debugging information if available
             if (responseBody.debug_info) {
-              console.error('Debugging information:', responseBody.debug_info);
-              console.table({
+              logger.error('Debugging information:', responseBody.debug_info as Error);
+              logger.debug("Table data:", {
                 'Checked Variables': responseBody.debug_info.checked_variables?.join(', ') || 'None',
                 'Available Variables': responseBody.debug_info.available_variables || 'None',
                 'Environment': responseBody.debug_info.environment || 'Unknown'
@@ -946,7 +947,7 @@ export async function createCheckoutSession(userId?: string, tierName: string = 
             }
           }
         } catch (e) {
-          console.error('Could not parse error response:', e);
+          logger.error('Could not parse error response:', e as Error);
         }
         
         // Try to extract more detailed error if available
@@ -961,18 +962,18 @@ export async function createCheckoutSession(userId?: string, tierName: string = 
           errorMessage = 'Edge Function error: The server encountered an issue processing the subscription. The Stripe price ID may be invalid or missing.';
           
           // Add debugging info
-          console.error(`Edge Function error details: Status: ${error.status}, Context:`, error.context);
+          logger.error(`Edge Function error details: Status: ${error.status}, Context:`, error.context as Error);
         }
         
         throw new Error(errorMessage);
       }
       
       if (!data) {
-        console.error('No data returned from create-payment-handler');
+        logger.error('No data returned from create-payment-handler');
         throw new Error('No response data from payment handler');
       }
       
-      console.log('Checkout session created successfully, response:', data);
+      logger.debug('Checkout session created successfully, response:', data);
       
       // The response format may have changed, check for client_secret instead of url
       if (data.client_secret) {
@@ -982,11 +983,11 @@ export async function createCheckoutSession(userId?: string, tierName: string = 
       
       return data.url || null;
     } catch (invokeErr) {
-      console.error('Failed to invoke create-payment-handler function:', invokeErr);
+      logger.error('Failed to invoke create-payment-handler function:', invokeErr as Error);
       throw invokeErr; // Re-throw to be handled by the caller
     }
   } catch (err) {
-    console.error('Failed to create checkout session:', err);
+    logger.error('Failed to create checkout session:', err as Error);
     throw err; // Re-throw to be handled by the caller
   }
 }
@@ -998,8 +999,8 @@ export async function createCustomerPortalSession(userId?: string): Promise<stri
   try {
     // Generate a unique ID for this request to track it in logs
     const requestId = `portal-${Date.now()}`;
-    console.log(`Creating customer portal session for user: ${userId || 'current user'}`);
-    console.log(`[${requestId}] Invoking create-customer-portal-session function`);
+    logger.debug(`Creating customer portal session for user: ${userId || 'current user'}`);
+    logger.debug(`[${requestId}] Invoking create-customer-portal-session function`);
     
     // If no userId provided, use the current user
     if (!userId) {
@@ -1007,17 +1008,17 @@ export async function createCustomerPortalSession(userId?: string): Promise<stri
       userId = session.data.session?.user?.id;
       
       if (!userId) {
-        console.error(`[${requestId}] No user ID available and not logged in`);
+        logger.error(`[${requestId}] No user ID available and not logged in`);
         throw new Error('You must be logged in to manage your subscription');
       }
       
-      console.log(`[${requestId}] Using current user ID: ${userId}`);
+      logger.debug(`[${requestId}] Using current user ID: ${userId}`);
     }
     
     // Ensure we have a valid session
     const hasValidSession = await ensureValidSession();
     if (!hasValidSession) {
-      console.error(`[${requestId}] No valid session found`);
+      logger.error(`[${requestId}] No valid session found`);
       throw new Error('Your session has expired. Please log in again.');
     }
     
@@ -1027,7 +1028,7 @@ export async function createCustomerPortalSession(userId?: string): Promise<stri
       ? new Date(sessionData.session.expires_at * 1000).toISOString()
       : 'unknown';
     
-    console.log(`[${requestId}] Found active session with token expiry: ${sessionExpiry}`);
+    logger.debug(`[${requestId}] Found active session with token expiry: ${sessionExpiry}`);
     
     // Try main approach - using the functions.invoke method
     try {
@@ -1036,29 +1037,29 @@ export async function createCustomerPortalSession(userId?: string): Promise<stri
       });
       
       if (error) {
-        console.error(`[${requestId}] Error response from function:`, error);
+        logger.error(`[${requestId}] Error response from function:`, error as Error);
         // Don't throw yet - we'll try our fallback approach
       } else if (data?.url) {
-        console.log(`[${requestId}] Successfully created portal session`);
+        logger.debug(`[${requestId}] Successfully created portal session`);
         return data.url;
       } else if (data?.error) {
-        console.error(`[${requestId}] Error response from function:`, data);
+        logger.error(`[${requestId}] Error response from function:`, data as Error);
         // Don't throw yet - we'll try our fallback approach
       }
     } catch (invokeErr) {
-      console.error(`[${requestId}] Exception during function invoke:`, invokeErr);
+      logger.error(`[${requestId}] Exception during function invoke:`, invokeErr as Error);
       // Continue to fallback
     }
     
     // Fallback approach - direct fetch with explicit headers
-    console.log(`[${requestId}] Trying fallback approach with direct fetch`);
+    logger.debug(`[${requestId}] Trying fallback approach with direct fetch`);
     
     try {
       // Get session for auth token
       const accessToken = sessionData.session?.access_token;
       
       if (!accessToken) {
-        console.error(`[${requestId}] No access token available for fallback`);
+        logger.error(`[${requestId}] No access token available for fallback`);
         throw new Error('Authentication error. Please log in again.');
       }
       
@@ -1081,15 +1082,15 @@ export async function createCustomerPortalSession(userId?: string): Promise<stri
       try {
         responseData = await response.json();
       } catch (parseErr) {
-        console.error(`[${requestId}] Error parsing portal response:`, parseErr);
+        logger.error(`[${requestId}] Error parsing portal response:`, parseErr as Error);
         throw new Error('Error processing the subscription portal response');
       }
       
       // Log the response details for debugging
-      console.log(`[${requestId}] Portal response status: ${response.status}`);
+      logger.debug(`[${requestId}] Portal response status: ${response.status}`);
       
       if (!response.ok) {
-        console.error(`[${requestId}] Error response from function:`, responseData);
+        logger.error(`[${requestId}] Error response from function:`, responseData as Error);
         
         // Provide user-friendly error messages based on status codes
         if (response.status === 404) {
@@ -1106,18 +1107,18 @@ export async function createCustomerPortalSession(userId?: string): Promise<stri
       }
       
       if (responseData?.url) {
-        console.log(`[${requestId}] Successfully created portal session via fallback`);
+        logger.debug(`[${requestId}] Successfully created portal session via fallback`);
         return responseData.url;
       } else {
-        console.error(`[${requestId}] Missing URL in successful response:`, responseData);
+        logger.error(`[${requestId}] Missing URL in successful response:`, responseData as Error);
         throw new Error('Invalid response from subscription portal');
       }
     } catch (fetchErr) {
-      console.error(`[${requestId}] Failed to invoke create-customer-portal-session function:`, fetchErr);
+      logger.error(`[${requestId}] Failed to invoke create-customer-portal-session function:`, fetchErr as Error);
       throw fetchErr; // Rethrow for consistent error handling
     }
   } catch (err: any) {
-    console.error('Failed to create customer portal session:', err);
+    logger.error('Failed to create customer portal session:', err as Error);
     
     // Provide a user-friendly error message
     if (err.message?.includes('stripe_customer_id')) {
@@ -1141,7 +1142,7 @@ export async function getLifetimeMessageCount(userId?: string): Promise<number> 
       userId = user?.id;
       
       if (!userId) {
-        console.warn('No user ID available for getting lifetime message count');
+        logger.warn('No user ID available for getting lifetime message count');
         return 0;
       }
     }
@@ -1201,7 +1202,7 @@ export async function getLifetimeMessageCount(userId?: string): Promise<number> 
     
     return 0;
   } catch (err) {
-    console.error('Failed to get lifetime message count:', err);
+    logger.error('Failed to get lifetime message count:', err as Error);
     return 0;
   }
 }
@@ -1217,7 +1218,7 @@ export async function getUserSignUpDate(userId?: string): Promise<Date | null> {
       userId = user?.id;
       
       if (!userId) {
-        console.warn('No user ID available for getting sign up date');
+        logger.warn('No user ID available for getting sign up date');
         return null;
       }
     }
@@ -1230,7 +1231,7 @@ export async function getUserSignUpDate(userId?: string): Promise<Date | null> {
       .single();
     
     if (error) {
-      console.error('Error fetching user sign up date:', error);
+      logger.error('Error fetching user sign up date:', error as Error);
       return null;
     }
     
@@ -1242,7 +1243,7 @@ export async function getUserSignUpDate(userId?: string): Promise<Date | null> {
     const { data: authData, error: authError } = await supabase.auth.admin.getUserById(userId);
     
     if (authError || !authData?.user) {
-      console.error('Error fetching user from auth:', authError);
+      logger.error('Error fetching user from auth:', authError as Error);
       return null;
     }
     
@@ -1252,7 +1253,7 @@ export async function getUserSignUpDate(userId?: string): Promise<Date | null> {
     
     return null;
   } catch (err) {
-    console.error('Failed to get user sign up date:', err);
+    logger.error('Failed to get user sign up date:', err as Error);
     return null;
   }
 }
@@ -1268,12 +1269,12 @@ export async function forceUpdateMessageCount(userId?: string, newCount?: number
       userId = user?.id;
       
       if (!userId) {
-        console.warn('No user ID available for force updating message count');
+        logger.warn('No user ID available for force updating message count');
         return false;
       }
     }
     
-    console.log(`Force updating message count for user ${userId}`);
+    logger.debug(`Force updating message count for user ${userId}`);
     
     // Get current time for period calculation
     const now = new Date();
@@ -1287,10 +1288,13 @@ export async function forceUpdateMessageCount(userId?: string, newCount?: number
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     
-    console.log('User records:', userRecords?.length || 0, 'Error:', queryError);
+    logger.debug('User records:', { 
+      count: userRecords?.length || 0, 
+      error: queryError 
+    });
     
     if (queryError) {
-      console.error('Error querying records:', queryError);
+      logger.error('Error querying records:', queryError as Error);
       return false;
     }
     
@@ -1306,9 +1310,9 @@ export async function forceUpdateMessageCount(userId?: string, newCount?: number
       });
       
       if (targetRecord) {
-        console.log(`Found record for current month with ID: ${targetRecord.id}`);
+        logger.debug(`Found record for current month with ID: ${targetRecord.id}`);
       } else {
-        console.log('No record found for current month');
+        logger.debug('No record found for current month');
       }
     }
     
@@ -1317,7 +1321,7 @@ export async function forceUpdateMessageCount(userId?: string, newCount?: number
       // If newCount is specified, use it, otherwise increment the current count
       const updatedCount = newCount !== undefined ? newCount : (targetRecord.count || 0) + 1;
       
-      console.log(`Updating record ${targetRecord.id} from ${targetRecord.count} to ${updatedCount}`);
+      logger.debug(`Updating record ${targetRecord.id} from ${targetRecord.count} to ${updatedCount}`);
       
       const { error: updateError } = await supabase
         .from('message_counts')
@@ -1328,11 +1332,11 @@ export async function forceUpdateMessageCount(userId?: string, newCount?: number
         .eq('id', targetRecord.id);
       
       if (updateError) {
-        console.error('Error updating record:', updateError);
+        logger.error('Error updating record:', updateError as Error);
         return false;
       }
       
-      console.log(`Successfully updated count to ${updatedCount}`);
+      logger.debug(`Successfully updated count to ${updatedCount}`);
       
       // Clear the cache to ensure fresh data on next retrieval
       messageCountCache.delete(userId);
@@ -1345,7 +1349,7 @@ export async function forceUpdateMessageCount(userId?: string, newCount?: number
     } else {
       // No record found - try to update any existing record for this user with UPSERT
       // This should handle the unique constraint issue
-      console.log('Trying upsert approach for the current month');
+      logger.debug('Trying upsert approach for the current month');
       
       const monthStart = firstDayOfMonth.toISOString();
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
@@ -1367,11 +1371,11 @@ export async function forceUpdateMessageCount(userId?: string, newCount?: number
         });
       
       if (upsertError) {
-        console.error('Upsert failed:', upsertError);
+        logger.error('Upsert failed:', upsertError as Error);
         
         // As a last resort, try a direct update of any record found for this user
         if (userRecords && userRecords.length > 0) {
-          console.log('Trying to update the most recent record as fallback');
+          logger.debug('Trying to update the most recent record as fallback');
           const latestRecord = userRecords[0];
           
           const { error: fallbackError } = await supabase
@@ -1385,11 +1389,11 @@ export async function forceUpdateMessageCount(userId?: string, newCount?: number
             .eq('id', latestRecord.id);
           
           if (fallbackError) {
-            console.error('Fallback update failed:', fallbackError);
+            logger.error('Fallback update failed:', fallbackError as Error);
             return false;
           }
           
-          console.log(`Fallback successful - updated record ${latestRecord.id} to count ${countToSet}`);
+          logger.debug(`Fallback successful - updated record ${latestRecord.id} to count ${countToSet}`);
           
           // Update cache
           messageCountCache.delete(userId);
@@ -1404,7 +1408,7 @@ export async function forceUpdateMessageCount(userId?: string, newCount?: number
         return false;
       }
       
-      console.log(`Successfully upserted record with count=${countToSet}`);
+      logger.debug(`Successfully upserted record with count=${countToSet}`);
       
       // Clear the cache to ensure fresh data on next retrieval
       messageCountCache.delete(userId);
@@ -1416,7 +1420,7 @@ export async function forceUpdateMessageCount(userId?: string, newCount?: number
       return true;
     }
   } catch (err) {
-    console.error('Force update failed with exception:', err);
+    logger.error('Force update failed with exception:', err as Error);
     return false;
   }
 }
@@ -1426,7 +1430,7 @@ export async function forceUpdateMessageCount(userId?: string, newCount?: number
  */
 export async function testDatabaseAccess(): Promise<{ success: boolean, message: string, data: any }> {
   try {
-    console.log('DIAGNOSTIC: Testing database access');
+    logger.debug('DIAGNOSTIC: Testing database access');
     
     // Get the current user ID
     const { data: { user } } = await supabase.auth.getUser();
@@ -1441,7 +1445,7 @@ export async function testDatabaseAccess(): Promise<{ success: boolean, message:
     }
     
     // Test 1: Basic table access - check if we can query message_counts at all
-    console.log('DIAGNOSTIC: Test 1 - Basic table access');
+    logger.debug('DIAGNOSTIC: Test 1 - Basic table access');
     let test1Result;
     try {
       const { data, error } = await supabase
@@ -1450,14 +1454,14 @@ export async function testDatabaseAccess(): Promise<{ success: boolean, message:
         .limit(1);
         
       test1Result = { success: !error, data, error };
-      console.log('DIAGNOSTIC: Test 1 result:', test1Result);
+      logger.debug('DIAGNOSTIC: Test 1 result:', test1Result);
     } catch (err) {
       test1Result = { success: false, error: err };
-      console.error('DIAGNOSTIC: Test 1 failed with exception:', err);
+      logger.error('DIAGNOSTIC: Test 1 failed with exception:', err as Error);
     }
     
     // Test 2: User-specific query - check if we can query the user's records
-    console.log('DIAGNOSTIC: Test 2 - User-specific query');
+    logger.debug('DIAGNOSTIC: Test 2 - User-specific query');
     let test2Result;
     try {
       const { data, error } = await supabase
@@ -1466,14 +1470,14 @@ export async function testDatabaseAccess(): Promise<{ success: boolean, message:
         .eq('user_id', userId);
         
       test2Result = { success: !error, data, error };
-      console.log('DIAGNOSTIC: Test 2 result:', test2Result);
+      logger.debug('DIAGNOSTIC: Test 2 result:', test2Result);
     } catch (err) {
       test2Result = { success: false, error: err };
-      console.error('DIAGNOSTIC: Test 2 failed with exception:', err);
+      logger.error('DIAGNOSTIC: Test 2 failed with exception:', err as Error);
     }
     
     // Test 3: Record creation - test if we can create a record
-    console.log('DIAGNOSTIC: Test 3 - Record creation');
+    logger.debug('DIAGNOSTIC: Test 3 - Record creation');
     let test3Result;
     try {
       const now = new Date();
@@ -1497,14 +1501,14 @@ export async function testDatabaseAccess(): Promise<{ success: boolean, message:
         .select();
         
       test3Result = { success: !error, data, error, record };
-      console.log('DIAGNOSTIC: Test 3 result:', test3Result);
+      logger.debug('DIAGNOSTIC: Test 3 result:', test3Result);
     } catch (err) {
       test3Result = { success: false, error: err };
-      console.error('DIAGNOSTIC: Test 3 failed with exception:', err);
+      logger.error('DIAGNOSTIC: Test 3 failed with exception:', err as Error);
     }
     
     // Test 4: Record update - test if we can update a record
-    console.log('DIAGNOSTIC: Test 4 - Record update');
+    logger.debug('DIAGNOSTIC: Test 4 - Record update');
     let test4Result;
     
     // Only run if we have records from Test 2
@@ -1521,14 +1525,14 @@ export async function testDatabaseAccess(): Promise<{ success: boolean, message:
           .select();
           
         test4Result = { success: !error, data, error };
-        console.log('DIAGNOSTIC: Test 4 result:', test4Result);
+        logger.debug('DIAGNOSTIC: Test 4 result:', test4Result);
       } catch (err) {
         test4Result = { success: false, error: err };
-        console.error('DIAGNOSTIC: Test 4 failed with exception:', err);
+        logger.error('DIAGNOSTIC: Test 4 failed with exception:', err as Error);
       }
     } else {
       test4Result = { success: false, message: 'Skipped because no records found' };
-      console.log('DIAGNOSTIC: Test 4 skipped - no records to update');
+      logger.debug('DIAGNOSTIC: Test 4 skipped - no records to update');
     }
     
     // Analyze results
@@ -1571,12 +1575,12 @@ export async function ensureMessageCountRecord(userId?: string): Promise<boolean
       userId = user?.id;
       
       if (!userId) {
-        console.warn('DIAGNOSTIC: No user ID available for ensuring message count record');
+        logger.warn('DIAGNOSTIC: No user ID available for ensuring message count record');
         return false;
       }
     }
     
-    console.log(`DIAGNOSTIC: Ensuring message count record exists for user ${userId}`);
+    logger.debug(`DIAGNOSTIC: Ensuring message count record exists for user ${userId}`);
     
     // Get the current time for period calculation
     const now = new Date();
@@ -1593,18 +1597,18 @@ export async function ensureMessageCountRecord(userId?: string): Promise<boolean
       .limit(1);
     
     if (checkError) {
-      console.error(`DIAGNOSTIC: Error checking for message count record: ${checkError.message}`, checkError);
+      logger.error(`DIAGNOSTIC: Error checking for message count record: ${checkError.message}`, checkError as Error);
       return false;
     }
     
     // If a record exists, no need to create one
     if (records && records.length > 0) {
-      console.log(`DIAGNOSTIC: Message count record already exists for user ${userId} with count ${records[0].count}`);
+      logger.debug(`DIAGNOSTIC: Message count record already exists for user ${userId} with count ${records[0].count}`);
       return true;
     }
     
     // No record exists, so create one with count 0
-    console.log(`DIAGNOSTIC: Creating initial message count record for user ${userId}`);
+    logger.debug(`DIAGNOSTIC: Creating initial message count record for user ${userId}`);
     
     // We'll use upsert to handle potential race conditions
     const { data: insertData, error: insertError } = await supabase
@@ -1619,14 +1623,14 @@ export async function ensureMessageCountRecord(userId?: string): Promise<boolean
       });
     
     if (insertError) {
-      console.error(`DIAGNOSTIC: Error creating message count record: ${insertError.message}`, insertError);
+      logger.error(`DIAGNOSTIC: Error creating message count record: ${insertError.message}`, insertError as Error);
       return false;
     }
     
-    console.log(`DIAGNOSTIC: Successfully created message count record for user ${userId}`);
+    logger.debug(`DIAGNOSTIC: Successfully created message count record for user ${userId}`);
     return true;
   } catch (err) {
-    console.error(`DIAGNOSTIC: Failed to ensure message count record: ${err}`);
+    logger.error(`DIAGNOSTIC: Failed to ensure message count record: ${err}`);
     return false;
   }
 }
@@ -1643,12 +1647,12 @@ export async function specialUpdateMessageCount(userId?: string, increment: bool
       userId = user?.id;
       
       if (!userId) {
-        console.warn('DIAGNOSTIC: No user ID available for special update');
+        logger.warn('DIAGNOSTIC: No user ID available for special update');
         return false;
       }
     }
     
-    console.log(`DIAGNOSTIC: Using special update for ${userId}, increment: ${increment}`);
+    logger.debug(`DIAGNOSTIC: Using special update for ${userId}, increment: ${increment}`);
     
     // Instead of trying to update the count directly, make a timestamp update
     // as a signal for the backend to update the count
@@ -1666,7 +1670,7 @@ export async function specialUpdateMessageCount(userId?: string, increment: bool
       .limit(1);
     
     if (fetchError) {
-      console.error('DIAGNOSTIC: Error fetching record:', fetchError);
+      logger.error('DIAGNOSTIC: Error fetching record:', fetchError as Error);
       return false;
     }
     
@@ -1689,15 +1693,15 @@ export async function specialUpdateMessageCount(userId?: string, increment: bool
           });
           
         if (error) {
-          console.error('DIAGNOSTIC: Error creating record:', error);
+          logger.error('DIAGNOSTIC: Error creating record:', error as Error);
           return false;
         }
         
-        console.log('DIAGNOSTIC: Created new record with count=1');
+        logger.debug('DIAGNOSTIC: Created new record with count=1');
         messageCountCache.delete(userId);
         return true;
       } catch (insertErr) {
-        console.error('DIAGNOSTIC: Insert error:', insertErr);
+        logger.error('DIAGNOSTIC: Insert error:', insertErr as Error);
         return false;
       }
     }
@@ -1723,11 +1727,11 @@ export async function specialUpdateMessageCount(userId?: string, increment: bool
         .eq('id', record.id);
       
       if (error) {
-        console.error('DIAGNOSTIC: Error updating record:', error);
+        logger.error('DIAGNOSTIC: Error updating record:', error as Error);
         return false;
       }
       
-      console.log(`DIAGNOSTIC: Successfully updated timestamp, signaling ${increment ? 'increment' : 'decrement'} from ${currentCount}`);
+      logger.debug(`DIAGNOSTIC: Successfully updated timestamp, signaling ${increment ? 'increment' : 'decrement'} from ${currentCount}`);
       
       // Try a secondary approach - update via a specific field that might not be RLS protected
       try {
@@ -1759,11 +1763,11 @@ export async function specialUpdateMessageCount(userId?: string, increment: bool
       
       return true;
     } catch (updateErr) {
-      console.error('DIAGNOSTIC: Update error:', updateErr);
+      logger.error('DIAGNOSTIC: Update error:', updateErr as Error);
       return false;
     }
   } catch (err) {
-    console.error('DIAGNOSTIC: Special update failed:', err);
+    logger.error('DIAGNOSTIC: Special update failed:', err as Error);
     return false;
   }
 }
@@ -1773,52 +1777,52 @@ export async function specialUpdateMessageCount(userId?: string, increment: bool
  */
 export async function manuallyActivateSubscription(priceId: string): Promise<boolean> {
   try {
-    console.log(`=== MANUAL ACTIVATION START ===`);
-    console.log(`Manually activating subscription with price ID: ${priceId}`);
+    logger.debug(`=== MANUAL ACTIVATION START ===`);
+    logger.debug(`Manually activating subscription with price ID: ${priceId}`);
     
     // TEMPORARY: Skip session validation to test if that's the issue
-    console.log('TESTING: Skipping session validation temporarily');
+    logger.debug('TESTING: Skipping session validation temporarily');
         
     // Get current user ID for fallback
         const { data: userData } = await supabase.auth.getUser();
         const userId = userData?.user?.id;
         
         if (!userId) {
-      console.error('Could not determine user ID for activation');
+      logger.error('Could not determine user ID for activation');
           return false;
         }
         
-    console.log(`User ID confirmed: ${userId}`);
+    logger.debug(`User ID confirmed: ${userId}`);
     
     // Try first with standard invocation
     try {
-      console.log('=== ATTEMPTING EDGE FUNCTION CALL ===');
-      console.log('Calling supabase.functions.invoke with:', { priceId });
+      logger.debug('=== ATTEMPTING EDGE FUNCTION CALL ===');
+      logger.debug('Calling supabase.functions.invoke with:', { priceId });
       
         const { data, error } = await supabase.functions.invoke('activate-subscription', {
         body: { priceId },
         });
 
-      console.log('Edge function response:', { data, error });
+      logger.debug('Edge function response:', { data, error });
         
         if (error) {
-        console.error('Edge function error:', error);
+        logger.error('Edge function error:', error as Error);
         throw new Error(`Edge function failed: ${error.message}`);
         }
         
       if (data?.success) {
-        console.log('✅ Edge function succeeded');
+        logger.debug('✅ Edge function succeeded');
         return true;
       } else {
-        console.error('Edge function returned failure:', data);
+        logger.error('Edge function returned failure:', data as Error);
         throw new Error(data?.error || 'Unknown edge function error');
       }
     } catch (edgeError) {
-      console.error('Edge function call failed:', edgeError);
+      logger.error('Edge function call failed:', edgeError as Error);
       
       // Check if it's a network/connection error
       if (edgeError instanceof Error) {
-        console.error('Error details:', {
+        logger.error('Error details:', undefined, {
           name: edgeError.name,
           message: edgeError.message,
           stack: edgeError.stack
@@ -1828,8 +1832,8 @@ export async function manuallyActivateSubscription(priceId: string): Promise<boo
       throw edgeError; // Re-throw to stop here for debugging
     }
   } catch (error) {
-    console.error('=== MANUAL ACTIVATION FAILED ===');
-    console.error('Error in manuallyActivateSubscription:', error);
+    logger.error('=== MANUAL ACTIVATION FAILED ===');
+    logger.error('Error in manuallyActivateSubscription:', error as Error);
           return false;
         }
 }
@@ -1840,26 +1844,26 @@ export async function manuallyActivateSubscription(priceId: string): Promise<boo
  */
 export async function getPriceIdForTierFromBackend(tierName: string): Promise<string | null> {
   try {
-    console.log(`Getting price ID for tier: ${tierName} from backend`);
+    logger.debug(`Getting price ID for tier: ${tierName} from backend`);
     
     const { data, error } = await supabase.functions.invoke('get-price-id', {
       body: { tier: tierName.toLowerCase() }
     });
     
     if (error) {
-      console.error('Error getting price ID from backend:', error);
+      logger.error('Error getting price ID from backend:', error as Error);
       return null;
         }
         
     if (data?.priceId) {
-      console.log(`Backend returned price ID: ${data.priceId} for tier: ${tierName}`);
+      logger.debug(`Backend returned price ID: ${data.priceId} for tier: ${tierName}`);
       return data.priceId;
     }
     
-    console.warn(`No price ID returned for tier: ${tierName}`);
+    logger.warn(`No price ID returned for tier: ${tierName}`);
     return null;
   } catch (err) {
-    console.error('Failed to get price ID from backend:', err);
+    logger.error('Failed to get price ID from backend:', err as Error);
     return null;
   }
 }
@@ -1869,7 +1873,7 @@ export async function getPriceIdForTierFromBackend(tierName: string): Promise<st
  * @deprecated Use getPriceIdForTierFromBackend instead for better security
  */
 export function getPriceIdForTier(tierName: string): string {
-  console.warn('getPriceIdForTier is deprecated. Use getPriceIdForTierFromBackend for better security.');
+  logger.warn('getPriceIdForTier is deprecated. Use getPriceIdForTierFromBackend for better security.');
   
   if (tierName.toLowerCase() === 'unlimited') {
     // Use the monthly unlimited price ID from environment variables

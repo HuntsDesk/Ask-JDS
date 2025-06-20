@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { supabase } from './supabase';
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
@@ -60,7 +61,7 @@ class RealtimeSubscriptionManager {
   private checkChannelCollision(channelName: string): boolean {
     const exists = this.channels.has(channelName);
     if (exists) {
-      console.warn(`[RealtimeManager] Channel name collision detected: ${channelName}`);
+      logger.warn(`[RealtimeManager] Channel name collision detected: ${channelName}`);
     }
     return exists;
   }
@@ -71,10 +72,10 @@ class RealtimeSubscriptionManager {
     const statusChannel = supabase.channel(statusChannelName);
     
     statusChannel.subscribe((status) => {
-      console.log('[RealtimeManager] Connection status:', status);
+      logger.debug('[RealtimeManager] Connection status:', { status });
       
       if (status === 'SUBSCRIBED') {
-        console.log('[RealtimeManager] Connection opened');
+        logger.debug('[RealtimeManager] Connection opened');
         this.updateConnectionState({
           isConnected: true,
           lastConnected: new Date(),
@@ -82,7 +83,7 @@ class RealtimeSubscriptionManager {
           fallbackPolling: false
         });
       } else if (status === 'CLOSED' || status === 'TIMED_OUT') {
-        console.log('[RealtimeManager] Connection closed/timed out');
+        logger.debug('[RealtimeManager] Connection closed/timed out');
         this.updateConnectionState({
           isConnected: false,
           lastDisconnected: new Date()
@@ -105,7 +106,7 @@ class RealtimeSubscriptionManager {
       try {
         listener(this.connectionState);
       } catch (error) {
-        console.error('[RealtimeManager] Error notifying status listener:', error);
+        logger.error('[RealtimeManager] Error notifying status listener:', error);
       }
     });
   }
@@ -126,7 +127,7 @@ class RealtimeSubscriptionManager {
       maxDelay
     );
 
-    console.log(`[RealtimeManager] Scheduling reconnection attempt ${this.connectionState.retryCount + 1} in ${delay}ms`);
+    logger.debug(`[RealtimeManager] Scheduling reconnection attempt ${this.connectionState.retryCount + 1} in ${delay}ms`);
 
     const retryTimeout = setTimeout(() => {
       this.attemptReconnection();
@@ -139,14 +140,14 @@ class RealtimeSubscriptionManager {
 
     // Enable fallback polling after 3 failed attempts
     if (this.connectionState.retryCount >= 3) {
-      console.log('[RealtimeManager] Enabling fallback polling mode');
+      logger.debug('[RealtimeManager] Enabling fallback polling mode');
       this.updateConnectionState({ fallbackPolling: true });
     }
   }
 
   private async attemptReconnection() {
     try {
-      console.log('[RealtimeManager] Attempting to reconnect...');
+      logger.debug('[RealtimeManager] Attempting to reconnect...');
       
       // Store channel configurations before removing
       const channelConfigs: Array<{ name: string; config: RealtimeSubscriptionConfig; userId?: string }> = [];
@@ -160,7 +161,7 @@ class RealtimeSubscriptionManager {
       // Remove channels except connection monitor
       this.channels.forEach((channel, name) => {
         if (!name.includes('connection-monitor')) {
-          console.log(`[RealtimeManager] Removing channel during reconnection: ${name}`);
+          logger.debug(`[RealtimeManager] Removing channel during reconnection: ${name}`);
           supabase.removeChannel(channel);
           this.channels.delete(name);
           this.channelConfigs.delete(name);
@@ -176,9 +177,9 @@ class RealtimeSubscriptionManager {
         this.subscribeInternal(newChannelName, config, userId);
       }
       
-      console.log('[RealtimeManager] Reconnection attempt completed');
+      logger.debug('[RealtimeManager] Reconnection attempt completed');
     } catch (error) {
-      console.error('[RealtimeManager] Reconnection attempt failed:', error);
+      logger.error('[RealtimeManager] Reconnection attempt failed:', error);
       this.handleConnectionLoss(); // Schedule another retry
     }
   }
@@ -191,7 +192,7 @@ class RealtimeSubscriptionManager {
     config: RealtimeSubscriptionConfig,
     userId?: string
   ): RealtimeChannel {
-    console.log(`[RealtimeManager] Creating subscription for channel: ${channelName}`);
+    logger.debug(`[RealtimeManager] Creating subscription for channel: ${channelName}`);
 
     // Build filter with user ID if provided
     let filter = config.filter;
@@ -209,7 +210,7 @@ class RealtimeSubscriptionManager {
         table: config.table,
         ...(filter && { filter })
       }, (payload) => {
-        console.log(`[RealtimeManager] Received change for ${channelName}:`, payload.eventType);
+        logger.debug(`[RealtimeManager] Received change for ${channelName}:`, { eventType: payload.eventType });
         
         switch (payload.eventType) {
           case 'INSERT':
@@ -224,7 +225,7 @@ class RealtimeSubscriptionManager {
         }
       })
       .subscribe((status) => {
-        console.log(`[RealtimeManager] Channel ${channelName} status:`, status);
+        logger.debug(`[RealtimeManager] Channel ${channelName} status:`, { status });
         
         if (status === 'SUBSCRIBED') {
           this.updateConnectionState({
@@ -233,7 +234,13 @@ class RealtimeSubscriptionManager {
             retryCount: 0
           });
         } else if (status === 'TIMED_OUT' || status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          console.warn(`[RealtimeManager] Channel ${channelName} failed with status: ${status}`);
+          // Only warn for actual errors, not normal closures
+          if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
+            logger.warn(`[RealtimeManager] Channel ${channelName} failed with status: ${status}`);
+          } else {
+            // CLOSED is normal when navigating away
+            logger.debug(`[RealtimeManager] Channel ${channelName} closed normally`);
+          }
           this.updateConnectionState({
             isConnected: false,
             lastDisconnected: new Date()
@@ -261,17 +268,17 @@ class RealtimeSubscriptionManager {
     
     // Double-check for collisions (should never happen with our naming strategy)
     if (this.checkChannelCollision(uniqueChannelName)) {
-      console.error(`[RealtimeManager] Channel collision detected, generating new name`);
+      logger.error(`[RealtimeManager] Channel collision detected, generating new name`);
       return this.subscribe(baseChannelName, config, userId); // Retry with new name
     }
 
-    console.log(`[RealtimeManager] Subscribing to channel: ${uniqueChannelName}`);
+    logger.debug(`[RealtimeManager] Subscribing to channel: ${uniqueChannelName}`);
     
     const channel = this.subscribeInternal(uniqueChannelName, config, userId);
 
     // Return unsubscribe function
     return () => {
-      console.log(`[RealtimeManager] Unsubscribing from channel: ${uniqueChannelName}`);
+      logger.debug(`[RealtimeManager] Unsubscribing from channel: ${uniqueChannelName}`);
       this.channels.delete(uniqueChannelName);
       this.channelConfigs.delete(uniqueChannelName);
       supabase.removeChannel(channel);
@@ -298,13 +305,13 @@ class RealtimeSubscriptionManager {
   }
 
   public forceReconnect(): void {
-    console.log('[RealtimeManager] Force reconnecting...');
+    logger.debug('[RealtimeManager] Force reconnecting...');
     this.updateConnectionState({ retryCount: 0 });
     this.attemptReconnection();
   }
 
   public destroy(): void {
-    console.log('[RealtimeManager] Destroying manager');
+    logger.debug('[RealtimeManager] Destroying manager');
     
     // Clear retry timeout
     if (this.connectionState.retryTimeout) {
@@ -313,7 +320,7 @@ class RealtimeSubscriptionManager {
     
     // Remove all channels
     this.channels.forEach((channel, name) => {
-      console.log(`[RealtimeManager] Removing channel: ${name}`);
+      logger.debug(`[RealtimeManager] Removing channel: ${name}`);
       supabase.removeChannel(channel);
     });
     

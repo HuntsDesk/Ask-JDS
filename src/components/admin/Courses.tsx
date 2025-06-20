@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState, useEffect } from 'react';
 import { BookOpen, Layers, FileText, Search, Plus, PenSquare, Trash2, ChevronRight, AlertCircle, ArrowUpDown, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -156,7 +157,7 @@ export const AdminCourses = () => {
           lessons: lessonsCount || 0
         });
       } catch (err: any) {
-        console.error('Error fetching counts:', err);
+        logger.error('Error fetching counts:', err);
         setError(prev => ({ ...prev, counts: err.message }));
       } finally {
         setLoading(prev => ({ ...prev, counts: false }));
@@ -216,7 +217,7 @@ export const AdminCourses = () => {
         
         setCourses(coursesWithCount);
       } catch (err: any) {
-        console.error('Error fetching courses:', err);
+        logger.error('Error fetching courses:', err);
         setError(prev => ({ ...prev, courses: err.message }));
       } finally {
         setLoading(prev => ({ ...prev, courses: false }));
@@ -320,7 +321,7 @@ export const AdminCourses = () => {
         
         setCourses(coursesWithCount);
       } catch (err: any) {
-        console.error('Error fetching courses:', err);
+        logger.error('Error fetching courses:', err);
       }
     };
     
@@ -336,7 +337,7 @@ export const AdminCourses = () => {
           courses: coursesCount || 0
         }));
       } catch (err) {
-        console.error('Error updating course count:', err);
+        logger.error('Error updating course count:', err);
       }
     };
     
@@ -396,7 +397,7 @@ export const AdminCourses = () => {
       }));
       
     } catch (err: any) {
-      console.error('Error deleting course:', err);
+      logger.error('Error deleting course:', err);
       alert(`Failed to delete course: ${err.message}`);
     }
   };

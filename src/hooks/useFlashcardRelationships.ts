@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useCachedData } from './use-cached-data';
@@ -34,7 +35,7 @@ export function useFlashcardRelationships() {
   // Define a stable fetch function that doesn't change on every render
   // Using useCallback with empty dependency array ensures stability
   const fetchRelationshipData = useCallback(async (): Promise<FlashcardRelationshipData> => {
-    console.log("Fetching all flashcard relationship data");
+    logger.debug("Fetching all flashcard relationship data");
     
     // Step 1: Fetch base data for lookups
     const [

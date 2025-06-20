@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthForm } from './AuthForm';
@@ -34,7 +35,7 @@ export function AuthPage() {
       const prevRedirectAttempts = parseInt(sessionStorage.getItem(REDIRECT_ATTEMPTS_KEY) || '0');
       
       // Don't set isAuthenticating to true to avoid showing the banner
-      console.log('AuthPage: Auth state check', { 
+      logger.debug('AuthPage: Auth state check', { 
         user: user ? `${user.email} (${user.id})` : null, 
         loading, 
         authInitialized, 
@@ -46,7 +47,7 @@ export function AuthPage() {
       if (user) {
         // If we've already tried to redirect too many times, don't continue the cycle
         if (prevRedirectAttempts > 3) {
-          console.warn('AuthPage: Too many redirect attempts detected (', prevRedirectAttempts, ') - breaking potential infinite loop');
+          logger.warn('AuthPage: Too many redirect attempts detected (', prevRedirectAttempts, ') - breaking potential infinite loop');
           sessionStorage.removeItem(REDIRECT_ATTEMPTS_KEY);
           // Force a complete page reload to reset all state
           window.location.reload();
@@ -55,7 +56,7 @@ export function AuthPage() {
         
         // Get the last visited page, or default to /chat
         const lastVisitedPage = localStorage.getItem(LAST_PAGE_KEY) || DEFAULT_REDIRECT;
-        console.log('AuthPage: User already authenticated, navigating to', lastVisitedPage);
+        logger.debug('AuthPage: User already authenticated, navigating to', lastVisitedPage);
         
         // Clear any redirect-related state
         sessionStorage.removeItem('protected_redirect_attempts');
@@ -78,18 +79,18 @@ export function AuthPage() {
         try {
           setIsCheckingSession(true);
           didCheckSessionRef.current = true; // Mark that we've done a session check
-          console.log('AuthPage: No user in context, checking session manually');
+          logger.debug('AuthPage: No user in context, checking session manually');
           
           const { data, error } = await supabase.auth.getSession();
           
           if (error) {
-            console.error('AuthPage: Error checking session manually', error);
+            logger.error('AuthPage: Error checking session manually', error);
             setIsCheckingSession(false);
             return;
           }
           
           if (data?.session?.user) {
-            console.log('AuthPage: Valid session found manually', data.session.user.email);
+            logger.debug('AuthPage: Valid session found manually', data.session.user.email);
             
             // Store session information in session storage to assist ProtectedRoute
             sessionStorage.setItem(SESSION_FOUND_KEY, 'true');
@@ -103,7 +104,7 @@ export function AuthPage() {
             sessionStorage.removeItem('protected_redirect_attempts');
             sessionStorage.removeItem(REDIRECT_ATTEMPTS_KEY);
             
-            console.log('AuthPage: Redirecting to', lastVisitedPage);
+            logger.debug('AuthPage: Redirecting to', lastVisitedPage);
             
             // Use regular navigation first (this is gentler than page reload)
             navigate(lastVisitedPage, { replace: true });
@@ -111,12 +112,12 @@ export function AuthPage() {
             // Set a short timeout and if we're still here, force a reload
             setTimeout(() => {
               if (window.location.pathname.includes('/auth')) {
-                console.log('AuthPage: Still on auth page after navigation, forcing reload');
+                logger.debug('AuthPage: Still on auth page after navigation, forcing reload');
                 window.location.href = lastVisitedPage;
               }
             }, 500);
           } else {
-            console.log('AuthPage: No session found manually');
+            logger.debug('AuthPage: No session found manually');
             // Clear any previous session markers
             sessionStorage.removeItem(SESSION_FOUND_KEY);
             sessionStorage.removeItem(SESSION_USER_ID_KEY);
@@ -125,7 +126,7 @@ export function AuthPage() {
           
           setIsCheckingSession(false);
         } catch (err) {
-          console.error('AuthPage: Exception checking session', err);
+          logger.error('AuthPage: Exception checking session', err);
           setIsCheckingSession(false);
         }
       }

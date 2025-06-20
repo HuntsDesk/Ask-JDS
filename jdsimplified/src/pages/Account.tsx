@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
@@ -61,7 +62,7 @@ const Account = () => {
     setIsLoading(true);
     try {
       // In a real app, call API to update profile
-      console.log('Profile update:', values);
+      logger.debug('Profile update:', values);
       
       toast({
         title: 'Profile updated',
@@ -82,7 +83,7 @@ const Account = () => {
     setIsLoading(true);
     try {
       // In a real app, call API to update password
-      console.log('Password update:', values);
+      logger.debug('Password update:', values);
       
       toast({
         title: 'Password updated',

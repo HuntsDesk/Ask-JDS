@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React, { useState, useEffect } from 'react';
 import {
   PaymentElement,
@@ -28,36 +29,36 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ clientSecr
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    console.log('StripePaymentForm mounted with clientSecret:', clientSecret ? `${clientSecret.substring(0, 8)}...` : 'none');
+    logger.debug('StripePaymentForm mounted with clientSecret:', clientSecret ? `${clientSecret.substring(0, 8)}...` : 'none');
     
     if (!stripe) {
-      console.warn('Stripe.js has not yet loaded');
+      logger.warn('Stripe.js has not yet loaded');
       return;
     }
 
     if (!clientSecret) {
-      console.error('No client secret provided to StripePaymentForm');
+      logger.error('No client secret provided to StripePaymentForm');
       return;
     }
 
     // Retrieve PaymentIntent status on mount to verify it's valid
     stripe.retrievePaymentIntent(clientSecret).then(({ paymentIntent, error }) => {
-      console.log('Initial PaymentIntent status:', paymentIntent?.status);
+      logger.debug('Initial PaymentIntent status:', paymentIntent?.status);
       if (error) {
-        console.error('Error retrieving payment intent:', error);
+        logger.error('Error retrieving payment intent:', error);
         setMessage(`Error: ${error.message}`);
       } else if (paymentIntent) {
         if (paymentIntent.status === 'succeeded') {
           setMessage('Payment succeeded! You will be redirected shortly.');
           if (onSuccess) onSuccess(paymentIntent.id);
         } else if (paymentIntent.status === 'requires_payment_method') {
-          console.log('Payment requires payment method, ready for user input');
+          logger.debug('Payment requires payment method, ready for user input');
         } else {
-          console.log(`Payment is in state: ${paymentIntent.status}`);
+          logger.debug(`Payment is in state: ${paymentIntent.status}`);
         }
       }
     }).catch(err => {
-      console.error('Exception retrieving payment intent:', err);
+      logger.error('Exception retrieving payment intent:', err);
       setMessage(`Could not verify payment: ${err.message}`);
     });
   }, [stripe, clientSecret, onSuccess]);
@@ -68,7 +69,7 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ clientSecr
     if (!stripe || !elements) {
       // Stripe.js hasn't yet loaded.
       // Make sure to disable form submission until Stripe.js has loaded.
-      console.error('Stripe.js has not loaded yet.');
+      logger.error('Stripe.js has not loaded yet.');
       setMessage('Stripe is not ready. Please wait a moment and try again.');
       return;
     }
@@ -99,7 +100,7 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ clientSecr
       returnUrl += (returnUrl.includes('?') ? '&' : '?') + `tier=${encodeURIComponent(tier)}`;
     }
 
-    console.log(`Confirming payment with return URL: ${returnUrl}`);
+    logger.debug(`Confirming payment with return URL: ${returnUrl}`);
 
     try {
       const { error, paymentIntent } = await stripe.confirmPayment({
@@ -119,12 +120,12 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ clientSecr
       // be redirected to an intermediate site first to authorize the payment, then
       // redirected to the `return_url`.
       if (error) {
-        console.error('Stripe confirmPayment error:', error);
+        logger.error('Stripe confirmPayment error:', error);
         let userMessage = 'An unexpected error occurred.';
         if (error.type === "card_error" || error.type === "validation_error") {
             userMessage = error.message || userMessage;
         } else {
-            console.error('Stripe confirmPayment error details:', JSON.stringify(error));
+            logger.error('Stripe confirmPayment error details:', JSON.stringify(error));
             userMessage = "Payment failed. Please try again or contact support.";
         }
         setMessage(userMessage);
@@ -132,12 +133,12 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({ clientSecr
       }
       // If redirect: 'if_required' was used and payment succeeded directly:
       // else if (paymentIntent && paymentIntent.status === 'succeeded') {
-      //    console.log('Payment succeeded directly!', paymentIntent);
+      //    logger.debug('Payment succeeded directly!', paymentIntent);
       //    setMessage('Payment successful!');
       //    if(onSuccess) onSuccess(paymentIntent.id);
       // }
     } catch (err) {
-      console.error('Exception in Stripe confirmPayment:', err);
+      logger.error('Exception in Stripe confirmPayment:', err);
       setMessage(`Payment error: ${err instanceof Error ? err.message : 'Unknown error'}`);
       if (onError) onError(err);
     } finally {

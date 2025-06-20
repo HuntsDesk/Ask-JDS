@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 
@@ -43,22 +44,22 @@ const fetchPricing = async (): Promise<PricingData[]> => {
     });
     
     if (error) {
-      console.warn('Edge function error, using fallback pricing:', error);
+      logger.warn('Edge function error, using fallback pricing:', error);
       return FALLBACK_PRICING;
     }
 
     const response = data as PricingResponse;
     
     if (!response.success || !response.data || response.data.length === 0) {
-      console.warn('Invalid response from pricing function, using fallback');
+      logger.warn('Invalid response from pricing function, using fallback');
       return FALLBACK_PRICING;
     }
 
-    console.log(`Loaded pricing from ${response.source}:`, response.data.length, 'entries');
+    logger.debug(`Loaded pricing from ${response.source}:`, response.data.length, 'entries');
     return response.data;
     
   } catch (error) {
-    console.error('Failed to fetch pricing, using fallback:', error);
+    logger.error('Failed to fetch pricing, using fallback:', error);
     return FALLBACK_PRICING;
   }
 };

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import React from 'react';
 import { SubscriptionSettings } from '@/components/settings/SubscriptionSettings';
 import { Container } from '@/components/ui/container';
@@ -17,7 +18,7 @@ export function SettingsPage() {
       }
     } catch (error) {
       toast.error('Error activating subscription');
-      console.error('Error activating subscription:', error);
+      logger.error('Error activating subscription:', error);
     }
   };
 

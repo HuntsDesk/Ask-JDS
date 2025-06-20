@@ -1,9 +1,14 @@
+// @ts-ignore - Deno runtime provides these globals
 import { createClient } from 'npm:@supabase/supabase-js@2.8.0';
 import { getConfig, getModelEndpoint } from '../_shared/config.ts';
 
+// @ts-ignore - Deno global
 const GOOGLE_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+// @ts-ignore - Deno global
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+// @ts-ignore - Deno global
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+// @ts-ignore - Deno global
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
 let cachedSystemPrompt = null;
 
@@ -140,6 +145,7 @@ function createStreamParser(): TransformStream<Uint8Array, Uint8Array> {
 }
 
 // Serve the streaming function
+// @ts-ignore - Deno global
 Deno.serve(async (req) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
