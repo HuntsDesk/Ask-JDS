@@ -2,6 +2,7 @@ import { logger } from '@/lib/logger';
 import { useState, useEffect, useRef } from 'react';
 import Hls from 'hls.js';
 import { constructGumletUrls } from '@/lib/gumlet';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 interface VideoPlayerProps {
   videoId: string;
@@ -31,13 +32,55 @@ export const VideoPlayer = ({
 }: VideoPlayerProps) => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isBuffering, setIsBuffering] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const analyticsRef = useRef<any>(null);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Get URLs only when videoId is available
   const { hlsUrl, mp4Url, thumbnailUrl } = videoId ? constructGumletUrls(videoId) : { hlsUrl: '', mp4Url: '', thumbnailUrl: '' };
   const [useMp4Fallback, setUseMp4Fallback] = useState(false);
+  
+  // Video event handlers
+  const handleLoadedData = () => {
+    logger.debug('Video loaded data', { videoId });
+    setIsLoading(false);
+    setIsBuffering(false);
+    // Clear the timeout since video loaded successfully
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+      loadingTimeoutRef.current = null;
+    }
+  };
+  
+  const handleCanPlay = () => {
+    logger.debug('Video can play', { videoId });
+    setIsLoading(false);
+    setIsBuffering(false);
+  };
+  
+  const handleWaiting = () => {
+    logger.debug('Video waiting/buffering', { videoId });
+    setIsBuffering(true);
+  };
+  
+  const handlePlaying = () => {
+    logger.debug('Video playing', { videoId });
+    setIsBuffering(false);
+  };
+  
+  const handleError = () => {
+    logger.error('Video error', new Error(`Video playback failed for ID: ${videoId}`));
+    setError('Error loading video. Please try again later.');
+    setIsLoading(false);
+    setIsBuffering(false);
+    // Clear the timeout on error
+    if (loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current);
+      loadingTimeoutRef.current = null;
+    }
+  };
   
   useEffect(() => {
     if (!videoId || !videoRef.current) return;
@@ -45,6 +88,15 @@ export const VideoPlayer = ({
     const video = videoRef.current;
     setError(null);
     setIsLoading(true);
+    setIsBuffering(false);
+    
+    // Set a timeout to prevent infinite loading state
+    loadingTimeoutRef.current = setTimeout(() => {
+      if (isLoading) {
+        logger.warn('Video loading timeout', { videoId });
+        setIsLoading(false);
+      }
+    }, 30000); // 30 second timeout
     
     // For now, prefer MP4 since it works more reliably
     const preferMp4 = true; // Toggle this to switch between HLS and MP4
@@ -52,7 +104,7 @@ export const VideoPlayer = ({
     if (preferMp4 && mp4Url) {
       logger.info('Using MP4 for video playback', { mp4Url, videoId });
       video.src = mp4Url;
-      setIsLoading(false);
+      // Don't set loading to false here - wait for loadeddata event
       return;
     }
     
@@ -90,13 +142,13 @@ export const VideoPlayer = ({
           // Continue without analytics - don't block video playback
         }
       } else {
-        logger.warn('Gumlet insights SDK not available');
+        logger.debug('Gumlet insights SDK not available');
       }
       
       // HLS event listeners
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         logger.debug('HLS manifest parsed successfully');
-        setIsLoading(false);
+        // Don't set loading to false here - wait for video element events
       });
       
       hls.on(Hls.Events.ERROR, (event, data) => {
@@ -138,14 +190,14 @@ export const VideoPlayer = ({
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       // Native HLS support (Safari)
       video.src = hlsUrl;
-      setIsLoading(false);
+      // Don't set loading to false here - wait for video element events
       logger.debug('Using native HLS support');
     } else {
       // HLS not supported and not Safari - use MP4 fallback
       logger.info('HLS not supported, using MP4 fallback');
       if (mp4Url) {
         video.src = mp4Url;
-        setIsLoading(false);
+        // Don't set loading to false here - wait for video element events
       } else {
         setError('Video playback is not supported in this browser.');
         setIsLoading(false);
@@ -159,6 +211,10 @@ export const VideoPlayer = ({
         hlsRef.current = null;
       }
       analyticsRef.current = null;
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
     };
   }, [videoId, hlsUrl, mp4Url]);
   
@@ -168,7 +224,7 @@ export const VideoPlayer = ({
       logger.info('Using MP4 fallback', { mp4Url });
       const video = videoRef.current;
       video.src = mp4Url;
-      setIsLoading(false);
+      // Don't set loading to false here - wait for video element events
       setError(null);
     }
   }, [useMp4Fallback, mp4Url]);
@@ -196,22 +252,22 @@ export const VideoPlayer = ({
     return <div className="text-center p-4 bg-gray-100 rounded-md">No video available</div>;
   }
 
-  const handleError = () => {
-    setError('Error loading video. Please try again later.');
-    setIsLoading(false);
-  };
-
   return (
-    <div className={`video-player-container relative rounded-md overflow-hidden ${className}`}>
+    <div className={`video-player-container relative rounded-md overflow-hidden bg-black ${className}`}>
       {error ? (
         <div className="bg-red-50 text-red-600 p-4 rounded-md">
           {error}
         </div>
       ) : (
         <div className="w-full h-full relative">
-          {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-10">
-              <div className="text-white">Loading video...</div>
+          {(isLoading || isBuffering) && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
+              <div className="flex flex-col items-center gap-2">
+                <LoadingSpinner className="h-8 w-8 text-white" />
+                <div className="text-white text-sm">
+                  {isBuffering ? 'Buffering...' : 'Loading video...'}
+                </div>
+              </div>
             </div>
           )}
           <video
@@ -221,6 +277,10 @@ export const VideoPlayer = ({
             height={height}
             controls={showControls}
             autoPlay={autoPlay}
+            onLoadedData={handleLoadedData}
+            onCanPlay={handleCanPlay}
+            onWaiting={handleWaiting}
+            onPlaying={handlePlaying}
             onError={handleError}
             playsInline={true}
             className="rounded-md w-full h-full"

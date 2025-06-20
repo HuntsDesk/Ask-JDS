@@ -3,9 +3,10 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { supabase } from '@/lib/supabase';
-import { ChevronLeft, ChevronRight, BookOpen, Menu, User, Clock, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BookOpen, Menu, User, Clock, ChevronDown, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import PageContainer from '@/components/layout/PageContainer';
@@ -50,6 +51,7 @@ export default function CourseContent() {
   const [showSidebar, setShowSidebar] = useState(true);
   const { isDesktop, isPinned, isExpanded, contentPadding, contentMargin } = useLayoutState();
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
+  const [showTableOfContents, setShowTableOfContents] = useState(false);
 
   useEffect(() => {
     async function fetchCourseData() {
@@ -245,6 +247,7 @@ export default function CourseContent() {
                 </div>
                 
                 <Card className="p-6 mb-8">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">Lesson Content</h3>
                   <div className="prose dark:prose-invert max-w-none">
                     {/* Render content based on what format it appears to be */}
                     {currentLesson.content.includes('<') && currentLesson.content.includes('>') ? (
@@ -342,11 +345,13 @@ export default function CourseContent() {
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 z-40">
         <div className="max-w-6xl mx-auto px-4">
           <div className="grid grid-cols-3 h-16">
-            <MobileNavLink 
-              to="/courses" 
-              icon={<BookOpen className="h-5 w-5" />} 
-              text="Courses" 
-            />
+            <button
+              onClick={() => setShowTableOfContents(true)}
+              className="flex flex-col items-center justify-center space-y-1 py-1 text-gray-600 dark:text-gray-300"
+            >
+              <List className="h-5 w-5" />
+              <span className="text-xs">Contents</span>
+            </button>
             {previousLesson && (
               <MobileNavLink 
                 to={`/course/${courseId}/module/${previousLesson.module_id}/lesson/${previousLesson.id}`}
@@ -370,6 +375,76 @@ export default function CourseContent() {
           </div>
         </div>
       </div>
+
+      {/* Mobile Table of Contents Sheet */}
+      <Sheet open={showTableOfContents} onOpenChange={setShowTableOfContents}>
+        <SheetContent side="bottom" className="h-[85vh] overflow-hidden flex flex-col">
+          <SheetHeader className="border-b border-gray-200 dark:border-gray-700 pb-4">
+            <SheetTitle>{course?.title || 'Course Contents'}</SheetTitle>
+            <SheetDescription>Navigate through modules and lessons</SheetDescription>
+          </SheetHeader>
+          
+          <nav className="flex-1 overflow-y-auto py-2">
+            {modulesToDisplay.map((module) => {
+              const hasLessons = lessons[module.id]?.length > 0;
+              
+              return (
+                <div key={module.id} className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+                  <button
+                    onClick={() => toggleModule(module.id)}
+                    className={cn(
+                      "w-full flex items-center justify-between text-left px-4 py-3",
+                      "text-gray-800 dark:text-gray-200",
+                      module.id === moduleId ? 
+                        "bg-gray-100 dark:bg-gray-900 font-medium text-[#F37022] dark:text-orange-300" : 
+                        "bg-white dark:bg-gray-800"
+                    )}
+                  >
+                    <span className="text-base font-medium">{module.title}</span>
+                    {hasLessons && (
+                      <ChevronDown 
+                        className={cn(
+                          "h-4 w-4 text-gray-500 transition-transform duration-200",
+                          expandedModules[module.id] && "transform rotate-180"
+                        )} 
+                      />
+                    )}
+                  </button>
+                  
+                  {expandedModules[module.id] && hasLessons && (
+                    <ul className="py-1 bg-gray-50 dark:bg-gray-900">
+                      {lessons[module.id]?.map((lesson) => (
+                        <li key={lesson.id}>
+                          <button
+                            onClick={() => {
+                              navigate(`/course/${courseId}/module/${module.id}/lesson/${lesson.id}`);
+                              setShowTableOfContents(false);
+                            }}
+                            className={cn(
+                              "w-full text-left block py-3 px-6 text-sm border-l-2 my-1 mx-1 rounded",
+                              lesson.id === lessonId
+                                ? "border-[#F37022] bg-orange-50 dark:bg-orange-900/20 text-[#F37022] dark:text-orange-300 font-medium"
+                                : "border-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                            )}
+                          >
+                            {lesson.title}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  
+                  {expandedModules[module.id] && !hasLessons && (
+                    <div className="py-3 px-6 text-sm text-gray-500 italic bg-gray-50 dark:bg-gray-900">
+                      No lessons available
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 } 

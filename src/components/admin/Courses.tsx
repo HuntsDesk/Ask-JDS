@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import CreateCourse from './CreateCourse';
 import CreateModule from './CreateModule';
 import CreateLesson from './CreateLesson';
@@ -578,6 +578,9 @@ export const AdminCourses = () => {
         <SheetContent className="sm:max-w-md md:max-w-xl overflow-y-auto">
           <SheetHeader className="mb-5">
             <SheetTitle>{editingCourse ? 'Edit Course' : 'Create Course'}</SheetTitle>
+            <SheetDescription>
+              {editingCourse ? 'Update the course details below' : 'Create a new course'}
+            </SheetDescription>
           </SheetHeader>
           <CreateCourse 
             editMode={!!editingCourse}

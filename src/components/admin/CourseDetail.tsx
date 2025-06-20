@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import CreateModule from './CreateModule';
 import CreateLesson from './CreateLesson';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -1683,6 +1683,9 @@ export const CourseDetail = () => {
         <SheetContent className="sm:max-w-md md:max-w-xl overflow-y-auto">
           <SheetHeader className="mb-5">
             <SheetTitle>{editingModule ? 'Edit Module' : 'Create Module'}</SheetTitle>
+            <SheetDescription>
+              {editingModule ? 'Update the module details below' : 'Create a new module for this course'}
+            </SheetDescription>
           </SheetHeader>
           <CreateModule
             editMode={!!editingModule}
@@ -1699,6 +1702,9 @@ export const CourseDetail = () => {
         <SheetContent className="sm:max-w-md md:max-w-xl overflow-y-auto" showCloseButton={false}>
           <SheetHeader>
             <SheetTitle>{editingLesson ? 'Edit Lesson' : 'Create Lesson'}</SheetTitle>
+            <SheetDescription>
+              {editingLesson ? 'Update the lesson details below' : 'Create a new lesson for this module'}
+            </SheetDescription>
           </SheetHeader>
           <CreateLesson
             editMode={!!editingLesson}
@@ -1777,6 +1783,9 @@ export const CourseDetail = () => {
         <SheetContent className="sm:max-w-md md:max-w-xl overflow-y-auto" showCloseButton={false}>
           <SheetHeader>
             <SheetTitle>Edit Course</SheetTitle>
+            <SheetDescription>
+              Update the course details and settings
+            </SheetDescription>
           </SheetHeader>
           {editingCourse && (
             <form onSubmit={(e) => {
