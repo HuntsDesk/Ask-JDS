@@ -9,105 +9,132 @@ let cachedSystemPrompt = null;
 
 /**
  * Parse JSON streaming response from Google Gemini
- * Extracts text content from newline-delimited JSON chunks
+ * Gemini returns a JSON array format where each chunk is a complete JSON object
+ * Output as Server-Sent Events (SSE) format for the frontend
  */
 function createStreamParser(): TransformStream<Uint8Array, Uint8Array> {
   const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
   let buffer = '';
+  let isFirstChunk = true;
+  let inArray = false;
   
   return new TransformStream({
     transform(chunk, controller) {
+      if (isFirstChunk) {
+        console.log(`[chat-stream] First chunk received at ${new Date().toISOString()}`);
+        isFirstChunk = false;
+      }
+      
+      // Decode the chunk and add to buffer
       const text = decoder.decode(chunk, { stream: true });
-      console.log(`🔍 Raw chunk received (${text.length} chars):`, JSON.stringify(text.substring(0, 200)));
       buffer += text;
       
-      // Try different parsing strategies
-      // Strategy 1: Split by comma and newline (original approach)
-      let parts = buffer.split(',\r\n');
-      if (parts.length === 1) {
-        // Strategy 2: Split by just newline
-        parts = buffer.split('\n');
-      }
-      if (parts.length === 1) {
-        // Strategy 3: Split by comma
-        parts = buffer.split(',');
-      }
-      
-      console.log(`🔍 Split into ${parts.length} parts using buffer length ${buffer.length}`);
-      
-      // Keep the last incomplete part in buffer
-      buffer = parts.pop() || '';
-      
-      for (let i = 0; i < parts.length; i++) {
-        const jsonPart = parts[i];
-        let trimmed = jsonPart.trim();
-        if (!trimmed) continue;
+      // Process the buffer to extract complete JSON objects
+      while (buffer.length > 0) {
+        // Skip leading whitespace and array brackets
+        buffer = buffer.trimStart();
         
-        // Remove array brackets if present
-        trimmed = trimmed.replace(/^\s*\[/, '').replace(/\]\s*$/, '');
-        if (!trimmed) continue;
+        // Handle array opening bracket
+        if (buffer.startsWith('[')) {
+          inArray = true;
+          buffer = buffer.substring(1);
+          continue;
+        }
         
-        console.log(`🔍 Processing part ${i}: "${trimmed.substring(0, 100)}..."`);
+        // Handle array closing bracket
+        if (buffer.startsWith(']')) {
+          // End of stream - send done signal
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          buffer = buffer.substring(1);
+          continue;
+        }
         
-        try {
-          const data = JSON.parse(trimmed);
-          console.log(`🔍 Parsed JSON:`, JSON.stringify(data, null, 2).substring(0, 300));
+        // Skip commas between array elements
+        if (buffer.startsWith(',')) {
+          buffer = buffer.substring(1);
+          continue;
+        }
+        
+        // Try to find a complete JSON object
+        if (buffer.startsWith('{')) {
+          let braceCount = 0;
+          let inString = false;
+          let escapeNext = false;
+          let jsonEnd = -1;
           
-          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            console.log(`🔍 Extracted text: "${text.substring(0, 50)}..."`);
-            // Format as Server-Sent Events
-            const sseData = `data: ${JSON.stringify({ text })}\n\n`;
-            controller.enqueue(new TextEncoder().encode(sseData));
-          } else {
-            console.log(`🔍 No text found in candidates structure`);
-          }
-        } catch (error) {
-          console.warn(`❌ Parse error for: "${trimmed.substring(0, 50)}..."`, error);
-          
-          // Try parsing as a simple text response (fallback)
-          if (trimmed.includes('"text"')) {
-            try {
-              const textMatch = trimmed.match(/"text":\s*"([^"]+)"/);
-              if (textMatch && textMatch[1]) {
-                const extractedText = textMatch[1];
-                console.log(`🔍 Fallback extracted text: "${extractedText}"`);
-                const sseData = `data: ${JSON.stringify({ text: extractedText })}\n\n`;
-                controller.enqueue(new TextEncoder().encode(sseData));
-              }
-            } catch (fallbackError) {
-              console.warn(`❌ Fallback parse also failed:`, fallbackError);
+          for (let i = 0; i < buffer.length; i++) {
+            const char = buffer[i];
+            
+            if (escapeNext) {
+              escapeNext = false;
+              continue;
             }
+            
+            if (char === '\\') {
+              escapeNext = true;
+              continue;
+            }
+            
+            if (char === '"' && !escapeNext) {
+              inString = !inString;
+              continue;
+            }
+            
+            if (!inString) {
+              if (char === '{') braceCount++;
+              else if (char === '}') {
+                braceCount--;
+                if (braceCount === 0) {
+                  jsonEnd = i + 1;
+                  break;
+                }
+              }
+            }
+          }
+          
+          if (jsonEnd > 0) {
+            // We have a complete JSON object
+            const jsonStr = buffer.substring(0, jsonEnd);
+            buffer = buffer.substring(jsonEnd);
+            
+            try {
+              const data = JSON.parse(jsonStr);
+              
+              // Extract text from the response
+              const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) {
+                // Send as SSE format
+                const sseData = JSON.stringify({ text });
+                controller.enqueue(encoder.encode(`data: ${sseData}\n\n`));
+              }
+            } catch (e) {
+              console.error('[chat-stream] Parse error:', e, 'for JSON:', jsonStr);
+            }
+          } else {
+            // Incomplete JSON, wait for more data
+            break;
+          }
+        } else {
+          // No valid JSON start found, clear buffer or wait for more data
+          const nextBrace = buffer.indexOf('{');
+          if (nextBrace > 0) {
+            buffer = buffer.substring(nextBrace);
+          } else {
+            // No more braces found, wait for more data
+            break;
           }
         }
       }
     },
     
     flush(controller) {
-      console.log(`🔍 Flush called with remaining buffer: "${buffer.substring(0, 100)}..."`);
-      
-      // Process any remaining complete JSON in buffer
+      // Process any remaining data
       if (buffer.trim()) {
-        let trimmed = buffer.trim().replace(/^\s*\[/, '').replace(/\]\s*$/, '');
-        if (trimmed) {
-          try {
-            const data = JSON.parse(trimmed);
-            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              console.log(`🔍 Flush extracted text: "${text.substring(0, 50)}..."`);
-              const sseData = `data: ${JSON.stringify({ text })}\n\n`;
-              controller.enqueue(new TextEncoder().encode(sseData));
-            }
-          } catch (error) {
-            console.warn(`❌ Flush parse error: "${trimmed.substring(0, 50)}..."`, error);
-          }
-        }
+        console.log('[chat-stream] Unprocessed data in buffer:', buffer);
       }
-      
-      // Send completion marker
-      console.log(`🔍 Sending completion marker`);
-      const doneData = `data: [DONE]\n\n`;
-      controller.enqueue(new TextEncoder().encode(doneData));
+      // Ensure we send the done signal
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
     }
   });
 }
@@ -165,7 +192,7 @@ Deno.serve(async (req) => {
     // Get streaming URL using the config system
     const GOOGLE_STREAMING_URL = getModelEndpoint(modelCodeName, true);
 
-    console.log(`Streaming chat request - User: ${user.id}, Tier: ${userTier}, Model: ${modelCodeName}`);
+    // `Streaming chat request - User: ${user.id}, Tier: ${userTier}, Model: ${modelCodeName}`);
 
     // Get system prompt - use the same comprehensive default as chat-google
     let systemPrompt = cachedSystemPrompt || `You are Ask JDS, a legal study buddy, designed to help law students and bar exam takers understand complex legal concepts and prepare for exams.
@@ -279,7 +306,10 @@ Remember:
       })
     };
 
-    console.log(`Making streaming request to: ${GOOGLE_STREAMING_URL}`);
+    // `Making streaming request to: ${GOOGLE_STREAMING_URL}`);
+    
+    const requestStartTime = Date.now();
+    console.log(`[chat-stream] Starting request to Gemini at ${new Date().toISOString()}`);
 
     // Make streaming request to Gemini
     const geminiResponse = await fetch(`${GOOGLE_STREAMING_URL}?key=${GOOGLE_API_KEY}`, {
@@ -289,6 +319,9 @@ Remember:
       },
       body: JSON.stringify(payload)
     });
+    
+    const responseTime = Date.now() - requestStartTime;
+    console.log(`[chat-stream] Gemini response received after ${responseTime}ms`);
 
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();
@@ -309,12 +342,37 @@ Remember:
       });
     }
 
-    // Create the stream parser and pipe the response through it
-    const streamParser = createStreamParser();
-    const textStream = geminiResponse.body.pipeThrough(streamParser);
+    // Create a TransformStream to handle the response
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    
+    // Send an immediate "thinking" indicator
+    const encoder = new TextEncoder();
+    writer.write(encoder.encode('data: {"text":"\\n"}\n\n')).catch(console.error);
+    
+    // Process the Gemini response in the background
+    (async () => {
+      try {
+        // Create the stream parser and pipe the response through it
+        const streamParser = createStreamParser();
+        const textStream = geminiResponse.body!.pipeThrough(streamParser);
+        
+        // Copy the parsed stream to our writer
+        const reader = textStream.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          await writer.write(value);
+        }
+      } catch (error) {
+        console.error('Error processing stream:', error);
+      } finally {
+        writer.close();
+      }
+    })();
 
-    // Return the streaming response
-    return new Response(textStream, {
+    // Return the streaming response immediately
+    return new Response(readable, {
       status: 200,
       headers: {
         "Content-Type": "text/event-stream",
