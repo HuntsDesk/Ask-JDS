@@ -488,7 +488,6 @@ export function HomePage() {
                       priority={currentImageIndex === 0}
                       loading="eager"
                       decoding="sync"
-                      style={{ imageRendering: 'crisp-edges' }}
                     />
                     <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-lg opacity-0 hover:opacity-100 transition-opacity">
                       <ZoomIn className="w-5 h-5" />
@@ -626,7 +625,6 @@ export function HomePage() {
                       priority={currentFlashcardIndex === 0}
                       loading="eager"
                       decoding="sync"
-                      style={{ imageRendering: 'crisp-edges' }}
                     />
                     <div className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-lg opacity-0 hover:opacity-100 transition-opacity">
                       <ZoomIn className="w-5 h-5" />
@@ -907,7 +905,6 @@ export function HomePage() {
             onClick={(e) => e.stopPropagation()}
             loading="eager"
             decoding="sync"
-            style={{ imageRendering: 'crisp-edges' }}
           />
         </div>
       </div>
@@ -933,7 +930,6 @@ export function HomePage() {
             onClick={(e) => e.stopPropagation()}
             loading="eager"
             decoding="sync"
-            style={{ imageRendering: 'crisp-edges' }}
           />
         </div>
       </div>

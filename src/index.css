@@ -1060,17 +1060,33 @@ div[role="tooltip"],
 
 /* High-quality image rendering for screenshots */
 img[src*="demo"], img[src*="screenshot"] {
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  image-rendering: pixelated;
+  image-rendering: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Force high-quality rendering for text-heavy images */
 .screenshot-image {
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
   image-rendering: auto;
-  -ms-interpolation-mode: nearest-neighbor;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* Ensure screenshot images maintain aspect ratio and quality */
+.screenshot-image img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Optimize rendering for retina displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .screenshot-image {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: high-quality;
+  }
 }
 
 /* Ensure proper spacing between major sections */
